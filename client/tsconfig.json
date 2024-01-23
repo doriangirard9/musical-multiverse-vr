@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "outDir": "./public/js",
+    "target": "es6",
+    "module": "esnext",
+    "moduleResolution": "node",
+    "noResolve": false,
+    "noImplicitAny": false,
+    "sourceMap": true,
+    "preserveConstEnums":true,
+    "lib": [
+      "dom",
+      "es6"
+    ],
+    "rootDir": "src",
+    "resolveJsonModule": true,
+    "esModuleInterop": true
+  }
+}
