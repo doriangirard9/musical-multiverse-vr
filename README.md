@@ -6,11 +6,11 @@ npm i
 ```
 
 ### Run
+Client
 ```
 npm run dev
 ```
-
-in client folder
+Server
 ```
 PORT=4444 node ./bin/server.js
 ```
