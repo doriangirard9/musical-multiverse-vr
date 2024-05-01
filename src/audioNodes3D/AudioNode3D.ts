@@ -158,7 +158,7 @@ export abstract class AudioNode3D implements INetworkObject<AudioNodeState> {
         this._app.guiManager.addControl(this._menu);
         this._menu.margin = 0.05;
         this._menu.isPinned = true;
-        this._menu.position = this.baseMesh.position;
+        this._menu.position = this.baseMesh.position.clone();
         this._menu.position.y += 1.5;
 
         const follower: B.FollowBehavior = this._menu.defaultBehavior.followBehavior;
