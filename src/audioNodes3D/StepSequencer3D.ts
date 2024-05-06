@@ -14,6 +14,7 @@ export class StepSequencer3D extends AudioNode3D {
 
     public async instantiate(): Promise<void> {
         this._synths = Array.from({length: 4}, () => new Tone.Synth());
+        Tone.Transport.start();
 
         this._createBaseMesh();
         this._createGrid();
@@ -68,6 +69,11 @@ export class StepSequencer3D extends AudioNode3D {
         buttonMesh.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickTrigger, () => {
             this._grid[row][column].isActivated = !this._grid[row][column].isActivated;
             this._updateNoteColor(row, column);
+
+            this._isModified = true;
+            setTimeout((): void => {
+                this._isModified = false;
+            }, 1000);
         }));
     }
 
@@ -134,7 +140,8 @@ export class StepSequencer3D extends AudioNode3D {
             position: { x: this.baseMesh.position.x, y: this.baseMesh.position.y, z: this.baseMesh.position.z },
             rotation: { x: this.baseMesh.rotation.x, y: this.baseMesh.rotation.y, z: this.baseMesh.rotation.z },
             inputNodes: inputNodes,
-            parameters: parameters
+            parameters: parameters,
+            isModified: this._isModified
         };
     }
 

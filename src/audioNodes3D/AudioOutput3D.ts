@@ -42,7 +42,8 @@ export class AudioOutput3D extends AudioNode3D {
             position: { x: this.baseMesh.position.x, y: this.baseMesh.position.y, z: this.baseMesh.position.z },
             rotation: { x: this.baseMesh.rotation.x, y: this.baseMesh.rotation.y, z: this.baseMesh.rotation.z },
             inputNodes: [],
-            parameters: {}
+            parameters: {},
+            isModified: this._isModified,
         };
     }
 }

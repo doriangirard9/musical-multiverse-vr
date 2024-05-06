@@ -115,7 +115,9 @@ export class NetworkManager {
     private _update(): void {
         this._audioNodes3D.forEach((audioNode3D: AudioNode3D): void => {
             const state: AudioNodeState = audioNode3D.getState();
-            this._networkAudioNodes3D.set(state.id, state);
+            if (state.isModified) {
+                this._networkAudioNodes3D.set(state.id, state);
+            }
         });
     }
 }

@@ -10,6 +10,8 @@ export abstract class AudioNode3D implements INetworkObject<AudioNodeState> {
     protected readonly _scene: B.Scene;
     protected readonly _audioCtx: AudioContext;
     protected readonly _app: App = App.getInstance();
+    private readonly _pointerDragBehavior: B.PointerDragBehavior;
+    protected _isModified: boolean = false;
     public baseMesh!: B.Mesh;
 
     // Gizmo
@@ -32,6 +34,7 @@ export abstract class AudioNode3D implements INetworkObject<AudioNodeState> {
         this.id = id;
         this._utilityLayer = new B.UtilityLayerRenderer(this._scene);
         this._rotationGizmo = new B.RotationGizmo(this._utilityLayer);
+        this._pointerDragBehavior = new B.PointerDragBehavior();
     }
 
     public abstract instantiate(): any;
@@ -42,6 +45,10 @@ export abstract class AudioNode3D implements INetworkObject<AudioNodeState> {
 
     public addInputNode(audioNode3D: AudioNode3D): void {
         this.inputNodes.set(audioNode3D.id, audioNode3D);
+        this._isModified = true;
+        setTimeout((): void => {
+            this._isModified = false;
+        }, 1000);
     }
 
     public delete(): void {
@@ -56,8 +63,6 @@ export abstract class AudioNode3D implements INetworkObject<AudioNodeState> {
 
     protected _initActionManager(): void {
         const highlightLayer = new B.HighlightLayer(`hl${this.id}`, this._scene);
-
-        const pointerDragBehavior = new B.PointerDragBehavior();
         this.baseMesh.actionManager = new B.ActionManager(this._scene);
 
         const xrLeftInputStates: XRInputStates = this._app.xrManager.xrInputManager.leftInputStates;
@@ -78,10 +83,12 @@ export abstract class AudioNode3D implements INetworkObject<AudioNodeState> {
 
         // move the wam in the scene
         this.baseMesh.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnLeftPickTrigger, (): void => {
-            this.baseMesh.addBehavior(pointerDragBehavior);
+            this._isModified = true;
+            this.baseMesh.addBehavior(this._pointerDragBehavior);
         }));
         this.baseMesh.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickUpTrigger, (): void => {
-            this.baseMesh.removeBehavior(pointerDragBehavior);
+            this._isModified = false;
+            this.baseMesh.removeBehavior(this._pointerDragBehavior);
         }));
     }
 
@@ -120,6 +127,7 @@ export abstract class AudioNode3D implements INetworkObject<AudioNodeState> {
         // action manager
         this.inputMesh.actionManager = new B.ActionManager(this._scene);
         this.inputMesh.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnLeftPickTrigger, (): void => {
+            this.baseMesh.removeBehavior(this._pointerDragBehavior);
             this.ioObservable.notifyObservers({type: 'input', pickType: 'down', node: this});
         }));
         this.inputMesh.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickUpTrigger, (): void => {
@@ -194,10 +202,18 @@ export abstract class AudioNode3D implements INetworkObject<AudioNodeState> {
 
     protected _showRotationGizmo(): void {
         this._rotationGizmo.attachedMesh = this.baseMesh;
+        this._rotationGizmo.onDragStartObservable.add((): void => {
+            this._isModified = true;
+        });
+        this._rotationGizmo.onDragEndObservable.add((): void => {
+            this._isModified = false;
+        });
     }
 
     protected _hideRotationGizmo(): void {
         this._rotationGizmo.attachedMesh = null;
+        this._rotationGizmo.onDragStartObservable.clear();
+        this._rotationGizmo.onDragEndObservable.clear();
     }
 
     public abstract getState(): AudioNodeState;
