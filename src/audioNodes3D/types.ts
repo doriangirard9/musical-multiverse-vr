@@ -13,7 +13,7 @@ export interface IWamConfig extends IAudioNodeConfig {
 }
 
 export type WamInstance = {
-    audioNode: {_wamNode: WamAudioNode};
+    audioNode: { _wamNode: WamAudioNode };
 };
 
 export interface WamAudioNode extends AudioNode {

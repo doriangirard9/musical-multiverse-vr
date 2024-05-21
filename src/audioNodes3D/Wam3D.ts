@@ -95,10 +95,12 @@ export class Wam3D extends AudioNode3D {
     }
 
     public getAudioNode(): AudioNode {
+        // @ts-ignore
         return this._wamInstance.audioNode;
     }
 
     public connect(destination: AudioNode): void {
+        // @ts-ignore
         this._wamInstance.audioNode.connect(destination);
     }
 
