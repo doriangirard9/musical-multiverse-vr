@@ -6,12 +6,15 @@ import {AudioOutput3D} from "./AudioOutput3D.ts";
 import {Wam3D} from "./Wam3D.ts";
 import {StepSequencer3D} from "./StepSequencer3D.ts";
 
+const WAM_CONFIGS_URL: string = "https://wam-configs.onrender.com";
+
 export class AudioNode3DBuilder {
     constructor(private readonly _scene: B.Scene, private readonly _audioCtx: AudioContext) {}
 
     public async create(name: string, id: string, configFile?: string): Promise<AudioNode3D> {
         if (name === "simpleOscillator") {
-            const config: IAudioNodeConfig = await import(/* @vite-ignore */`../coreConfig/simpleOscillatorConfig.json`);
+            // @ts-ignore
+            const config: IAudioNodeConfig = await import(/* @vite-ignore */`${WAM_CONFIGS_URL}/coreConfig/simpleOscillatorConfig`);
             return new SimpleOscillator3D(this._scene, this._audioCtx, id, config);
         }
         else if (name === "stepSequencer") {
@@ -22,7 +25,7 @@ export class AudioNode3DBuilder {
         }
         // WAMs
         else {
-            const config: IWamConfig = await import(/* @vite-ignore */`../wamsConfig/${configFile}.json`);
+            const config: IWamConfig = await import(/* @vite-ignore */`${WAM_CONFIGS_URL}/wamsConfig/${configFile}.json`);
             return new Wam3D(this._scene, this._audioCtx, id, config, configFile!);
         }
     }
