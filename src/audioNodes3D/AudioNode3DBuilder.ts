@@ -25,7 +25,7 @@ export class AudioNode3DBuilder {
         }
         // WAMs
         else {
-            const config: IWamConfig = await import(/* @vite-ignore */`${WAM_CONFIGS_URL}/wamsConfig/${configFile}.json`);
+            const config: IWamConfig = await import(/* @vite-ignore */`${WAM_CONFIGS_URL}/wamsConfig/${configFile}`);
             return new Wam3D(this._scene, this._audioCtx, id, config, configFile!);
         }
     }
