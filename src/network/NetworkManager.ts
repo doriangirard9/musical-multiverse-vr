@@ -122,7 +122,6 @@ export class NetworkManager {
     }
 
     private _compare(state1: AudioNodeState, state2: AudioNodeState): boolean {
-        console.log(state1, state2);
         return JSON.stringify(state1) === JSON.stringify(state2);
     }
 }
