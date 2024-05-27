@@ -14,7 +14,7 @@ export class AudioNode3DBuilder {
     public async create(name: string, id: string, configFile?: string): Promise<AudioNode3D> {
         if (name === "simpleOscillator") {
             // @ts-ignore
-            const config: IAudioNodeConfig = await import(/* @vite-ignore */`${WAM_CONFIGS_URL}/coreConfig/simpleOscillatorConfig`);
+            const config: IAudioNodeConfig = await import(/* @vite-ignore */`${WAM_CONFIGS_URL}/coreConfig/simpleOscillatorConfig.json`);
             return new SimpleOscillator3D(this._scene, this._audioCtx, id, config);
         }
         else if (name === "stepSequencer") {
@@ -25,7 +25,7 @@ export class AudioNode3DBuilder {
         }
         // WAMs
         else {
-            const config: IWamConfig = await import(/* @vite-ignore */`${WAM_CONFIGS_URL}/wamsConfig/${configFile}`);
+            const config: IWamConfig = await import(/* @vite-ignore */`${WAM_CONFIGS_URL}/wamsConfig/${configFile}.json`);
             return new Wam3D(this._scene, this._audioCtx, id, config, configFile!);
         }
     }
