@@ -86,11 +86,6 @@ export class SimpleOscillator3D extends AudioNode3D {
                 default:
                     break;
             }
-            
-            this._isModified = true;
-            setTimeout((): void => {
-                this._isModified = false;
-            }, 1000);
         });
         parameter3D.onValueChangedObservable.notifyObservers(defaultValue);
 
@@ -135,8 +130,7 @@ export class SimpleOscillator3D extends AudioNode3D {
             position: { x: this.baseMesh.position.x, y: this.baseMesh.position.y, z: this.baseMesh.position.z },
             rotation: { x: this.baseMesh.rotation.x, y: this.baseMesh.rotation.y, z: this.baseMesh.rotation.z },
             inputNodes: inputNodes,
-            parameters: parameters,
-            isModified: this._isModified
+            parameters: parameters
         };
     }
 

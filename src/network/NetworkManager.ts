@@ -115,9 +115,14 @@ export class NetworkManager {
     private _update(): void {
         this._audioNodes3D.forEach((audioNode3D: AudioNode3D): void => {
             const state: AudioNodeState = audioNode3D.getState();
-            if (state.isModified) {
+            if (!this._compare(state, this._networkAudioNodes3D.get(state.id)!)) {
                 this._networkAudioNodes3D.set(state.id, state);
             }
         });
+    }
+
+    private _compare(state1: AudioNodeState, state2: AudioNodeState): boolean {
+        console.log(state1, state2);
+        return JSON.stringify(state1) === JSON.stringify(state2);
     }
 }

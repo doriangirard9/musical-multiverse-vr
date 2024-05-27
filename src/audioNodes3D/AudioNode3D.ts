@@ -11,7 +11,6 @@ export abstract class AudioNode3D implements INetworkObject<AudioNodeState> {
     protected readonly _audioCtx: AudioContext;
     protected readonly _app: App = App.getInstance();
     private readonly _pointerDragBehavior: B.PointerDragBehavior;
-    protected _isModified: boolean = false;
     public baseMesh!: B.Mesh;
 
     // Gizmo
@@ -45,10 +44,6 @@ export abstract class AudioNode3D implements INetworkObject<AudioNodeState> {
 
     public addInputNode(audioNode3D: AudioNode3D): void {
         this.inputNodes.set(audioNode3D.id, audioNode3D);
-        this._isModified = true;
-        setTimeout((): void => {
-            this._isModified = false;
-        }, 1000);
     }
 
     public delete(): void {
@@ -83,11 +78,9 @@ export abstract class AudioNode3D implements INetworkObject<AudioNodeState> {
 
         // move the wam in the scene
         this.baseMesh.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnLeftPickTrigger, (): void => {
-            this._isModified = true;
             this.baseMesh.addBehavior(this._pointerDragBehavior);
         }));
         this.baseMesh.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickUpTrigger, (): void => {
-            this._isModified = false;
             this.baseMesh.removeBehavior(this._pointerDragBehavior);
         }));
     }
@@ -202,12 +195,6 @@ export abstract class AudioNode3D implements INetworkObject<AudioNodeState> {
 
     protected _showRotationGizmo(): void {
         this._rotationGizmo.attachedMesh = this.baseMesh;
-        this._rotationGizmo.onDragStartObservable.add((): void => {
-            this._isModified = true;
-        });
-        this._rotationGizmo.onDragEndObservable.add((): void => {
-            this._isModified = false;
-        });
     }
 
     protected _hideRotationGizmo(): void {

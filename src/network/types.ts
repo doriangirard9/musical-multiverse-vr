@@ -11,7 +11,6 @@ export type AudioNodeState = {
     rotation: { x: number, y: number, z: number };
     inputNodes: string[];
     parameters: { [name: string]: number };
-    isModified: boolean;
 }
 
 export type PlayerState = {

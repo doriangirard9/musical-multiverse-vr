@@ -84,10 +84,6 @@ export class Wam3D extends AudioNode3D {
         // update audio node when parameter value changes
         parameter3D.onValueChangedObservable.add((value: number): void => {
             this._wamInstance.audioNode._wamNode.setParamValue(fullParamName, value);
-            this._isModified = true;
-            setTimeout((): void => {
-                this._isModified = false;
-            }, 1000);
         });
         parameter3D.onValueChangedObservable.notifyObservers(defaultValue);
 
@@ -124,8 +120,7 @@ export class Wam3D extends AudioNode3D {
             position: { x: this.baseMesh.position.x, y: this.baseMesh.position.y, z: this.baseMesh.position.z },
             rotation: { x: this.baseMesh.rotation.x, y: this.baseMesh.rotation.y, z: this.baseMesh.rotation.z },
             inputNodes: inputNodes,
-            parameters: parameters,
-            isModified: this._isModified
+            parameters: parameters
         };
     }
 
