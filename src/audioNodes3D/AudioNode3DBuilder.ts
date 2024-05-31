@@ -6,6 +6,7 @@ import {AudioOutput3D} from "./AudioOutput3D.ts";
 import {Wam3D} from "./Wam3D.ts";
 import {StepSequencer3D} from "./StepSequencer3D.ts";
 
+// const WAM_CONFIGS_URL: string = "https://wam-configs.onrender.com";
 const WAM_CONFIGS_URL: string = "https://wam-configs.onrender.com";
 
 export class AudioNode3DBuilder {

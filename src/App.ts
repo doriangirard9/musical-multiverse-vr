@@ -140,7 +140,7 @@ export class App {
         }
     }
 
-    private _sendPlayerState(): void {
+    public _sendPlayerState(): PlayerState {
         const xrCameraPosition: B.Vector3 = this.xrManager.xrHelper.baseExperience.camera.position;
         const xrCameraDirection: B.Vector3 = this.xrManager.xrHelper.baseExperience.camera.getDirection(B.Axis.Z);
         const xrLeftControllerPosition: B.Vector3 = this.xrManager.xrInputManager.leftController.grip!.position;
@@ -155,5 +155,6 @@ export class App {
         }
 
         this.networkManager.updatePlayerState(playerState);
+        return playerState;
     }
 }

@@ -12,7 +12,7 @@ export class Wam3D extends AudioNode3D {
     private _parameter3D: {[name: string]: IParameter} = {};
     private _paramBuilder!: ParamBuilder;
     private readonly _configFile!: string;
-
+    private boundingBox! : B.AbstractMesh;
     constructor(scene: B.Scene, audioCtx: AudioContext, id: string, config: IWamConfig, configFile: string) {
         super(scene, audioCtx, id);
         this._config = config;
@@ -36,7 +36,7 @@ export class Wam3D extends AudioNode3D {
         this._paramBuilder = new ParamBuilder(this._scene, this._config);
 
         this._usedParameters = this._config.customParameters.filter((param: CustomParameter): boolean => param.used);
-
+        
         this._createBaseMesh();
         for (let i: number = 0; i < this._usedParameters.length; i++) {
             await this._createParameter(this._usedParameters[i], i);
@@ -47,12 +47,13 @@ export class Wam3D extends AudioNode3D {
         this._rotationGizmo = new B.RotationGizmo(this._utilityLayer);
 
         this._initActionManager();
-
+        console.log("createNode",this.baseMesh.position)
         this._createInput(new B.Vector3(-(this._usedParameters.length / 2 + 0.2), this.baseMesh.position.y, this.baseMesh.position.z));
         this._createOutput(new B.Vector3(this._usedParameters.length / 2 + 0.2, this.baseMesh.position.y, this.baseMesh.position.z));
-
         // shadow
         this._app.shadowGenerator.addShadowCaster(this.baseMesh);
+        this.createBoundingBox();
+
     }
 
     protected _createBaseMesh(): void {
@@ -62,7 +63,30 @@ export class Wam3D extends AudioNode3D {
         const material = new B.StandardMaterial('material', this._scene);
         material.diffuseColor = new B.Color3(0, 0, 0);
         this.baseMesh.material = material;
+
+
     }
+   // Create bounding box should be the parent of the node and the parameters and Wam3D
+   public createBoundingBox(): void {
+    const size = this._usedParameters.length;
+    this.boundingBox = B.MeshBuilder.CreateBox('bounding-box', { width: size + 2, height: 1.5, depth: 1.5 }, this._scene);
+    this.boundingBox.isVisible = true;
+    this.boundingBox.visibility = 0.5; // Adjust visibility as needed
+    this.boundingBox.showBoundingBox = true; // Optionally show the bounding box
+    // make the boundingbox no clickable
+    this.boundingBox.isPickable = false;
+    this.baseMesh.parent = this.boundingBox;
+    if (this.inputMesh) this.inputMesh.parent = this.boundingBox;
+    if (this.outputMesh) this.outputMesh.parent = this.boundingBox;
+    const data = this._app._sendPlayerState();
+    
+    this.boundingBox.position = new B.Vector3(data.position.x, data.position.y+0.3, data.position.z+3.5);
+    // rotate on x axis
+    this.boundingBox.rotation.x = -Math.PI / 6;
+    // this.boundingBox.position = new B.Vector3(this.baseMesh.position.x, this.baseMesh.position.y + 0.75, this.baseMesh.position.z);
+}
+
+
 
     private async _createParameter(param: CustomParameter, index: number): Promise<void> {
         const parameterStand: B.Mesh = this._createParameterStand(new B.Vector3(index - (this._usedParameters.length - 1) / 2, 0.1, this.baseMesh.position.z), param.name);
