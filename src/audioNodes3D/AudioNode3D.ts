@@ -10,7 +10,7 @@ export abstract class AudioNode3D implements INetworkObject<AudioNodeState> {
     protected readonly _scene: B.Scene;
     protected readonly _audioCtx: AudioContext;
     protected readonly _app: App = App.getInstance();
-    private readonly _pointerDragBehavior: B.PointerDragBehavior;
+    protected readonly _pointerDragBehavior: B.PointerDragBehavior;
     public baseMesh!: B.Mesh;
 
     // Gizmo

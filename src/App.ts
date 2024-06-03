@@ -32,7 +32,7 @@ export class App {
     private static _instance: App;
     public readonly ioManager!: IOManager;
     public id: string = uuid();
-
+    public menu!: Menu;
     private constructor(audioCtx: AudioContext) {
         this.canvas = document.querySelector('#renderCanvas') as HTMLCanvasElement;
         this.engine = new B.Engine(this.canvas, true);
@@ -49,6 +49,8 @@ export class App {
         this.ioManager = new IOManager(this.scene);
 
         this.networkManager = new NetworkManager(this.id);
+
+        
     }
 
     public static getInstance(audioCtx?: AudioContext): App {
@@ -82,16 +84,16 @@ export class App {
         const ground: B.Mesh = B.MeshBuilder.CreateGround('ground', {width: 30, height: 30}, this.scene);
         ground.receiveShadows = true;
 
-        const menu = new Menu(menuJson as MenuConfig);
-        menu.show();
+        this.menu = new Menu(menuJson as MenuConfig);
+        this.menu.show();
 
         // display menu on right controller A button press
         const xrRightInputStates: XRInputStates = this.xrManager.xrInputManager.rightInputStates;
         if (xrRightInputStates) {
             xrRightInputStates['a-button'].onButtonStateChangedObservable.add((component: B.WebXRControllerComponent): void => {
                 if (component.pressed) {
-                    if (!menu.isMenuOpen) menu.show();
-                    else menu.hide();
+                    if (!this.menu.isMenuOpen) this.menu.show();
+                    else this.menu.hide();
                 }
             });
         }

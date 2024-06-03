@@ -3,6 +3,7 @@ import {ParamBuilder} from "./parameters/ParamBuilder.ts";
 import {CustomParameter, IParameter, IWamConfig, ParameterInfo, WamInstance} from "./types.ts";
 import {AudioNode3D} from "./AudioNode3D.ts";
 import {AudioNodeState} from "../network/types.ts";
+import { XRInputStates } from "../xr/types.ts";
 
 export class Wam3D extends AudioNode3D {
     private readonly _config: IWamConfig;
@@ -13,10 +14,15 @@ export class Wam3D extends AudioNode3D {
     private _paramBuilder!: ParamBuilder;
     private readonly _configFile!: string;
     private boundingBox! : B.AbstractMesh;
+    
     constructor(scene: B.Scene, audioCtx: AudioContext, id: string, config: IWamConfig, configFile: string) {
         super(scene, audioCtx, id);
         this._config = config;
         this._configFile = configFile;
+        this._initializeGamepadManager();
+
+        
+    
     }
 
     private async _initWamInstance(wamUrl: string): Promise<WamInstance> {
@@ -53,7 +59,8 @@ export class Wam3D extends AudioNode3D {
         // shadow
         this._app.shadowGenerator.addShadowCaster(this.baseMesh);
         this.createBoundingBox();
-
+        this.moveBoundingBox();
+        this._app.menu.hide();
     }
 
     protected _createBaseMesh(): void {
@@ -69,12 +76,12 @@ export class Wam3D extends AudioNode3D {
    // Create bounding box should be the parent of the node and the parameters and Wam3D
    public createBoundingBox(): void {
     const size = this._usedParameters.length;
-    this.boundingBox = B.MeshBuilder.CreateBox('bounding-box', { width: size + 2, height: 1.5, depth: 1.5 }, this._scene);
+    this.boundingBox = B.MeshBuilder.CreateBox(`boundingBox${this.id}`, { width: size + 2, height: 1.5, depth: 1.5 }, this._scene);
     this.boundingBox.isVisible = true;
     this.boundingBox.visibility = 0.5; // Adjust visibility as needed
     this.boundingBox.showBoundingBox = true; // Optionally show the bounding box
     // make the boundingbox no clickable
-    this.boundingBox.isPickable = false;
+    this.boundingBox.isPickable = true;
     this.baseMesh.parent = this.boundingBox;
     if (this.inputMesh) this.inputMesh.parent = this.boundingBox;
     if (this.outputMesh) this.outputMesh.parent = this.boundingBox;
@@ -83,9 +90,53 @@ export class Wam3D extends AudioNode3D {
     this.boundingBox.position = new B.Vector3(data.position.x, data.position.y+0.3, data.position.z+3.5);
     // rotate on x axis
     this.boundingBox.rotation.x = -Math.PI / 6;
+
+
     // this.boundingBox.position = new B.Vector3(this.baseMesh.position.x, this.baseMesh.position.y + 0.75, this.baseMesh.position.z);
 }
 
+protected moveBoundingBox(): void {
+    const highlightLayer = new B.HighlightLayer(`hl${this.id}`, this._scene);
+    this.boundingBox.actionManager = new B.ActionManager(this._scene);
+
+    const pointerDragBehavior = new B.PointerDragBehavior({ dragPlaneNormal: new B.Vector3(0, 0, 1) });
+    this.boundingBox.addBehavior(pointerDragBehavior);
+
+    this.boundingBox.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPointerOverTrigger, (): void => {
+        highlightLayer.addMesh(this.boundingBox as B.Mesh, B.Color3.Black());
+    }));
+
+    this.boundingBox.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPointerOutTrigger, (): void => {
+        highlightLayer.removeMesh(this.boundingBox as B.Mesh);
+    }));
+
+    this.boundingBox.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnLeftPickTrigger, (): void => {
+        this.boundingBox.addBehavior(pointerDragBehavior);
+    }));
+
+    this.boundingBox.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickUpTrigger, (): void => {
+        this.boundingBox.removeBehavior(pointerDragBehavior);
+    }));
+}
+
+private _initializeGamepadManager(): void {
+    const gamepadManager = new B.GamepadManager();
+    gamepadManager.onGamepadConnectedObservable.add((gamepad) => {
+        console.log("Gamepad connected: ", gamepad.id);
+
+        if (gamepad instanceof B.GenericPad) {
+            gamepad.onleftstickchanged((values) => {
+                this._updateZPosition(values.y);
+            });
+        }
+    });
+}
+
+private _updateZPosition(value: number): void {
+    if (this.boundingBox) {
+        this.boundingBox.position.z += value * 0.1; // Adjust speed as needed
+    }
+}
 
 
     private async _createParameter(param: CustomParameter, index: number): Promise<void> {

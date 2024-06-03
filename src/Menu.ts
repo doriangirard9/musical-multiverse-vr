@@ -134,6 +134,7 @@ export class Menu {
      * Hide the menu from the screen
      */
     public hide(): void {
+        console.log("hide menu")
         this.isMenuOpen = false;
         this._menu.dispose();
     }
