@@ -141,7 +141,7 @@ export class App {
             // delete player
         }
     }
-
+    // TODO : use get state from XRManager
     public _sendPlayerState(): PlayerState {
         const xrCameraPosition: B.Vector3 = this.xrManager.xrHelper.baseExperience.camera.position;
         const xrCameraDirection: B.Vector3 = this.xrManager.xrHelper.baseExperience.camera.getDirection(B.Axis.Z);

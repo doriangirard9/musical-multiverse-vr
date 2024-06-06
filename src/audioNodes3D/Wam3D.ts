@@ -4,6 +4,72 @@ import {CustomParameter, IParameter, IWamConfig, ParameterInfo, WamInstance} fro
 import {AudioNode3D} from "./AudioNode3D.ts";
 import {AudioNodeState} from "../network/types.ts";
 import { XRInputStates } from "../xr/types.ts";
+import { App } from "../App.ts";
+
+class Drag implements B.Behavior<B.AbstractMesh> {
+
+    name="test"
+    interval: number|null=null
+    selected: B.AbstractMesh|null=null
+    drag
+
+    constructor(
+        private app: App
+    ){
+        this.drag=new B.PointerDragBehavior({ dragPlaneNormal: new B.Vector3(0, 0, 1) });
+    }
+
+    init(): void {
+        this.interval=setInterval(() => {
+            
+        },50)
+
+        console.log("init")
+        this.app.xrManager.xrHelper.input.controllers.forEach(controller => {
+            const thumbstick = controller.motionController?.getComponent("xr-standard-thumbstick");
+            thumbstick?.onAxisValueChangedObservable.add((axis) => {
+                if(this.selected){
+                    this.selected.removeBehavior(this.drag);
+                    this.selected.position.z -= axis.y*0.1;
+                    this.selected.addBehavior(this.drag);
+                }
+                this.drag.attach(this.selected!);
+            });
+            console.log("components",controller.pointer.position.asArray())
+        });
+    }
+
+    attach(target: B.AbstractMesh): void {
+
+        target?.actionManager?.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickDownTrigger, (event) => {
+
+
+            if(!this.selected)this.app.xrManager.xrFeaturesManager.disableFeature(B.WebXRFeatureName.MOVEMENT);
+            this.selected=target;
+            this.selected.addBehavior(this.drag);
+            console.log("down")
+        }))
+
+        const on_up=()=>{
+            if(this.selected)this.app.xrManager.xrFeaturesManager.enableFeature(B.WebXRFeatureName.MOVEMENT, "latest", {
+                xrInput: this.app.xrManager.xrHelper.input,
+                movementSpeed: 0.2,
+                rotationSpeed: 0.3,
+            });
+            this.selected?.removeBehavior(this.drag);
+            this.selected=null
+            console.log("up")
+        }
+
+        target?.actionManager?.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickUpTrigger, on_up))  
+        target?.actionManager?.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickOutTrigger, on_up))  
+    }
+
+    detach(): void {
+        if(this.interval!=null)clearTimeout(this.interval)
+    }
+
+}
 
 export class Wam3D extends AudioNode3D {
     private readonly _config: IWamConfig;
@@ -88,6 +154,7 @@ export class Wam3D extends AudioNode3D {
     const data = this._app._sendPlayerState();
     
     this.boundingBox.position = new B.Vector3(data.position.x, data.position.y+0.3, data.position.z+3.5);
+    // this.boundingBox.setDirection(new B.Vector3(data.direction.x, data.direction.y, data.direction.z));
     // rotate on x axis
     this.boundingBox.rotation.x = -Math.PI / 6;
 
@@ -95,12 +162,14 @@ export class Wam3D extends AudioNode3D {
     // this.boundingBox.position = new B.Vector3(this.baseMesh.position.x, this.baseMesh.position.y + 0.75, this.baseMesh.position.z);
 }
 
+
+
 protected moveBoundingBox(): void {
     const highlightLayer = new B.HighlightLayer(`hl${this.id}`, this._scene);
     this.boundingBox.actionManager = new B.ActionManager(this._scene);
 
-    const pointerDragBehavior = new B.PointerDragBehavior({ dragPlaneNormal: new B.Vector3(0, 0, 1) });
-    this.boundingBox.addBehavior(pointerDragBehavior);
+    this.boundingBox.addBehavior(new Drag(this._app));
+    
 
     this.boundingBox.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPointerOverTrigger, (): void => {
         highlightLayer.addMesh(this.boundingBox as B.Mesh, B.Color3.Black());
@@ -110,13 +179,6 @@ protected moveBoundingBox(): void {
         highlightLayer.removeMesh(this.boundingBox as B.Mesh);
     }));
 
-    this.boundingBox.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnLeftPickTrigger, (): void => {
-        this.boundingBox.addBehavior(pointerDragBehavior);
-    }));
-
-    this.boundingBox.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickUpTrigger, (): void => {
-        this.boundingBox.removeBehavior(pointerDragBehavior);
-    }));
 }
 
 private _initializeGamepadManager(): void {

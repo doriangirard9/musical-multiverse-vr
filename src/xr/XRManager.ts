@@ -6,6 +6,7 @@ export class XRManager {
     public xrInputManager!: XRInputManager;
     public xrHelper!: B.WebXRDefaultExperience;
     private _scene!: B.Scene;
+    public xrFeaturesManager! :B.WebXRFeaturesManager;
 
     private constructor() {}
 
@@ -37,7 +38,16 @@ export class XRManager {
             const errorMessage: string = 'WebXR is not supported on this browser';
             throw new Error(errorMessage);
         }
-        else return await this._scene.createDefaultXRExperienceAsync();
+        
+        else{
+            const xrExperience = await this._scene.createDefaultXRExperienceAsync();
+        
+            // Attempt to disable movement features
+            // Explicitly disable movement and other features if enabled by default
+            this.xrFeaturesManager = xrExperience.baseExperience.featuresManager;
+            return xrExperience;
+        
+        };
     }
 
     private _initXRFeatures(): void {
