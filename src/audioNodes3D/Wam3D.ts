@@ -31,9 +31,9 @@ class Drag implements B.Behavior<B.AbstractMesh> {
                 if(this.selected){
                     this.selected.removeBehavior(this.drag);
                     this.selected.position.z -= axis.y*0.1;
+                    this.drag.attach(this.selected!);
                     this.selected.addBehavior(this.drag);
                 }
-                this.drag.attach(this.selected!);
             });
             console.log("components",controller.pointer.position.asArray())
         });
