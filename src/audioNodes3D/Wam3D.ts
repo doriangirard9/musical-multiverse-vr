@@ -85,7 +85,6 @@ export class Wam3D extends AudioNode3D {
         super(scene, audioCtx, id);
         this._config = config;
         this._configFile = configFile;
-        this._initializeGamepadManager();
 
         
     
@@ -147,7 +146,7 @@ export class Wam3D extends AudioNode3D {
     this.boundingBox.visibility = 0.5; // Adjust visibility as needed
     this.boundingBox.showBoundingBox = true; // Optionally show the bounding box
     // make the boundingbox no clickable
-    this.boundingBox.isPickable = true;
+    this.boundingBox.isPickable = false;
     this.baseMesh.parent = this.boundingBox;
     if (this.inputMesh) this.inputMesh.parent = this.boundingBox;
     if (this.outputMesh) this.outputMesh.parent = this.boundingBox;
@@ -171,6 +170,22 @@ protected moveBoundingBox(): void {
     this.boundingBox.addBehavior(new Drag(this._app));
     
 
+        const xrRightInputStates: XRInputStates = this._app.xrManager.xrInputManager.rightInputStates;
+        const xrLeftInputStates: XRInputStates = this._app.xrManager.xrInputManager.leftInputStates;
+        if (xrRightInputStates || xrLeftInputStates) {
+            xrRightInputStates['xr-standard-squeeze'].onButtonStateChangedObservable.add((component: B.WebXRControllerComponent): void => {
+                if (component.pressed)  this.boundingBox.isPickable = true;
+                else  this.boundingBox.isPickable = false;
+
+            });
+            xrLeftInputStates['xr-standard-squeeze'].onButtonStateChangedObservable.add((component: B.WebXRControllerComponent): void => {
+                if (component.pressed)  this.boundingBox.isPickable = true;
+                else  this.boundingBox.isPickable = false;
+
+            });
+        }
+
+
     this.boundingBox.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPointerOverTrigger, (): void => {
         highlightLayer.addMesh(this.boundingBox as B.Mesh, B.Color3.Black());
     }));
@@ -181,18 +196,7 @@ protected moveBoundingBox(): void {
 
 }
 
-private _initializeGamepadManager(): void {
-    const gamepadManager = new B.GamepadManager();
-    gamepadManager.onGamepadConnectedObservable.add((gamepad) => {
-        console.log("Gamepad connected: ", gamepad.id);
 
-        if (gamepad instanceof B.GenericPad) {
-            gamepad.onleftstickchanged((values) => {
-                this._updateZPosition(values.y);
-            });
-        }
-    });
-}
 
 private _updateZPosition(value: number): void {
     if (this.boundingBox) {
