@@ -23,6 +23,6 @@ dist-ssr
 *.sln
 *.sw?
 
-
-localhost*
-vite.config.js
+# for dev porpuses
+# localhost*
+# vite.config.js
