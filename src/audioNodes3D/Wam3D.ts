@@ -41,7 +41,7 @@ class Drag implements B.Behavior<B.AbstractMesh> {
 
     attach(target: B.AbstractMesh): void {
 
-        target?.actionManager?.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickDownTrigger, (event) => {
+        target?.actionManager?.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickDownTrigger, () => {
 
 
             if(!this.selected)this.app.xrManager.xrFeaturesManager.disableFeature(B.WebXRFeatureName.MOVEMENT);
@@ -198,11 +198,6 @@ protected moveBoundingBox(): void {
 
 
 
-private _updateZPosition(value: number): void {
-    if (this.boundingBox) {
-        this.boundingBox.position.z += value * 0.1; // Adjust speed as needed
-    }
-}
 
 
     private async _createParameter(param: CustomParameter, index: number): Promise<void> {
