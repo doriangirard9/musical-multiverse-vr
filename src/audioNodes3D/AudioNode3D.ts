@@ -57,10 +57,10 @@ export abstract class AudioNode3D implements INetworkObject<AudioNodeState> {
     protected abstract _createBaseMesh(): void;
 
     protected _initActionManager(): void {
-        const highlightLayer = new B.HighlightLayer(`hl${this.id}`, this._scene);
+        // const highlightLayer = new B.HighlightLayer(`hl${this.id}`, this._scene);
         this.baseMesh.actionManager = new B.ActionManager(this._scene);
 
-        const xrLeftInputStates: XRInputStates = this._app.xrManager.xrInputManager.leftInputStates;
+        // const xrLeftInputStates: XRInputStates = this._app.xrManager.xrInputManager.leftInputStates;
         // this.baseMesh.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPointerOverTrigger, (): void => {
         //     highlightLayer.addMesh(this.baseMesh, B.Color3.Black());
 

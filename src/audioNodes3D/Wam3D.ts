@@ -52,7 +52,7 @@ class Drag implements B.Behavior<B.AbstractMesh> {
 
     attach(target: B.AbstractMesh): void {
 
-        target?.actionManager?.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickDownTrigger, (e) => {
+        target?.actionManager?.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickDownTrigger, () => {
                 this.select(target)
         }))
 
