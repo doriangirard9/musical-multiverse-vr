@@ -142,7 +142,7 @@ export class App {
         }
     }
     // TODO : use get state from XRManager
-    public _sendPlayerState(): PlayerState {
+    public _sendPlayerState(): void {
         const xrCameraPosition: B.Vector3 = this.xrManager.xrHelper.baseExperience.camera.position;
         const xrCameraDirection: B.Vector3 = this.xrManager.xrHelper.baseExperience.camera.getDirection(B.Axis.Z);
         const xrLeftControllerPosition: B.Vector3 = this.xrManager.xrInputManager.leftController.grip!.position;
@@ -157,6 +157,23 @@ export class App {
         }
 
         this.networkManager.updatePlayerState(playerState);
+    }
+    public _getPlayerState(){
+        const xrCameraPosition: B.Vector3 = this.xrManager.xrHelper.baseExperience.camera.position;
+        const xrCameraDirection: B.Vector3 = this.xrManager.xrHelper.baseExperience.camera.getDirection(B.Axis.Z);
+        
+        console.log("camera",xrCameraDirection.asArray())
+        const xrLeftControllerPosition: B.Vector3 = this.xrManager.xrInputManager.leftController.grip!.position;
+        const xrRightControllerPosition: B.Vector3 = this.xrManager.xrInputManager.rightController.grip!.position;
+
+        const playerState: PlayerState = {
+            id: this.id,
+            position: {x: xrCameraPosition.x, y: xrCameraPosition.y, z: xrCameraPosition.z},
+            direction: {x: xrCameraDirection.x, y: xrCameraDirection.y, z: xrCameraDirection.z},
+            leftHandPosition: {x: xrLeftControllerPosition.x + 0.05, y: xrLeftControllerPosition.y, z: xrLeftControllerPosition.z - 0.2},
+            rightHandPosition: {x: xrRightControllerPosition.x - 0.05, y: xrRightControllerPosition.y, z: xrRightControllerPosition.z - 0.2},
+        }
         return playerState;
     }
+    
 }

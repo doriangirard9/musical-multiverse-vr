@@ -7,30 +7,41 @@ import { XRInputStates } from "../xr/types.ts";
 import { App } from "../App.ts";
 
 class Drag implements B.Behavior<B.AbstractMesh> {
-
+    
     name="test"
     interval: number|null=null
     selected: B.AbstractMesh|null=null
-    drag
+    drag :B.PointerDragBehavior;
 
     constructor(
         private app: App
     ){
         this.drag=new B.PointerDragBehavior({ dragPlaneNormal: new B.Vector3(0, 0, 1) });
+        // this.drag = new B.PointerDragBehavior({ dragPlaneNormal: this.app.xrManager.xrHelper.baseExperience.camera.getForwardRay().direction });
+
     }
 
-    init(): void {
-        this.interval=setInterval(() => {
-            
-        },50)
+    select(target: B.AbstractMesh){
+        if(!this.selected)this.app.xrManager.xrFeaturesManager.disableFeature(B.WebXRFeatureName.MOVEMENT);
+        this.selected=target;
+        this.selected.addBehavior(this.drag);
+        const data = this.app._getPlayerState();
+        const norm = new B.Vector3(data.direction.x,0,data.direction.z)
 
-        console.log("init")
+        this.drag.options.dragPlaneNormal = norm;
+        console.log("down")
+        }
+
+    init(): void {
+         console.log("init")
         this.app.xrManager.xrHelper.input.controllers.forEach(controller => {
             const thumbstick = controller.motionController?.getComponent("xr-standard-thumbstick");
             thumbstick?.onAxisValueChangedObservable.add((axis) => {
                 if(this.selected){
+                    const data = this.app._getPlayerState();
+                    const norm = new B.Vector3(data.direction.x,data.direction.y,data.direction.z)            
                     this.selected.removeBehavior(this.drag);
-                    this.selected.position.z -= axis.y*0.1;
+                    this.selected.position.addInPlace(norm.scaleInPlace(axis.y*-0.3));
                     this.drag.attach(this.selected!);
                     this.selected.addBehavior(this.drag);
                 }
@@ -41,13 +52,8 @@ class Drag implements B.Behavior<B.AbstractMesh> {
 
     attach(target: B.AbstractMesh): void {
 
-        target?.actionManager?.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickDownTrigger, () => {
-
-
-            if(!this.selected)this.app.xrManager.xrFeaturesManager.disableFeature(B.WebXRFeatureName.MOVEMENT);
-            this.selected=target;
-            this.selected.addBehavior(this.drag);
-            console.log("down")
+        target?.actionManager?.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickDownTrigger, (e) => {
+                this.select(target)
         }))
 
         const on_up=()=>{
@@ -66,6 +72,8 @@ class Drag implements B.Behavior<B.AbstractMesh> {
     }
 
     detach(): void {
+        this.selected!.removeBehavior(this.drag);
+
         if(this.interval!=null)clearTimeout(this.interval)
     }
 
@@ -124,8 +132,14 @@ export class Wam3D extends AudioNode3D {
         // shadow
         this._app.shadowGenerator.addShadowCaster(this.baseMesh);
         this.createBoundingBox();
-        this.moveBoundingBox();
         this._app.menu.hide();
+        this.moveBoundingBox();
+
+        // const dragBehavior = new Drag(this._app);
+        // dragBehavior.selected = this.boundingBox; // Set the bounding box as selected
+        // dragBehavior.select(this.boundingBox)
+        // this.boundingBox.addBehavior(dragBehavior);
+        
     }
 
     protected _createBaseMesh(): void {
@@ -150,15 +164,20 @@ export class Wam3D extends AudioNode3D {
     this.baseMesh.parent = this.boundingBox;
     if (this.inputMesh) this.inputMesh.parent = this.boundingBox;
     if (this.outputMesh) this.outputMesh.parent = this.boundingBox;
-    const data = this._app._sendPlayerState();
+    const data = this._app._getPlayerState();
     
-    this.boundingBox.position = new B.Vector3(data.position.x, data.position.y+0.3, data.position.z+3.5);
-    // this.boundingBox.setDirection(new B.Vector3(data.direction.x, data.direction.y, data.direction.z));
+    const direction = new B.Vector3(data.direction.x,data.direction.y,data.direction.z)
+    const position = new B.Vector3(data.position.x,data.position.y+ 0.3,data.position.z).addInPlace(direction.normalize().scale(3.5))
+
+    this.boundingBox.position = position
+    this.boundingBox.setDirection(direction)
+
+    // this.boundingBox.position = new B.Vector3(data.position.x, data.position.y + 0.3, data.position.z + 3.5);
+    // this.boundingBox.setDirection(new B.Vector3(data.direction.x, data.direction.y, data.direction.z).normalize());
     // rotate on x axis
     this.boundingBox.rotation.x = -Math.PI / 6;
 
-
-    // this.boundingBox.position = new B.Vector3(this.baseMesh.position.x, this.baseMesh.position.y + 0.75, this.baseMesh.position.z);
+    
 }
 
 
@@ -166,16 +185,25 @@ export class Wam3D extends AudioNode3D {
 protected moveBoundingBox(): void {
     const highlightLayer = new B.HighlightLayer(`hl${this.id}`, this._scene);
     this.boundingBox.actionManager = new B.ActionManager(this._scene);
-
-    this.boundingBox.addBehavior(new Drag(this._app));
+    const drag = new Drag(this._app)
+    this.boundingBox.addBehavior(drag);
     
 
         const xrRightInputStates: XRInputStates = this._app.xrManager.xrInputManager.rightInputStates;
         const xrLeftInputStates: XRInputStates = this._app.xrManager.xrInputManager.leftInputStates;
         if (xrRightInputStates || xrLeftInputStates) {
             xrRightInputStates['xr-standard-squeeze'].onButtonStateChangedObservable.add((component: B.WebXRControllerComponent): void => {
-                if (component.pressed)  this.boundingBox.isPickable = true;
-                else  this.boundingBox.isPickable = false;
+                if (component.pressed) {
+                    drag.attach(this.boundingBox)
+                    // this.boundingBox.addBehavior(drag);
+                    this.boundingBox.isPickable = true;
+                    
+                } 
+                else  {
+                    this.boundingBox.isPickable = false;
+                    drag.detach()
+                    this.boundingBox.removeBehavior(drag);
+                }
 
             });
             xrLeftInputStates['xr-standard-squeeze'].onButtonStateChangedObservable.add((component: B.WebXRControllerComponent): void => {

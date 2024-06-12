@@ -61,28 +61,28 @@ export abstract class AudioNode3D implements INetworkObject<AudioNodeState> {
         this.baseMesh.actionManager = new B.ActionManager(this._scene);
 
         const xrLeftInputStates: XRInputStates = this._app.xrManager.xrInputManager.leftInputStates;
-        this.baseMesh.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPointerOverTrigger, (): void => {
-            highlightLayer.addMesh(this.baseMesh, B.Color3.Black());
+        // this.baseMesh.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPointerOverTrigger, (): void => {
+        //     highlightLayer.addMesh(this.baseMesh, B.Color3.Black());
 
-            xrLeftInputStates['x-button'].onButtonStateChangedObservable.add((component: B.WebXRControllerComponent): void => {
-                if (component.pressed) {
-                    if (this._isMenuOpen) this._hideMenu();
-                    else this._showMenu();
-                }
-            });
-        }));
-        this.baseMesh.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPointerOutTrigger, (): void => {
-            highlightLayer.removeMesh(this.baseMesh);
-            xrLeftInputStates['x-button'].onButtonStateChangedObservable.clear();
-        }));
+        //     xrLeftInputStates['x-button'].onButtonStateChangedObservable.add((component: B.WebXRControllerComponent): void => {
+        //         if (component.pressed) {
+        //             if (this._isMenuOpen) this._hideMenu();
+        //             else this._showMenu();
+        //         }
+        //     });
+        // }));
+        // this.baseMesh.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPointerOutTrigger, (): void => {
+        //     highlightLayer.removeMesh(this.baseMesh);
+        //     xrLeftInputStates['x-button'].onButtonStateChangedObservable.clear();
+        // }));
 
-        // move the wam in the scene
-        this.baseMesh.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnLeftPickTrigger, (): void => {
-            this.baseMesh.addBehavior(this._pointerDragBehavior);
-        }));
-        this.baseMesh.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickUpTrigger, (): void => {
-            this.baseMesh.removeBehavior(this._pointerDragBehavior);
-        }));
+        // // move the wam in the scene
+        // this.baseMesh.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnLeftPickTrigger, (): void => {
+        //     this.baseMesh.addBehavior(this._pointerDragBehavior);
+        // }));
+        // this.baseMesh.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickUpTrigger, (): void => {
+        //     this.baseMesh.removeBehavior(this._pointerDragBehavior);
+        // }));
     }
 
     protected _createParameterStand(position: B.Vector3, name: string): B.Mesh {
@@ -120,7 +120,7 @@ export abstract class AudioNode3D implements INetworkObject<AudioNodeState> {
         // action manager
         this.inputMesh.actionManager = new B.ActionManager(this._scene);
         this.inputMesh.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnLeftPickTrigger, (): void => {
-            this.baseMesh.removeBehavior(this._pointerDragBehavior);
+            // this.baseMesh.removeBehavior(this._pointerDragBehavior);
             this.ioObservable.notifyObservers({type: 'input', pickType: 'down', node: this});
         }));
         this.inputMesh.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickUpTrigger, (): void => {
