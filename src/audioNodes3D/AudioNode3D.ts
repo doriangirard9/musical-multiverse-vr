@@ -2,7 +2,7 @@ import * as B from "@babylonjs/core";
 import {IOEvent} from "../types.ts";
 import * as GUI from "@babylonjs/gui";
 import {App} from "../App.ts";
-import {XRInputStates} from "../xr/types.ts";
+// import {XRInputStates} from "../xr/types.ts";
 import {AudioNodeState, INetworkObject} from "../network/types.ts";
 
 export abstract class AudioNode3D implements INetworkObject<AudioNodeState> {
