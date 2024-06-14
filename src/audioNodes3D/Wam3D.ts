@@ -194,15 +194,11 @@ protected moveBoundingBox(): void {
         if (xrRightInputStates || xrLeftInputStates) {
             xrRightInputStates['xr-standard-squeeze'].onButtonStateChangedObservable.add((component: B.WebXRControllerComponent): void => {
                 if (component.pressed) {
-                    drag.attach(this.boundingBox)
-                    // this.boundingBox.addBehavior(drag);
                     this.boundingBox.isPickable = true;
                     
                 } 
                 else  {
                     this.boundingBox.isPickable = false;
-                    drag.detach()
-                    this.boundingBox.removeBehavior(drag);
                 }
 
             });
