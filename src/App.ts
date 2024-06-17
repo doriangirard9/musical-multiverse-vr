@@ -17,6 +17,7 @@ import {AudioNode3D} from "./audioNodes3D/AudioNode3D.ts";
 import {AudioNodeState, PlayerState} from "./network/types.ts";
 import { v4 as uuid } from 'uuid';
 import {Player} from "./Player.ts";
+import { GridMaterial } from "@babylonjs/materials";
 
 export class App {
     public canvas: HTMLCanvasElement;
@@ -81,8 +82,9 @@ export class App {
 
         this.shadowGenerator = new B.ShadowGenerator(1024, light);
 
-        const ground: B.Mesh = B.MeshBuilder.CreateGround('ground', {width: 30, height: 30}, this.scene);
-        ground.receiveShadows = true;
+        // const ground: B.Mesh = B.MeshBuilder.CreateGround('ground', {width: 30, height: 30}, this.scene);
+        // ground.receiveShadows = true;
+        this._createGround()
 
         this.menu = new Menu(menuJson as MenuConfig);
         this.menu.show();
@@ -129,6 +131,48 @@ export class App {
         else {
 
         }
+    }
+    private _createGround(){
+        var grid = new GridMaterial("grid", this.scene);    
+                grid.gridRatio = 0.1;
+                grid.majorUnitFrequency = 5;
+                // make squares color between black and white 
+                grid.mainColor = new B.Color3(0.5, 0.5, 0.5);
+                grid.lineColor = new B.Color3(1, 1, 1);
+                var wallgrid = grid.clone("wallgrid");
+                
+                var groundSize = { width: 100, height: 1, depth: 100 };
+                var wallHeight = 2;
+                var wallThickness = 1;
+
+                // Create the ground
+                var ground = B.MeshBuilder.CreateBox("ground", groundSize, this.scene);
+                ground.material = grid;
+
+                ground.material = grid;
+
+                                // Function to create and position a wall
+                         const wall= function createWall(width:number, height:number, depth:number, posX:number, posY:number, posZ:number) {
+                    var wall = B.MeshBuilder.CreateBox("wall", { width: width, height: height, depth: depth });
+                    // wall.material = grid;
+                    wall.position.set(posX, posY, posZ);
+                    // change the color of the wall to lime
+                    wallgrid.mainColor = new B.Color3(0, 0, 0);
+                    wall.material = wallgrid;
+                    wall.receiveShadows = true;
+                    return wall;
+                }
+                // Create and position the walls
+                var halfHeight = wallHeight / 2;
+                var halfDepth = groundSize.depth / 2;
+                var halfWidth = groundSize.width / 2;
+
+                wall(groundSize.width, wallHeight, wallThickness, 0, halfHeight, halfDepth); // Front wall
+                wall(groundSize.width, wallHeight, wallThickness, 0, halfHeight, -halfDepth); // Back wall
+                wall(wallThickness, wallHeight, groundSize.depth, halfWidth, halfHeight, 0); // Right wall
+                wall(wallThickness, wallHeight, groundSize.depth, -halfWidth, halfHeight, 0); // Left wall
+                ground.receiveShadows = true;
+                
     }
 
     private _onRemotePlayerChange(change: {action: 'add' | 'delete', state: PlayerState}): void {
