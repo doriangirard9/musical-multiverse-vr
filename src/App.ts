@@ -51,8 +51,7 @@ export class App {
 
         this.networkManager = new NetworkManager(this.id);
 
-        
-    }
+    }  
 
     public static getInstance(audioCtx?: AudioContext): App {
         if (!this._instance) {
@@ -149,7 +148,7 @@ export class App {
                 var ground = B.MeshBuilder.CreateBox("ground", groundSize, this.scene);
                 ground.material = grid;
 
-                ground.material = grid;
+                ground.checkCollisions  = true; 
 
                                 // Function to create and position a wall
                          const wall= function createWall(width:number, height:number, depth:number, posX:number, posY:number, posZ:number) {
@@ -160,6 +159,8 @@ export class App {
                     wallgrid.mainColor = new B.Color3(0, 0, 0);
                     wall.material = wallgrid;
                     wall.receiveShadows = true;
+                    wall.checkCollisions  = true; 
+
                     return wall;
                 }
                 // Create and position the walls
@@ -171,8 +172,9 @@ export class App {
                 wall(groundSize.width, wallHeight, wallThickness, 0, halfHeight, -halfDepth); // Back wall
                 wall(wallThickness, wallHeight, groundSize.depth, halfWidth, halfHeight, 0); // Right wall
                 wall(wallThickness, wallHeight, groundSize.depth, -halfWidth, halfHeight, 0); // Left wall
-                ground.receiveShadows = true;
-                
+                ground.receiveShadows = true;     
+                ground.checkCollisions = true;
+
     }
 
     private _onRemotePlayerChange(change: {action: 'add' | 'delete', state: PlayerState}): void {

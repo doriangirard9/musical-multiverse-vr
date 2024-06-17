@@ -167,7 +167,7 @@ export class Wam3D extends AudioNode3D {
     const data = this._app._getPlayerState();
     
     const direction = new B.Vector3(data.direction.x,data.direction.y,data.direction.z)
-    const position = new B.Vector3(data.position.x,data.position.y+ 0.3,data.position.z).addInPlace(direction.normalize().scale(3.5))
+    const position = new B.Vector3(data.position.x,data.position.y+ 0.3,data.position.z).addInPlace(direction.normalize().scale(5))
 
     this.boundingBox.position = position
     this.boundingBox.setDirection(direction)

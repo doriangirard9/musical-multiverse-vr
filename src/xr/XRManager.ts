@@ -25,6 +25,11 @@ export class XRManager {
         this.xrHelper = await this._getWebXRExperience();
         this._initXRFeatures();
         this.xrInputManager = new XRInputManager(this.xrHelper);
+        
+        this.xrHelper.baseExperience.camera.checkCollisions = true;
+        this.xrHelper.baseExperience.camera.applyGravity = true;
+        this.xrHelper.baseExperience.camera.ellipsoid = new B.Vector3(1, 1, 1);  // ellipsoid act as bounding for the camera
+
         await this.xrInputManager.initControllers();
     }
 
