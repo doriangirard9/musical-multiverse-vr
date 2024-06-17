@@ -87,7 +87,6 @@ export class Wam3D extends AudioNode3D {
     private _parameter3D: {[name: string]: IParameter} = {};
     private _paramBuilder!: ParamBuilder;
     private readonly _configFile!: string;
-    private boundingBox! : B.AbstractMesh;
     
     constructor(scene: B.Scene, audioCtx: AudioContext, id: string, config: IWamConfig, configFile: string) {
         super(scene, audioCtx, id);
@@ -277,8 +276,8 @@ protected moveBoundingBox(): void {
             id: this.id,
             configFile: this._configFile,
             name: this._config.name,
-            position: { x: this.baseMesh.position.x, y: this.baseMesh.position.y, z: this.baseMesh.position.z },
-            rotation: { x: this.baseMesh.rotation.x, y: this.baseMesh.rotation.y, z: this.baseMesh.rotation.z },
+            position: { x: this.boundingBox.position.x, y: this.boundingBox.position.y, z: this.boundingBox.position.z },
+            rotation: { x: this.boundingBox.rotation.x, y: this.boundingBox.rotation.y, z: this.boundingBox.rotation.z },
             inputNodes: inputNodes,
             parameters: parameters
         };

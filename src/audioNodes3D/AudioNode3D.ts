@@ -12,6 +12,7 @@ export abstract class AudioNode3D implements INetworkObject<AudioNodeState> {
     protected readonly _app: App = App.getInstance();
     protected readonly _pointerDragBehavior: B.PointerDragBehavior;
     public baseMesh!: B.Mesh;
+    public boundingBox! : B.AbstractMesh;
 
     // Gizmo
     protected _rotationGizmo: B.RotationGizmo;
@@ -206,9 +207,9 @@ export abstract class AudioNode3D implements INetworkObject<AudioNodeState> {
     public abstract getState(): AudioNodeState;
 
     public setState(state: AudioNodeState): void {
-        this.baseMesh.position = new B.Vector3(state.position.x, state.position.y, state.position.z);
-        this.baseMesh.rotation = new B.Vector3(state.rotation.x, state.rotation.y, state.rotation.z);
-
+        this.boundingBox.position = new B.Vector3(state.position.x, state.position.y, state.position.z);
+        this.boundingBox.rotation = new B.Vector3(state.rotation.x, state.rotation.y, state.rotation.z);
+        
         state.inputNodes.forEach((id: string): void => {
             const inputNode: AudioNode3D | undefined = this._app.networkManager.getAudioNode3D(id);
             if (!this.inputNodes.has(id) && inputNode) {
