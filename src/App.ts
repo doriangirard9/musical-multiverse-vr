@@ -34,6 +34,7 @@ export class App {
     public readonly ioManager!: IOManager;
     public id: string = uuid();
     public menu!: Menu;
+    public ground! : B.Mesh;
     private constructor(audioCtx: AudioContext) {
         this.canvas = document.querySelector('#renderCanvas') as HTMLCanvasElement;
         this.engine = new B.Engine(this.canvas, true);
@@ -174,7 +175,7 @@ export class App {
                 wall(wallThickness, wallHeight, groundSize.depth, -halfWidth, halfHeight, 0); // Left wall
                 ground.receiveShadows = true;     
                 ground.checkCollisions = true;
-
+                this.ground = ground;
     }
 
     private _onRemotePlayerChange(change: {action: 'add' | 'delete', state: PlayerState}): void {

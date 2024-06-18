@@ -149,7 +149,6 @@ export class Wam3D extends AudioNode3D {
         material.diffuseColor = new B.Color3(0, 0, 0);
         this.baseMesh.material = material;
 
-
     }
    // Create bounding box should be the parent of the node and the parameters and Wam3D
    public createBoundingBox(): void {
@@ -158,8 +157,9 @@ export class Wam3D extends AudioNode3D {
     this.boundingBox.isVisible = true;
     this.boundingBox.visibility = 0.5; // Adjust visibility as needed
     this.boundingBox.showBoundingBox = true; // Optionally show the bounding box
-    // make the boundingbox no clickable
-    this.boundingBox.isPickable = false;
+    // make the boundingbox  clickable
+    this.boundingBox.isPickable = true;
+    this.boundingBox.checkCollisions = true;
     this.baseMesh.parent = this.boundingBox;
     if (this.inputMesh) this.inputMesh.parent = this.boundingBox;
     if (this.outputMesh) this.outputMesh.parent = this.boundingBox;
@@ -175,6 +175,7 @@ export class Wam3D extends AudioNode3D {
     // this.boundingBox.setDirection(new B.Vector3(data.direction.x, data.direction.y, data.direction.z).normalize());
     // rotate on x axis
     this.boundingBox.rotation.x = -Math.PI / 6;
+    this._app.ground.checkCollisions = true;
 
     
 }
@@ -190,22 +191,21 @@ protected moveBoundingBox(): void {
 
         const xrRightInputStates: XRInputStates = this._app.xrManager.xrInputManager.rightInputStates;
         const xrLeftInputStates: XRInputStates = this._app.xrManager.xrInputManager.leftInputStates;
+        let isBoundingBoxPickable = true;
+
         if (xrRightInputStates || xrLeftInputStates) {
-            xrRightInputStates['xr-standard-squeeze'].onButtonStateChangedObservable.add((component: B.WebXRControllerComponent): void => {
+            xrRightInputStates['b-button'].onButtonStateChangedObservable.add((component: B.WebXRControllerComponent): void => {
                 if (component.pressed) {
-                    this.boundingBox.isPickable = true;
+                    // Toggle variable
+                    isBoundingBoxPickable = !isBoundingBoxPickable;
                     
-                } 
-                else  {
-                    this.boundingBox.isPickable = false;
+                    // switch state
+                    this.boundingBox.isPickable = isBoundingBoxPickable;
+                    this.boundingBox.visibility = isBoundingBoxPickable ? 0.5 : 0;
                 }
 
             });
-            xrLeftInputStates['xr-standard-squeeze'].onButtonStateChangedObservable.add((component: B.WebXRControllerComponent): void => {
-                if (component.pressed)  this.boundingBox.isPickable = true;
-                else  this.boundingBox.isPickable = false;
 
-            });
         }
 
 
