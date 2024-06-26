@@ -14,18 +14,20 @@ export class Menu {
 
     constructor(menuJson: MenuConfig) {
         this._menuJson = menuJson;
+        console.log(this._menuJson)
         this._manager = this._app.guiManager;
     }
 
     private _createMenu(): void {
         this._menu = new GUI.NearMenu("menu");
         this._manager.addControl(this._menu);
-        this._menu.margin = 0.05;
+        this._menu.margin = 0.2;
+        
 
         const follower: B.FollowBehavior = this._menu.defaultBehavior.followBehavior;
-        follower.defaultDistance = 2;
-        follower.minimumDistance = 2;
-        follower.maximumDistance = 2;
+        follower.defaultDistance = 3.5;
+        follower.minimumDistance = 3.5;
+        follower.maximumDistance = 3.5;
 
         this._createCategories();
     }
@@ -97,6 +99,7 @@ export class Menu {
 
         // plugins
         this._menuJson.categories[categoryIndex].plugins.forEach((plugin): void => {
+            console.log(plugin.configFile)
             const button = new GUI.TouchHolographicButton(plugin.name);
             button.text = plugin.name;
             button.onPointerUpObservable.add((): Promise<void> => this._app.createAudioNode3D(plugin.name, uuid(), plugin.configFile));

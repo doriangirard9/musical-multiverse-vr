@@ -3,37 +3,33 @@ import {ParamBuilder} from "./parameters/ParamBuilder.ts";
 import {CustomParameter, IParameter, IWamConfig, ParameterInfo, WamInstance} from "./types.ts";
 import {AudioNode3D} from "./AudioNode3D.ts";
 import {AudioNodeState} from "../network/types.ts";
-import { XRInputStates } from "../xr/types.ts";
 import { App } from "../App.ts";
 
 class Drag implements B.Behavior<B.AbstractMesh> {
-    
-    name="test"
-    interval: number|null=null
-    selected: B.AbstractMesh|null=null
-    drag :B.PointerDragBehavior;
+    name = "test";
+    interval: number | null = null;
+    selected: B.AbstractMesh | null = null;
+    drag: B.PointerDragBehavior;
 
-    constructor(
-        private app: App
-    ){
-        this.drag=new B.PointerDragBehavior({ dragPlaneNormal: new B.Vector3(0, 0, 1) });
-        // this.drag = new B.PointerDragBehavior({ dragPlaneNormal: this.app.xrManager.xrHelper.baseExperience.camera.getForwardRay().direction });
-
+    constructor(private app: App) {
+        this.drag = new B.PointerDragBehavior({ dragPlaneNormal: new B.Vector3(0, 0, 1) });
     }
 
-    select(target: B.AbstractMesh){
-        if(!this.selected)this.app.xrManager.xrFeaturesManager.disableFeature(B.WebXRFeatureName.MOVEMENT);
-        this.selected=target;
-        this.selected.addBehavior(this.drag);
-        const data = this.app._getPlayerState();
-        const norm = new B.Vector3(data.direction.x,0,data.direction.z)
-
-        this.drag.options.dragPlaneNormal = norm;
-        console.log("down")
+    select(target: B.AbstractMesh | null) {
+        console.log("selected");
+        if (!this.selected) this.app.xrManager.xrFeaturesManager.disableFeature(B.WebXRFeatureName.MOVEMENT);
+        this.selected = target;
+        if (this.selected != null) {
+            this.selected.visibility = 0.5;
+            this.selected.addBehavior(this.drag);
         }
 
+        const data = this.app._getPlayerState();
+        const norm = new B.Vector3(data.direction.x, 0, data.direction.z);
+        this.drag.options.dragPlaneNormal = norm;
+    }
+
     init(): void {
-         console.log("init")
         this.app.xrManager.xrHelper.input.controllers.forEach(controller => {
             const thumbstick = controller.motionController?.getComponent("xr-standard-thumbstick");
             thumbstick?.onAxisValueChangedObservable.add((axis) => {
@@ -42,41 +38,37 @@ class Drag implements B.Behavior<B.AbstractMesh> {
                     const norm = new B.Vector3(data.direction.x,data.direction.y,data.direction.z)            
                     this.selected.removeBehavior(this.drag);
                     this.selected.position.addInPlace(norm.scaleInPlace(axis.y*-0.3));
-                    this.drag.attach(this.selected!);
+                    // this.drag.attach(this.selected!);
                     this.selected.addBehavior(this.drag);
                 }
             });
-            console.log("components",controller.pointer.position.asArray())
         });
     }
 
     attach(target: B.AbstractMesh): void {
+        target?.actionManager?.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickDownTrigger, (e) => {
+             this.select(target);
+        }));
 
-        target?.actionManager?.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickDownTrigger, () => {
-                this.select(target)
-        }))
-
-        const on_up=()=>{
-            if(this.selected)this.app.xrManager.xrFeaturesManager.enableFeature(B.WebXRFeatureName.MOVEMENT, "latest", {
+        const on_up = () => {
+            if (this.selected) this.app.xrManager.xrFeaturesManager.enableFeature(B.WebXRFeatureName.MOVEMENT, "latest", {
                 xrInput: this.app.xrManager.xrHelper.input,
                 movementSpeed: 0.2,
                 rotationSpeed: 0.3,
             });
             this.selected?.removeBehavior(this.drag);
-            this.selected=null
-            console.log("up")
-        }
+            this.selected = null;
+            target.visibility = 0;
+        };
 
-        target?.actionManager?.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickUpTrigger, on_up))  
-        target?.actionManager?.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickOutTrigger, on_up))  
+        target?.actionManager?.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickUpTrigger, on_up));
+        target?.actionManager?.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickOutTrigger, on_up));
     }
 
     detach(): void {
-        this.selected!.removeBehavior(this.drag);
-
-        if(this.interval!=null)clearTimeout(this.interval)
+        console.log("detach");
+    this.select(null);
     }
-
 }
 
 export class Wam3D extends AudioNode3D {
@@ -87,7 +79,8 @@ export class Wam3D extends AudioNode3D {
     private _parameter3D: {[name: string]: IParameter} = {};
     private _paramBuilder!: ParamBuilder;
     private readonly _configFile!: string;
-    
+    public drag = new Drag(this._app)
+
     constructor(scene: B.Scene, audioCtx: AudioContext, id: string, config: IWamConfig, configFile: string) {
         super(scene, audioCtx, id);
         this._config = config;
@@ -125,15 +118,13 @@ export class Wam3D extends AudioNode3D {
         this._rotationGizmo = new B.RotationGizmo(this._utilityLayer);
 
         this._initActionManager();
-        console.log("createNode",this.baseMesh.position)
         this._createInput(new B.Vector3(-(this._usedParameters.length / 2 + 0.2), this.baseMesh.position.y, this.baseMesh.position.z));
         this._createOutput(new B.Vector3(this._usedParameters.length / 2 + 0.2, this.baseMesh.position.y, this.baseMesh.position.z));
         // shadow
         this._app.shadowGenerator.addShadowCaster(this.baseMesh);
         this.createBoundingBox();
         this._app.menu.hide();
-        this.moveBoundingBox();
-
+        this.addMovingBehaviourToBoundingBox();
         // const dragBehavior = new Drag(this._app);
         // dragBehavior.selected = this.boundingBox; // Set the bounding box as selected
         // dragBehavior.select(this.boundingBox)
@@ -153,10 +144,13 @@ export class Wam3D extends AudioNode3D {
    // Create bounding box should be the parent of the node and the parameters and Wam3D
    public createBoundingBox(): void {
     const size = this._usedParameters.length;
-    this.boundingBox = B.MeshBuilder.CreateBox(`boundingBox${this.id}`, { width: size + 2, height: 1.5, depth: 1.5 }, this._scene);
-    this.boundingBox.isVisible = true;
-    this.boundingBox.visibility = 0.5; // Adjust visibility as needed
-    this.boundingBox.showBoundingBox = true; // Optionally show the bounding box
+    let w = this.baseMesh.getBoundingInfo().boundingBox.extendSize.x * 2;
+    let h = this.baseMesh.getBoundingInfo().boundingBox.extendSize.y * 2;
+    let d = this.baseMesh.getBoundingInfo().boundingBox.extendSize.z * 2;
+
+    this.boundingBox = B.MeshBuilder.CreateBox(`boundingBox${this.id}`, { width: w, height: h*1.5, depth: d*2 }, this._scene);
+     this.boundingBox.isVisible = true;
+    this.boundingBox.visibility = 0; // Adjust visibility as needed
     // make the boundingbox  clickable
     this.boundingBox.isPickable = true;
     this.boundingBox.checkCollisions = true;
@@ -182,31 +176,30 @@ export class Wam3D extends AudioNode3D {
 
 
 
-protected moveBoundingBox(): void {
+protected addMovingBehaviourToBoundingBox(): void {
     const highlightLayer = new B.HighlightLayer(`hl${this.id}`, this._scene);
     this.boundingBox.actionManager = new B.ActionManager(this._scene);
-    const drag = new Drag(this._app)
-    this.boundingBox.addBehavior(drag);
+    this.boundingBox.addBehavior(this.drag);
     
+        // make the bounding box pickable with  the b button
+        // const xrRightInputStates: XRInputStates = this._app.xrManager.xrInputManager.rightInputStates;
+        // const xrLeftInputStates: XRInputStates = this._app.xrManager.xrInputManager.leftInputStates;
+        // let isBoundingBoxPickable = true;
 
-        const xrRightInputStates: XRInputStates = this._app.xrManager.xrInputManager.rightInputStates;
-        const xrLeftInputStates: XRInputStates = this._app.xrManager.xrInputManager.leftInputStates;
-        let isBoundingBoxPickable = true;
-
-        if (xrRightInputStates || xrLeftInputStates) {
-            xrRightInputStates['b-button'].onButtonStateChangedObservable.add((component: B.WebXRControllerComponent): void => {
-                if (component.pressed) {
-                    // Toggle variable
-                    isBoundingBoxPickable = !isBoundingBoxPickable;
+        // if (xrRightInputStates || xrLeftInputStates) {
+        //     xrRightInputStates['b-button'].onButtonStateChangedObservable.add((component: B.WebXRControllerComponent): void => {
+        //         if (component.pressed) {
+        //             // Toggle variable
+        //             isBoundingBoxPickable = !isBoundingBoxPickable;
                     
-                    // switch state
-                    this.boundingBox.isPickable = isBoundingBoxPickable;
-                    this.boundingBox.visibility = isBoundingBoxPickable ? 0.5 : 0;
-                }
+        //             // switch state
+        //             // this.boundingBox.isPickable = isBoundingBoxPickable;
+        //             this.boundingBox.visibility = isBoundingBoxPickable ? 0.5 : 0;
+        //         }
 
-            });
+        //     });
 
-        }
+        // }
 
 
     this.boundingBox.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPointerOverTrigger, (): void => {
@@ -234,12 +227,11 @@ protected moveBoundingBox(): void {
         switch (paramType) {
             case 'button':
                 parameter3D = await this._paramBuilder.createButton(param, parameterStand, this._parametersInfo[fullParamName]);
-                break;
+                                break;
             default:
                 parameter3D = this._paramBuilder.createCylinder(param, parameterStand, this._parametersInfo[fullParamName], defaultValue);
                 break;
         }
-
         // update audio node when parameter value changes
         parameter3D.onValueChangedObservable.add((value: number): void => {
             this._wamInstance.audioNode._wamNode.setParamValue(fullParamName, value);

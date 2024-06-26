@@ -58,8 +58,6 @@
             };
         }(console.error));
         window.onerror=(e,source,lineno,colno,error)=>{
-    console.log("tart console")
-    console.error("tart error")
     console.error(JSON.stringify(e),source,lineno,colno,error)
 }
         // Catch unhandled promise rejections
