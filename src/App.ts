@@ -147,6 +147,7 @@ export class App {
 
                 // Create the ground
                 var ground = B.MeshBuilder.CreateBox("ground", groundSize, this.scene);
+                ground.position.y -=  2;
                 ground.material = grid;
 
                 ground.checkCollisions  = true; 
@@ -161,6 +162,7 @@ export class App {
                     wall.material = wallgrid;
                     wall.receiveShadows = true;
                     wall.checkCollisions  = true; 
+                    wall.position.y -=  2;
 
                     return wall;
                 }
