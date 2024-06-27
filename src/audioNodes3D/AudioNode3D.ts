@@ -2,6 +2,7 @@ import * as B from "@babylonjs/core";
 import {IOEvent} from "../types.ts";
 import * as GUI from "@babylonjs/gui";
 import {App} from "../App.ts";
+import {TubeParams} from "../types.ts";
 // import {XRInputStates} from "../xr/types.ts";
 import {AudioNodeState, INetworkObject} from "../network/types.ts";
 
@@ -14,6 +15,11 @@ export abstract class AudioNode3D implements INetworkObject<AudioNodeState> {
     public baseMesh!: B.Mesh;
     public boundingBox! : B.AbstractMesh;
 
+    public inputArcs: TubeParams[] = [];
+    public outputArcs: TubeParams[] = [];
+
+    public tubeMesh?: B.Mesh;
+
     // Gizmo
     protected _rotationGizmo: B.RotationGizmo;
     protected _utilityLayer: B.UtilityLayerRenderer;
@@ -25,6 +31,8 @@ export abstract class AudioNode3D implements INetworkObject<AudioNodeState> {
     // IO
     public inputMesh?: B.Mesh;
     public outputMesh?: B.Mesh;
+    public outputMeshBig?: B.Mesh;
+    public inputMeshBig?: B.Mesh;
     public inputNodes = new Map<string, AudioNode3D>();
     public ioObservable = new B.Observable<IOEvent>();
 
@@ -108,32 +116,49 @@ export abstract class AudioNode3D implements INetworkObject<AudioNodeState> {
         return parameterStand;
     }
 
-    protected _createInput(position: B.Vector3): void {
-        this.inputMesh = B.MeshBuilder.CreateSphere('inputSphere', { diameter: 0.5 }, this._scene);
-        this.inputMesh.parent = this.baseMesh;
-        this.inputMesh.position = position;
+  protected _createInput(position: B.Vector3): void {
+    this.inputMesh = B.MeshBuilder.CreateSphere('inputSphere', { diameter: 0.5 }, this._scene);
+    this.inputMeshBig = B.MeshBuilder.CreateSphere('inputSphere', { diameter: 1 }, this._scene);
+    this.inputMeshBig.parent = this.inputMesh;
+    this.inputMeshBig.visibility = 0;
+    this.inputMesh.parent = this.baseMesh;
+    this.inputMesh.position = position;
 
-        // color
-        const inputSphereMaterial = new B.StandardMaterial('material', this._scene);
-        inputSphereMaterial.diffuseColor = new B.Color3(0, 1, 0);
-        this.inputMesh.material = inputSphereMaterial;
+    // color
+    const inputSphereMaterial = new B.StandardMaterial('material', this._scene);
+    inputSphereMaterial.diffuseColor = new B.Color3(0, 1, 0);
+    this.inputMesh.material = inputSphereMaterial;
 
-        // action manager
-        this.inputMesh.actionManager = new B.ActionManager(this._scene);
-        this.inputMesh.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnLeftPickTrigger, (): void => {
-            // this.baseMesh.removeBehavior(this._pointerDragBehavior);
-            this.ioObservable.notifyObservers({type: 'input', pickType: 'down', node: this});
-        }));
-        this.inputMesh.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickUpTrigger, (): void => {
-            this.ioObservable.notifyObservers({type: 'input', pickType: 'up', node: this});
-        }));
-        this.inputMesh.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickOutTrigger, (): void => {
-            this.ioObservable.notifyObservers({type: 'input', pickType: 'out', node: this});
-        }));
-    }
+    this.inputMesh.actionManager = new B.ActionManager(this._scene);
+    this.inputMeshBig.actionManager = new B.ActionManager(this._scene);
+
+    const highlightLayer = new B.HighlightLayer(`hl-input-${this.id}`, this._scene);
+
+    this.inputMeshBig.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPointerOverTrigger, (): void => {
+        highlightLayer.addMesh(this.inputMesh as B.Mesh, B.Color3.Green());
+    }));
+
+    this.inputMeshBig.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPointerOutTrigger, (): void => {
+        highlightLayer.removeMesh(this.inputMesh as B.Mesh);
+    }));
+
+    // action manager
+    this.inputMeshBig.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnLeftPickTrigger, (): void => {
+        this.ioObservable.notifyObservers({ type: 'input', pickType: 'down', node: this });
+    }));
+    this.inputMeshBig.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickUpTrigger, (): void => {
+        this.ioObservable.notifyObservers({ type: 'input', pickType: 'up', node: this });
+    }));
+    this.inputMeshBig.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickOutTrigger, (): void => {
+        this.ioObservable.notifyObservers({ type: 'input', pickType: 'out', node: this });
+    }));
+}
 
     protected _createOutput(position: B.Vector3): void {
         this.outputMesh = B.MeshBuilder.CreateSphere('outputSphere', { diameter: 0.5 }, this._scene);
+        this.outputMeshBig = B.MeshBuilder.CreateSphere('outputSphereBig', { diameter: 1 }, this._scene);
+        this.outputMeshBig.parent = this.outputMesh; 
+        this.outputMeshBig.visibility = 0;
         this.outputMesh.parent = this.baseMesh;
         this.outputMesh.position = position;
 
@@ -144,13 +169,28 @@ export abstract class AudioNode3D implements INetworkObject<AudioNodeState> {
 
         // action manager
         this.outputMesh.actionManager = new B.ActionManager(this._scene);
-        this.outputMesh.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnLeftPickTrigger, (): void => {
+        this.outputMeshBig.actionManager = new B.ActionManager(this._scene);
+            
+        // add hightlighting on the nodes when they are survolled by the mouse
+
+        const highlightLayer = new B.HighlightLayer(`hl-output-${this.id}`, this._scene);
+
+        this.outputMeshBig.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPointerOverTrigger, (): void => {
+            highlightLayer.addMesh(this.outputMesh as B.Mesh, B.Color3.Red());
+        }));
+    
+        this.outputMeshBig.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPointerOutTrigger, (): void => {
+            highlightLayer.removeMesh(this.outputMesh as B.Mesh);
+        }));
+    
+    
+        this.outputMeshBig.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnLeftPickTrigger, (): void => {
             this.ioObservable.notifyObservers({type: 'output', pickType: 'down', node: this});
         }));
-        this.outputMesh.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickUpTrigger, (): void => {
+        this.outputMeshBig.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickUpTrigger, (): void => {
             this.ioObservable.notifyObservers({type: 'output', pickType: 'up', node: this});
         }));
-        this.outputMesh.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickOutTrigger, (): void => {
+        this.outputMeshBig.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickOutTrigger, (): void => {
             this.ioObservable.notifyObservers({type: 'output', pickType: 'out', node: this});
         }));
     }
@@ -209,7 +249,8 @@ export abstract class AudioNode3D implements INetworkObject<AudioNodeState> {
     public setState(state: AudioNodeState): void {
         this.boundingBox.position = new B.Vector3(state.position.x, state.position.y, state.position.z);
         this.boundingBox.rotation = new B.Vector3(state.rotation.x, state.rotation.y, state.rotation.z);
-        
+        // this.baseMesh.position = new B.Vector3(this.boundingBox.position.x, this.boundingBox.position.y, this.boundingBox.position.z);
+        // this.baseMesh.rotation = new B.Vector3(this.boundingBox.rotation.x, this.boundingBox.rotation.y, this.boundingBox.rotation.z);   
         state.inputNodes.forEach((id: string): void => {
             const inputNode: AudioNode3D | undefined = this._app.networkManager.getAudioNode3D(id);
             if (!this.inputNodes.has(id) && inputNode) {

@@ -1,6 +1,7 @@
-import {IOEvent} from "./types.ts";
+import {IOEvent, TubeParams} from "./types.ts";
 import * as B from "@babylonjs/core";
 import {AudioNode3D} from "./audioNodes3D/AudioNode3D.ts";
+
 
 export class IOManager {
     private _inputNode: B.Nullable<AudioNode3D> = null;
@@ -65,10 +66,54 @@ export class IOManager {
         outputNode.addInputNode(inputNode);
 
         if (!inputNode.inputMesh || !outputNode.outputMesh) throw new Error("Input or output mesh not found");
+        this.createArc(outputNode, inputNode);
+    }
 
-        const point1: B.Vector3 = inputNode.baseMesh.position.add(inputNode.inputMesh.position);
-        const point2: B.Vector3 = outputNode.baseMesh.position.add(outputNode.outputMesh.position);
+    // Function to create an arc (edge) with an arrowhead
+    private createArc(outputNode: AudioNode3D, inputNode: AudioNode3D): void  {
+        // Ensure that the spheres have updated positions by getting the absolute positions
+        var start = outputNode.outputMesh!.getAbsolutePosition();
+        var end = inputNode.inputMesh!.getAbsolutePosition();
 
-        B.MeshBuilder.CreateLines('link', {points: [point1, point2]}, this._scene);
+        // Calculate the direction of the arc
+        var direction = end.subtract(start).normalize();
+
+        // Adjust the end position to account for the radius of the incoming sphere and arrow length
+        var arrowLength = 0.7; // Length of the arrowhead
+        var sphereRadius = 0.25; // Radius of the sphere
+        var adjustedEnd = end.subtract(direction.scale(sphereRadius + arrowLength / 2));
+
+        // Create the path for the tube
+        var path = [start, adjustedEnd];
+
+        var optionsTube = { path: path, radius: 0.1, tessellation: 8, updatable: true };
+        var tube = B.MeshBuilder.CreateTube("tube", optionsTube, this._scene);
+
+        // Create the arrowhead (cone)
+        var arrow = B.MeshBuilder.CreateCylinder("arrow", { height: arrowLength, diameterTop: 0, diameterBottom: 0.5, tessellation: 8 }, this._scene);
+        arrow.position = adjustedEnd;
+        arrow.parent = tube;
+
+        // Orient the arrowhead to point in the direction of the edge
+        arrow.lookAt(end);
+        arrow.rotate(B.Axis.X, Math.PI / 2, B.Space.LOCAL);
+
+        // Color the arrowhead
+        var arrowMaterial = new B.StandardMaterial("arrowMat",this._scene );
+        arrowMaterial.diffuseColor = new B.Color3(0, 0, 1);
+        arrow.material = arrowMaterial;
+        
+        tube.isPickable = false;
+        
+        const tubeParams: TubeParams = {options:optionsTube, TubeMesh: tube,OutputMesh:outputNode.outputMesh!,inputMesh: inputNode.inputMesh!,arrow:arrow} ;
+        outputNode.outputArcs.push(tubeParams);
+        inputNode.inputArcs.push(tubeParams);
+
+
+        // startNode.outputArcs.push(tube);
+        // endNode.inputArcs.push(tube);
+        // tube.startNode = startNode;
+        // tube.endNode = endNode;
+        // tube.arrow = arrow;
     }
 }
