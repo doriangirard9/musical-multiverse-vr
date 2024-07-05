@@ -7,7 +7,9 @@ export class IOManager {
     private _inputNode: B.Nullable<AudioNode3D> = null;
     private _outputNode: B.Nullable<AudioNode3D> = null;
     private readonly _scene: B.Scene;
-
+    private virtualTube!: B.Mesh |null;
+    private virtualDragPoint!: B.TransformNode | null;
+    private pointerDragBehavior!: B.PointerDragBehavior;
     constructor(scene: B.Scene) {
         this._scene = scene;
     }
@@ -15,9 +17,13 @@ export class IOManager {
     public onIOEvent(event: IOEvent): void {
         if (event.pickType === "down") {
             if (event.type === 'input') {
+                console.log("input node")
+                this.createVirtualDragPoint(event.node.inputMesh!);
                 this._inputNode = event.node;
             }
             else {
+                this.createVirtualDragPoint(event.node.outputMesh!);
+
                 this._outputNode = event.node;
             }
         }
@@ -25,7 +31,7 @@ export class IOManager {
             if (event.type === 'input') {
                 if (this._outputNode) {
                     if (event.node.id === this._outputNode.id) {
-                        alert("Can't connect a node to itself");
+                        // alert("Can't connect a node to itself");
                         this._outputNode = null;
                     }
                     else {
@@ -34,14 +40,14 @@ export class IOManager {
                     }
                 }
                 else if (this._inputNode) {
-                    alert("You have to connect an output node");
+                    // alert("You have to connect an output node");
                     this._inputNode = null;
                 }
             }
             else {
                 if (this._inputNode) {
                     if (event.node.id === this._inputNode.id) {
-                        alert("Can't connect a node to itself");
+                        // alert("Can't connect a node to itself");
                         this._inputNode = null;
                     }
                     else {
@@ -50,14 +56,17 @@ export class IOManager {
                     }
                 }
                 else if (this._outputNode) {
-                    alert("You have to connect an input node");
+                    // alert("You have to connect an input node");
                     this._outputNode = null;
                 }
+                this.deleteVirtualTube();
             }
         }
         else {
+            this.deleteVirtualTube();
             this._inputNode = null;
             this._outputNode = null;
+        
         }
     }
 
@@ -110,10 +119,82 @@ export class IOManager {
         inputNode.inputArcs.push(tubeParams);
 
 
-        // startNode.outputArcs.push(tube);
-        // endNode.inputArcs.push(tube);
-        // tube.startNode = startNode;
-        // tube.endNode = endNode;
-        // tube.arrow = arrow;
+
     }
+
+    
+    public createVirtualTube(node: B.Mesh): void {
+        const start = node!.getAbsolutePosition();
+        const end = node!.getAbsolutePosition();
+        const path = [start, end];
+
+        this.virtualTube = B.MeshBuilder.CreateTube("tube", {
+            path: path,
+            radius: 0.1,
+            tessellation: 8,
+            updatable: true
+        }, this._scene);
+    }
+
+    
+public createVirtualDragPoint(node: B.Mesh): void {
+    console.log("Creating virtual tube");
+    this.createVirtualTube(node);
+
+    console.log("Creating drag point");
+    const dragPoint = new B.TransformNode("dragPoint", this._scene);
+    
+    dragPoint.position = node.getAbsolutePosition(); //: new B.Vector3(0, 0, 0);
+
+    this.pointerDragBehavior = new B.PointerDragBehavior({ dragPlaneNormal: new B.Vector3(0, 0, 1) });
+    dragPoint.addBehavior(this.pointerDragBehavior);
+
+
+    
+    this.pointerDragBehavior.onDragObservable.add((event) => {
+        if (dragPoint && this.virtualTube) {
+            // Perform raycast to find the intersection point
+            const pickResult = this._scene.pick(this._scene.pointerX, this._scene.pointerY);
+            console.log("picked", pickResult.pickedMesh?.name)
+            // if (pickResult?.hit && pickResult.pickedPoint) {
+            //     dragPoint.position.set(pickResult.pickedPoint.x, pickResult.pickedPoint.y, pickResult.pickedPoint.z);
+            // } else {
+                dragPoint.position.set(event.dragPlanePoint.x, event.dragPlanePoint.y,event.dragPlaneNormal.z);//node.getAbsolutePosition().z);
+            // }
+
+            B.MeshBuilder.CreateTube("tube", {
+                path: [node!.getAbsolutePosition(), dragPoint.position],
+                radius: 0.1,
+                tessellation: 8,
+                instance: this.virtualTube
+            }, this._scene);
+        }
+    });
+
+    this.virtualDragPoint = dragPoint;
+    dragPoint.position = node.position.clone();
+
+    // Verify node is pickable
+    if (node instanceof B.Mesh) {
+        node.isPickable = true;
+    }
+    this.pointerDragBehavior.startDrag();
+
+}
+
+    
+    
+    
+    
+    public deleteVirtualTube(): void {
+        if (this.virtualTube) {
+            this.virtualTube.dispose();
+            this.virtualTube = null;
+        }
+        if (this.virtualDragPoint) {
+            this.virtualDragPoint.dispose();
+            this.virtualDragPoint = null;
+        }
+    }
+    
 }
