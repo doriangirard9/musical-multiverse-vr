@@ -4,72 +4,7 @@ import {CustomParameter, IParameter, IWamConfig, ParameterInfo, WamInstance} fro
 import {AudioNode3D} from "./AudioNode3D.ts";
 import {AudioNodeState} from "../network/types.ts";
 import { App } from "../App.ts";
-
-class Drag implements B.Behavior<B.AbstractMesh> {
-    name = "test";
-    interval: number | null = null;
-    selected: B.AbstractMesh | null = null;
-    drag: B.PointerDragBehavior;
-
-    constructor(private app: App) {
-        this.drag = new B.PointerDragBehavior({ dragPlaneNormal: new B.Vector3(0, 0, 1) });
-    }
-
-    select(target: B.AbstractMesh | null) {
-        console.log("selected");
-        if (!this.selected) this.app.xrManager.xrFeaturesManager.disableFeature(B.WebXRFeatureName.MOVEMENT);
-        this.selected = target;
-        if (this.selected != null) {
-            this.selected.visibility = 0.5;
-            this.selected.addBehavior(this.drag);
-        }
-
-        const data = this.app._getPlayerState();
-        const norm = new B.Vector3(data.direction.x, 0, data.direction.z);
-        this.drag.options.dragPlaneNormal = norm;
-    }
-
-    init(): void {
-        this.app.xrManager.xrHelper.input.controllers.forEach(controller => {
-            const thumbstick = controller.motionController?.getComponent("xr-standard-thumbstick");
-            thumbstick?.onAxisValueChangedObservable.add((axis) => {
-                if(this.selected){
-                    const data = this.app._getPlayerState();
-                    const norm = new B.Vector3(data.direction.x,data.direction.y,data.direction.z)            
-                    this.selected.removeBehavior(this.drag);
-                    this.selected.position.addInPlace(norm.scaleInPlace(axis.y*-0.3));
-                    // this.drag.attach(this.selected!);
-                    this.selected.addBehavior(this.drag);
-                }
-            });
-        });
-    }
-
-    attach(target: B.AbstractMesh): void {
-        target?.actionManager?.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickDownTrigger, () => {
-             this.select(target);
-        }));
-
-        const on_up = () => {
-            if (this.selected) this.app.xrManager.xrFeaturesManager.enableFeature(B.WebXRFeatureName.MOVEMENT, "latest", {
-                xrInput: this.app.xrManager.xrHelper.input,
-                movementSpeed: 0.2,
-                rotationSpeed: 0.3,
-            });
-            this.selected?.removeBehavior(this.drag);
-            this.selected = null;
-            target.visibility = 0;
-        };
-
-        target?.actionManager?.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickUpTrigger, on_up));
-        target?.actionManager?.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickOutTrigger, on_up));
-    }
-
-    detach(): void {
-        console.log("detach");
-    this.select(null);
-    }
-}
+import { BoundingBox } from "./BoundingBox.ts";
 
 export class Wam3D extends AudioNode3D {
     private readonly _config: IWamConfig;
@@ -79,7 +14,7 @@ export class Wam3D extends AudioNode3D {
     private _parameter3D: {[name: string]: IParameter} = {};
     private _paramBuilder!: ParamBuilder;
     private readonly _configFile!: string;
-    public drag = new Drag(this._app)
+    // public drag = new Drag(this._app)
 
     constructor(scene: B.Scene, audioCtx: AudioContext, id: string, config: IWamConfig, configFile: string) {
         super(scene, audioCtx, id);
@@ -122,10 +57,13 @@ export class Wam3D extends AudioNode3D {
         this._createOutput(new B.Vector3(this._usedParameters.length / 2 + 0.2, this.baseMesh.position.y, this.baseMesh.position.z));
         // shadow
         this._app.shadowGenerator.addShadowCaster(this.baseMesh);
-        this.createBoundingBox();
+        // this.createBoundingBox();
+        const bo  = new BoundingBox(this,this._scene,this.id,this._app)
+        this.boundingBox = bo.boundingBox;
         this._app.menu.hide();
-        this.addMovingBehaviourToBoundingBox();
-        this.updateArcs();
+        bo.addMovingBehaviourToBoundingBox()
+        // this.addMovingBehaviourToBoundingBox();
+        // this.updateArcs();
 
         
     }
@@ -139,121 +77,6 @@ export class Wam3D extends AudioNode3D {
         this.baseMesh.material = material;
 
     }
-   // Create bounding box should be the parent of the node and the parameters and Wam3D
-   public createBoundingBox(): void {
-    let w = this.baseMesh.getBoundingInfo().boundingBox.extendSize.x * 2;
-    let h = this.baseMesh.getBoundingInfo().boundingBox.extendSize.y * 2;
-    let d = this.baseMesh.getBoundingInfo().boundingBox.extendSize.z * 2;
-
-    this.boundingBox = B.MeshBuilder.CreateBox(`boundingBox${this.id}`, { width: w, height: h*1.5, depth: d*2 }, this._scene);
-     this.boundingBox.isVisible = true;
-    this.boundingBox.visibility = 0; // Adjust visibility as needed
-    // make the boundingbox  clickable
-    this.boundingBox.isPickable = true;
-    this.boundingBox.checkCollisions = true;
-    this.baseMesh.parent = this.boundingBox;
-    if (this.inputMesh) this.inputMesh.parent = this.boundingBox;
-    if (this.outputMesh) this.outputMesh.parent = this.boundingBox;
-    const data = this._app._getPlayerState();
-    
-    const direction = new B.Vector3(data.direction.x,data.direction.y,data.direction.z)
-    const position = new B.Vector3(data.position.x,data.position.y+ 0.3,data.position.z).addInPlace(direction.normalize().scale(5))
-
-    this.boundingBox.position = position
-    this.boundingBox.setDirection(direction)
-
-    // this.boundingBox.position = new B.Vector3(data.position.x, data.position.y + 0.3, data.position.z + 3.5);
-    // this.boundingBox.setDirection(new B.Vector3(data.direction.x, data.direction.y, data.direction.z).normalize());
-    // rotate on x axis
-    this.boundingBox.rotation.x = -Math.PI / 6;
-    this._app.ground.checkCollisions = true;
-
-    
-}
-
-
-
-protected addMovingBehaviourToBoundingBox(): void {
-    const highlightLayer = new B.HighlightLayer(`hl${this.id}`, this._scene);
-    this.boundingBox.actionManager = new B.ActionManager(this._scene);
-    this.boundingBox.addBehavior(this.drag);
-
-        // make the bounding box pickable with  the b button
-        // const xrRightInputStates: XRInputStates = this._app.xrManager.xrInputManager.rightInputStates;
-        // const xrLeftInputStates: XRInputStates = this._app.xrManager.xrInputManager.leftInputStates;
-        // let isBoundingBoxPickable = true;
-
-        // if (xrRightInputStates || xrLeftInputStates) {
-        //     xrRightInputStates['b-button'].onButtonStateChangedObservable.add((component: B.WebXRControllerComponent): void => {
-        //         if (component.pressed) {
-        //             // Toggle variable
-        //             isBoundingBoxPickable = !isBoundingBoxPickable;
-                    
-        //             // switch state
-        //             // this.boundingBox.isPickable = isBoundingBoxPickable;
-        //             this.boundingBox.visibility = isBoundingBoxPickable ? 0.5 : 0;
-        //         }
-
-        //     });
-
-        // }
-
-
-    this.boundingBox.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPointerOverTrigger, (): void => {
-        highlightLayer.addMesh(this.boundingBox as B.Mesh, B.Color3.Black());
-    }));
-
-    this.boundingBox.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPointerOutTrigger, (): void => {
-        highlightLayer.removeMesh(this.boundingBox as B.Mesh);
-    }));
-
-    
-
-}
-private updateArcs(): void {
-        if(this.boundingBox){
-            this.boundingBox.onAfterWorldMatrixUpdateObservable.add((): void => {
-
-            this.inputArcs.forEach(a => {
-                let start = a.OutputMesh.getAbsolutePosition();
-                let end = a.inputMesh.getAbsolutePosition();
-
-                let direction = end.subtract(start).normalize();
-                var arrowLength = 0.7; // Length of the arrowhead
-                var sphereRadius = 0.25; // Radius of the sphere
-                var adjustedEnd = end.subtract(direction.scale(sphereRadius + arrowLength / 2));
-
-                let options = { path: [start, adjustedEnd], radius: 0.1, tessellation: 8, instance: a.TubeMesh };
-                B.MeshBuilder.CreateTube("tube", options, this._scene);
-
-                // Update arrow
-                a.arrow.position = adjustedEnd;
-                a.arrow.lookAt(end);
-                a.arrow.rotate(B.Axis.X, Math.PI / 2, B.Space.LOCAL);
-            });
-
-            // Update outgoing arcs
-            this.outputArcs.forEach(a => {
-                let start = a.OutputMesh.getAbsolutePosition();
-                let end = a.inputMesh.getAbsolutePosition();
-                let direction = end.subtract(start).normalize();
-                var arrowLength = 0.7; // Length of the arrowhead
-                var sphereRadius = 0.25; // Radius of the sphere
-                var adjustedEnd = end.subtract(direction.scale(sphereRadius + arrowLength / 2));
-
-                let options = { path: [start, adjustedEnd], radius: 0.1, tessellation: 8, instance: a.TubeMesh };
-                B.MeshBuilder.CreateTube("tube", options, this._scene);
-
-                // Update arrow
-                a.arrow.position = adjustedEnd;
-                a.arrow.lookAt(end);
-                a.arrow.rotate(B.Axis.X, Math.PI / 2, B.Space.LOCAL);
-            });
-        })
-    }
-    
-}
-
 
 
 

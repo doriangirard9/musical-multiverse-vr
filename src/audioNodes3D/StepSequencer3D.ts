@@ -2,6 +2,7 @@ import * as B from "@babylonjs/core";
 import * as Tone from "tone";
 import {AudioNode3D} from "./AudioNode3D.ts";
 import {AudioNodeState} from "../network/types.ts";
+import { BoundingBox } from "./BoundingBox.ts";
 
 export class StepSequencer3D extends AudioNode3D {
     private _synths!: Tone.Synth[];
@@ -28,6 +29,10 @@ export class StepSequencer3D extends AudioNode3D {
         this._initActionManager();
 
         this._createOutput(new B.Vector3(this.baseMesh.position.x + 4.2, this.baseMesh.position.y, this.baseMesh.position.z));
+
+        const bo = new BoundingBox(this, this._scene, this.id, this._app);
+        this.boundingBox = bo.boundingBox;
+        bo.addMovingBehaviourToBoundingBox();
 
         // shadow
         this._app.shadowGenerator.addShadowCaster(this.baseMesh);

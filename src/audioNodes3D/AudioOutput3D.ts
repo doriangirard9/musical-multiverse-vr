@@ -1,6 +1,7 @@
 import {AudioNode3D} from "./AudioNode3D.ts";
 import * as B from "@babylonjs/core";
 import {AudioNodeState} from "../network/types.ts";
+import { BoundingBox } from "./BoundingBox.ts";
 
 export class AudioOutput3D extends AudioNode3D {
     constructor(scene: B.Scene, audioCtx: AudioContext, id: string) {
@@ -18,6 +19,9 @@ export class AudioOutput3D extends AudioNode3D {
 
         this._createInput(new B.Vector3(this.baseMesh.position.x - 0.7, this.baseMesh.position.y, this.baseMesh.position.z));
 
+        const bo = new BoundingBox(this, this._scene, this.id, this._app);
+        this.boundingBox = bo.boundingBox;
+        bo.addMovingBehaviourToBoundingBox();
         // shadow
         this._app.shadowGenerator.addShadowCaster(this.baseMesh);
     }
