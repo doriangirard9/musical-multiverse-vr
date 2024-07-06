@@ -3,7 +3,6 @@ import {ParamBuilder} from "./parameters/ParamBuilder.ts";
 import {CustomParameter, IParameter, IWamConfig, ParameterInfo, WamInstance} from "./types.ts";
 import {AudioNode3D} from "./AudioNode3D.ts";
 import {AudioNodeState} from "../network/types.ts";
-import { App } from "../App.ts";
 import { BoundingBox } from "./BoundingBox.ts";
 
 export class Wam3D extends AudioNode3D {
