@@ -9,14 +9,10 @@ export class BoundingBox {
     // protected readonly _app: App = App.getInstance();
     public dragBehavior! : DragBoundingBox;
     _app: App;
-    _scene:B.Scene;
     id:string;
-    // _scene: B.Scene;
     constructor(private audioNode3D: AudioNode3D, private scene: B.Scene, id: string, app: App) {
         this._app = app;
-        this._scene = scene;
         this.id = id;
-        // this._scene = scene;
         this.createBoundingBox();
         this.dragBehavior = new DragBoundingBox(this._app)
 
@@ -29,7 +25,7 @@ export class BoundingBox {
     let h = this.audioNode3D.baseMesh.getBoundingInfo().boundingBox.extendSize.y * 2;
     let d = this.audioNode3D.baseMesh.getBoundingInfo().boundingBox.extendSize.z * 2;
 
-    this.boundingBox = B.MeshBuilder.CreateBox(`boundingBox${this.id}`, { width: w, height: h*1.5, depth: d*2 }, this._scene);
+    this.boundingBox = B.MeshBuilder.CreateBox(`boundingBox${this.id}`, { width: w, height: h*1.5, depth: d*2 }, this.scene);
      this.boundingBox.isVisible = true;
     this.boundingBox.visibility = 0; // Adjust visibility as needed
     // make the boundingbox  clickable
@@ -59,8 +55,8 @@ export class BoundingBox {
 
 
 public addMovingBehaviourToBoundingBox(): void {
-    const highlightLayer = new B.HighlightLayer(`hl${this.id}`, this._scene);
-    this.boundingBox.actionManager = new B.ActionManager(this._scene);
+    const highlightLayer = new B.HighlightLayer(`hl${this.id}`, this.scene);
+    this.boundingBox.actionManager = new B.ActionManager(this.scene);
     this.boundingBox.addBehavior(this.dragBehavior);
 
     this.boundingBox.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPointerOverTrigger, (): void => {
@@ -89,7 +85,7 @@ private updateArcs(): void {
             var adjustedEnd = end.subtract(direction.scale(sphereRadius + arrowLength / 2));
 
             let options = { path: [start, adjustedEnd], radius: 0.1, tessellation: 8, instance: a.TubeMesh };
-            B.MeshBuilder.CreateTube("tube", options, this._scene);
+            B.MeshBuilder.CreateTube("tube", options, this.scene);
 
             // Update arrow
             a.arrow.position = adjustedEnd;
@@ -107,7 +103,7 @@ private updateArcs(): void {
             var adjustedEnd = end.subtract(direction.scale(sphereRadius + arrowLength / 2));
 
             let options = { path: [start, adjustedEnd], radius: 0.1, tessellation: 8, instance: a.TubeMesh };
-            B.MeshBuilder.CreateTube("tube", options, this._scene);
+            B.MeshBuilder.CreateTube("tube", options, this.scene);
 
             // Update arrow
             a.arrow.position = adjustedEnd;
