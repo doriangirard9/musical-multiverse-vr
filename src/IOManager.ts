@@ -8,6 +8,7 @@ export class IOManager {
     private _outputNode: B.Nullable<AudioNode3D> = null;
     private readonly _scene: B.Scene;
     private virtualTube!: B.Mesh |null;
+    private virtualArrow: B.Mesh | null = null;
     private virtualDragPoint!: B.TransformNode | null;
     private pointerDragBehavior!: B.PointerDragBehavior;
     private highlightLayer!: B.HighlightLayer |null;
@@ -147,7 +148,29 @@ export class IOManager {
             tessellation: 8,
             updatable: true
         }, this._scene);
+        this.virtualTube.isPickable = false;
+
+        // implement arrow
+        var arrowLength = 0.7; // Length of the arrowhead
+        var sphereRadius = 0.25; // Radius of the sphere
+        var direction = end.subtract(start).normalize();
+        var adjustedEnd = end.subtract(direction.scale(sphereRadius + arrowLength / 2));
+
+        // Create the arrowhead (cone)
+        this.virtualArrow = B.MeshBuilder.CreateCylinder("arrow", { height: arrowLength, diameterTop: 0, diameterBottom: 0.5, tessellation: 8 }, this._scene);
+        this.virtualArrow.position = adjustedEnd;
+        this.virtualArrow.parent = this.virtualTube;
+
+        // Orient the arrowhead to point in the direction of the edge
+        this.virtualArrow.lookAt(end);
+        this.virtualArrow.rotate(B.Axis.X, Math.PI / 2, B.Space.LOCAL);
+
+        // Color the arrowhead
+        var arrowMaterial = new B.StandardMaterial("arrowMat",this._scene );
+        arrowMaterial.diffuseColor = new B.Color3(0, 0, 1);
+        this.virtualArrow.material = arrowMaterial;
     }
+
 
     
 public createVirtualDragPoint(node: B.Mesh): void {
@@ -173,29 +196,9 @@ public createVirtualDragPoint(node: B.Mesh): void {
     
     this.pointerDragBehavior.onDragObservable.add((event) => {
         if (dragPoint && this.virtualTube) {
-            // Perform raycast to find the intersection point
-            // const pickResult = this._scene.pick(this._scene.pointerX, this._scene.pointerY);
-            // get ray object from the camera to the pointer
-            
-            const ray = this._scene.createPickingRay(this._scene.pointerX, this._scene.pointerY, B.Matrix.Identity(), this._scene.activeCamera);
-            const pickResult = this._scene.pickWithRay(ray);
-            console.log("pickResult", pickResult)
-            console.log("ray",event.pointerInfo?.pickInfo?.ray)
-            console.log("hit",event.pointerInfo?.pickInfo?.pickedMesh?.name  )
-            // if(this._outputNode==null){
-                
+
+
                 dragPoint.position.set(event.dragPlanePoint.x, event.dragPlanePoint.y,event.dragPlanePoint.z)// node.getAbsolutePosition().z);//event.dragPlaneNormal.z);//event.pointerInfo?.pickInfo?.pickedMesh?.getAbsolutePosition().z!)
-            // }else{
-            //     const outpos =  this._outputNode.outputMesh!.getAbsolutePosition()
-            //    dragPoint.position.set(outpos.x,outpos.y,outpos.z)//node.getAbsolutePosition().z);//event.dragPlaneNormal.z);
-
-            // }
-
-            // if (pickResult?.hit && pickResult.pickedPoint) {
-            //     dragPoint.position.set(pickResult.pickedPoint.x, pickResult.pickedPoint.y, pickResult.pickedPoint.z);
-            // } else {
-            //     dragPoint.position.set(event.dragPlanePoint.x, event.dragPlanePoint.y,event.pointerInfo?.pickInfo?.pickedMesh?.getAbsolutePosition().z!)//node.getAbsolutePosition().z);//event.dragPlaneNormal.z);
-            // }
 
             B.MeshBuilder.CreateTube("tube", {
                 path: [node!.getAbsolutePosition(), dragPoint.position],
@@ -204,15 +207,24 @@ public createVirtualDragPoint(node: B.Mesh): void {
                 instance: this.virtualTube
             }, this._scene);
         }
-    });
 
-    this.virtualDragPoint = dragPoint;
+            // Update arrow
+    this.virtualArrow!.position =  dragPoint.position;
+    let direction = dragPoint.position.subtract(node!.getAbsolutePosition())//.normalize();
+    this.virtualArrow!.lookAt(direction);
+    this.virtualArrow!.rotate(B.Axis.X, Math.PI / 2, B.Space.LOCAL);
+    });
+    this.virtualArrow!.isPickable = false;
+    
     dragPoint.position = node.position.clone();
+    this.virtualDragPoint = dragPoint;
 
     // Verify node is pickable
     if (node instanceof B.Mesh) {
         node.isPickable = true;
     }
+
+
     this.pointerDragBehavior.startDrag();
 
 }
@@ -233,6 +245,10 @@ public createVirtualDragPoint(node: B.Mesh): void {
         if(this.highlightLayer){
             this.highlightLayer.dispose();
             this.highlightLayer = null;
+        }
+        if(this.virtualArrow){
+            this.virtualArrow.dispose();
+            this.virtualArrow = null;
         }
     }
     

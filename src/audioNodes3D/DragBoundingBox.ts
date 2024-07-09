@@ -6,12 +6,16 @@ import { App } from "../App.ts";
 export class DragBoundingBox implements B.Behavior<B.AbstractMesh> {
     
     name = "test";
-    interval: number | null = null;
     selected: B.AbstractMesh | null = null;
     drag: B.PointerDragBehavior;
 
     constructor(private app: App) {
         this.drag = new B.PointerDragBehavior({ dragPlaneNormal: new B.Vector3(0, 0, 1) });
+
+        // const data = this.app._getPlayerState();
+        // const norm = new B.Vector3(data.direction.x, 0, data.direction.z);
+        // console.log(norm)
+        // this.drag = new B.PointerDragBehavior({ dragPlaneNormal: norm });
     }
 
     select(target: B.AbstractMesh | null) {
@@ -21,11 +25,10 @@ export class DragBoundingBox implements B.Behavior<B.AbstractMesh> {
         if (this.selected != null) {
             this.selected.visibility = 0.5;
             this.selected.addBehavior(this.drag);
+                const data = this.app._getPlayerState();
+                const norm = new B.Vector3(data.direction.x, 0, data.direction.z);
+                this.drag.options.dragPlaneNormal = norm;
         }
-
-        const data = this.app._getPlayerState();
-        const norm = new B.Vector3(data.direction.x, 0, data.direction.z);
-        this.drag.options.dragPlaneNormal = norm;
     }
 
     init(): void {
