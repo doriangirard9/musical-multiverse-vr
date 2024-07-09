@@ -47,7 +47,7 @@ export class BoundingBox {
     // rotate on x axis
     this.boundingBox.rotation.x = -Math.PI / 6;
     this._app.ground.checkCollisions = true;
-
+this._app.menu.hide()
     this.updateArcs();
 
 }
