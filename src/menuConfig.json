@@ -18,7 +18,16 @@
           {
             "name": "Disto Machine",
             "configFile": "distoMachineConfig"
+          },
+          {
+            "name": "Quadra Fuzz",
+            "configFile": "QuadraFuzzConfig"
+          },
+          {
+            "name": "Ping Pong Delay",
+            "configFile": "PingPongDelayConfig"
           }
+          
         ]
     }
   ]
