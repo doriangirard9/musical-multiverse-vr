@@ -32,10 +32,10 @@ export class DragBoundingBox implements B.Behavior<B.AbstractMesh> {
             this.select(target);
         }));
         target.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickUpTrigger, () => {
-            this.onRelease(target);
+            this.onRelease(/*target*/);
         }));
         target.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickOutTrigger, () => {
-            this.onRelease(target);
+            this.onRelease(/*target*/);
         }));
     }
 
@@ -60,7 +60,7 @@ export class DragBoundingBox implements B.Behavior<B.AbstractMesh> {
 
 
 
-    onRelease(target: B.AbstractMesh): void {
+    onRelease(/*target: B.AbstractMesh*/): void {
         if (this.selected) {
             this.app.xrManager.xrFeaturesManager.enableFeature(B.WebXRFeatureName.MOVEMENT, "latest", {
                 xrInput: this.app.xrManager.xrHelper.input,
