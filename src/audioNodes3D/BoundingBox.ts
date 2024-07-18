@@ -16,6 +16,16 @@ export class BoundingBox {
         this.createBoundingBox();
         this.dragBehavior = new DragBoundingBox(this._app)
 
+        // // Add SixDofDragBehavior
+        // const dragBehavior = new B.SixDofDragBehavior();
+        // this.boundingBox.addBehavior(dragBehavior);
+
+        // // Limit movement to x and z axes by adjusting position on drag
+        // dragBehavior.onDragObservable.add((event) => {
+        //     this.boundingBox.position.y = 0; // Keeps the box at y = 0 to restrict it to the XZ plane
+        // });
+
+
     }
 
    // Create bounding box should be the parent of the node and the parameters and Wam3D
@@ -91,6 +101,9 @@ private updateArcs(): void {
             a.arrow.position = adjustedEnd;
             a.arrow.lookAt(end);
             a.arrow.rotate(B.Axis.X, Math.PI / 2, B.Space.LOCAL);
+            this._app.shadowGenerator.addShadowCaster(a.TubeMesh);
+            this._app.shadowGenerator.addShadowCaster(a.arrow);
+
         });
 
         // Update outgoing arcs

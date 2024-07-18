@@ -140,27 +140,29 @@ export class App {
                 grid.mainColor = new B.Color3(0.5, 0.5, 0.5);
                 grid.lineColor = new B.Color3(1, 1, 1);
                 var wallgrid = grid.clone("wallgrid");
+        //         grid.opacity = 0.5;
                 
                 var groundSize = { width: 100, height: 1, depth: 100 };
                 var wallHeight = 2;
                 var wallThickness = 1;
 
-                // Create the ground
+        //         // Create the ground
                 var ground = B.MeshBuilder.CreateBox("ground", groundSize, this.scene);
                 ground.position.y -=  2;
-                ground.material = grid;
+                // ground.material = grid;
+
 
                 ground.checkCollisions  = true; 
 
                                 // Function to create and position a wall
-                         const wall= function createWall(width:number, height:number, depth:number, posX:number, posY:number, posZ:number) {
+            const wall= function createWall(width:number, height:number, depth:number, posX:number, posY:number, posZ:number) {
                     var wall = B.MeshBuilder.CreateBox("wall", { width: width, height: height, depth: depth });
                     // wall.material = grid;
                     wall.position.set(posX, posY, posZ);
                     // change the color of the wall to lime
                     wallgrid.mainColor = new B.Color3(0, 0, 0);
                     wall.material = wallgrid;
-                    wall.receiveShadows = true;
+                    
                     wall.checkCollisions  = true; 
                     wall.position.y -=  2;
 
@@ -170,13 +172,18 @@ export class App {
                 var halfHeight = wallHeight / 2;
                 var halfDepth = groundSize.depth / 2;
                 var halfWidth = groundSize.width / 2;
-
+                
                 wall(groundSize.width, wallHeight, wallThickness, 0, halfHeight, halfDepth); // Front wall
                 wall(groundSize.width, wallHeight, wallThickness, 0, halfHeight, -halfDepth); // Back wall
                 wall(wallThickness, wallHeight, groundSize.depth, halfWidth, halfHeight, 0); // Right wall
                 wall(wallThickness, wallHeight, groundSize.depth, -halfWidth, halfHeight, 0); // Left wall
                 ground.receiveShadows = true;     
                 ground.checkCollisions = true;
+
+                B.NodeMaterial.ParseFromSnippetAsync("I4DJ9Z", this.scene).then( (nodeMaterial) => {
+                    ground.material = nodeMaterial;
+                
+                });
                 this.ground = ground;
     }
 
