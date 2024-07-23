@@ -209,10 +209,15 @@ public createVirtualDragPoint(node: B.Mesh): void {
         }
 
             // Update arrow
-    this.virtualArrow!.position =  dragPoint.position;
-    let direction = dragPoint.position.subtract(node!.getAbsolutePosition())//.normalize();
-    this.virtualArrow!.lookAt(direction);
-    this.virtualArrow!.rotate(B.Axis.X, Math.PI / 2, B.Space.LOCAL);
+            this.virtualArrow!.position =  dragPoint.position;
+            var arrowLength = 0.7; // Length of the arrowhead
+            var sphereRadius = 0.25; // Radius of the sphere
+            let start = node.getAbsolutePosition();
+            let end = dragPoint.getAbsolutePosition();
+            let direction = end.subtract(start).normalize();
+            var adjustedEnd = end.subtract(direction.scale(sphereRadius + arrowLength / 2));
+            this.virtualArrow!.lookAt(adjustedEnd);
+            this.virtualArrow!.rotate(B.Axis.X, -Math.PI / 2, B.Space.LOCAL);
     });
     this.virtualArrow!.isPickable = false;
     
