@@ -132,6 +132,17 @@ export class App {
 
         }
     }
+
+    private _onRemotePlayerChange(change: {action: 'add' | 'delete', state: PlayerState}): void {
+        if (change.action === 'add') {
+            const player = new Player(this.scene, change.state.id);
+            this.networkManager.addRemotePlayer(player);
+            player.setState(change.state);
+        }
+        else {
+            // delete player
+        }
+    }
     private _createGround(){
         var grid = new GridMaterial("grid", this.scene);    
                 grid.gridRatio = 0.1;
@@ -187,16 +198,7 @@ export class App {
                 this.ground = ground;
     }
 
-    private _onRemotePlayerChange(change: {action: 'add' | 'delete', state: PlayerState}): void {
-        if (change.action === 'add') {
-            const player = new Player(this.scene, change.state.id);
-            this.networkManager.addRemotePlayer(player);
-            player.setState(change.state);
-        }
-        else {
-            // delete player
-        }
-    }
+    
     // TODO : use get state from XRManager
     public _sendPlayerState(): void {
         const xrCameraPosition: B.Vector3 = this.xrManager.xrHelper.baseExperience.camera.position;

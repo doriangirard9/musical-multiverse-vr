@@ -13,13 +13,13 @@ export class NetworkManager {
     private readonly _id: string;
 
     // Audio nodes
-    private _networkAudioNodes3D!: Y.Map<AudioNodeState>;
-    private _audioNodes3D = new Map<string, AudioNode3D>();
+    private _networkAudioNodes3D!: Y.Map<AudioNodeState>; // Network state
+    private _audioNodes3D = new Map<string, AudioNode3D>(); // local state
     public onAudioNodeChangeObservable = new B.Observable<{action: 'add' | 'delete', state: AudioNodeState}>();
 
     // Players
-    private _networkPlayers!: Y.Map<PlayerState>;
-    private _players = new Map<string, Player>();
+    private _networkPlayers!: Y.Map<PlayerState>; // Network state
+    private _players = new Map<string, Player>();// local state
     public onPlayerChangeObservable = new B.Observable<{action: 'add' | 'delete', state: PlayerState}>();
 
     constructor(id: string) {
@@ -48,7 +48,7 @@ export class NetworkManager {
     private _onAudioNode3DChange(change: {action: "add" | "update" | "delete", oldValue: any}, key: string): void {
         switch (change.action) {
             case "add":
-                if (this._audioNodes3D.get(key)) return;
+                if (this._audioNodes3D.has(key)) return;
                 this.onAudioNodeChangeObservable.notifyObservers({action: 'add', state: this._networkAudioNodes3D.get(key)!});
                 break;
             case "update":
@@ -96,7 +96,6 @@ export class NetworkManager {
         const state: AudioNodeState = audioNode3D.getState();
         this._audioNodes3D.set(state.id, audioNode3D);
     }
-
     public getAudioNode3D(id: string): AudioNode3D | undefined {
         return this._audioNodes3D.get(id);
     }
