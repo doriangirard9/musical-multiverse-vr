@@ -5,6 +5,7 @@ import {AudioNodeState} from "../network/types.ts";
 import { BoundingBox } from "./BoundingBox.ts";
 
 export class StepSequencer3D extends AudioNode3D {
+
     private _synths!: Tone.Synth[];
     private _notes: string[] = ["C4", "D4", "E4", "F4"];
     private _grid: {mesh: B.Mesh, isActivated: boolean}[][] = [];
@@ -38,6 +39,10 @@ export class StepSequencer3D extends AudioNode3D {
         this._app.shadowGenerator.addShadowCaster(this.baseMesh);
     }
 
+    public disconnect(_destination: AudioNode): void {
+        throw new Error("Method not implemented.");
+    }
+    
     protected _createBaseMesh(): void {
         this.baseMesh = B.MeshBuilder.CreateBox('box', { width: 8, height: 0.2, depth: 4 }, this._scene);
 

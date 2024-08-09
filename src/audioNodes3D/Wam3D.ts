@@ -4,6 +4,7 @@ import {CustomParameter, IParameter, IWamConfig, ParameterInfo, WamInstance} fro
 import {AudioNode3D} from "./AudioNode3D.ts";
 import {AudioNodeState} from "../network/types.ts";
 import { BoundingBox } from "./BoundingBox.ts";
+import { XRInputStates } from "../xr/types.ts";
 
 export class Wam3D extends AudioNode3D {
     private readonly _config: IWamConfig;
@@ -63,7 +64,7 @@ export class Wam3D extends AudioNode3D {
         bo.addMovingBehaviourToBoundingBox()
         // this.addMovingBehaviourToBoundingBox();
         // this.updateArcs();
-
+        this.confirmDelete()
         
     }
 
@@ -115,6 +116,11 @@ export class Wam3D extends AudioNode3D {
         // @ts-ignore
         this._wamInstance.audioNode.connect(destination);
     }
+    public disconnect(destination: AudioNode): void {
+        // @ts-ignore
+        this._wamInstance.audioNode.disconnect(destination);
+    }
+
 
     public getState(): AudioNodeState {
         const parameters: {[name: string]: number} = {};
@@ -147,5 +153,30 @@ export class Wam3D extends AudioNode3D {
             const fullParamName: string = `${this._config.root}${param.name}`;
             this._parameter3D[fullParamName].setParamValue(state.parameters[fullParamName]);
         });
+    }
+
+    public confirmDelete(){
+        //on click right click on the mouse the menu will appear
+        this.boundingBox.actionManager!.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnRightPickTrigger, (e): void => {
+            if (this._isMenuOpen) this._hideMenu();
+            else this._showMenu();
+                        }));
+                
+        // this.boundingBox.actionManager = new B.ActionManager(this._scene);
+
+        const xrLeftInputStates: XRInputStates = this._app.xrManager.xrInputManager.leftInputStates;
+        this.boundingBox.actionManager!.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPointerOverTrigger, (): void => {
+            // highlightLayer.addMesh(this.baseMesh, B.Color3.Black());
+            xrLeftInputStates['x-button'].onButtonStateChangedObservable.add((component: B.WebXRControllerComponent): void => {
+                if (component.pressed) {
+                    if (this._isMenuOpen) this._hideMenu();
+                    else this._showMenu();
+                }
+            });
+        }));
+        this.boundingBox.actionManager!.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPointerOutTrigger, (): void => {
+            // highlightLayer.removeMesh(this.baseMesh);
+            xrLeftInputStates['x-button'].onButtonStateChangedObservable.clear();
+        }));
     }
 }

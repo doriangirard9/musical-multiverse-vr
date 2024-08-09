@@ -48,6 +48,7 @@ export abstract class AudioNode3D implements INetworkObject<AudioNodeState> {
     public abstract instantiate(): any;
 
     public abstract connect(destination: AudioNode): void;
+    public abstract disconnect(destination: AudioNode): void;
 
     public abstract getAudioNode(): AudioNode;
 
@@ -58,6 +59,43 @@ export abstract class AudioNode3D implements INetworkObject<AudioNodeState> {
     public delete(): void {
         this._hideMenu();
         this._hideRotationGizmo();
+
+        // supprimer le Tube from outputNode 
+        this.inputArcs.forEach((arc: TubeParams): void => {
+            arc.outputNode.outputArcs.forEach((outputArc: TubeParams, index: number): void => {
+                if(outputArc.TubeMesh.name == arc.TubeMesh.name) 
+                    //splice from the array the arc that is connected to the input node
+                    arc.outputNode.outputArcs.splice(index, 1);
+        })
+        if (arc.TubeMesh) arc.TubeMesh.dispose();
+        if (arc.arrow) arc.arrow.dispose();
+        });
+
+        // supprimer le Tube from inputNode
+        this.outputArcs.forEach((arc: TubeParams): void => {
+            arc.inputNode.inputArcs.forEach((inputArc: TubeParams, index: number): void => {
+                if(inputArc.TubeMesh.name == arc.TubeMesh.name) 
+                    //splice from the array the arc that is connected to the output node
+                    arc.inputNode.inputArcs.splice(index, 1);
+                    // inputArc.TubeMesh.dispose();
+            }
+        )
+            if (arc.TubeMesh) arc.TubeMesh.dispose();
+            if (arc.arrow) arc.arrow.dispose();
+        })
+    
+        this.outputArcs = [];
+        this.inputArcs = [];
+
+        // Disconnect audio node
+        this.getAudioNode().disconnect();
+    
+        // Dispose of bounding box
+        if (this.boundingBox) {
+            this.boundingBox.dispose();
+        }
+    
+        // Dispose of meshes
         this.baseMesh.dispose();
         this.inputMesh?.dispose();
         this.outputMesh?.dispose();
@@ -67,7 +105,7 @@ export abstract class AudioNode3D implements INetworkObject<AudioNodeState> {
 
     protected _initActionManager(): void {
         // const highlightLayer = new B.HighlightLayer(`hl${this.id}`, this._scene);
-        this.baseMesh.actionManager = new B.ActionManager(this._scene);
+        // this.baseMesh.actionManager = new B.ActionManager(this._scene);
 
         // const xrLeftInputStates: XRInputStates = this._app.xrManager.xrInputManager.leftInputStates;
         // this.baseMesh.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPointerOverTrigger, (): void => {

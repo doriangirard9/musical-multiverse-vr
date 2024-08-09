@@ -27,6 +27,7 @@ export class AudioOutput3D extends AudioNode3D {
     }
 
     public connect(_destination: AudioNode): void {}
+    public disconnect(_destination: AudioNode): void {}
 
     public getAudioNode(): AudioNode {
         return this._audioCtx.destination;

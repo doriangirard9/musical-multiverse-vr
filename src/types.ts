@@ -24,5 +24,7 @@ export type TubeParams = {
     OutputMesh: B.Mesh,
     inputMesh: B.Mesh,
     arrow: B.Mesh,
+    outputNode: AudioNode3D,
+    inputNode: AudioNode3D,
 
 }

@@ -49,6 +49,10 @@ export class SimpleOscillator3D extends AudioNode3D {
         this._app.shadowGenerator.addShadowCaster(this.baseMesh);
     }
 
+    public disconnect(_destination: AudioNode): void {
+        throw new Error("Method not implemented.");
+    }
+
     protected _createBaseMesh(): void {
         const size: number = this._usedParameters.length;
         this.baseMesh = B.MeshBuilder.CreateBox('box', { width: size, height: 0.2 }, this._scene);

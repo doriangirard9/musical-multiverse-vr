@@ -1,6 +1,7 @@
 import {IOEvent, TubeParams} from "./types.ts";
 import * as B from "@babylonjs/core";
 import {AudioNode3D} from "./audioNodes3D/AudioNode3D.ts";
+import { v4 as uuid } from 'uuid';
 
 
 export class IOManager {
@@ -84,6 +85,29 @@ export class IOManager {
         }
     }
 
+    
+    // public deleteArc(outputNode: AudioNode3D, inputNode: AudioNode3D): void {
+    //     console.log("Deleting arc between nodes", outputNode.id, inputNode.id);
+    //     outputNode.outputArcs.forEach((tubeParams: TubeParams, index: number): void => {
+    //         if (tubeParams.inputMesh && tubeParams.inputMesh.id === inputNode.inputMesh!.id) {
+    //             console.log("Disposing TubeMesh and arrow");
+    //             tubeParams.TubeMesh.dispose();
+    //             tubeParams.arrow.dispose();
+    //             outputNode.outputArcs.splice(index, 1);
+    //         }
+    //     });
+    //     inputNode.inputArcs.forEach((tubeParams: TubeParams, index: number): void => {
+    //         if (tubeParams.OutputMesh && tubeParams.OutputMesh.id === outputNode.outputMesh!.id) {
+    //             console.log("Disposing TubeMesh and arrow");
+    //             tubeParams.TubeMesh.dispose();
+    //             tubeParams.arrow.dispose();
+    //             inputNode.inputArcs.splice(index, 1);
+    //         }
+    //     });
+    // }
+    
+
+
     public connectNodes(outputNode: AudioNode3D, inputNode: AudioNode3D): void {
         outputNode.connect(inputNode.getAudioNode());
         outputNode.addInputNode(inputNode);
@@ -110,7 +134,7 @@ export class IOManager {
         var path = [start, adjustedEnd];
 
         var optionsTube = { path: path, radius: 0.1, tessellation: 8, updatable: true };
-        var tube = B.MeshBuilder.CreateTube("tube", optionsTube, this._scene);
+        var tube = B.MeshBuilder.CreateTube(`tube-${uuid()}`, optionsTube, this._scene);
 
         // Create the arrowhead (cone)
         var arrow = B.MeshBuilder.CreateCylinder("arrow", { height: arrowLength, diameterTop: 0, diameterBottom: 0.5, tessellation: 8 }, this._scene);
@@ -127,8 +151,8 @@ export class IOManager {
         arrow.material = arrowMaterial;
         
         tube.isPickable = false;
-        
-        const tubeParams: TubeParams = {options:optionsTube, TubeMesh: tube,OutputMesh:outputNode.outputMesh!,inputMesh: inputNode.inputMesh!,arrow:arrow} ;
+  
+        const tubeParams: TubeParams = {options:optionsTube, TubeMesh: tube,OutputMesh:outputNode.outputMesh!,inputMesh: inputNode.inputMesh!,arrow:arrow,outputNode:outputNode,inputNode:inputNode} ;
         outputNode.outputArcs.push(tubeParams);
         inputNode.inputArcs.push(tubeParams);
 

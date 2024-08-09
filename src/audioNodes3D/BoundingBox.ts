@@ -85,8 +85,10 @@ private updateArcs(): void {
     if(this.boundingBox){
         this.boundingBox.onAfterWorldMatrixUpdateObservable.add((): void => {
 
+        // Update incoming arcs
         this.audioNode3D.inputArcs.forEach(a => {
-            let start = a.OutputMesh.getAbsolutePosition();
+            if (a.TubeMesh && a.OutputMesh && a.inputMesh) {
+                let start = a.OutputMesh.getAbsolutePosition();
             let end = a.inputMesh.getAbsolutePosition();
 
             let direction = end.subtract(start).normalize();
@@ -103,12 +105,13 @@ private updateArcs(): void {
             a.arrow.rotate(B.Axis.X, Math.PI / 2, B.Space.LOCAL);
             this._app.shadowGenerator.addShadowCaster(a.TubeMesh);
             this._app.shadowGenerator.addShadowCaster(a.arrow);
-
+            }
         });
 
         // Update outgoing arcs
         this.audioNode3D.outputArcs.forEach(a => {
-            let start = a.OutputMesh.getAbsolutePosition();
+            if (a.TubeMesh && a.OutputMesh && a.inputMesh) {
+                let start = a.OutputMesh.getAbsolutePosition();
             let end = a.inputMesh.getAbsolutePosition();
             let direction = end.subtract(start).normalize();
             var arrowLength = 0.7; // Length of the arrowhead
@@ -122,8 +125,12 @@ private updateArcs(): void {
             a.arrow.position = adjustedEnd;
             a.arrow.lookAt(end);
             a.arrow.rotate(B.Axis.X, Math.PI / 2, B.Space.LOCAL);
-        });
+        }
+    });
+        
+        
     })
+    
 }
 
 }
