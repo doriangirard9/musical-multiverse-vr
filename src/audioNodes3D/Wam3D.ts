@@ -61,10 +61,6 @@ export class Wam3D extends AudioNode3D {
         const bo  = new BoundingBox(this,this._scene,this.id,this._app)
         this.boundingBox = bo.boundingBox;
         this._app.menu.hide();
-        bo.addMovingBehaviourToBoundingBox()
-        // this.addMovingBehaviourToBoundingBox();
-        // this.updateArcs();
-        this.confirmDelete()
         
     }
 
@@ -155,28 +151,4 @@ export class Wam3D extends AudioNode3D {
         });
     }
 
-    public confirmDelete(){
-        //on click right click on the mouse the menu will appear
-        this.boundingBox.actionManager!.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnRightPickTrigger, (e): void => {
-            if (this._isMenuOpen) this._hideMenu();
-            else this._showMenu();
-                        }));
-                
-        // this.boundingBox.actionManager = new B.ActionManager(this._scene);
-
-        const xrLeftInputStates: XRInputStates = this._app.xrManager.xrInputManager.leftInputStates;
-        this.boundingBox.actionManager!.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPointerOverTrigger, (): void => {
-            // highlightLayer.addMesh(this.baseMesh, B.Color3.Black());
-            xrLeftInputStates['x-button'].onButtonStateChangedObservable.add((component: B.WebXRControllerComponent): void => {
-                if (component.pressed) {
-                    if (this._isMenuOpen) this._hideMenu();
-                    else this._showMenu();
-                }
-            });
-        }));
-        this.boundingBox.actionManager!.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPointerOutTrigger, (): void => {
-            // highlightLayer.removeMesh(this.baseMesh);
-            xrLeftInputStates['x-button'].onButtonStateChangedObservable.clear();
-        }));
-    }
 }

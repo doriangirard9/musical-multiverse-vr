@@ -33,7 +33,7 @@ export class StepSequencer3D extends AudioNode3D {
 
         const bo = new BoundingBox(this, this._scene, this.id, this._app);
         this.boundingBox = bo.boundingBox;
-        bo.addMovingBehaviourToBoundingBox();
+        // bo.addMovingBehaviourToBoundingBox();
 
         // shadow
         this._app.shadowGenerator.addShadowCaster(this.baseMesh);

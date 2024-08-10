@@ -44,7 +44,7 @@ export class SimpleOscillator3D extends AudioNode3D {
         this._createOutput(new B.Vector3(this._usedParameters.length / 2 + 0.2, this.baseMesh.position.y, this.baseMesh.position.z));
         const bo = new BoundingBox(this, this._scene, this.id, this._app);
         this.boundingBox = bo.boundingBox;
-        bo.addMovingBehaviourToBoundingBox();
+        // bo.addMovingBehaviourToBoundingBox();
         // shadow
         this._app.shadowGenerator.addShadowCaster(this.baseMesh);
     }

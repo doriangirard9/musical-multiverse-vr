@@ -26,7 +26,7 @@ export abstract class AudioNode3D implements INetworkObject<AudioNodeState> {
 
     // Menu
     protected _menu!: GUI.NearMenu;
-    protected _isMenuOpen: boolean = false;
+    public _isMenuOpen: boolean = false;
 
     // IO
     public inputMesh?: B.Mesh;
@@ -261,12 +261,12 @@ export abstract class AudioNode3D implements INetworkObject<AudioNodeState> {
         this._menu.addButton(rotateButton);
     }
 
-    protected _showMenu(): void {
+    public _showMenu(): void {
         this._isMenuOpen = true;
         this._createOptionsMenu();
     }
 
-    protected _hideMenu(): void {
+    public _hideMenu(): void {
         this._isMenuOpen = false;
         this._hideRotationGizmo();
         if (this._menu) this._menu.dispose();

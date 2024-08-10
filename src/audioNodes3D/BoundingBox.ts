@@ -2,6 +2,7 @@ import * as B from "@babylonjs/core";
 import { DragBoundingBox } from "./DragBoundingBox";
 import { App } from "../App";
 import { AudioNode3D } from "./AudioNode3D";
+import { XRInputStates } from "../xr/types";
 
 export class BoundingBox {
     
@@ -13,9 +14,10 @@ export class BoundingBox {
     constructor(private audioNode3D: AudioNode3D, private scene: B.Scene, id: string, app: App) {
         this._app = app;
         this.id = id;
-        this.createBoundingBox();
         this.dragBehavior = new DragBoundingBox(this._app)
+        this.createBoundingBox();
 
+        // another methode for dragin behavior
         // // Add SixDofDragBehavior
         // const dragBehavior = new B.SixDofDragBehavior();
         // this.boundingBox.addBehavior(dragBehavior);
@@ -57,9 +59,10 @@ export class BoundingBox {
     // rotate on x axis
     this.boundingBox.rotation.x = -Math.PI / 6;
     this._app.ground.checkCollisions = true;
-this._app.menu.hide()
+    this._app.menu.hide()
     this.updateArcs();
-
+    this.addMovingBehaviourToBoundingBox()
+    this.confirmDelete()
 }
 
 
@@ -76,9 +79,6 @@ public addMovingBehaviourToBoundingBox(): void {
     this.boundingBox.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPointerOutTrigger, (): void => {
         highlightLayer.removeMesh(this.boundingBox as B.Mesh);
     }));
-
-    
-
 }
 
 private updateArcs(): void {
@@ -126,15 +126,37 @@ private updateArcs(): void {
             a.arrow.lookAt(end);
             a.arrow.rotate(B.Axis.X, Math.PI / 2, B.Space.LOCAL);
         }
-    });
-        
-        
+    });    
     })
-    
+}
 }
 
-}
 
+public confirmDelete(){
+    //on click right click on the mouse the menu will appear
+    this.boundingBox.actionManager!.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnRightPickTrigger, (): void => {
+        
+        if (this.audioNode3D._isMenuOpen) this.audioNode3D._hideMenu();
+        else this.audioNode3D._showMenu();
+        }));
+            
+    // this.boundingBox.actionManager = new B.ActionManager(this.scene);
+
+    const xrLeftInputStates: XRInputStates = this._app.xrManager.xrInputManager.leftInputStates;
+    this.boundingBox.actionManager!.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPointerOverTrigger, (): void => {
+        // highlightLayer.addMesh(this.baseMesh, B.Color3.Black());
+        xrLeftInputStates['x-button'].onButtonStateChangedObservable.add((component: B.WebXRControllerComponent): void => {
+            if (component.pressed) {
+                if (this.audioNode3D._isMenuOpen) this.audioNode3D._hideMenu();
+                else this.audioNode3D._showMenu();
+            }
+        });
+    }));
+    this.boundingBox.actionManager!.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPointerOutTrigger, (): void => {
+        // highlightLayer.removeMesh(this.baseMesh);
+        xrLeftInputStates['x-button'].onButtonStateChangedObservable.clear();
+    }));
+}
 
 
 }
