@@ -83,7 +83,14 @@ export abstract class AudioNode3D implements INetworkObject<AudioNodeState> {
             if (arc.TubeMesh) arc.TubeMesh.dispose();
             if (arc.arrow) arc.arrow.dispose();
         })
-    
+        //link with tube instead of audionode deleted
+        this.inputArcs.forEach((inputArc: TubeParams): void => {
+            this.outputArcs.forEach((outputArc: TubeParams): void => {
+                // TO DO: check if alreay connected
+                    this._app.ioManager.connectNodes(inputArc.outputNode, outputArc.inputNode);
+            })
+        });
+        
         this.outputArcs = [];
         this.inputArcs = [];
 
