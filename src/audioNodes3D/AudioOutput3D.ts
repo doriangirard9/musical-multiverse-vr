@@ -2,6 +2,7 @@ import {AudioNode3D} from "./AudioNode3D.ts";
 import * as B from "@babylonjs/core";
 import {AudioNodeState} from "../network/types.ts";
 import { BoundingBox } from "./BoundingBox.ts";
+import { TubeParams } from "../types.ts";
 
 export class AudioOutput3D extends AudioNode3D {
     constructor(scene: B.Scene, audioCtx: AudioContext, id: string) {
@@ -49,5 +50,14 @@ export class AudioOutput3D extends AudioNode3D {
             inputNodes: [],
             parameters: {}
         };
+    }
+
+    public delete():void{
+        this.inputArcs.forEach((arc: TubeParams): void => {
+            arc.outputNode.getAudioNode().disconnect();
+        });
+        super.delete();
+
+
     }
 }

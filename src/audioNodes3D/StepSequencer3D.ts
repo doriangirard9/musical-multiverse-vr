@@ -3,6 +3,7 @@ import * as Tone from "tone";
 import {AudioNode3D} from "./AudioNode3D.ts";
 import {AudioNodeState} from "../network/types.ts";
 import { BoundingBox } from "./BoundingBox.ts";
+import { TubeParams } from "../types.ts";
 
 export class StepSequencer3D extends AudioNode3D {
 
@@ -43,6 +44,22 @@ export class StepSequencer3D extends AudioNode3D {
         throw new Error("Method not implemented.");
     }
     
+    
+    public delete():void{
+
+     // Disconnect each synth from the merger node
+     this._synths.forEach((synth: Tone.Synth) => {
+        synth.disconnect();
+    });
+
+    // Disconnect the merger node from the audio context
+    const mergerNode = this.getAudioNode();
+    mergerNode.disconnect();
+
+    // Call the parent class's delete method to handle any additional cleanup
+    super.delete();
+    }
+
     protected _createBaseMesh(): void {
         this.baseMesh = B.MeshBuilder.CreateBox('box', { width: 8, height: 0.2, depth: 4 }, this._scene);
 
@@ -122,6 +139,7 @@ export class StepSequencer3D extends AudioNode3D {
     public getAudioNode(): AudioNode {
         const merger: ChannelMergerNode = this._audioCtx.createChannelMerger(4);
         this._synths.forEach((synth: Tone.Synth, index: number) => synth.connect(merger, 0, index));
+        console.log("get audio node merger",merger)
         return merger;
     }
 
