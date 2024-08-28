@@ -4,7 +4,6 @@ import {CustomParameter, IParameter, IWamConfig, ParameterInfo, WamInstance} fro
 import {AudioNode3D} from "./AudioNode3D.ts";
 import {AudioNodeState} from "../network/types.ts";
 import { BoundingBox } from "./BoundingBox.ts";
-import { XRInputStates } from "../xr/types.ts";
 
 export class Wam3D extends AudioNode3D {
     private readonly _config: IWamConfig;
