@@ -3,7 +3,6 @@ import * as Tone from "tone";
 import {AudioNode3D} from "./AudioNode3D.ts";
 import {AudioNodeState} from "../network/types.ts";
 import { BoundingBox } from "./BoundingBox.ts";
-import { TubeParams } from "../types.ts";
 
 export class StepSequencer3D extends AudioNode3D {
 
