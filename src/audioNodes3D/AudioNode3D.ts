@@ -35,6 +35,7 @@ export abstract class AudioNode3D implements INetworkObject<AudioNodeState> {
     public inputMeshBig?: B.Mesh;
     public inputNodes = new Map<string, AudioNode3D>();
     public ioObservable = new B.Observable<IOEvent>();
+    private _isBeingDeleted!: boolean;
 
     protected constructor(scene: B.Scene, audioCtx: AudioContext, id: string) {
         this._scene = scene;
@@ -59,6 +60,8 @@ export abstract class AudioNode3D implements INetworkObject<AudioNodeState> {
     public delete(): void {
         this._hideMenu();
         this._hideRotationGizmo();
+        if (this._isBeingDeleted) return;
+        this._isBeingDeleted = true;
 
         // supprimer le Tube from outputNode 
         this.inputArcs.forEach((arc: TubeParams): void => {
@@ -106,6 +109,10 @@ export abstract class AudioNode3D implements INetworkObject<AudioNodeState> {
         this.baseMesh.dispose();
         this.inputMesh?.dispose();
         this.outputMesh?.dispose();
+
+        // notify other clients to dispose the audio node
+        this._app.networkManager.removeNetworkAudioNode3D(this.id);
+        this._isBeingDeleted = false;
     }
 
     protected abstract _createBaseMesh(): void;

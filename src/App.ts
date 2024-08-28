@@ -51,6 +51,7 @@ export class App {
         this.ioManager = new IOManager(this.scene);
 
         this.networkManager = new NetworkManager(this.id);
+        console.log('Observer added for audio node changes.');
 
     }  
 
@@ -120,19 +121,43 @@ export class App {
         this.networkManager.createNetworkAudioNode3D(audioNode3D);
     }
 
-    private async _onRemoteAudioNodeChange(change: {action: 'add' | 'delete', state: AudioNodeState}): Promise<void> {
+   private async _onRemoteAudioNodeChange(change: {action: 'add' | 'delete', state: AudioNodeState}): Promise<void> {
+        console.log('Remote audio node change detected:', change);
+
         if (change.action === 'add') {
+            console.log('Adding audio node:', change.state);
             const audioNode3D: AudioNode3D = await this._audioNode3DBuilder.create(change.state.name, change.state.id, change.state.configFile);
             await audioNode3D.instantiate();
             audioNode3D.ioObservable.add(this.ioManager.onIOEvent.bind(this.ioManager));
             this.networkManager.addRemoteAudioNode3D(audioNode3D);
             audioNode3D.setState(change.state);
-        }
-        else {
+            console.log('Audio node added successfully.');
+        } else if (change.action === 'delete') {
+            // console.log('Deleting audio node:', change.state);
+            // const audioNode3D = this.networkManager.getAudioNode3D(change.state.id);
+            // if (audioNode3D) {
+            //     // Use the stored observer to remove it
+            //     if (this._audioNodeChangeObserver) {
+            //         this.networkManager.onAudioNodeChangeObservable.remove(this._audioNodeChangeObserver);
+            //         console.log('Observer removed to prevent recursive call.');
+            //     }
 
+            //     // Proceed with deletion
+            //     try {
+            //         await audioNode3D.delete(); // Ensure delete is properly awaited if it's async
+            //         console.log('Audio node deleted successfully.');
+            //     } catch (error) {
+            //         console.error('Error deleting audio node:', error);
+            //     }
+
+            //     // Restore the observer after deletion
+            //     this._audioNodeChangeObserver = this.networkManager.onAudioNodeChangeObservable.add(this._onRemoteAudioNodeChange.bind(this));
+            //     console.log('Observer re-added after deletion.');
+            // } else {
+            //     console.warn('Audio node to delete not found:', change.state.id);
+            // }
         }
     }
-
     private _onRemotePlayerChange(change: {action: 'add' | 'delete', state: PlayerState}): void {
         if (change.action === 'add') {
             const player = new Player(this.scene, change.state.id);

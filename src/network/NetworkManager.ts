@@ -56,6 +56,18 @@ export class NetworkManager {
                 this._audioNodes3D.get(key)!.setState(state);
                 break;
             case "delete":
+                if (this._audioNodes3D.has(key)) {
+                    const audioNode = this._audioNodes3D.get(key)!;
+                    
+                    // Notify any observers about the deletion
+                    this.onAudioNodeChangeObservable.notifyObservers({action: 'delete', state: change.oldValue});
+                    
+                    // Remove the node from the local state
+                    this._audioNodes3D.delete(key);
+                    
+                    // Call the delete method on the audio node to clean up resources
+                    audioNode.delete();
+                }
                 break;
             default:
                 break;
@@ -98,6 +110,11 @@ export class NetworkManager {
     }
     public getAudioNode3D(id: string): AudioNode3D | undefined {
         return this._audioNodes3D.get(id);
+    }
+    public removeNetworkAudioNode3D(id: string): void {
+        if (this._networkAudioNodes3D.has(id)) {
+            this._networkAudioNodes3D.delete(id);
+        }
     }
 
     public addRemotePlayer(player: Player): void {
