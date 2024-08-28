@@ -3,6 +3,8 @@ import * as B from "@babylonjs/core";
 import {AudioNodeState} from "../network/types.ts";
 import { BoundingBox } from "./BoundingBox.ts";
 import { TubeParams } from "../types.ts";
+import { StepSequencer3D } from "./StepSequencer3D.ts";
+import * as Tone from "tone";
 
 export class AudioOutput3D extends AudioNode3D {
     constructor(scene: B.Scene, audioCtx: AudioContext, id: string) {
@@ -55,6 +57,14 @@ export class AudioOutput3D extends AudioNode3D {
     public delete():void{
         this.inputArcs.forEach((arc: TubeParams): void => {
             arc.outputNode.getAudioNode().disconnect();
+                    // Optionally delete connected nodes
+        if (arc.outputNode instanceof StepSequencer3D) {
+            // arc.outputNode.delete();
+                 // Disconnect each synth from the merger node
+     arc.outputNode._synths.forEach((synth: Tone.Synth) => {
+        synth.disconnect();
+    });
+        }
         });
         super.delete();
 

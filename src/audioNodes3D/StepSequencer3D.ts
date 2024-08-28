@@ -6,7 +6,7 @@ import { BoundingBox } from "./BoundingBox.ts";
 
 export class StepSequencer3D extends AudioNode3D {
 
-    private _synths!: Tone.Synth[];
+    public _synths!: Tone.Synth[];
     private _notes: string[] = ["C4", "D4", "E4", "F4"];
     private _grid: {mesh: B.Mesh, isActivated: boolean}[][] = [];
 
@@ -45,7 +45,6 @@ export class StepSequencer3D extends AudioNode3D {
     
     
     public delete():void{
-
      // Disconnect each synth from the merger node
      this._synths.forEach((synth: Tone.Synth) => {
         synth.disconnect();
