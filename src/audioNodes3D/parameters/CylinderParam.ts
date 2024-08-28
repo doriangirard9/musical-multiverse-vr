@@ -31,7 +31,7 @@ export class CylinderParam implements IParameter {
     }
 
     private _createCylinder(parentMesh: B.Mesh): void {
-        this._cylinder = B.MeshBuilder.CreateCylinder('cylinder', { diameterTop: 0.5, diameterBottom: 0.5, height: 1.5 }, this._scene);
+        this._cylinder = B.MeshBuilder.CreateCylinder('cylinder', { diameterTop: 0.5, diameterBottom: 0.5, height:2 }, this._scene);
         this._cylinder.parent = parentMesh;
         this._cylinder.rotate(B.Axis.X, -Math.PI / 2, B.Space.WORLD);
         this._cylinder.position.z = -0.75;
@@ -117,8 +117,8 @@ export class CylinderParam implements IParameter {
         this._textValueBlock.text = value.toString();
 
         let scalingY: number = (value - this._parameterInfo.minValue) / (this._parameterInfo.maxValue - this._parameterInfo.minValue);
-        if (scalingY < 0.01) {
-            scalingY = 0.01;
+        if (scalingY < 0.05) {
+            scalingY = 0.05;
         }
 
         this._currentCylinder.scaling.y = scalingY;
