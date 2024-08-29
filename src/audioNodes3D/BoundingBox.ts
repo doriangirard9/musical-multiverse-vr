@@ -152,10 +152,10 @@ public confirmDelete(){
             }
         });
     }));
-    this.boundingBox.actionManager!.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPointerOutTrigger, (): void => {
-        // highlightLayer.removeMesh(this.baseMesh);
-        xrLeftInputStates['x-button'].onButtonStateChangedObservable.clear();
-    }));
+    // this.boundingBox.actionManager!.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPointerOutTrigger, (): void => {
+    //     // highlightLayer.removeMesh(this.baseMesh);
+    //     xrLeftInputStates['x-button'].onButtonStateChangedObservable.clear();
+    // }));
 }
 
 
