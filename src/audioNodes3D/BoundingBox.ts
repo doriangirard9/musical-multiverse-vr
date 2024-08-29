@@ -134,11 +134,11 @@ private updateArcs(): void {
 
 public confirmDelete(){
     //on click right click on the mouse the menu will appear
-    this.boundingBox.actionManager!.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnRightPickTrigger, (): void => {
+    // this.boundingBox.actionManager!.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnRightPickTrigger, (): void => {
         
-        if (this.audioNode3D._isMenuOpen) this.audioNode3D._hideMenu();
-        else this.audioNode3D._showMenu();
-        }));
+    //     if (this.audioNode3D._isMenuOpen) this.audioNode3D._hideMenu();
+    //     else this.audioNode3D._showMenu();
+    //     }));
             
     // this.boundingBox.actionManager = new B.ActionManager(this.scene);
 
