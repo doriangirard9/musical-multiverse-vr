@@ -2,6 +2,8 @@ import {IOEvent, TubeParams} from "./types.ts";
 import * as B from "@babylonjs/core";
 import {AudioNode3D} from "./audioNodes3D/AudioNode3D.ts";
 import { v4 as uuid } from 'uuid';
+import { MessageManager } from "./MessageManger.ts";
+import { App } from "./App.ts";
 
 
 export class IOManager {
@@ -13,21 +15,26 @@ export class IOManager {
     private virtualDragPoint!: B.TransformNode | null;
     private pointerDragBehavior!: B.PointerDragBehavior;
     private highlightLayer!: B.HighlightLayer |null;
-    constructor(scene: B.Scene) {
+    private messageManager!: MessageManager;
+    constructor(scene: B.Scene,app:App) {
         this._scene = scene;
+        this.messageManager = new MessageManager(this._scene,app.xrManager)
     }
 
     public onIOEvent(event: IOEvent): void {
         if (event.pickType === "down") {
             if (event.type === 'input') {
+                if (event.node.inputMesh) {
                 console.log("input node")
-                 this.createVirtualDragPoint(event.node.inputMesh!);
+                this.createVirtualDragPoint(event.node.inputMesh);
                 this._inputNode = event.node;
+                }
             }
             else {
-                this.createVirtualDragPoint(event.node.outputMesh!);
-
+                if(event.node.outputMesh){
+                this.createVirtualDragPoint(event.node.outputMesh);
                 this._outputNode = event.node;
+                }
             }
         }
         else if (event.pickType === "up") {
@@ -35,6 +42,7 @@ export class IOManager {
                 if (this._outputNode) {
                     if (event.node.id === this._outputNode.id) {
                         // alert("Can't connect a node to itself");
+                        this.messageManager.showMessage("Can't connect a node to itself",3000)
                         this._outputNode = null;
                         this.deleteVirtualTube();
 
@@ -48,6 +56,7 @@ export class IOManager {
                 }
                 else if (this._inputNode) {
                     // alert("You have to connect an output node");
+                    this.messageManager.showMessage("You have to connect an output node",3000)
                     this._inputNode = null;
                     this.deleteVirtualTube();
 
@@ -57,6 +66,8 @@ export class IOManager {
                 if (this._inputNode) {
                     if (event.node.id === this._inputNode.id) {
                         // alert("Can't connect a node to itself");
+                        this.messageManager.showMessage("Can't connect a node to itself",3000)
+
                         this._inputNode = null;
                         this.deleteVirtualTube();
 
@@ -69,6 +80,7 @@ export class IOManager {
                     }
                 }
                 else if (this._outputNode) {
+                    this.messageManager.showMessage("You have to connect an input node",3000)
                     // alert("You have to connect an input node");
                     this._outputNode = null;
                     this.deleteVirtualTube();

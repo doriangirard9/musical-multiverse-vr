@@ -18,6 +18,7 @@ import {AudioNodeState, PlayerState} from "./network/types.ts";
 import { v4 as uuid } from 'uuid';
 import {Player} from "./Player.ts";
 import { GridMaterial } from "@babylonjs/materials";
+import { MessageManager } from "./MessageManger.ts";
 
 export class App {
     public canvas: HTMLCanvasElement;
@@ -35,6 +36,8 @@ export class App {
     public id: string = uuid();
     public menu!: Menu;
     public ground! : B.Mesh;
+    private messageManager!: MessageManager;
+
     private constructor(audioCtx: AudioContext) {
         this.canvas = document.querySelector('#renderCanvas') as HTMLCanvasElement;
         this.engine = new B.Engine(this.canvas, true);
@@ -48,10 +51,12 @@ export class App {
         this.guiManager = new GUI.GUI3DManager(this.scene);
         this.guiManager.controlScaling = 0.5;
 
-        this.ioManager = new IOManager(this.scene);
+        this.ioManager = new IOManager(this.scene,this);
 
         this.networkManager = new NetworkManager(this.id);
-        console.log('Observer added for audio node changes.');
+        this.messageManager = new MessageManager(this.scene, this.xrManager);
+
+
 
     }  
 
@@ -115,10 +120,12 @@ export class App {
     }
 
     public async createAudioNode3D(name: string, id: string, configFile?: string): Promise<void> {
+        this.messageManager.showMessage("Loading...");
         const audioNode3D: AudioNode3D = await this._audioNode3DBuilder.create(name, id, configFile);
         await audioNode3D.instantiate();
         audioNode3D.ioObservable.add(this.ioManager.onIOEvent.bind(this.ioManager));
         this.networkManager.createNetworkAudioNode3D(audioNode3D);
+        this.messageManager.hideMessage()
     }
 
    private async _onRemoteAudioNodeChange(change: {action: 'add' | 'delete', state: AudioNodeState}): Promise<void> {
@@ -226,6 +233,10 @@ export class App {
     
     // TODO : use get state from XRManager
     public _sendPlayerState(): void {
+        if (!this.xrManager.xrHelper || !this.xrManager.xrHelper.baseExperience.camera) {
+            console.error("XRManager camera is not initialized");
+            return;
+        }
         const xrCameraPosition: B.Vector3 = this.xrManager.xrHelper.baseExperience.camera.position;
         const xrCameraDirection: B.Vector3 = this.xrManager.xrHelper.baseExperience.camera.getDirection(B.Axis.Z);
         const xrLeftControllerPosition: B.Vector3 = this.xrManager.xrInputManager.leftController.grip!.position;
