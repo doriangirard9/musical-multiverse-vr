@@ -24,14 +24,23 @@ export class XRInputManager {
                         this.rightController = controller;
                         this.rightInputStates = {};
                     }
+                    if (motionController) {
 
                     const component_ids: string[] = motionController.getComponentIds();
                     const inputStates: XRInputStates = (handedness === 'left') ? this.leftInputStates : this.rightInputStates;
 
                     // add button state change listeners
                     component_ids.forEach((component_id: string): void => {
-                        inputStates[component_id] = motionController.getComponent(component_id);
+                        const component = motionController.getComponent(component_id);
+                        if (component) {
+                            inputStates[component_id] = component;
+                        }
                     });
+
+                }else  {
+                    console.log('No motion controller found');
+                }
+                
 
                     if (this.leftController && this.rightController) {
                         resolve();

@@ -36,6 +36,7 @@ export class Wam3D extends AudioNode3D {
     }
 
     public async instantiate(): Promise<void> {
+        this._app.menu.hide();
         this._wamInstance = await this._initWamInstance(this._config.url);
         this._parametersInfo = await this._wamInstance.audioNode._wamNode.getParameterInfo() as {[name: string]: ParameterInfo};
         this._paramBuilder = new ParamBuilder(this._scene, this._config);
@@ -54,12 +55,15 @@ export class Wam3D extends AudioNode3D {
         this._initActionManager();
         this._createInput(new B.Vector3(-(this._usedParameters.length / 2 + 0.2), this.baseMesh.position.y, this.baseMesh.position.z));
         this._createOutput(new B.Vector3(this._usedParameters.length / 2 + 0.2, this.baseMesh.position.y, this.baseMesh.position.z));
+        
         // shadow
         // this._app.shadowGenerator.addShadowCaster(this.baseMesh);
+        // this._app.shadowGenerator.addShadowCaster(this.outputMesh!)
+        // this._app.shadowGenerator.addShadowCaster(this.inputMesh!)
+
         // this.createBoundingBox();
         const bo  = new BoundingBox(this,this._scene,this.id,this._app)
         this.boundingBox = bo.boundingBox;
-        this._app.menu.hide();
         
     }
 

@@ -15,6 +15,11 @@ export class StepSequencer3D extends AudioNode3D {
     }
 
     public async instantiate(): Promise<void> {
+        try {
+        if (!this._scene || !this._audioCtx) {
+            throw new Error("Scene or AudioContext is not initialized.");
+        }
+        this._app.menu.hide();
         this._synths = Array.from({length: 4}, () => new Tone.Synth());
         Tone.Transport.start();
 
@@ -33,11 +38,15 @@ export class StepSequencer3D extends AudioNode3D {
 
         const bo = new BoundingBox(this, this._scene, this.id, this._app);
         this.boundingBox = bo.boundingBox;
-        // bo.addMovingBehaviourToBoundingBox();
 
         // shadow
-        this._app.shadowGenerator.addShadowCaster(this.baseMesh);
+        // this._app.shadowGenerator.addShadowCaster(this.baseMesh);
+        console.log("StepSequencer instantiated successfully.");
+    
+    } catch (error) {
+        console.error("Error instantiating StepSequencer: ", error);
     }
+}
 
     public disconnect(_destination: AudioNode): void {
         throw new Error("Method not implemented.");

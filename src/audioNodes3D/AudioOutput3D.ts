@@ -12,6 +12,7 @@ export class AudioOutput3D extends AudioNode3D {
     }
 
     public async instantiate(): Promise<void> {
+        this._app.menu.hide();
         await this._createBaseMesh();
 
         // gizmo
@@ -26,7 +27,7 @@ export class AudioOutput3D extends AudioNode3D {
         this.boundingBox = bo.boundingBox;
         // bo.addMovingBehaviourToBoundingBox();
         // shadow
-        this._app.shadowGenerator.addShadowCaster(this.baseMesh);
+        // this._app.shadowGenerator.addShadowCaster(this.baseMesh);
     }
 
     public connect(_destination: AudioNode): void {}

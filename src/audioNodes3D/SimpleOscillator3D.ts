@@ -20,6 +20,7 @@ export class SimpleOscillator3D extends AudioNode3D {
     }
 
     public instantiate(): void {
+        this._app.menu.hide();
         if (!this._config.parametersInfo) throw new Error("Missing parametersInfo in config");
 
         this._parametersInfo = this._config.parametersInfo;
@@ -46,7 +47,7 @@ export class SimpleOscillator3D extends AudioNode3D {
         this.boundingBox = bo.boundingBox;
         // bo.addMovingBehaviourToBoundingBox();
         // shadow
-        this._app.shadowGenerator.addShadowCaster(this.baseMesh);
+        // this._app.shadowGenerator.addShadowCaster(this.baseMesh);
     }
 
     public disconnect(_destination: AudioNode): void {

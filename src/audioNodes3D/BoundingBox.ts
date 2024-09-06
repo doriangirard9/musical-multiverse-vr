@@ -62,10 +62,14 @@ export class BoundingBox {
         // setTimeout(() => {}, 1000);
         this.positionBoundingBoxInFrontOfPlayer();
 
+        this.boundingBox.getChildMeshes().forEach((mesh) => {
+            this._app.shadowGenerator.addShadowCaster(mesh)
+        })
     }
 
     private positionBoundingBoxInFrontOfPlayer(): void {
         // Check if player state is valid before proceeding
+        this._app.menu.hide();
         const data = this._app._getPlayerState();
         if (!data || !data.direction || !data.position) {
             console.warn("Player state is incomplete or invalid.");
@@ -84,7 +88,7 @@ export class BoundingBox {
     
         // Additional scene-related setups
         this._app.ground.checkCollisions = true;
-        this._app.menu.hide();
+
     }
     
 
