@@ -260,19 +260,20 @@ export abstract class AudioNode3D implements INetworkObject<AudioNodeState> {
         follower.minimumDistance = 2;
         follower.maximumDistance = 2;
 
-        const deleteButton = new GUI.TouchHolographicButton("deleteButton");
-        deleteButton.text = "Delete";
-        deleteButton.onPointerUpObservable.add(this.delete.bind(this));
-        this._menu.addButton(deleteButton);
-
-        const rotateButton = new GUI.TouchHolographicButton("rotateButton");
-        rotateButton.text = "Rotate";
-        rotateButton.isToggleButton = true;
-        rotateButton.onPointerUpObservable.add((): void => {
-            if (rotateButton.isToggled) this._showRotationGizmo();
-            else this._hideRotationGizmo();
+        // Confirmation button for deletion
+        const yesButton = new GUI.TouchHolographicButton("yesButton");
+        yesButton.text = "Yes";
+        yesButton.onPointerUpObservable.add((): void => {
+            this.delete();
         });
-        this._menu.addButton(rotateButton);
+        this._menu.addButton(yesButton);
+    
+        const noButton = new GUI.TouchHolographicButton("noButton");
+        noButton.text = "No";
+        noButton.onPointerUpObservable.add((): void => {
+            this._hideMenu();
+        });
+        this._menu.addButton(noButton);
     }
 
     public _showMenu(): void {
