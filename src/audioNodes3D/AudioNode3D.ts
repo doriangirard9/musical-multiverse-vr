@@ -251,7 +251,7 @@ export abstract class AudioNode3D implements INetworkObject<AudioNodeState> {
         this._menu = new GUI.NearMenu(`menu${this.id}`);
         this._app.guiManager.addControl(this._menu);
         this._menu.margin = 0.05;
-        this._menu.isPinned = true;
+        this._menu.isPinned = false;
         this._menu.position = this.boundingBox.getAbsolutePosition().clone();//position.clone();
         this._menu.position.y += 1.5;
 
