@@ -15,7 +15,7 @@ export class MessageManager {
 
     // Display a message in front of the user's XR camera
 // Display a message in front of the user's XR camera
-public showMessage(messageText: string, duration: number = 3000): void {
+public showMessage(messageText: string, duration: number=0): void {
     // Remove any existing message plane
     if (this._currentMessagePlane) {
         this.hideMessage();
