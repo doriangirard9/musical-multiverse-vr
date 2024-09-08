@@ -120,12 +120,23 @@ export class App {
     }
 
     public async createAudioNode3D(name: string, id: string, configFile?: string): Promise<void> {
-        this.messageManager.showMessage("Loading...");
-        const audioNode3D: AudioNode3D = await this._audioNode3DBuilder.create(name, id, configFile);
-        await audioNode3D.instantiate();
-        audioNode3D.ioObservable.add(this.ioManager.onIOEvent.bind(this.ioManager));
-        this.networkManager.createNetworkAudioNode3D(audioNode3D);
-        this.messageManager.hideMessage()
+        this.menu.hide()
+        this.messageManager.showMessage("Loading...",0);
+        try{
+
+            const audioNode3D: AudioNode3D = await this._audioNode3DBuilder.create(name, id, configFile);
+            await audioNode3D.instantiate();
+            await audioNode3D.ioObservable.add(this.ioManager.onIOEvent.bind(this.ioManager));
+            await this.networkManager.createNetworkAudioNode3D(audioNode3D);
+            await console.log('end of init')
+            // this.messageManager.hideMessage()
+        }catch(e){
+            console.log(e)
+        }
+        finally{
+            console.log("end of message")
+            this.messageManager.hideMessage()
+        }
     }
 
    private async _onRemoteAudioNodeChange(change: {action: 'add' | 'delete', state: AudioNodeState}): Promise<void> {
