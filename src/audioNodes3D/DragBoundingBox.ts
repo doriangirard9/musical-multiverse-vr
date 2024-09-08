@@ -35,6 +35,9 @@ export class DragBoundingBox implements B.Behavior<B.AbstractMesh> {
             this.onRelease(/*target*/);
         }));
         target.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickOutTrigger, () => {
+            if(this.selected!.position.y<0){
+                this.selected!.position.y = -1;
+            }
             this.onRelease(/*target*/);
         }));
     }
