@@ -85,6 +85,8 @@ export class StepSequencer3D extends AudioNode3D {
     }
 
     private _createNoteButton(row: number, column: number): void {
+        try{
+
         const buttonMesh: B.Mesh = B.MeshBuilder.CreateBox(`button${row}${column}`, { width: 0.8, height: 0.2, depth: 0.8 }, this._scene);
         buttonMesh.position.x = column - 3.5;
         buttonMesh.position.y = 0.1;
@@ -99,11 +101,17 @@ export class StepSequencer3D extends AudioNode3D {
         this._grid[row].push({mesh: buttonMesh, isActivated: false});
 
         // actions
-        buttonMesh.actionManager = new B.ActionManager(this._scene);
+        if(!buttonMesh.actionManager){
+        console.log("doesnt exist")
+            buttonMesh.actionManager = new B.ActionManager(this._scene);
+        }
         buttonMesh.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickTrigger, () => {
             this._grid[row][column].isActivated = !this._grid[row][column].isActivated;
             this._updateNoteColor(row, column);
         }));
+    }catch(e){
+        console.log("Error in action manager",e);
+    }
     }
 
     private _updateNoteColor(row: number, column: number): void {
