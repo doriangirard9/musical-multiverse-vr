@@ -151,6 +151,15 @@ export class BoundingBox {
                 this.handleMenu();
             }
         });
+
+        const xrRightInputStates: XRInputStates = this._app.xrManager.xrInputManager.rightInputStates;
+        xrRightInputStates['b-button'].onButtonStateChangedObservable.add((component: B.WebXRControllerComponent): void => {
+            if (component.pressed) {
+                if (this.audioNode3D._isMenuOpen) this.audioNode3D._hideMenu();
+                else this.audioNode3D._showMenu();
+            }
+        });
+
     }
 
     // Handle menu interactions (open/close the menu)
@@ -222,16 +231,20 @@ public confirmDelete(){
             
     // this.boundingBox.actionManager = new B.ActionManager(this.scene);
 
-    const xrLeftInputStates: XRInputStates = this._app.xrManager.xrInputManager.leftInputStates;
+    const xrRightInputStates: XRInputStates = this._app.xrManager.xrInputManager.rightInputStates;
+
     this.boundingBox.actionManager!.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPointerOverTrigger, (): void => {
+        console.log("pointer over",xrRightInputStates);
         // highlightLayer.addMesh(this.baseMesh, B.Color3.Black());
-        xrLeftInputStates['x-button'].onButtonStateChangedObservable.add((component: B.WebXRControllerComponent): void => {
+        xrRightInputStates['b-button'].onButtonStateChangedObservable.add((component: B.WebXRControllerComponent): void => {
             if (component.pressed) {
                 if (this.audioNode3D._isMenuOpen) this.audioNode3D._hideMenu();
                 else this.audioNode3D._showMenu();
             }
         });
+
     }));
+    
     // this.boundingBox.actionManager!.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPointerOutTrigger, (): void => {
     //     // highlightLayer.removeMesh(this.baseMesh);
     //     xrLeftInputStates['x-button'].onButtonStateChangedObservable.clear();
