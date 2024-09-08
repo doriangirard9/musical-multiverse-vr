@@ -114,7 +114,7 @@ export class CylinderParam implements IParameter {
     public setParamValue(value: number): void {
         this._currentValue = value;
         this.onValueChangedObservable.notifyObservers(value);
-        this._textValueBlock.text = value.toString();
+        this._textValueBlock.text = value.toFixed(1).toString();
 
         let scalingY: number = (value - this._parameterInfo.minValue) / (this._parameterInfo.maxValue - this._parameterInfo.minValue);
         if (scalingY < 0.05) {
