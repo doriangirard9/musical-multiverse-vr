@@ -115,16 +115,16 @@ export class BoundingBox {
             console.error("Failed to initialize ActionManager:", error);
         }    }
         // Pointer over action (highlight the bounding box)
-        try {
-            console.log("add action to boundingbox",this.boundingBox.actionManager)
-        this.boundingBox.actionManager!.registerAction(
-            new B.ExecuteCodeAction(B.ActionManager.OnPointerOverTrigger, (): void => {
-                this.highlightLayer.addMesh(this.boundingBox as B.Mesh, B.Color3.Black());
-            })
-        );
-    } catch (error) {
-        console.error("Failed to register pointer over action:", error);
-    }
+    //     try {
+    //         console.log("add action to boundingbox",this.boundingBox.actionManager)
+    //     this.boundingBox.actionManager!.registerAction(
+    //         new B.ExecuteCodeAction(B.ActionManager.OnPointerOverTrigger, (): void => {
+    //             this.highlightLayer.addMesh(this.boundingBox as B.Mesh, B.Color3.Black());
+    //         })
+    //     );
+    // } catch (error) {
+    //     console.error("Failed to register pointer over action:", error);
+    // }
 
     try {
         // Pointer out action (remove highlight)
