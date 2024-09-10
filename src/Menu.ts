@@ -21,7 +21,7 @@ export class Menu {
     private _createMenu(): void {
         this._menu = new GUI.NearMenu("menu");
         this._manager.addControl(this._menu);
-        this._menu.margin = 0.2;
+        this._menu.margin = 0.5;
         
 
         const follower: B.FollowBehavior = this._menu.defaultBehavior.followBehavior;
