@@ -93,6 +93,7 @@ export class App {
         this._createGround()
 
         this.menu = new Menu(menuJson as MenuConfig);
+        if(this.menu) 
         this.menu.show();
 
         // display menu on right controller A button press

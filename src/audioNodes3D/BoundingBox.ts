@@ -135,6 +135,16 @@ export class BoundingBox {
         } catch (error) {
             console.error("Failed to register pointer over action:", error);
         }
+    //     try {
+    //         console.log("add action to boundingbox",this.boundingBox.actionManager)
+    //     this.boundingBox.actionManager!.registerAction(
+    //         new B.ExecuteCodeAction(B.ActionManager.OnPointerOverTrigger, (): void => {
+    //             this.highlightLayer.addMesh(this.boundingBox as B.Mesh, B.Color3.Black());
+    //         })
+    //     );
+    // } catch (error) {
+    //     console.error("Failed to register pointer over action:", error);
+    // }
 
         try {
             // Pointer out action (remove highlight)
