@@ -69,6 +69,7 @@ export class App {
 
     public async startScene(): Promise<void> {
         await this.xrManager.init(this.scene);
+        await this._setupControllers();
 
         this.engine.runRenderLoop((): void => {
             this._sendPlayerState();
@@ -93,18 +94,16 @@ export class App {
         this._createGround()
 
         this.menu = new Menu(menuJson as MenuConfig);
-        this.menu.show();
+        if(this.menu) this.menu.show();
 
-        // display menu on right controller A button press
-        const xrRightInputStates: XRInputStates = this.xrManager.xrInputManager.rightInputStates;
-        if (xrRightInputStates) {
-            xrRightInputStates['a-button'].onButtonStateChangedObservable.add((component: B.WebXRControllerComponent): void => {
-                if (component.pressed) {
-                    if (!this.menu.isMenuOpen) this.menu.show();
-                    else this.menu.hide();
-                }
-            });
-        }
+        // Permet de recréer les commandes de controleurs lorsqu'on quitte la page avec le bouton oculus et qu'on retourne dessus par la suite.
+        let xrSession = this.xrManager.xrHelper.baseExperience.sessionManager.session;
+        xrSession.addEventListener("visibilitychange", async (event: XRSessionEvent) => {
+            console.log("Visibility state changed: " + event.session.visibilityState);
+            if (event.session.visibilityState === "visible") {
+                await this._setupControllers();
+            }
+        });
 
         // display inspector on U key press
         window.addEventListener('keydown', (event: KeyboardEvent): void => {
@@ -119,6 +118,25 @@ export class App {
         this.networkManager.onPlayerChangeObservable.add(this._onRemotePlayerChange.bind(this));
     }
 
+    // display menu on right controller A button press
+    // Mettre les futurs fonctions lie aux boutons ici
+    private async _setupControllers() {
+        await this.xrManager.xrInputManager.initControllers()
+        const xrRightInputStates: XRInputStates = this.xrManager.xrInputManager.rightInputStates;
+        if (xrRightInputStates) {
+            xrRightInputStates['a-button'].onButtonStateChangedObservable.clear();
+            xrRightInputStates['a-button'].onButtonStateChangedObservable.add((component: B.WebXRControllerComponent): void => {
+                console.log('A button state changed on right controller');
+                if (component.pressed) {
+                    console.log('A button pressed on right controller');
+                    console.log("Menu state is ", this.menu.isMenuOpen);
+                    console.log("-----------------");
+                    if (!this.menu.isMenuOpen) this.menu.show();
+                    else this.menu.hide();
+                }
+            });
+        }
+    }
     public async createAudioNode3D(name: string, id: string, configFile?: string): Promise<void> {
         this.menu.hide()
         this.messageManager.showMessage("Loading...",0);
@@ -136,7 +154,7 @@ export class App {
                 await console.log('end of init')
 
             }, delay);
-            
+
             // this.messageManager.hideMessage()
         }catch(e){
             console.log(e)
@@ -155,12 +173,12 @@ export class App {
             const audioNode3D: AudioNode3D = await this._audioNode3DBuilder.create(change.state.name, change.state.id, change.state.configFile);
             await audioNode3D.instantiate();
             // @@ MB CHECK : no await here !!!
-            
+
                 audioNode3D.ioObservable.add(this.ioManager.onIOEvent.bind(this.ioManager));
                 this.networkManager.addRemoteAudioNode3D(audioNode3D);
                 audioNode3D.setState(change.state);
                 console.log('Audio node added successfully.');
-           
+
         } else if (change.action === 'delete') {
             // console.log('Deleting audio node:', change.state);
             // const audioNode3D = this.networkManager.getAudioNode3D(change.state.id);
