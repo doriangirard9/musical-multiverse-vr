@@ -73,7 +73,7 @@ export class App {
 
         this.engine.runRenderLoop((): void => {
             this._sendPlayerState();
-            this.scene.render();
+            this.scene.render();   
         });
 
         window.addEventListener('resize', (): void => {
@@ -94,8 +94,9 @@ export class App {
         this._createGround()
 
         this.menu = new Menu(menuJson as MenuConfig);
-        if(this.menu) this.menu.show();
 
+        if(this.menu) this.menu.show();
+        
         // Permet de recréer les commandes de controleurs lorsqu'on quitte la page avec le bouton oculus et qu'on retourne dessus par la suite.
         let xrSession = this.xrManager.xrHelper.baseExperience.sessionManager.session;
         xrSession.addEventListener("visibilitychange", async (event: XRSessionEvent) => {
