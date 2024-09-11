@@ -13,10 +13,8 @@ export class XRInputManager {
     }
 
     public async initControllers(): Promise<void> {
-        this._xrHelper.input.onControllerAddedObservable.clear();
         return new Promise((resolve: () => void): void => {
             this._xrHelper.input.onControllerAddedObservable.add((controller : B.WebXRInputSource): void => {
-                controller.onMotionControllerInitObservable.clear();
                 controller.onMotionControllerInitObservable.add((motionController: B.WebXRAbstractMotionController): void => {
                     const handedness: string = motionController.handedness;
                     if (handedness === 'left') {

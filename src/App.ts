@@ -136,6 +136,13 @@ export class App {
                     else this.menu.hide();
                 }
             });
+            xrRightInputStates['xr-standard-trigger'].onButtonStateChangedObservable.add((component: B.WebXRControllerComponent): void => {
+                console.log('Trigger state changed on right controller');
+                if (component.pressed) {
+                    console.log('Trigger pressed on right controller');
+
+                }
+            });
         }
     }
     public async createAudioNode3D(name: string, id: string, configFile?: string): Promise<void> {
