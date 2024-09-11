@@ -27,18 +27,22 @@ export class DragBoundingBox implements B.Behavior<B.AbstractMesh> {
     }
 
     attach(target: B.AbstractMesh): void {
+        console.log("Behavior attached");
         target.actionManager = new B.ActionManager(target._scene);
         target.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickDownTrigger, () => {
+            console.log("drag behavior: picked down");
             this.select(target);
         }));
         target.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickUpTrigger, () => {
+            console.log("drag behavior: picked up");
             this.onRelease(/*target*/);
         }));
         target.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickOutTrigger, (e) => {
-           //console.log(e.meshUnderPointer?.position)
-           //console.log(target.position)
-            if(e.meshUnderPointer && e.meshUnderPointer.position.y<0) {
-               target.position.y = -1;
+            //console.log(e.meshUnderPointer?.position)
+            //console.log(target.position)
+            console.log("drag behavior: picked out");
+            if (e.meshUnderPointer && e.meshUnderPointer.position.y < 0) {
+                target.position.y = 1;
             }
             this.onRelease(/*target*/);
         }));
@@ -64,29 +68,33 @@ export class DragBoundingBox implements B.Behavior<B.AbstractMesh> {
     }
 
     detach(): void {
+        console.log("Behavior detached");
         if (this.selected) {
             this.select(null);
         }
         // target.actionManager.clear();
     }
     select(target: B.AbstractMesh | null) {
-        console.log("selected");
+        console.log("Behavior selected");
+
         if (!this.selected) this.app.xrManager.xrFeaturesManager.disableFeature(B.WebXRFeatureName.MOVEMENT);
         this.selected = target;
         if (this.selected != null) {
             this.selected.visibility = 0.5;
             this.selected.addBehavior(this.drag);
-                const data = this.app._getPlayerState();
-                console.log(data)
-                let norm = new B.Vector3(data.direction.x, data.direction.y, data.direction.z);
-                this.drag.options.dragPlaneNormal = norm;
-                // MB : fix for having the proper plane orientation, we should not take
-                // into account the object orientation. Cf https://doc.babylonjs.com/features/featuresDeepDive/behaviors/meshBehaviors
-                this.drag.useObjectOrientationForDragging = false;
+            const data = this.app._getPlayerState();
+            console.log(data)
+            let norm = new B.Vector3(data.direction.x, data.direction.y, data.direction.z);
+            this.drag.options.dragPlaneNormal = norm;
+            // MB : fix for having the proper plane orientation, we should not take
+            // into account the object orientation. Cf https://doc.babylonjs.com/features/featuresDeepDive/behaviors/meshBehaviors
+            this.drag.useObjectOrientationForDragging = false;
         }
+
     }
 
     onRelease(/*target: B.AbstractMesh*/): void {
+        console.log("Behavior released");
         if (this.selected) {
             this.app.xrManager.xrFeaturesManager.enableFeature(B.WebXRFeatureName.MOVEMENT, "latest", {
                 xrInput: this.app.xrManager.xrHelper.input,
@@ -100,6 +108,7 @@ export class DragBoundingBox implements B.Behavior<B.AbstractMesh> {
     }
 
     private updateDragBehavior(norm: B.Vector3, scale: number): void {
+        console.log("Behavior updated");
         if (this.selected) {
             this.selected.removeBehavior(this.drag);
             this.selected.position.addInPlace(norm.scaleInPlace(scale * -0.3));
