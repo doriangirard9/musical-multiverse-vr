@@ -7,6 +7,9 @@ import {TubeParams} from "../types.ts";
 import {AudioNodeState, INetworkObject} from "../network/types.ts";
 
 export abstract class AudioNode3D implements INetworkObject<AudioNodeState> {
+    static menuOnScene: boolean = false;
+    public static currentMenuInstance: AudioNode3D | null = null;
+
     public id!: string;
     protected readonly _scene: B.Scene;
     protected readonly _audioCtx: AudioContext;
@@ -262,27 +265,47 @@ export abstract class AudioNode3D implements INetworkObject<AudioNodeState> {
 
         // Confirmation button for deletion
         const yesButton = new GUI.TouchHolographicButton("yesButton");
-        yesButton.text = "Yes";
+        yesButton.text = "Delete";
         yesButton.onPointerUpObservable.add((): void => {
             this.delete();
         });
         this._menu.addButton(yesButton);
     
         const noButton = new GUI.TouchHolographicButton("noButton");
-        noButton.text = "No";
+        noButton.text = "Cancel";
         noButton.onPointerUpObservable.add((): void => {
             this._hideMenu();
         });
         this._menu.addButton(noButton);
+        
     }
 
+    public static hideAllMenus(): void {
+        // Check if any menu is open and close it
+        if (AudioNode3D.menuOnScene) {
+            // close stored reference to the menu that is currently open and close it her
+            AudioNode3D.currentMenuInstance?._hideMenu();
+        }
+    }
+    
     public _showMenu(): void {
+        // First, hide all menus from the scene
+        AudioNode3D.hideAllMenus();
+    
+        // Now open the clicked menu
         this._isMenuOpen = true;
+        AudioNode3D.menuOnScene = true;
+        AudioNode3D.currentMenuInstance = this; // Keep reference to the current menu instance
         this._createOptionsMenu();
     }
-
+    
     public _hideMenu(): void {
+        if (!this._isMenuOpen) {
+            return; // If no menu is open, do nothing
+        }
+    
         this._isMenuOpen = false;
+        AudioNode3D.menuOnScene = false;
         this._hideRotationGizmo();
         if (this._menu) this._menu.dispose();
     }
