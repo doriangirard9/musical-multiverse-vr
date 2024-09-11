@@ -18,7 +18,7 @@ export class BoundingBox {
         this.dragBehavior = new DragBoundingBox(this._app);
         this.createBoundingBox();
 
-                // another methode for dragin behavior
+        // another methode for dragin behavior
         // // Add SixDofDragBehavior
         // const dragBehavior = new B.SixDofDragBehavior();
         // this.boundingBox.addBehavior(dragBehavior);
@@ -40,7 +40,7 @@ export class BoundingBox {
         this.boundingBox = B.MeshBuilder.CreateBox(`boundingBox${this.id}`, { width: w, height: h * 1.5, depth: d * 2 }, this.scene);
         this.boundingBox.isVisible = true;
         this.boundingBox.visibility = 0;  // Adjust visibility if needed
-         // make the boundingbox  clickable
+        // make the boundingbox  clickable
         this.boundingBox.isPickable = true;
         this.boundingBox.checkCollisions = true;
         this.audioNode3D.baseMesh.parent = this.boundingBox;
@@ -75,22 +75,22 @@ export class BoundingBox {
             console.warn("Player state is incomplete or invalid.");
             return;
         }
-    
+
         // Calculate direction and position based on player state
         const direction = new B.Vector3(data.direction.x, data.direction.y, data.direction.z);
         const position = new B.Vector3(data.position.x, data.position.y + 0.3, data.position.z)
             .addInPlace(direction.normalize().scale(5));  // Place object in front of player
-    
+
         // Apply transformations to the bounding box
         this.boundingBox.position = position;
         this.boundingBox.setDirection(direction);
         this.boundingBox.rotation.x = -Math.PI / 6;  // Optional rotation on X-axis
-    
+
         // Additional scene-related setups
         this._app.ground.checkCollisions = true;
 
     }
-    
+
 
     // Set up the drag behavior for the bounding box
     private setupDragBehavior(): void {
@@ -99,43 +99,53 @@ export class BoundingBox {
 
     // Add action handlers for the bounding box (pointer events, right-clicks, etc.)
     public addActionHandlers(): void {
-            // Make sure the bounding box exists and actionManager is properly initialized
-    if (!this.boundingBox || !this.scene) {
-        console.error("Bounding box or scene not initialized properly");
-        return;
-    }
+        // Make sure the bounding box exists and actionManager is properly initialized
+        if (!this.boundingBox || !this.scene) {
+            console.error("Bounding box or scene not initialized properly");
+            return;
+        }
 
         // Create a highlight layer for pointer interactions
         this.highlightLayer = new B.HighlightLayer(`hl${this.id}`, this.scene);
-    if (!this.boundingBox.actionManager) {
-        try {
-            console.log("doesnt have action manager",this.boundingBox.actionManager)
-            this.boundingBox.actionManager = new B.ActionManager(this.scene);
-        } catch (error) {
-            console.error("Failed to initialize ActionManager:", error);
-        }    }
+        if (!this.boundingBox.actionManager) {
+            try {
+                console.log("doesnt have action manager", this.boundingBox.actionManager)
+                this.boundingBox.actionManager = new B.ActionManager(this.scene);
+            } catch (error) {
+                console.error("Failed to initialize ActionManager:", error);
+            }
+        }
         // Pointer over action (highlight the bounding box)
         try {
-            console.log("add action to boundingbox",this.boundingBox.actionManager)
-        this.boundingBox.actionManager!.registerAction(
-            new B.ExecuteCodeAction(B.ActionManager.OnPointerOverTrigger, (): void => {
-                this.highlightLayer.addMesh(this.boundingBox as B.Mesh, B.Color3.Black());
-            })
-        );
-    } catch (error) {
-        console.error("Failed to register pointer over action:", error);
-    }
+            console.log("add action to boundingbox", this.boundingBox.actionManager)
+            
+            this.boundingBox.actionManager!.registerAction(
+                new B.ExecuteCodeAction(B.ActionManager.OnPointerOverTrigger, (): void => {
+                    try {
+                        // MICHEL BUFFA
+                        // C'EST CA QUI FAISAIT LE RAYPICK INFO ERROR AU DEMARRAGE
+                        //this.highlightLayer.addMesh(this.boundingBox as B.Mesh, B.Color3.Black());
+                    } catch (error) {
+                        console.error("Failed to highlight bounding box:", error);
+                    }
+                })
+            );
+            console.log("add action Manager to boundingbox");
 
-    try {
-        // Pointer out action (remove highlight)
-        this.boundingBox.actionManager!.registerAction(
-            new B.ExecuteCodeAction(B.ActionManager.OnPointerOutTrigger, (): void => {
-                this.highlightLayer.removeMesh(this.boundingBox as B.Mesh);
-            })
-        );
-    } catch (error) {
-        console.error("Failed to register pointer out action:", error);
-    }
+        } catch (error) {
+            console.error("Failed to register pointer over action:", error);
+        }
+
+        try {
+            // Pointer out action (remove highlight)
+            this.boundingBox.actionManager!.registerAction(
+                new B.ExecuteCodeAction(B.ActionManager.OnPointerOutTrigger, (): void => {
+                    this.highlightLayer.removeMesh(this.boundingBox as B.Mesh);
+                })
+            );
+        } catch (error) {
+            console.error("Failed to register pointer out action:", error);
+        }
 
         // Right-click action (show or hide the menu)
         this.boundingBox.actionManager!.registerAction(
@@ -185,71 +195,71 @@ export class BoundingBox {
                         var sphereRadius = 0.25; // Radius of the sphere
                         var adjustedEnd = end.subtract(direction.scale(sphereRadius + arrowLength / 2));
 
-            let options = { path: [start, adjustedEnd], radius: 0.1, tessellation: 8, instance: a.TubeMesh };
-            B.MeshBuilder.CreateTube("tube", options, this.scene);
+                        let options = { path: [start, adjustedEnd], radius: 0.1, tessellation: 8, instance: a.TubeMesh };
+                        B.MeshBuilder.CreateTube("tube", options, this.scene);
 
-            // Update arrow
-            a.arrow.position = adjustedEnd;
-            a.arrow.lookAt(end);
-            a.arrow.rotate(B.Axis.X, Math.PI / 2, B.Space.LOCAL);
-            this._app.shadowGenerator.addShadowCaster(a.TubeMesh);
-            this._app.shadowGenerator.addShadowCaster(a.arrow);
-            }
-        });
+                        // Update arrow
+                        a.arrow.position = adjustedEnd;
+                        a.arrow.lookAt(end);
+                        a.arrow.rotate(B.Axis.X, Math.PI / 2, B.Space.LOCAL);
+                        this._app.shadowGenerator.addShadowCaster(a.TubeMesh);
+                        this._app.shadowGenerator.addShadowCaster(a.arrow);
+                    }
+                });
 
-        // Update outgoing arcs
-        this.audioNode3D.outputArcs.forEach(a => {
-            if (a.TubeMesh && a.OutputMesh && a.inputMesh) {
-                let start = a.OutputMesh.getAbsolutePosition();
-            let end = a.inputMesh.getAbsolutePosition();
-            let direction = end.subtract(start).normalize();
-            var arrowLength = 0.7; // Length of the arrowhead
-            var sphereRadius = 0.25; // Radius of the sphere
-            var adjustedEnd = end.subtract(direction.scale(sphereRadius + arrowLength / 2));
+                // Update outgoing arcs
+                this.audioNode3D.outputArcs.forEach(a => {
+                    if (a.TubeMesh && a.OutputMesh && a.inputMesh) {
+                        let start = a.OutputMesh.getAbsolutePosition();
+                        let end = a.inputMesh.getAbsolutePosition();
+                        let direction = end.subtract(start).normalize();
+                        var arrowLength = 0.7; // Length of the arrowhead
+                        var sphereRadius = 0.25; // Radius of the sphere
+                        var adjustedEnd = end.subtract(direction.scale(sphereRadius + arrowLength / 2));
 
-            let options = { path: [start, adjustedEnd], radius: 0.1, tessellation: 8, instance: a.TubeMesh };
-            B.MeshBuilder.CreateTube("tube", options, this.scene);
+                        let options = { path: [start, adjustedEnd], radius: 0.1, tessellation: 8, instance: a.TubeMesh };
+                        B.MeshBuilder.CreateTube("tube", options, this.scene);
 
-            // Update arrow
-            a.arrow.position = adjustedEnd;
-            a.arrow.lookAt(end);
-            a.arrow.rotate(B.Axis.X, Math.PI / 2, B.Space.LOCAL);
+                        // Update arrow
+                        a.arrow.position = adjustedEnd;
+                        a.arrow.lookAt(end);
+                        a.arrow.rotate(B.Axis.X, Math.PI / 2, B.Space.LOCAL);
+                    }
+                });
+            })
         }
-    });    
-    })
-}
-}
+    }
 
 
-public confirmDelete(){
-    //on click right click on the mouse the menu will appear
-    // this.boundingBox.actionManager!.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnRightPickTrigger, (): void => {
-        
-    //     if (this.audioNode3D._isMenuOpen) this.audioNode3D._hideMenu();
-    //     else this.audioNode3D._showMenu();
-    //     }));
-            
-    // this.boundingBox.actionManager = new B.ActionManager(this.scene);
+    public confirmDelete() {
+        //on click right click on the mouse the menu will appear
+        // this.boundingBox.actionManager!.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnRightPickTrigger, (): void => {
 
-    const xrRightInputStates: XRInputStates = this._app.xrManager.xrInputManager.rightInputStates;
+        //     if (this.audioNode3D._isMenuOpen) this.audioNode3D._hideMenu();
+        //     else this.audioNode3D._showMenu();
+        //     }));
 
-    this.boundingBox.actionManager!.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPointerOverTrigger, (): void => {
-        console.log("pointer over",xrRightInputStates);
-        // highlightLayer.addMesh(this.baseMesh, B.Color3.Black());
-        xrRightInputStates['b-button'].onButtonStateChangedObservable.add((component: B.WebXRControllerComponent): void => {
-            if (component.pressed) {
-                if (this.audioNode3D._isMenuOpen) this.audioNode3D._hideMenu();
-                else this.audioNode3D._showMenu();
-            }
-        });
+        // this.boundingBox.actionManager = new B.ActionManager(this.scene);
 
-    }));
-    
-    // this.boundingBox.actionManager!.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPointerOutTrigger, (): void => {
-    //     // highlightLayer.removeMesh(this.baseMesh);
-    //     xrLeftInputStates['x-button'].onButtonStateChangedObservable.clear();
-    // }));
-}
+        const xrRightInputStates: XRInputStates = this._app.xrManager.xrInputManager.rightInputStates;
+
+        this.boundingBox.actionManager!.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPointerOverTrigger, (): void => {
+            console.log("pointer over", xrRightInputStates);
+            // highlightLayer.addMesh(this.baseMesh, B.Color3.Black());
+            xrRightInputStates['b-button'].onButtonStateChangedObservable.add((component: B.WebXRControllerComponent): void => {
+                if (component.pressed) {
+                    if (this.audioNode3D._isMenuOpen) this.audioNode3D._hideMenu();
+                    else this.audioNode3D._showMenu();
+                }
+            });
+
+        }));
+
+        // this.boundingBox.actionManager!.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPointerOutTrigger, (): void => {
+        //     // highlightLayer.removeMesh(this.baseMesh);
+        //     xrLeftInputStates['x-button'].onButtonStateChangedObservable.clear();
+        // }));
+    }
 
 
 }

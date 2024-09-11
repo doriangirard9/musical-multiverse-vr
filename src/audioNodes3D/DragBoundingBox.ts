@@ -35,9 +35,32 @@ export class DragBoundingBox implements B.Behavior<B.AbstractMesh> {
             this.onRelease(/*target*/);
         }));
         target.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickOutTrigger, (e) => {
-            if(e.meshUnderPointer && e.meshUnderPointer.position.y<0) e.meshUnderPointer.position.y = -1
+           //console.log(e.meshUnderPointer?.position)
+           //console.log(target.position)
+            if(e.meshUnderPointer && e.meshUnderPointer.position.y<0) {
+               target.position.y = -1;
+            }
             this.onRelease(/*target*/);
         }));
+
+        // Test MB
+        /*
+        target.actionManager.registerAction(
+            new B.ExecuteCodeAction(
+              {
+                trigger: B.ActionManager.OnIntersectionEnterTrigger,
+                parameter: {
+                  mesh: this.app.ground,
+                  usePreciseIntersection: true,
+                },
+              },
+              function() {
+                console.log("intersected" + target.name);
+                target.position.y = 1;
+              }
+            ),
+          );
+          */
     }
 
     detach(): void {
@@ -54,12 +77,14 @@ export class DragBoundingBox implements B.Behavior<B.AbstractMesh> {
             this.selected.visibility = 0.5;
             this.selected.addBehavior(this.drag);
                 const data = this.app._getPlayerState();
-                const norm = new B.Vector3(data.direction.x, 0, data.direction.z);
+                console.log(data)
+                let norm = new B.Vector3(data.direction.x, data.direction.y, data.direction.z);
                 this.drag.options.dragPlaneNormal = norm;
+                // MB : fix for having the proper plane orientation, we should not take
+                // into account the object orientation. Cf https://doc.babylonjs.com/features/featuresDeepDive/behaviors/meshBehaviors
+                this.drag.useObjectOrientationForDragging = false;
         }
     }
-
-
 
     onRelease(/*target: B.AbstractMesh*/): void {
         if (this.selected) {
