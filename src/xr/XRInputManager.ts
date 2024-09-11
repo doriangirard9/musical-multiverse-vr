@@ -13,8 +13,10 @@ export class XRInputManager {
     }
 
     public async initControllers(): Promise<void> {
+        this._xrHelper.input.onControllerAddedObservable.clear();
         return new Promise((resolve: () => void): void => {
             this._xrHelper.input.onControllerAddedObservable.add((controller : B.WebXRInputSource): void => {
+                controller.onMotionControllerInitObservable.clear();
                 controller.onMotionControllerInitObservable.add((motionController: B.WebXRAbstractMotionController): void => {
                     const handedness: string = motionController.handedness;
                     if (handedness === 'left') {
@@ -26,7 +28,11 @@ export class XRInputManager {
                     }
                     if (motionController) {
 
+                    console.log('Motion controller found');
                     const component_ids: string[] = motionController.getComponentIds();
+                    component_ids.forEach((component_id: string): void => {
+                        console.log(component_id);
+                    });
                     const inputStates: XRInputStates = (handedness === 'left') ? this.leftInputStates : this.rightInputStates;
 
                     // add button state change listeners
@@ -49,4 +55,5 @@ export class XRInputManager {
             });
         });
     }
+
 }
