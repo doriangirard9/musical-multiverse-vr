@@ -17,6 +17,7 @@ export class BoundingBox {
         this.id = id;
         this.dragBehavior = new DragBoundingBox(this._app);
         this.createBoundingBox();
+        console.log("BoundingBox created");
 
         // another methode for dragin behavior
         // // Add SixDofDragBehavior
@@ -37,7 +38,13 @@ export class BoundingBox {
         let d = this.audioNode3D.baseMesh.getBoundingInfo().boundingBox.extendSize.z * 2;
 
         // Create the bounding box
-        this.boundingBox = B.MeshBuilder.CreateBox(`boundingBox${this.id}`, { width: w, height: h * 1.5, depth: d * 2 }, this.scene);
+
+        // New sizes for the bounding box
+        //const bbWidth = w;
+        const bbHeight = h + 0.1;
+        const bbDepth = d + 0.8;
+
+        this.boundingBox = B.MeshBuilder.CreateBox(`boundingBox${this.id}`, { width: w, height: bbHeight, depth: bbDepth }, this.scene);
         this.boundingBox.isVisible = true;
         this.boundingBox.visibility = 0;  // Adjust visibility if needed
         // make the boundingbox  clickable
@@ -115,7 +122,9 @@ export class BoundingBox {
                 console.error("Failed to initialize ActionManager:", error);
             }
         }
+        // MB : apparently this listener is the reason for the PickedTyInfo nasty bug
         // Pointer over action (highlight the bounding box)
+        /*
         try {
             console.log("add action to boundingbox", this.boundingBox.actionManager)
             
@@ -135,6 +144,11 @@ export class BoundingBox {
         } catch (error) {
             console.error("Failed to register pointer over action:", error);
         }
+            */
+        // END OF BUGGY PART
+
+
+
     //     try {
     //         console.log("add action to boundingbox",this.boundingBox.actionManager)
     //     this.boundingBox.actionManager!.registerAction(

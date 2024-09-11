@@ -93,7 +93,6 @@ export class App {
         this._createGround()
 
         this.menu = new Menu(menuJson as MenuConfig);
-        if(this.menu) 
         this.menu.show();
 
         // display menu on right controller A button press
@@ -127,9 +126,17 @@ export class App {
 
             const audioNode3D: AudioNode3D = await this._audioNode3DBuilder.create(name, id, configFile);
             await audioNode3D.instantiate();
-            await audioNode3D.ioObservable.add(this.ioManager.onIOEvent.bind(this.ioManager));
-            await this.networkManager.createNetworkAudioNode3D(audioNode3D);
-            await console.log('end of init')
+            // await a certain delay before adding listeners
+            const delay = 2000;
+            console.log("WAITING " + delay + " seconds before adding listeners to the WAM 3D mesh")
+            setTimeout(async () => {
+                await audioNode3D.ioObservable.add(this.ioManager.onIOEvent.bind(this.ioManager));
+                await this.networkManager.createNetworkAudioNode3D(audioNode3D);
+                console.log('Audio node added successfully.');
+                await console.log('end of init')
+
+            }, delay);
+            
             // this.messageManager.hideMessage()
         }catch(e){
             console.log(e)
@@ -147,10 +154,13 @@ export class App {
             console.log('Adding audio node:', change.state);
             const audioNode3D: AudioNode3D = await this._audioNode3DBuilder.create(change.state.name, change.state.id, change.state.configFile);
             await audioNode3D.instantiate();
-            audioNode3D.ioObservable.add(this.ioManager.onIOEvent.bind(this.ioManager));
-            this.networkManager.addRemoteAudioNode3D(audioNode3D);
-            audioNode3D.setState(change.state);
-            console.log('Audio node added successfully.');
+            // @@ MB CHECK : no await here !!!
+            
+                audioNode3D.ioObservable.add(this.ioManager.onIOEvent.bind(this.ioManager));
+                this.networkManager.addRemoteAudioNode3D(audioNode3D);
+                audioNode3D.setState(change.state);
+                console.log('Audio node added successfully.');
+           
         } else if (change.action === 'delete') {
             // console.log('Deleting audio node:', change.state);
             // const audioNode3D = this.networkManager.getAudioNode3D(change.state.id);
