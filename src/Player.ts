@@ -18,7 +18,12 @@ export class Player {
         this._createBody();
         this._createHands();
     }
-
+    public dispose(): void {
+        this._head.dispose();
+        this._body.dispose();
+        this._leftHand.dispose();
+        this._rightHand.dispose();
+    }
     private _createHead(): void {
         // create head
         this._head = B.MeshBuilder.CreateSphere(`${this.id}Head`, { diameter: 0.7 }, this._scene);

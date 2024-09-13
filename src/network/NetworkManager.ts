@@ -4,14 +4,14 @@ import * as B from "@babylonjs/core";
 import {AudioNodeState, PlayerState} from "./types.ts";
 import {AudioNode3D} from "../audioNodes3D/AudioNode3D.ts";
 import {Player} from "../Player.ts";
-
+import {Awareness} from 'y-protocols/awareness';
 const TICK_RATE: number = 1000 / 30;
 const SIGNALING_SERVER: string = 'wss://musical-multiverse-vr.onrender.com';
 
 export class NetworkManager {
     private readonly _doc: Y.Doc;
     private readonly _id: string;
-
+    private awareness!: Awareness
     // Audio nodes
     private _networkAudioNodes3D!: Y.Map<AudioNodeState>; // Network state
     private _audioNodes3D = new Map<string, AudioNode3D>(); // local state
@@ -22,13 +22,19 @@ export class NetworkManager {
     private _players = new Map<string, Player>();// local state
     public onPlayerChangeObservable = new B.Observable<{action: 'add' | 'delete', state: PlayerState}>();
 
+    private _peerToPlayerMap = new Map<string, string>();
     constructor(id: string) {
         this._doc = new Y.Doc();
         this._id = id;
+        console.log("Current player id: " + this._id);
     }
 
     public connect(roomName: string): void {
-        new WebrtcProvider(roomName, this._doc, {signaling: [SIGNALING_SERVER]});
+        const provider = new WebrtcProvider(roomName, this._doc, {signaling: [SIGNALING_SERVER]});
+
+        this.awareness = provider.awareness;
+        this.awareness.setLocalStateField('playerId', this._id);
+        this.awareness.on('change', this._onAwarenessChange.bind(this));
 
         // Audio nodes
         this._networkAudioNodes3D = this._doc.getMap('audioNodes3D');
@@ -45,6 +51,36 @@ export class NetworkManager {
         setInterval(this._update.bind(this), TICK_RATE);
     }
 
+    // Method used to handle changes in Yjs awareness.
+    private _onAwarenessChange({ added, updated, removed }: { added: number[], updated: number[], removed: number[] }) {
+        // Get the current state of all peers
+        const states = this.awareness.getStates();
+
+        // Process added peers
+        added.concat(updated).forEach(peerId => {
+            console.log(`Peer ${peerId} connected.`);
+            const state = states.get(peerId);
+            if (state) {
+                console.log(state)
+                if (state.playerId) {
+                    this._peerToPlayerMap.set(String(peerId), state.playerId);
+                }
+            }
+            console.log(this._peerToPlayerMap)
+        });
+
+        // Handle removed peers
+        removed.forEach(peerId => {
+            console.log(`Peer ${peerId} disconnected.`);
+            const playerId = this._peerToPlayerMap.get(String(peerId));
+            if (playerId) {
+                this._players.get(playerId)!.dispose();
+                this._players.delete(playerId);
+            }
+            this._peerToPlayerMap.delete(String(peerId));
+
+        });
+    }
     private _onAudioNode3DChange(change: {action: "add" | "update" | "delete", oldValue: any}, key: string): void {
         switch (change.action) {
             case "add":
