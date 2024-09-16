@@ -75,6 +75,14 @@ export class BoundingBox {
         this.boundingBox.getChildMeshes().forEach((mesh) => {
             this._app.shadowGenerator.addShadowCaster(mesh)
         })
+        let xrSession = this._app.xrManager.xrHelper.baseExperience.sessionManager.session;
+        xrSession.addEventListener("visibilitychange", async (event: XRSessionEvent) => {
+            console.log("Visibility state changed: " + event.session.visibilityState);
+            if (event.session.visibilityState === "visible") {
+                console.log("Visibility state changed to visible redoing action handlers");
+                this.addActionHandlers();
+            }
+        });
     }
 
 
@@ -95,7 +103,8 @@ export class BoundingBox {
         // Apply transformations to the bounding box
         this.boundingBox.position = position;
         this.boundingBox.setDirection(direction);
-        this.boundingBox.rotation.x = -Math.PI / 6;  // Optional rotation on X-axis
+        console.log("Changing rotation 2")
+        //this.boundingBox.rotation.x = -Math.PI / 6;  // Optional rotation on X-axis
 
         // Additional scene-related setups
         this._app.ground.checkCollisions = true;
@@ -120,7 +129,7 @@ export class BoundingBox {
     private _disableDragBehavior(): void {
         console.log("disable drag behavior");
         if (this.boundingBox && this.boundingBox.behaviors.includes(this.dragBehavior)) {
-            this.dragBehavior.detach();  // Detach the drag inputs
+            //this.dragBehavior.detach();  // Detach the drag inputs
             this.boundingBox.removeBehavior(this.dragBehavior);  // Remove the behavior
         }
     }
@@ -233,17 +242,31 @@ export class BoundingBox {
         });
 
         xrRightInputStates['xr-standard-squeeze'].onButtonStateChangedObservable.add((component: B.WebXRControllerComponent): void => {
-            if (component.value === 1) {
-                // When squeeze is pressed, disable dragging and enable rotation
-                this._disableDragBehavior();
-                this._enableRotationBehavior();
-
-            } else if (component.value < 1 && this.boundingBox.behaviors.includes(this.rotationBehavior)) {
+            if (component.value < 1 && this.boundingBox.behaviors.includes(this.rotationBehavior)) {
                 // When squeeze is released, disable rotation and enable dragging
                 this._disableRotationBehavior();
                 this._enableDragBehavior();
+                console.log("squeeze released");
+                return;
+
             }
-        });
+            if (component.value < 1) {
+                console.log("squeeze released 2");
+                return;
+            }
+            const controller = this._app.xrManager.xrInputManager.rightController;
+            const ray = new B.Ray(controller.pointer.position, controller.pointer.forward, 100); // Ray length of 100 units
+            const pickResult = this._app.scene.pickWithRay(ray);
+            console.log("pickResult", pickResult);
+            if (pickResult && pickResult.pickedMesh?.name.startsWith("boundingBox")) {
+                if (!this.boundingBox.behaviors.includes(this.rotationBehavior)) {
+                    // When squeeze is pressed, disable dragging and enable rotation
+                    this._disableDragBehavior();
+                    this._enableRotationBehavior();
+
+                }
+            }});
+
 
     }
 

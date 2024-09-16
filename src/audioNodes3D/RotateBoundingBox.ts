@@ -6,50 +6,42 @@ export class RotateBoundingBox implements B.Behavior<B.AbstractMesh> {
     private _selectedMesh: B.AbstractMesh | null = null;
     private _observer: B.Nullable<B.Observer<B.Scene>> = null;
     private _controllerObserver: B.Nullable<B.Observer<any>> = null; // To store controller button event observer
+    private _initialControllerRotation: B.Nullable<B.Vector3> = null;
+    private _initialMeshRotation: B.Nullable<B.Vector3> = null;
 
     constructor(private app: App) {}
 
     init(): void {
         this.logRed("RotateBoundingBox init");
 
-        // Iterate over all controllers
-        this.app.xrManager.xrHelper.input.controllers.forEach(controller => {
-            console.log("Controller initialized:", controller);
-
-            const squeezeComponent = controller.motionController?.getComponent("xr-standard-squeeze");
-
-            if (squeezeComponent) {
-                // Attach a squeeze button state observer
-                this._controllerObserver = squeezeComponent.onButtonStateChangedObservable.add((component) => {
-                    console.log("Squeeze button pressed:", component.pressed);
-
-                    // Only proceed if a mesh is selected
-                    if (this._selectedMesh) {
-                        if (component.value === 1) {
-                            this._isSqueezePressed = true;
-                            this._startRotation(controller);  // Start applying rotation
-                        } else {
-                            this._isSqueezePressed = false;  // Stop applying rotation
-                        }
-                    } else {
-                        console.log("No mesh selected, ignoring squeeze input");
-                    }
-                });
-            } else {
-                console.warn("Squeeze component not available on controller.");
-            }
-        });
     }
 
     select(target: B.AbstractMesh): void {
         this.logRed("RotateBoundingBox select");
         this._selectedMesh = target;
+
+        this.logRed("Mesh initial rotation: " + this._selectedMesh.rotationQuaternion?.toString());
+        this.logRed("Mesh initial euler: " + this._selectedMesh.rotation.toString());
         this._selectedMesh.visibility = 0.5;
     }
 
     attach(target: B.AbstractMesh): void {
         this.logRed("RotateBoundingBox attach");
-        this.select(target);
+        console.log(target);
+
+
+        let controller = this.app.xrManager.xrHelper.input.controllers[0];
+        let squeezeComponent = controller.motionController?.getComponent("xr-standard-squeeze");
+        // Iterate over all controllers
+        if (squeezeComponent) {
+            this._controllerObserver = squeezeComponent.onButtonStateChangedObservable.add((component) => {
+                this._isSqueezePressed = component.value === 1;
+                if (this._isSqueezePressed) {
+                    this._selectMeshUnderController(controller);
+                }
+            });
+        }
+
     }
 
     detach(): void {
@@ -63,16 +55,20 @@ export class RotateBoundingBox implements B.Behavior<B.AbstractMesh> {
 
         // Remove the observer if it exists
         if (this._observer) {
-            this.app.scene.onBeforeRenderObservable.remove(this._observer);
+            this.logRed("deleting observer inside detach");
+            let res = this.app.scene.onBeforeRenderObservable.remove(this._observer);
+            console.log("Deleted ? "+ res);
             this._observer = null;  // Clear the observer reference
         }
 
         // Clear the controller observer to prevent attaching to any new mesh
         if (this._controllerObserver) {
+            this.logRed("deleting controller observer inside detach");
             this.app.xrManager.xrHelper.input.controllers.forEach(controller => {
                 const squeezeComponent = controller.motionController?.getComponent("xr-standard-squeeze");
                 if (squeezeComponent) {
-                    squeezeComponent.onButtonStateChangedObservable.remove(this._controllerObserver);
+                    let res = squeezeComponent.onButtonStateChangedObservable.remove(this._controllerObserver);
+                    console.log("Deleted ? "+ res);
                 }
             });
             this._controllerObserver = null;
@@ -84,47 +80,51 @@ export class RotateBoundingBox implements B.Behavior<B.AbstractMesh> {
         this._initialMeshRotation = null;
         this._isSqueezePressed = false;
 
+
     }
+    private _selectMeshUnderController(controller: B.WebXRInputSource): void {
+        const ray = new B.Ray(controller.pointer.position, controller.pointer.forward, 100); // Ray length of 100 units
+        const pickResult = this.app.scene.pickWithRay(ray);
 
-    private _initialControllerRotation: B.Nullable<B.Quaternion> = null;
-    private _initialMeshRotation: B.Nullable<B.Quaternion> = null;
-
+        if (pickResult?.hit && pickResult.pickedMesh) {
+            this.select(pickResult.pickedMesh);
+            this._startRotation(controller); // Start rotating the selected mesh
+        }
+    }
     private _startRotation(controller: B.WebXRInputSource): void {
         if (this._selectedMesh) {
             console.log(this._selectedMesh.name);
-            this.logRed("if -- 0");
 
             // Add the observer and store it in the class-level variable
             this._observer = this.app.scene.onBeforeRenderObservable.add(() => {
                 if (this._isSqueezePressed && controller.grip) {
-                    this.logRed("if -- 1");
-
                     if (!this._initialControllerRotation) {
-                        this.logRed("if -- 2");
-
                         if (controller.grip.rotationQuaternion) {
-                            this.logRed("if -- 3");
-                            this._initialControllerRotation = controller.grip.rotationQuaternion.clone();
+                            // Convert the controller's rotation quaternion to Euler angles
+                            this._initialControllerRotation = controller.grip.rotationQuaternion.toEulerAngles().clone();
                         }
 
-                        if (this._selectedMesh && this._selectedMesh.rotationQuaternion) {
-                            this.logRed("if -- 4");
-                            this._initialMeshRotation = this._selectedMesh.rotationQuaternion.clone();
+                        if (this._selectedMesh) {
+                                // Use the mesh's existing Euler rotation
+                                this._initialMeshRotation = this._selectedMesh.rotation.clone();
                         } else {
-                            this.logRed("if -- 5");
-                            this._initialMeshRotation = B.Quaternion.Identity();  // Default to identity if no initial rotation
+                            // Default to zero rotation if no initial rotation is found
+                            this._initialMeshRotation = new B.Vector3(0, 0, 0);
                         }
                         return;  // Skip the first frame to avoid sudden jumps
                     }
 
                     if (this._initialControllerRotation && this._initialMeshRotation) {
-                        this.logRed("if -- 6");
-                        const currentControllerRotation = controller.grip.rotationQuaternion!.clone();
-                        const deltaRotation = this._initialControllerRotation.invert().multiply(currentControllerRotation);
+                        const currentControllerRotationQuaternion = controller.grip.rotationQuaternion!.clone();
+                        // Convert the current controller rotation to Euler angles
+                        const currentControllerRotation = currentControllerRotationQuaternion.toEulerAngles();
+
+                        // Calculate the delta rotation by subtracting the initial controller rotation from the current rotation
+                        const deltaRotation = currentControllerRotation.subtract(this._initialControllerRotation);
 
                         if (this._selectedMesh) {
-                            this.logRed("if -- 7");
-                            this._selectedMesh.rotationQuaternion = deltaRotation.multiply(this._initialMeshRotation);
+                            // Apply the delta rotation to the initial mesh rotation
+                            this._selectedMesh.rotation = this._initialMeshRotation.add(deltaRotation);
                         }
                     }
                 } else {
@@ -140,6 +140,7 @@ export class RotateBoundingBox implements B.Behavior<B.AbstractMesh> {
             });
         }
     }
+
 
     logRed(msg: string): void {
         console.log("%c" + msg, "color:red");
