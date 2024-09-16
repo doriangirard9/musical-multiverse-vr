@@ -3,11 +3,13 @@ import { DragBoundingBox } from "./DragBoundingBox";
 import { App } from "../App";
 import { AudioNode3D } from "./AudioNode3D";
 import { XRInputStates } from "../xr/types";
+import {RotateBoundingBox} from "./RotateBoundingBox.ts";
 
 export class BoundingBox {
 
     public boundingBox!: B.AbstractMesh;
     public dragBehavior!: DragBoundingBox;
+    public rotationBehavior!: RotateBoundingBox;
     private _app: App;
     private id: string;
     private highlightLayer!: B.HighlightLayer;
@@ -16,6 +18,7 @@ export class BoundingBox {
         this._app = app;
         this.id = id;
         this.dragBehavior = new DragBoundingBox(this._app);
+        this.rotationBehavior = new RotateBoundingBox(this._app);
         this.createBoundingBox();
         console.log("BoundingBox created");
 
@@ -60,7 +63,7 @@ export class BoundingBox {
 
         // Set up drag behavior
         this.setupDragBehavior();
-
+        this._setupRotationBehavior();
         // Register all action handlers (pointer over, pointer out, right-click, etc.)
         this.addActionHandlers();
 
@@ -73,6 +76,7 @@ export class BoundingBox {
             this._app.shadowGenerator.addShadowCaster(mesh)
         })
     }
+
 
     private positionBoundingBoxInFrontOfPlayer(): void {
         // Check if player state is valid before proceeding
@@ -103,6 +107,43 @@ export class BoundingBox {
     private setupDragBehavior(): void {
         this.boundingBox.addBehavior(this.dragBehavior);
     }
+    private _setupRotationBehavior(): void {
+        console.log("setup rotation behavior")
+        this.rotationBehavior.attach(this.boundingBox);
+    }
+    // Enable drag behavior
+    private _enableDragBehavior(): void {
+        console.log("enable drag behavior");
+        if (this.boundingBox && !this.boundingBox.behaviors.includes(this.dragBehavior)) {
+            this.boundingBox.addBehavior(this.dragBehavior);
+        }
+    }
+
+// Disable drag behavior
+    private _disableDragBehavior(): void {
+        console.log("disable drag behavior");
+        if (this.boundingBox && this.boundingBox.behaviors.includes(this.dragBehavior)) {
+            this.dragBehavior.detach();  // Detach the drag inputs
+            this.boundingBox.removeBehavior(this.dragBehavior);  // Remove the behavior
+        }
+    }
+
+// Enable rotation behavior
+    private _enableRotationBehavior(): void {
+        console.log("enable rotation behavior");
+        if (this.boundingBox && !this.boundingBox.behaviors.includes(this.rotationBehavior)) {
+            this.rotationBehavior.attach(this.boundingBox);  // Attach the drag inputs
+        }
+    }
+
+// Disable rotation behavior
+    private _disableRotationBehavior(): void {
+        console.log("disable rotation behavior");
+        if (this.boundingBox && this.boundingBox.behaviors.includes(this.rotationBehavior)) {
+            this.rotationBehavior.detach();  // Detach the drag inputs
+            //this.highlightLayer.removeMesh(this.boundingBox as B.Mesh);
+        }
+    }
 
     // Add action handlers for the bounding box (pointer events, right-clicks, etc.)
     public addActionHandlers(): void {
@@ -127,7 +168,7 @@ export class BoundingBox {
         /*
         try {
             console.log("add action to boundingbox", this.boundingBox.actionManager)
-            
+
             this.boundingBox.actionManager!.registerAction(
                 new B.ExecuteCodeAction(B.ActionManager.OnPointerOverTrigger, (): void => {
                     try {
@@ -191,6 +232,18 @@ export class BoundingBox {
             if (component.pressed) {
                 if (this.audioNode3D._isMenuOpen) this.audioNode3D._hideMenu();
                 else this.audioNode3D._showMenu();
+            }
+        });
+
+        xrRightInputStates['xr-standard-squeeze'].onButtonStateChangedObservable.add((component: B.WebXRControllerComponent): void => {
+            if (component.pressed) {
+                // When squeeze is pressed, disable dragging and enable rotation
+                this._disableDragBehavior();
+                this._enableRotationBehavior();
+            } else {
+                // When squeeze is released, disable rotation and enable dragging
+                this._disableRotationBehavior();
+                this._enableDragBehavior();
             }
         });
 

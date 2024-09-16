@@ -137,7 +137,6 @@ export class App {
                 }
             });
             xrRightInputStates['xr-standard-trigger'].onButtonStateChangedObservable.add((component: B.WebXRControllerComponent): void => {
-                console.log('Trigger state changed on right controller');
                 if (component.pressed) {
                     console.log('Trigger pressed on right controller');
 
