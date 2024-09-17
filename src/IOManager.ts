@@ -162,8 +162,12 @@ export class IOManager {
         arrowMaterial.diffuseColor = new B.Color3(0, 0, 1);
         arrow.material = arrowMaterial;
         
-        tube.isPickable = false;
-  
+        tube.isPickable = true;
+        // Add ActionManager to the tube for click handling
+        tube.actionManager = new B.ActionManager(this._scene);
+        tube.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickTrigger, () => {
+            this.deleteArc(tube, outputNode, inputNode);
+        }));
         const tubeParams: TubeParams = {options:optionsTube, TubeMesh: tube,OutputMesh:outputNode.outputMesh!,inputMesh: inputNode.inputMesh!,arrow:arrow,outputNode:outputNode,inputNode:inputNode} ;
         outputNode.outputArcs.push(tubeParams);
         inputNode.inputArcs.push(tubeParams);
@@ -172,6 +176,39 @@ export class IOManager {
 
     }
 
+
+
+    public deleteArc(arc:B.Mesh,outputNode: AudioNode3D, inputNode: AudioNode3D): void {
+        console.log("Deleting arc between nodes", outputNode.id, inputNode.id);
+    
+        // Remove the arc from the output node
+        outputNode.outputArcs = outputNode.outputArcs.filter((tubeParams: TubeParams) => {
+            if (tubeParams.inputMesh && arc === tubeParams.TubeMesh) {
+                console.log("Disposing TubeMesh and arrow");
+                tubeParams.outputNode.disconnect(tubeParams.inputNode.getAudioNode());
+                tubeParams.TubeMesh.dispose();
+                tubeParams.arrow.dispose();
+                return false;
+            }
+            return true;
+        });
+    
+        // Remove the arc from the input node
+        inputNode.inputArcs = inputNode.inputArcs.filter((tubeParams: TubeParams) => {
+            if (tubeParams.OutputMesh && arc === tubeParams.TubeMesh) {
+                console.log("Disposing TubeMesh and arrow");
+                // // tubeParams.outputNode.getAudioNode.disconnect(tubeParams.inputNode.getAudioNode());
+                // tubeParams.outputNode.disconnect(tubeParams.inputNode.getAudioNode());
+                tubeParams.TubeMesh.dispose();
+                tubeParams.arrow.dispose();
+                return false;
+            }
+            return true;
+        });
+
+
+    }
+    
     
     public createVirtualTube(node: B.Mesh): void {
         const start = node!.getAbsolutePosition();

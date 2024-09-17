@@ -50,8 +50,10 @@ export class SimpleOscillator3D extends AudioNode3D {
         // this._app.shadowGenerator.addShadowCaster(this.baseMesh);
     }
 
+    // disconnect each synth from the merger node
     public disconnect(_destination: AudioNode): void {
-        throw new Error("Method not implemented.");
+        this._oscillator.disconnect();
+
     }
 
     protected _createBaseMesh(): void {

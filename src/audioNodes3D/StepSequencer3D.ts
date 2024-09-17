@@ -47,9 +47,11 @@ export class StepSequencer3D extends AudioNode3D {
         console.error("Error instantiating StepSequencer: ", error);
     }
 }
-
+    // disconnect each synth from the merger node
     public disconnect(_destination: AudioNode): void {
-        throw new Error("Method not implemented.");
+        this._synths.forEach((synth: Tone.Synth) => {
+            synth.disconnect();
+        });
     }
     
     
