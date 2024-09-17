@@ -4,6 +4,7 @@ import { App } from "../App";
 import { AudioNode3D } from "./AudioNode3D";
 import { XRInputStates } from "../xr/types";
 import {RotateBoundingBox} from "./RotateBoundingBox.ts";
+import {ControllerBehaviorManager} from "../xr/BehaviorControllerManager.ts";
 
 export class BoundingBox {
 
@@ -75,17 +76,68 @@ export class BoundingBox {
         this.boundingBox.getChildMeshes().forEach((mesh) => {
             this._app.shadowGenerator.addShadowCaster(mesh)
         })
-        let xrSession = this._app.xrManager.xrHelper.baseExperience.sessionManager.session;
-        xrSession.addEventListener("visibilitychange", async (event: XRSessionEvent) => {
-            console.log("Visibility state changed: " + event.session.visibilityState);
-            if (event.session.visibilityState === "visible") {
-                console.log("Visibility state changed to visible redoing action handlers");
-                this.addActionHandlers();
-            }
-        });
+
+        ControllerBehaviorManager.addBoundingBox(this);
+
+
+
+
     }
 
+    public attachControllerBehaviors(): void {
+        console.log("Attaching controller behaviors in BoundingBox");
 
+        const xrLeftInputStates: XRInputStates = this._app.xrManager.xrInputManager.leftInputStates;
+        xrLeftInputStates['x-button'].onButtonStateChangedObservable.add(this._leftXButtonHandler);
+
+        const xrRightInputStates: XRInputStates = this._app.xrManager.xrInputManager.rightInputStates;
+        xrRightInputStates['b-button'].onButtonStateChangedObservable.add(this._rightBButtonHandler);
+
+        xrRightInputStates['xr-standard-squeeze'].onButtonStateChangedObservable.add(this._rightSqueezeHandler);
+    }
+
+    private _leftXButtonHandler = (component: B.WebXRControllerComponent): void => {
+        if (component.pressed) {
+            this.handleMenu();
+        }
+    }
+
+    private _rightBButtonHandler = (component: B.WebXRControllerComponent): void => {
+        if (component.pressed) {
+            if (this.audioNode3D._isMenuOpen) {
+                this.audioNode3D._hideMenu();
+            } else {
+                this.audioNode3D._showMenu();
+            }
+        }
+    };
+    private _rightSqueezeHandler = (component: B.WebXRControllerComponent): void => {
+        if (component.value < 1 && this.boundingBox.behaviors.includes(this.rotationBehavior)) {
+            // When squeeze is released, disable rotation and enable dragging
+            this._disableRotationBehavior();
+            this._enableDragBehavior();
+            console.log("squeeze released");
+            return;
+
+        }
+        if (component.value < 1) {
+            console.log("squeeze released 2");
+            return;
+        }
+        const controller = this._app.xrManager.xrInputManager.rightController;
+        if (!controller) {return}
+        const ray = new B.Ray(controller.pointer.position, controller.pointer.forward, 100); // Ray length of 100 units
+        const pickResult = this._app.scene.pickWithRay(ray);
+        console.log("pickResult", pickResult);
+        if (pickResult && pickResult.pickedMesh?.name.startsWith("boundingBox")) {
+            if (!this.boundingBox.behaviors.includes(this.rotationBehavior)) {
+                // When squeeze is pressed, disable dragging and enable rotation
+                this._disableDragBehavior();
+                this._enableRotationBehavior();
+
+            }
+        }
+    }
     private positionBoundingBoxInFrontOfPlayer(): void {
         // Check if player state is valid before proceeding
         this._app.menu.hide();
@@ -154,6 +206,7 @@ export class BoundingBox {
     // Add action handlers for the bounding box (pointer events, right-clicks, etc.)
     public addActionHandlers(): void {
         // Make sure the bounding box exists and actionManager is properly initialized
+        console.log("Entered addActionHandlers BoundingBox.ts");
         if (!this.boundingBox || !this.scene) {
             console.error("Bounding box or scene not initialized properly");
             return;
@@ -224,49 +277,6 @@ export class BoundingBox {
                 this.handleMenu();
             })
         );
-
-        // XR interaction (if using VR/AR controls)
-        const xrLeftInputStates: XRInputStates = this._app.xrManager.xrInputManager.leftInputStates;
-        xrLeftInputStates['x-button'].onButtonStateChangedObservable.add((component: B.WebXRControllerComponent): void => {
-            if (component.pressed) {
-                this.handleMenu();
-            }
-        });
-
-        const xrRightInputStates: XRInputStates = this._app.xrManager.xrInputManager.rightInputStates;
-        xrRightInputStates['b-button'].onButtonStateChangedObservable.add((component: B.WebXRControllerComponent): void => {
-            if (component.pressed) {
-                if (this.audioNode3D._isMenuOpen) this.audioNode3D._hideMenu();
-                else this.audioNode3D._showMenu();
-            }
-        });
-
-        xrRightInputStates['xr-standard-squeeze'].onButtonStateChangedObservable.add((component: B.WebXRControllerComponent): void => {
-            if (component.value < 1 && this.boundingBox.behaviors.includes(this.rotationBehavior)) {
-                // When squeeze is released, disable rotation and enable dragging
-                this._disableRotationBehavior();
-                this._enableDragBehavior();
-                console.log("squeeze released");
-                return;
-
-            }
-            if (component.value < 1) {
-                console.log("squeeze released 2");
-                return;
-            }
-            const controller = this._app.xrManager.xrInputManager.rightController;
-            const ray = new B.Ray(controller.pointer.position, controller.pointer.forward, 100); // Ray length of 100 units
-            const pickResult = this._app.scene.pickWithRay(ray);
-            console.log("pickResult", pickResult);
-            if (pickResult && pickResult.pickedMesh?.name.startsWith("boundingBox")) {
-                if (!this.boundingBox.behaviors.includes(this.rotationBehavior)) {
-                    // When squeeze is pressed, disable dragging and enable rotation
-                    this._disableDragBehavior();
-                    this._enableRotationBehavior();
-
-                }
-            }});
-
 
     }
 
