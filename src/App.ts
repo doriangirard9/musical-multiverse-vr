@@ -9,7 +9,6 @@ import menuJson from "./menuConfig.json";
 import {MenuConfig} from "./types.ts";
 import {IOManager} from "./IOManager.ts";
 import {XRManager} from "./xr/XRManager.ts";
-import {XRInputStates} from "./xr/types.ts";
 import {NetworkManager} from "./network/NetworkManager.ts";
 import {AdvancedDynamicTexture} from "@babylonjs/gui";
 import {AudioNode3DBuilder} from "./audioNodes3D/AudioNode3DBuilder.ts";
@@ -69,7 +68,7 @@ export class App {
 
     public async startScene(): Promise<void> {
         await this.xrManager.init(this.scene);
-        await this._setupControllers();
+        //await this._setupControllers();
 
         this.engine.runRenderLoop((): void => {
             this._sendPlayerState();
@@ -95,16 +94,8 @@ export class App {
 
         this.menu = new Menu(menuJson as MenuConfig);
 
-        if(this.menu) this.menu.show();
-        
-        // Permet de recréer les commandes de controleurs lorsqu'on quitte la page avec le bouton oculus et qu'on retourne dessus par la suite.
-        let xrSession = this.xrManager.xrHelper.baseExperience.sessionManager.session;
-        xrSession.addEventListener("visibilitychange", async (event: XRSessionEvent) => {
-            console.log("Visibility state changed: " + event.session.visibilityState);
-            if (event.session.visibilityState === "visible") {
-                await this._setupControllers();
-            }
-        });
+        this.xrManager.xrInputManager.controllerBehaviorManager?.setMenu(this.menu);
+
 
         // display inspector on U key press
         window.addEventListener('keydown', (event: KeyboardEvent): void => {
@@ -119,32 +110,6 @@ export class App {
         this.networkManager.onPlayerChangeObservable.add(this._onRemotePlayerChange.bind(this));
     }
 
-    // display menu on right controller A button press
-    // Mettre les futurs fonctions lie aux boutons ici
-    private async _setupControllers() {
-        await this.xrManager.xrInputManager.initControllers()
-        const xrRightInputStates: XRInputStates = this.xrManager.xrInputManager.rightInputStates;
-        if (xrRightInputStates) {
-            xrRightInputStates['a-button'].onButtonStateChangedObservable.clear();
-            xrRightInputStates['a-button'].onButtonStateChangedObservable.add((component: B.WebXRControllerComponent): void => {
-                console.log('A button state changed on right controller');
-                if (component.pressed) {
-                    console.log('A button pressed on right controller');
-                    console.log("Menu state is ", this.menu.isMenuOpen);
-                    console.log("-----------------");
-                    if (!this.menu.isMenuOpen) this.menu.show();
-                    else this.menu.hide();
-                }
-            });
-            xrRightInputStates['xr-standard-trigger'].onButtonStateChangedObservable.add((component: B.WebXRControllerComponent): void => {
-                console.log('Trigger state changed on right controller');
-                if (component.pressed) {
-                    console.log('Trigger pressed on right controller');
-
-                }
-            });
-        }
-    }
     public async createAudioNode3D(name: string, id: string, configFile?: string): Promise<void> {
         this.menu.hide()
         this.messageManager.showMessage("Loading...",0);
@@ -285,10 +250,16 @@ export class App {
             console.error("XRManager camera is not initialized");
             return;
         }
+
+        if (!this.xrManager.xrInputManager.leftController || !this.xrManager.xrInputManager.rightController) {
+            return;
+        }
         const xrCameraPosition: B.Vector3 = this.xrManager.xrHelper.baseExperience.camera.position;
         const xrCameraDirection: B.Vector3 = this.xrManager.xrHelper.baseExperience.camera.getDirection(B.Axis.Z);
-        const xrLeftControllerPosition: B.Vector3 = this.xrManager.xrInputManager.leftController.grip!.position;
-        const xrRightControllerPosition: B.Vector3 = this.xrManager.xrInputManager.rightController.grip!.position;
+        // @ts-ignore
+        const xrLeftControllerPosition: B.Vector3 = this.xrManager.xrInputManager.leftController?.grip!.position;
+        // @ts-ignore
+        const xrRightControllerPosition: B.Vector3 = this.xrManager.xrInputManager.rightController?.grip!.position;
 
         const playerState: PlayerState = {
             id: this.id,
@@ -305,8 +276,13 @@ export class App {
         const xrCameraDirection: B.Vector3 = this.xrManager.xrHelper.baseExperience.camera.getDirection(B.Axis.Z);
         
         console.log("camera",xrCameraDirection.asArray())
-        const xrLeftControllerPosition: B.Vector3 = this.xrManager.xrInputManager.leftController.grip!.position;
-        const xrRightControllerPosition: B.Vector3 = this.xrManager.xrInputManager.rightController.grip!.position;
+        if (!this.xrManager.xrInputManager.leftController || !this.xrManager.xrInputManager.rightController) {
+            return;
+        }
+        // @ts-ignore
+        const xrLeftControllerPosition: B.Vector3 = this.xrManager.xrInputManager.leftController?.grip!.position;
+        // @ts-ignore
+        const xrRightControllerPosition: B.Vector3 = this.xrManager.xrInputManager.rightController?.grip!.position;
 
         const playerState: PlayerState = {
             id: this.id,

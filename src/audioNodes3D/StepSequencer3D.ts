@@ -3,6 +3,7 @@ import * as Tone from "tone";
 import {AudioNode3D} from "./AudioNode3D.ts";
 import {AudioNodeState} from "../network/types.ts";
 import { BoundingBox } from "./BoundingBox.ts";
+import {ControllerBehaviorManager} from "../xr/BehaviorControllerManager.ts";
 
 export class StepSequencer3D extends AudioNode3D {
 
@@ -38,7 +39,7 @@ export class StepSequencer3D extends AudioNode3D {
 
         const bo = new BoundingBox(this, this._scene, this.id, this._app);
         this.boundingBox = bo.boundingBox;
-
+        ControllerBehaviorManager.addBoundingBox(bo);
         // shadow
         // this._app.shadowGenerator.addShadowCaster(this.baseMesh);
         console.log("StepSequencer instantiated successfully.");

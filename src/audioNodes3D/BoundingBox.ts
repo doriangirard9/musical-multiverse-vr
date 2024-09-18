@@ -1,13 +1,16 @@
 import * as B from "@babylonjs/core";
-import { DragBoundingBox } from "./DragBoundingBox";
-import { App } from "../App";
-import { AudioNode3D } from "./AudioNode3D";
-import { XRInputStates } from "../xr/types";
+import {DragBoundingBox} from "./DragBoundingBox";
+import {App} from "../App";
+import {AudioNode3D} from "./AudioNode3D";
+import {XRInputStates} from "../xr/types";
+import {RotateBoundingBox} from "./RotateBoundingBox.ts";
+import {ControllerBehaviorManager} from "../xr/BehaviorControllerManager.ts";
 
 export class BoundingBox {
 
     public boundingBox!: B.AbstractMesh;
     public dragBehavior!: DragBoundingBox;
+    public rotationBehavior!: RotateBoundingBox;
     private _app: App;
     private id: string;
     private highlightLayer!: B.HighlightLayer;
@@ -16,6 +19,7 @@ export class BoundingBox {
         this._app = app;
         this.id = id;
         this.dragBehavior = new DragBoundingBox(this._app);
+        this.rotationBehavior = new RotateBoundingBox(this._app);
         this.createBoundingBox();
         console.log("BoundingBox created");
 
@@ -44,7 +48,11 @@ export class BoundingBox {
         const bbHeight = h + 0.1;
         const bbDepth = d + 0.8;
 
-        this.boundingBox = B.MeshBuilder.CreateBox(`boundingBox${this.id}`, { width: w, height: bbHeight, depth: bbDepth }, this.scene);
+        this.boundingBox = B.MeshBuilder.CreateBox(`boundingBox${this.id}`, {
+            width: w,
+            height: bbHeight,
+            depth: bbDepth
+        }, this.scene);
         this.boundingBox.isVisible = true;
         this.boundingBox.visibility = 0;  // Adjust visibility if needed
         // make the boundingbox  clickable
@@ -60,10 +68,10 @@ export class BoundingBox {
 
         // Set up drag behavior
         this.setupDragBehavior();
-
+        //this._enableRotationBehavior();
         // Register all action handlers (pointer over, pointer out, right-click, etc.)
         this.addActionHandlers();
-
+        this.attachControllerBehaviors()
         // Update any arcs related to this bounding box
         this.updateArcs();
         // setTimeout(() => {}, 1000);
@@ -72,41 +80,28 @@ export class BoundingBox {
         this.boundingBox.getChildMeshes().forEach((mesh) => {
             this._app.shadowGenerator.addShadowCaster(mesh)
         })
-    }
 
-    private positionBoundingBoxInFrontOfPlayer(): void {
-        // Check if player state is valid before proceeding
-        this._app.menu.hide();
-        const data = this._app._getPlayerState();
-        if (!data || !data.direction || !data.position) {
-            console.warn("Player state is incomplete or invalid.");
-            return;
-        }
+        ControllerBehaviorManager.addBoundingBox(this);
 
-        // Calculate direction and position based on player state
-        const direction = new B.Vector3(data.direction.x, data.direction.y, data.direction.z);
-        const position = new B.Vector3(data.position.x, data.position.y + 0.3, data.position.z)
-            .addInPlace(direction.normalize().scale(5));  // Place object in front of player
-
-        // Apply transformations to the bounding box
-        this.boundingBox.position = position;
-        this.boundingBox.setDirection(direction);
-        this.boundingBox.rotation.x = -Math.PI / 6;  // Optional rotation on X-axis
-
-        // Additional scene-related setups
-        this._app.ground.checkCollisions = true;
 
     }
 
+    public attachControllerBehaviors(): void {
+        console.log("Attaching controller behaviors in BoundingBox");
 
-    // Set up the drag behavior for the bounding box
-    private setupDragBehavior(): void {
-        this.boundingBox.addBehavior(this.dragBehavior);
+        const xrLeftInputStates: XRInputStates = this._app.xrManager.xrInputManager.leftInputStates;
+        xrLeftInputStates['x-button'].onButtonStateChangedObservable.add(this._leftXButtonHandler);
+
+        const xrRightInputStates: XRInputStates = this._app.xrManager.xrInputManager.rightInputStates;
+        xrRightInputStates['b-button'].onButtonStateChangedObservable.add(this._rightBButtonHandler);
+
+        xrRightInputStates['xr-standard-squeeze'].onButtonStateChangedObservable.add(this._rightSqueezeHandler);
     }
 
     // Add action handlers for the bounding box (pointer events, right-clicks, etc.)
     public addActionHandlers(): void {
         // Make sure the bounding box exists and actionManager is properly initialized
+        console.log("Entered addActionHandlers BoundingBox.ts");
         if (!this.boundingBox || !this.scene) {
             console.error("Bounding box or scene not initialized properly");
             return;
@@ -127,7 +122,7 @@ export class BoundingBox {
         /*
         try {
             console.log("add action to boundingbox", this.boundingBox.actionManager)
-            
+
             this.boundingBox.actionManager!.registerAction(
                 new B.ExecuteCodeAction(B.ActionManager.OnPointerOverTrigger, (): void => {
                     try {
@@ -148,17 +143,16 @@ export class BoundingBox {
         // END OF BUGGY PART
 
 
-
-    //     try {
-    //         console.log("add action to boundingbox",this.boundingBox.actionManager)
-    //     this.boundingBox.actionManager!.registerAction(
-    //         new B.ExecuteCodeAction(B.ActionManager.OnPointerOverTrigger, (): void => {
-    //             this.highlightLayer.addMesh(this.boundingBox as B.Mesh, B.Color3.Black());
-    //         })
-    //     );
-    // } catch (error) {
-    //     console.error("Failed to register pointer over action:", error);
-    // }
+        //     try {
+        //         console.log("add action to boundingbox",this.boundingBox.actionManager)
+        //     this.boundingBox.actionManager!.registerAction(
+        //         new B.ExecuteCodeAction(B.ActionManager.OnPointerOverTrigger, (): void => {
+        //             this.highlightLayer.addMesh(this.boundingBox as B.Mesh, B.Color3.Black());
+        //         })
+        //     );
+        // } catch (error) {
+        //     console.error("Failed to register pointer over action:", error);
+        // }
 
         try {
             // Pointer out action (remove highlight)
@@ -178,82 +172,7 @@ export class BoundingBox {
             })
         );
 
-        // XR interaction (if using VR/AR controls)
-        const xrLeftInputStates: XRInputStates = this._app.xrManager.xrInputManager.leftInputStates;
-        xrLeftInputStates['x-button'].onButtonStateChangedObservable.add((component: B.WebXRControllerComponent): void => {
-            if (component.pressed) {
-                this.handleMenu();
-            }
-        });
-
-        const xrRightInputStates: XRInputStates = this._app.xrManager.xrInputManager.rightInputStates;
-        xrRightInputStates['b-button'].onButtonStateChangedObservable.add((component: B.WebXRControllerComponent): void => {
-            if (component.pressed) {
-                if (this.audioNode3D._isMenuOpen) this.audioNode3D._hideMenu();
-                else this.audioNode3D._showMenu();
-            }
-        });
-
     }
-
-    // Handle menu interactions (open/close the menu)
-    private handleMenu(): void {
-        if (this.audioNode3D._isMenuOpen) {
-            this.audioNode3D._hideMenu();
-        } else {
-            this.audioNode3D._showMenu();
-        }
-    }
-
-    // Update the arcs that connect the bounding box to other objects
-    private updateArcs(): void {
-        if (this.boundingBox) {
-            this.boundingBox.onAfterWorldMatrixUpdateObservable.add((): void => {
-                // Update incoming arcs
-                this.audioNode3D.inputArcs.forEach(a => {
-                    if (a.TubeMesh && a.OutputMesh && a.inputMesh) {
-                        let start = a.OutputMesh.getAbsolutePosition();
-                        let end = a.inputMesh.getAbsolutePosition();
-                        let direction = end.subtract(start).normalize();
-                        var arrowLength = 0.7; // Length of the arrowhead
-                        var sphereRadius = 0.25; // Radius of the sphere
-                        var adjustedEnd = end.subtract(direction.scale(sphereRadius + arrowLength / 2));
-
-                        let options = { path: [start, adjustedEnd], radius: 0.1, tessellation: 8, instance: a.TubeMesh };
-                        B.MeshBuilder.CreateTube("tube", options, this.scene);
-
-                        // Update arrow
-                        a.arrow.position = adjustedEnd;
-                        a.arrow.lookAt(end);
-                        a.arrow.rotate(B.Axis.X, Math.PI / 2, B.Space.LOCAL);
-                        this._app.shadowGenerator.addShadowCaster(a.TubeMesh);
-                        this._app.shadowGenerator.addShadowCaster(a.arrow);
-                    }
-                });
-
-                // Update outgoing arcs
-                this.audioNode3D.outputArcs.forEach(a => {
-                    if (a.TubeMesh && a.OutputMesh && a.inputMesh) {
-                        let start = a.OutputMesh.getAbsolutePosition();
-                        let end = a.inputMesh.getAbsolutePosition();
-                        let direction = end.subtract(start).normalize();
-                        var arrowLength = 0.7; // Length of the arrowhead
-                        var sphereRadius = 0.25; // Radius of the sphere
-                        var adjustedEnd = end.subtract(direction.scale(sphereRadius + arrowLength / 2));
-
-                        let options = { path: [start, adjustedEnd], radius: 0.1, tessellation: 8, instance: a.TubeMesh };
-                        B.MeshBuilder.CreateTube("tube", options, this.scene);
-
-                        // Update arrow
-                        a.arrow.position = adjustedEnd;
-                        a.arrow.lookAt(end);
-                        a.arrow.rotate(B.Axis.X, Math.PI / 2, B.Space.LOCAL);
-                    }
-                });
-            })
-        }
-    }
-
 
     public confirmDelete() {
         //on click right click on the mouse the menu will appear
@@ -283,6 +202,162 @@ export class BoundingBox {
         //     // highlightLayer.removeMesh(this.baseMesh);
         //     xrLeftInputStates['x-button'].onButtonStateChangedObservable.clear();
         // }));
+    }
+
+    private _leftXButtonHandler = (component: B.WebXRControllerComponent): void => {
+        if (component.pressed) {
+            this.handleMenu();
+        }
+    }
+
+    private _rightBButtonHandler = (component: B.WebXRControllerComponent): void => {
+        if (component.pressed) {
+            if (this.audioNode3D._isMenuOpen) {
+                this.audioNode3D._hideMenu();
+            } else {
+                this.audioNode3D._showMenu();
+            }
+        }
+    };
+
+    private _rightSqueezeHandler = (component: B.WebXRControllerComponent): void => {
+        console.log("%c ICIIIIIIII", "color: red");
+        console.log(this.boundingBox.behaviors);
+        if (component.value < 1){
+            this._disableRotationBehavior();
+
+        }
+
+        if (component.value === 1) {
+            this._enableRotationBehavior();
+        }
+
+    }
+
+    private positionBoundingBoxInFrontOfPlayer(): void {
+        // Check if player state is valid before proceeding
+        this._app.menu.hide();
+        const data = this._app._getPlayerState();
+        if (!data || !data.direction || !data.position) {
+            console.warn("Player state is incomplete or invalid.");
+            return;
+        }
+
+        // Calculate direction and position based on player state
+        const direction = new B.Vector3(data.direction.x, data.direction.y, data.direction.z);
+        const position = new B.Vector3(data.position.x, data.position.y + 0.3, data.position.z)
+            .addInPlace(direction.normalize().scale(5));  // Place object in front of player
+
+        // Apply transformations to the bounding box
+        this.boundingBox.position = position;
+        this.boundingBox.setDirection(direction);
+        console.log("Changing rotation 2")
+        //this.boundingBox.rotation.x = -Math.PI / 6;  // Optional rotation on X-axis
+
+        // Additional scene-related setups
+        this._app.ground.checkCollisions = true;
+
+    }
+
+    // Set up the drag behavior for the bounding box
+    private setupDragBehavior(): void {
+        this.boundingBox.addBehavior(this.dragBehavior);
+    }
+
+    // Enable drag behavior
+    //@ts-ignore
+    private _enableDragBehavior(): void {
+
+        if (this.boundingBox && !this.boundingBox.behaviors.includes(this.dragBehavior)) {
+            this.boundingBox.addBehavior(this.dragBehavior);
+            console.log("enable drag behavior");
+        }
+    }
+
+    // Disable drag behavior
+    //@ts-ignore
+    private _disableDragBehavior(): void {
+
+        if (this.boundingBox && this.boundingBox.behaviors.includes(this.dragBehavior)) {
+            //this.dragBehavior.detach();  // Detach the drag inputs
+            this.boundingBox.removeBehavior(this.dragBehavior);  // Remove the behavior
+            console.log("disable drag behavior");
+        }
+    }
+
+// Enable rotation behavior
+    private _enableRotationBehavior(): void {
+        if (this.boundingBox && !this.boundingBox.behaviors.includes(this.rotationBehavior)) {
+            this.boundingBox.addBehavior(this.rotationBehavior);
+            console.log("enable rotation behavior");
+        }
+    }
+
+// Disable rotation behavior
+    private _disableRotationBehavior(): void {
+
+        if (this.boundingBox && this.boundingBox.behaviors.includes(this.rotationBehavior)) {
+            this.boundingBox.removeBehavior(this.rotationBehavior)  // Detach the drag inputs
+            console.log("disable rotation behavior");
+        }
+    }
+
+    // Handle menu interactions (open/close the menu)
+    private handleMenu(): void {
+        if (this.audioNode3D._isMenuOpen) {
+            this.audioNode3D._hideMenu();
+        } else {
+            this.audioNode3D._showMenu();
+        }
+    }
+
+    // Update the arcs that connect the bounding box to other objects
+    private updateArcs(): void {
+        if (this.boundingBox) {
+            this.boundingBox.onAfterWorldMatrixUpdateObservable.add((): void => {
+                // Update incoming arcs
+                this.audioNode3D.inputArcs.forEach(a => {
+                    if (a.TubeMesh && a.OutputMesh && a.inputMesh) {
+                        let start = a.OutputMesh.getAbsolutePosition();
+                        let end = a.inputMesh.getAbsolutePosition();
+                        let direction = end.subtract(start).normalize();
+                        var arrowLength = 0.7; // Length of the arrowhead
+                        var sphereRadius = 0.25; // Radius of the sphere
+                        var adjustedEnd = end.subtract(direction.scale(sphereRadius + arrowLength / 2));
+
+                        let options = {path: [start, adjustedEnd], radius: 0.1, tessellation: 8, instance: a.TubeMesh};
+                        B.MeshBuilder.CreateTube("tube", options, this.scene);
+
+                        // Update arrow
+                        a.arrow.position = adjustedEnd;
+                        a.arrow.lookAt(end);
+                        a.arrow.rotate(B.Axis.X, Math.PI / 2, B.Space.LOCAL);
+                        this._app.shadowGenerator.addShadowCaster(a.TubeMesh);
+                        this._app.shadowGenerator.addShadowCaster(a.arrow);
+                    }
+                });
+
+                // Update outgoing arcs
+                this.audioNode3D.outputArcs.forEach(a => {
+                    if (a.TubeMesh && a.OutputMesh && a.inputMesh) {
+                        let start = a.OutputMesh.getAbsolutePosition();
+                        let end = a.inputMesh.getAbsolutePosition();
+                        let direction = end.subtract(start).normalize();
+                        var arrowLength = 0.7; // Length of the arrowhead
+                        var sphereRadius = 0.25; // Radius of the sphere
+                        var adjustedEnd = end.subtract(direction.scale(sphereRadius + arrowLength / 2));
+
+                        let options = {path: [start, adjustedEnd], radius: 0.1, tessellation: 8, instance: a.TubeMesh};
+                        B.MeshBuilder.CreateTube("tube", options, this.scene);
+
+                        // Update arrow
+                        a.arrow.position = adjustedEnd;
+                        a.arrow.lookAt(end);
+                        a.arrow.rotate(B.Axis.X, Math.PI / 2, B.Space.LOCAL);
+                    }
+                });
+            })
+        }
     }
 
 

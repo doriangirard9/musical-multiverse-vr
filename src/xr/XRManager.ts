@@ -6,9 +6,10 @@ export class XRManager {
     public xrInputManager!: XRInputManager;
     public xrHelper!: B.WebXRDefaultExperience;
     private _scene!: B.Scene;
-    public xrFeaturesManager! :B.WebXRFeaturesManager;
+    public xrFeaturesManager!: B.WebXRFeaturesManager;
 
-    private constructor() {}
+    private constructor() {
+    }
 
     public static getInstance(): XRManager {
         if (!this._instance) {
@@ -25,11 +26,13 @@ export class XRManager {
         this.xrHelper = await this._getWebXRExperience();
         this._initXRFeatures();
         this.xrInputManager = new XRInputManager(this.xrHelper);
-        
+
         this.xrHelper.baseExperience.camera.checkCollisions = true;
         this.xrHelper.baseExperience.camera.applyGravity = true;
         this.xrHelper.baseExperience.camera.ellipsoid = new B.Vector3(1, 1, 1);  // ellipsoid act as bounding for the camera
-        //await this.xrInputManager.initControllers();
+        await this.xrInputManager.initControllers();
+
+
     }
 
     /**
@@ -41,17 +44,15 @@ export class XRManager {
         if (!isSupported) {
             const errorMessage: string = 'WebXR is not supported on this browser';
             throw new Error(errorMessage);
-        }
-        
-        else{
+        } else {
             const xrExperience = await this._scene.createDefaultXRExperienceAsync();
-        
+
             // Attempt to disable movement features
             // Explicitly disable movement and other features if enabled by default
             this.xrFeaturesManager = xrExperience.baseExperience.featuresManager;
             return xrExperience;
-        
-        };
+
+        }
     }
 
     private _initXRFeatures(): void {
@@ -63,4 +64,6 @@ export class XRManager {
             rotationSpeed: 0.3,
         });
     }
+
+
 }
