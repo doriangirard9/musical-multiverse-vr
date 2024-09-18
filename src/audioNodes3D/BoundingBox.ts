@@ -221,8 +221,6 @@ export class BoundingBox {
     };
 
     private _rightSqueezeHandler = (component: B.WebXRControllerComponent): void => {
-        console.log("%c ICIIIIIIII", "color: red");
-        console.log(this.boundingBox.behaviors);
         if (component.value < 1){
             this._disableRotationBehavior();
 

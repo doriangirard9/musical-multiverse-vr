@@ -24,9 +24,8 @@ export class RotateBoundingBox implements B.Behavior<B.AbstractMesh> {
         this._selectedMesh.visibility = 0.5;
     }
 
-    attach(target: B.AbstractMesh): void {
+    attach(): void {
         this.logRed("RotateBoundingBox attach");
-        console.log(target)
         this.onSqueezePressed();
 
     }
