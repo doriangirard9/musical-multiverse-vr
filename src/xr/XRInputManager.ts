@@ -3,14 +3,14 @@ import {XRInputStates} from "./types.ts";
 import {ControllerBehaviorManager} from "./BehaviorControllerManager.ts";
 
 export class XRInputManager {
-    private _xrHelper: B.WebXRDefaultExperience;
     public leftController!: B.Nullable<B.WebXRInputSource>;
     public rightController!: B.Nullable<B.WebXRInputSource>;
     public rightInputStates!: XRInputStates;
     public leftInputStates!: XRInputStates;
-
-    private _initialized: boolean = false;
     public controllerBehaviorManager: B.Nullable<ControllerBehaviorManager> = null;
+    private _xrHelper: B.WebXRDefaultExperience;
+    private _initialized: boolean = false;
+
     constructor(xrHelper: B.WebXRDefaultExperience) {
         this._xrHelper = xrHelper;
 
@@ -18,7 +18,7 @@ export class XRInputManager {
 
     public async initControllers(): Promise<void> {
         return new Promise((resolve: () => void): void => {
-            this._xrHelper.input.onControllerAddedObservable.add((controller : B.WebXRInputSource): void => {
+            this._xrHelper.input.onControllerAddedObservable.add((controller: B.WebXRInputSource): void => {
                 controller.onMotionControllerInitObservable.add((motionController: B.WebXRAbstractMotionController): void => {
                     if (this._initialized) {
                         this.leftController = null
@@ -47,28 +47,27 @@ export class XRInputManager {
                         // add button state change listeners
                         component_ids.forEach((component_id: string): void => {
                             const component = motionController.getComponent(component_id);
-                                if (component) {
+                            if (component) {
                                 inputStates[component_id] = component;
-                                }
-                            });
+                            }
+                        });
 
-                }else  {
-                    console.log('No motion controller found');
-                }
+                    } else {
+                        console.log('No motion controller found');
+                    }
 
-                if (this.leftController && this.rightController) {
-                    this._initialized = true;
-                    if(!this.controllerBehaviorManager) this.controllerBehaviorManager = new ControllerBehaviorManager(this);
-                    this.controllerBehaviorManager.setxrRightInputStates(this.rightInputStates);
-                    this.controllerBehaviorManager.setxrLeftInputStates(this.leftInputStates);
-                    this.controllerBehaviorManager.init();
-                    resolve();
-                }
+                    if (this.leftController && this.rightController) {
+                        this._initialized = true;
+                        if (!this.controllerBehaviorManager) this.controllerBehaviorManager = new ControllerBehaviorManager(this);
+                        this.controllerBehaviorManager.setxrRightInputStates(this.rightInputStates);
+                        this.controllerBehaviorManager.setxrLeftInputStates(this.leftInputStates);
+                        this.controllerBehaviorManager.init();
+                        resolve();
+                    }
+                });
             });
         });
-    });
-}
-
+    }
 
 
 }

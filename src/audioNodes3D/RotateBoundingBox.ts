@@ -5,7 +5,7 @@ export class RotateBoundingBox implements B.Behavior<B.AbstractMesh> {
     private _isSqueezePressed: boolean = false;
     private _selectedMesh: B.AbstractMesh | null = null;
     private _observer: B.Nullable<B.Observer<B.Scene>> = null;
-    private _controllerObserver: B.Nullable<B.Observer<any>> = null; // To store controller button event observer
+    //private _controllerObserver: B.Nullable<B.Observer<any>> = null; // To store controller button event observer
     private _initialControllerRotation: B.Nullable<B.Vector3> = null;
     private _initialMeshRotation: B.Nullable<B.Vector3> = null;
 
@@ -20,27 +20,14 @@ export class RotateBoundingBox implements B.Behavior<B.AbstractMesh> {
         this.logRed("RotateBoundingBox select");
         this._selectedMesh = target;
 
-        this.logRed("Mesh initial rotation: " + this._selectedMesh.rotationQuaternion?.toString());
         this.logRed("Mesh initial euler: " + this._selectedMesh.rotation.toString());
         this._selectedMesh.visibility = 0.5;
     }
 
     attach(target: B.AbstractMesh): void {
         this.logRed("RotateBoundingBox attach");
-        console.log(target);
-
-
-        let controller = this.app.xrManager.xrHelper.input.controllers[0];
-        let squeezeComponent = controller.motionController?.getComponent("xr-standard-squeeze");
-        // Iterate over all controllers
-        if (squeezeComponent) {
-            this._controllerObserver = squeezeComponent.onButtonStateChangedObservable.add((component) => {
-                this._isSqueezePressed = component.value === 1;
-                if (this._isSqueezePressed) {
-                    this._selectMeshUnderController(controller);
-                }
-            });
-        }
+        console.log(target)
+        this.onSqueezePressed();
 
     }
 
@@ -50,43 +37,40 @@ export class RotateBoundingBox implements B.Behavior<B.AbstractMesh> {
         // Reset visibility of the selected mesh
         if (this._selectedMesh) {
             this._selectedMesh.visibility = 0;
-
         }
-
-        // Remove the observer if it exists
-        if (this._observer) {
-            this.logRed("deleting observer inside detach");
-            let res = this.app.scene.onBeforeRenderObservable.remove(this._observer);
-            console.log("Deleted ? "+ res);
-            this._observer = null;  // Clear the observer reference
-        }
-
-        // Clear the controller observer to prevent attaching to any new mesh
-        if (this._controllerObserver) {
-            this.logRed("deleting controller observer inside detach");
-            this.app.xrManager.xrHelper.input.controllers.forEach(controller => {
-                const squeezeComponent = controller.motionController?.getComponent("xr-standard-squeeze");
-                if (squeezeComponent) {
-                    let res = squeezeComponent.onButtonStateChangedObservable.remove(this._controllerObserver);
-                    console.log("Deleted ? "+ res);
-                }
-            });
-            this._controllerObserver = null;
-        }
+        this.onSqueezeReleased();
 
         // Clear internal state related to rotation and mesh
-        this._selectedMesh = null;
-        this._initialControllerRotation = null;
-        this._initialMeshRotation = null;
-        this._isSqueezePressed = false;
+
 
 
     }
+
+    public onSqueezePressed(): void {
+        const controller = this.app.xrManager.xrInputManager.rightController;
+        if (!controller) {
+            return;
+        }
+        this._isSqueezePressed = true;
+        this._selectMeshUnderController(controller);
+    }
+    public onSqueezeReleased(): void {
+        this._isSqueezePressed = false;
+        this._initialControllerRotation = null;
+        this._initialMeshRotation = null;
+        this._selectedMesh = null;
+
+        if (this._observer) {
+            this.app.scene.onBeforeRenderObservable.remove(this._observer);
+            this._observer = null;
+        }
+    }
+
     private _selectMeshUnderController(controller: B.WebXRInputSource): void {
         const ray = new B.Ray(controller.pointer.position, controller.pointer.forward, 100); // Ray length of 100 units
         const pickResult = this.app.scene.pickWithRay(ray);
 
-        if (pickResult?.hit && pickResult.pickedMesh) {
+        if (pickResult?.hit && pickResult.pickedMesh && pickResult.pickedMesh.name.startsWith("boundingBox")) {
             this.select(pickResult.pickedMesh);
             this._startRotation(controller); // Start rotating the selected mesh
         }

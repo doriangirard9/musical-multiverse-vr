@@ -250,6 +250,10 @@ export class App {
             console.error("XRManager camera is not initialized");
             return;
         }
+
+        if (!this.xrManager.xrInputManager.leftController || !this.xrManager.xrInputManager.rightController) {
+            return;
+        }
         const xrCameraPosition: B.Vector3 = this.xrManager.xrHelper.baseExperience.camera.position;
         const xrCameraDirection: B.Vector3 = this.xrManager.xrHelper.baseExperience.camera.getDirection(B.Axis.Z);
         // @ts-ignore
@@ -272,6 +276,9 @@ export class App {
         const xrCameraDirection: B.Vector3 = this.xrManager.xrHelper.baseExperience.camera.getDirection(B.Axis.Z);
         
         console.log("camera",xrCameraDirection.asArray())
+        if (!this.xrManager.xrInputManager.leftController || !this.xrManager.xrInputManager.rightController) {
+            return;
+        }
         // @ts-ignore
         const xrLeftControllerPosition: B.Vector3 = this.xrManager.xrInputManager.leftController?.grip!.position;
         // @ts-ignore
