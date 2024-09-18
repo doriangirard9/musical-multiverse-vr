@@ -19,7 +19,7 @@ export class DragBoundingBox implements B.Behavior<B.AbstractMesh> {
                 if (this.selected) {
                     // Update drag normal dynamically based on player state
                     const data = this.app._getPlayerState();
-                    const norm = new B.Vector3(data.direction.x, 0, data.direction.z);
+                    const norm = new B.Vector3(data?.direction.x, 0, data?.direction.z);
                     this.updateDragBehavior(norm, axis.y);
                 }
             });
@@ -84,7 +84,7 @@ export class DragBoundingBox implements B.Behavior<B.AbstractMesh> {
             this.selected.addBehavior(this.drag);
             const data = this.app._getPlayerState();
             console.log(data)
-            let norm = new B.Vector3(data.direction.x, data.direction.y, data.direction.z);
+            let norm = new B.Vector3(data?.direction.x, data?.direction.y, data?.direction.z);
             this.drag.options.dragPlaneNormal = norm;
             // MB : fix for having the proper plane orientation, we should not take
             // into account the object orientation. Cf https://doc.babylonjs.com/features/featuresDeepDive/behaviors/meshBehaviors
