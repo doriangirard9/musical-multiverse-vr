@@ -5,9 +5,6 @@ export class RotateBoundingBox implements B.Behavior<B.AbstractMesh> {
     private _isSqueezePressed: boolean = false;
     private _selectedMesh: B.AbstractMesh | null = null;
     private _observer: B.Nullable<B.Observer<B.Scene>> = null;
-    //private _controllerObserver: B.Nullable<B.Observer<any>> = null; // To store controller button event observer
-    private _initialControllerRotation: B.Nullable<B.Vector3> = null;
-    private _initialMeshRotation: B.Nullable<B.Vector3> = null;
 
     constructor(private app: App) {}
 
@@ -39,9 +36,6 @@ export class RotateBoundingBox implements B.Behavior<B.AbstractMesh> {
         }
         this.onSqueezeReleased();
 
-        // Clear internal state related to rotation and mesh
-
-
 
     }
 
@@ -55,8 +49,6 @@ export class RotateBoundingBox implements B.Behavior<B.AbstractMesh> {
     }
     public onSqueezeReleased(): void {
         this._isSqueezePressed = false;
-        this._initialControllerRotation = null;
-        this._initialMeshRotation = null;
         this._selectedMesh = null;
 
         if (this._observer) {
@@ -66,55 +58,111 @@ export class RotateBoundingBox implements B.Behavior<B.AbstractMesh> {
     }
 
     private _selectMeshUnderController(controller: B.WebXRInputSource): void {
-        const ray = new B.Ray(controller.pointer.position, controller.pointer.forward, 100); // Ray length of 100 units
+        const ray = new B.Ray(controller.pointer.position, controller.pointer.forward, 100);
         const pickResult = this.app.scene.pickWithRay(ray);
 
         if (pickResult?.hit && pickResult.pickedMesh && pickResult.pickedMesh.name.startsWith("boundingBox")) {
             this.select(pickResult.pickedMesh);
-            this._startRotation(controller); // Start rotating the selected mesh
+            this._startRotation(controller);
         }
     }
+
+    //Utilise la position du controller pour faire tourner l'objet
     private _startRotation(controller: B.WebXRInputSource): void {
         if (this._selectedMesh) {
-            console.log(this._selectedMesh.name);
+            let initialControllerPosition: B.Vector3 | undefined;
+            let initialMeshRotation: B.Vector3 | undefined;
 
-            // Add the observer and store it in the class-level variable
             this._observer = this.app.scene.onBeforeRenderObservable.add(() => {
                 if (this._isSqueezePressed && controller.grip) {
-                    if (!this._initialControllerRotation) {
-                        if (controller.grip.rotationQuaternion) {
-                            // Convert the controller's rotation quaternion to Euler angles
-                            this._initialControllerRotation = controller.grip.rotationQuaternion.toEulerAngles().clone();
-                        }
+                    const currentControllerPosition = controller.grip.position.clone();
 
-                        if (this._selectedMesh) {
-                                // Use the mesh's existing Euler rotation
-                                this._initialMeshRotation = this._selectedMesh.rotation.clone();
-                        } else {
-                            // Default to zero rotation if no initial rotation is found
-                            this._initialMeshRotation = new B.Vector3(0, 0, 0);
-                        }
-                        return;  // Skip the first frame to avoid sudden jumps
+                    if (!initialControllerPosition) {
+                        initialControllerPosition = currentControllerPosition;
+                        initialMeshRotation = this._selectedMesh!.rotation.clone();
+                        return;
                     }
 
-                    if (this._initialControllerRotation && this._initialMeshRotation) {
-                        const currentControllerRotationQuaternion = controller.grip.rotationQuaternion!.clone();
-                        // Convert the current controller rotation to Euler angles
-                        const currentControllerRotation = currentControllerRotationQuaternion.toEulerAngles();
+                    const deltaPosition = currentControllerPosition.subtract(initialControllerPosition);
 
-                        // Calculate the delta rotation by subtracting the initial controller rotation from the current rotation
-                        const deltaRotation = currentControllerRotation.subtract(this._initialControllerRotation);
+                    const deltaX = deltaPosition.y;
+                    const deltaY = deltaPosition.x;
+                    const deltaZ = deltaPosition.z;
 
-                        if (this._selectedMesh) {
-                            // Apply the delta rotation to the initial mesh rotation
-                            this._selectedMesh.rotation = this._initialMeshRotation.add(deltaRotation);
-                        }
-                    }
+                    const sensitivity = 5;
+                    const rotationX = initialMeshRotation!.x + deltaX * sensitivity;
+                    const rotationY = initialMeshRotation!.y + deltaY * sensitivity;
+                    const rotationZ = initialMeshRotation!.z + deltaZ * sensitivity;
+
+                    const smoothingFactor = 0.1;
+                    this._selectedMesh!.rotation.x += (rotationX - this._selectedMesh!.rotation.x) * smoothingFactor;
+                    this._selectedMesh!.rotation.y += (rotationY - this._selectedMesh!.rotation.y) * smoothingFactor;
+                    this._selectedMesh!.rotation.z += (rotationZ - this._selectedMesh!.rotation.z) * smoothingFactor;
+
                 } else {
-                    this._initialControllerRotation = null;
-                    this._initialMeshRotation = null;
+                    initialControllerPosition = undefined;
+                    initialMeshRotation = undefined;
+                    if (this._observer) {
+                        this.app.scene.onBeforeRenderObservable.remove(this._observer);
+                        this._observer = null;
+                    }
+                }
+            });
+        }
+    }
 
-                    // Remove the observer when the squeeze button is released
+    /*
+    // Tester les 2 versions pour voir celle que vous préférez, celle-ci est la premiere version ou j'ai demandé a chatgpt d'améliorer
+    // Celle ci utilise la rotation du controller pour faire tourner l'objet
+        private _startRotation(controller: B.WebXRInputSource): void {
+        if (this._selectedMesh) {
+            let initialControllerRotation: B.Vector3 | undefined;
+            let initialMeshRotation: B.Vector3 | undefined;
+
+            this._observer = this.app.scene.onBeforeRenderObservable.add(() => {
+                if (this._isSqueezePressed && controller.grip) {
+                    const currentControllerRotation = controller.grip.rotationQuaternion!.toEulerAngles();
+
+                    if (!initialControllerRotation) {
+                        // Stocker les rotations initiales
+                        initialControllerRotation = currentControllerRotation.clone();
+                        initialMeshRotation = this._selectedMesh!.rotation.clone();
+                        return;
+                    }
+
+                    // Calculer les deltas
+                    let deltaX = currentControllerRotation.x - initialControllerRotation.x;
+                    let deltaY = currentControllerRotation.y - initialControllerRotation.y;
+                    let deltaZ = currentControllerRotation.z - initialControllerRotation.z;
+
+                    // Normaliser les angles
+                    deltaX = this._normalizeAngle(deltaX);
+                    deltaY = this._normalizeAngle(deltaY);
+                    deltaZ = this._normalizeAngle(deltaZ);
+
+                    // Ajuster la sensibilité
+                    const sensitivity = 1.0;
+                    deltaX *= sensitivity;
+                    deltaY *= sensitivity;
+                    deltaZ *= sensitivity;
+
+                    // Calculer les rotations cibles
+                    const targetRotationX = initialMeshRotation!.x + deltaX;
+                    const targetRotationY = initialMeshRotation!.y + deltaY;
+                    const targetRotationZ = initialMeshRotation!.z + deltaZ;
+
+                    // Appliquer le lissage
+                    const smoothingFactor = 0.1;
+                    this._selectedMesh!.rotation.x += (targetRotationX - this._selectedMesh!.rotation.x) * smoothingFactor;
+                    this._selectedMesh!.rotation.y += (targetRotationY - this._selectedMesh!.rotation.y) * smoothingFactor;
+                    this._selectedMesh!.rotation.z += (targetRotationZ - this._selectedMesh!.rotation.z) * smoothingFactor;
+
+                } else {
+                    // Réinitialiser les variables
+                    initialControllerRotation = undefined;
+                    initialMeshRotation = undefined;
+
+                    // Supprimer l'observer
                     if (this._observer) {
                         this.app.scene.onBeforeRenderObservable.remove(this._observer);
                         this._observer = null;
@@ -125,6 +173,16 @@ export class RotateBoundingBox implements B.Behavior<B.AbstractMesh> {
     }
 
 
+    private _normalizeAngle(angle: number): number {
+        angle = angle % (2 * Math.PI);
+        if (angle > Math.PI) {
+            angle -= 2 * Math.PI;
+        } else if (angle < -Math.PI) {
+            angle += 2 * Math.PI;
+        }
+        return angle;
+    }
+     */
     logRed(msg: string): void {
         console.log("%c" + msg, "color:red");
     }
