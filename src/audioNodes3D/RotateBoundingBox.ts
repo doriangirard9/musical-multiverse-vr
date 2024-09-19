@@ -87,17 +87,17 @@ export class RotateBoundingBox implements B.Behavior<B.AbstractMesh> {
 
                     const deltaX = deltaPosition.y;
                     const deltaY = deltaPosition.x;
-                    const deltaZ = deltaPosition.z;
+                    //const deltaZ = deltaPosition.z;
 
                     const sensitivity = 5;
                     const rotationX = initialMeshRotation!.x + deltaX * sensitivity;
                     const rotationY = initialMeshRotation!.y + deltaY * sensitivity;
-                    const rotationZ = initialMeshRotation!.z + deltaZ * sensitivity;
+                    //const rotationZ = initialMeshRotation!.z + deltaZ * sensitivity;
 
                     const smoothingFactor = 0.1;
                     this._selectedMesh!.rotation.x += (rotationX - this._selectedMesh!.rotation.x) * smoothingFactor;
                     this._selectedMesh!.rotation.y += (rotationY - this._selectedMesh!.rotation.y) * smoothingFactor;
-                    this._selectedMesh!.rotation.z += (rotationZ - this._selectedMesh!.rotation.z) * smoothingFactor;
+                    //this._selectedMesh!.rotation.z += (rotationZ - this._selectedMesh!.rotation.z) * smoothingFactor;
 
                 } else {
                     initialControllerPosition = undefined;
