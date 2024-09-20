@@ -68,46 +68,40 @@ public showMessage(messageText: string, duration: number=0): void {
             this._advancedTexture.dispose();
             this._advancedTexture = undefined;
         }
+        this._removeMessagePlaneObserver();
     }
 
     // Position the message plane in front of the camera
+    private _messagePlaneObserver: B.Nullable<B.Observer<B.Scene>> = null;
+
     private _positionMessageInFrontOfCamera(messagePlane: B.Mesh): void {
-        const xrCameraPosition: B.Vector3 = this._xrManager.xrHelper.baseExperience.camera.position;
-        const xrCameraDirection: B.Vector3 = this._xrManager.xrHelper.baseExperience.camera.getDirection(B.Axis.Z);
-
-        // Adjust the plane's position and rotation based on the camera's direction
-        const distanceFromCamera = 2; // Distance in front of the camera where the message should appear
-        const messagePosition = xrCameraPosition.add(xrCameraDirection.scale(distanceFromCamera));
-
-        messagePlane.position = messagePosition;
-
-        // Make sure the message is facing the user
-        messagePlane.rotationQuaternion = B.Quaternion.RotationYawPitchRoll(
-            this._xrManager.xrHelper.baseExperience.camera.rotation.y,
-            this._xrManager.xrHelper.baseExperience.camera.rotation.x,
-            0
-        );
-
-        // Keep updating the message plane position as the user moves
-        this._scene.onBeforeRenderObservable.add(() => {
-            this._updateMessagePosition(messagePlane);
-        });
-    }
-
-    private _updateMessagePosition(messagePlane: B.Mesh): void {
-        const xrCameraPosition: B.Vector3 = this._xrManager.xrHelper.baseExperience.camera.position;
-        const xrCameraDirection: B.Vector3 = this._xrManager.xrHelper.baseExperience.camera.getDirection(B.Axis.Z);
-
+        const camera = this._xrManager.xrHelper.baseExperience.camera;
         const distanceFromCamera = 2;
-        const messagePosition = xrCameraPosition.add(xrCameraDirection.scale(distanceFromCamera));
+        /**
+         * https://doc.babylonjs.com/features/featuresDeepDive/mesh/billboardMode
+         * Mesh.BILLBOARDMODE_ALL: The object's position is set at the camera position. It always faces the camera
+         */
+        messagePlane.billboardMode = B.Mesh.BILLBOARDMODE_ALL;
 
-        messagePlane.position = messagePosition;
+        messagePlane.position = camera.getFrontPosition(distanceFromCamera);
 
-        // Ensure the message plane continues to face the camera
-        messagePlane.rotationQuaternion = B.Quaternion.RotationYawPitchRoll(
-            this._xrManager.xrHelper.baseExperience.camera.rotation.y,
-            this._xrManager.xrHelper.baseExperience.camera.rotation.x,
-            0
-        );
+        if (!this._messagePlaneObserver) {
+            this._messagePlaneObserver = this._scene.onBeforeRenderObservable.add(() => {
+                this._updateMessagePosition(messagePlane, distanceFromCamera);
+            });
+        }
     }
+
+    private _updateMessagePosition(messagePlane: B.Mesh, distanceFromCamera: number): void {
+        const camera = this._xrManager.xrHelper.baseExperience.camera;
+        messagePlane.position = camera.getFrontPosition(distanceFromCamera);
+    }
+
+    private _removeMessagePlaneObserver(): void {
+        if (this._messagePlaneObserver) {
+            this._scene.onBeforeRenderObservable.remove(this._messagePlaneObserver);
+            this._messagePlaneObserver = null;
+        }
+    }
+
 }
