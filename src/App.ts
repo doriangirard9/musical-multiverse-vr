@@ -118,15 +118,12 @@ export class App {
             const audioNode3D: AudioNode3D = await this._audioNode3DBuilder.create(name, id, configFile);
             await audioNode3D.instantiate();
             // await a certain delay before adding listeners
-            const delay = 2000;
-            console.log("WAITING " + delay + " seconds before adding listeners to the WAM 3D mesh")
-            setTimeout(async () => {
-                await audioNode3D.ioObservable.add(this.ioManager.onIOEvent.bind(this.ioManager));
-                await this.networkManager.createNetworkAudioNode3D(audioNode3D);
-                console.log('Audio node added successfully.');
-                await console.log('end of init')
 
-            }, delay);
+            await audioNode3D.ioObservable.add(this.ioManager.onIOEvent.bind(this.ioManager));
+            await this.networkManager.createNetworkAudioNode3D(audioNode3D);
+            console.log('Audio node added successfully.');
+            await console.log('end of init')
+
 
             // this.messageManager.hideMessage()
         }catch(e){
@@ -184,8 +181,12 @@ export class App {
             this.networkManager.addRemotePlayer(player);
             player.setState(change.state);
         }
-        else {
-            // delete player
+        else if (change.action === 'delete') {
+            const player = this.networkManager.getPlayer(change.state.id);
+            if (player) {
+                player.dispose();
+                this.networkManager.removeRemotePlayer(change.state.id);
+            }
         }
     }
     private _createGround(){

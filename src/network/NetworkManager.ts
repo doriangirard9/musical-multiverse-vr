@@ -76,6 +76,7 @@ export class NetworkManager {
             if (playerId) {
                 this._players.get(playerId)!.dispose();
                 this._players.delete(playerId);
+                this._networkPlayers.delete(playerId);
             }
             this._peerToPlayerMap.delete(String(peerId));
 
@@ -122,6 +123,12 @@ export class NetworkManager {
                 this._players.get(key)!.setState(playerState);
                 break;
             case "delete":
+                const player = this._players.get(key);
+                if (player) {
+                    player.dispose();
+                    this._players.delete(key);
+                    this.onPlayerChangeObservable.notifyObservers({action: 'delete', state: change.oldValue});
+                }
                 break;
             default:
                 break;
@@ -156,7 +163,12 @@ export class NetworkManager {
     public addRemotePlayer(player: Player): void {
         this._players.set(player.id, player);
     }
-
+    public getPlayer(id: string): Player | undefined {
+        return this._players.get(id);
+    }
+    public removeRemotePlayer(playerId: string): void {
+        this._players.delete(playerId);
+    }
     public updatePlayerState(playerState: PlayerState): void {
         this._networkPlayers.set(playerState.id, playerState);
     }
