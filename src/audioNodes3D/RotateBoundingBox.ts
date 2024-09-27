@@ -1,12 +1,14 @@
 import * as B from "@babylonjs/core";
 import {App} from "../App";
+
 export class RotateBoundingBox implements B.Behavior<B.AbstractMesh> {
     name = "RotateBoundingBox";
     private _isSqueezePressed: boolean = false;
     private _selectedMesh: B.AbstractMesh | null = null;
     private _observer: B.Nullable<B.Observer<B.Scene>> = null;
 
-    constructor(private app: App) {}
+    constructor(private app: App) {
+    }
 
     init(): void {
         this.logRed("RotateBoundingBox init");
@@ -47,6 +49,7 @@ export class RotateBoundingBox implements B.Behavior<B.AbstractMesh> {
         this._isSqueezePressed = true;
         this._selectMeshUnderController(controller);
     }
+
     public onSqueezeReleased(): void {
         this._isSqueezePressed = false;
         this._selectedMesh = null;
@@ -55,6 +58,10 @@ export class RotateBoundingBox implements B.Behavior<B.AbstractMesh> {
             this.app.scene.onBeforeRenderObservable.remove(this._observer);
             this._observer = null;
         }
+    }
+
+    logRed(msg: string): void {
+        console.log("%c" + msg, "color:red");
     }
 
     private _selectMeshUnderController(controller: B.WebXRInputSource): void {
@@ -67,41 +74,52 @@ export class RotateBoundingBox implements B.Behavior<B.AbstractMesh> {
         }
     }
 
-    //Utilise la position du controller pour faire tourner l'objet
     private _startRotation(controller: B.WebXRInputSource): void {
         if (this._selectedMesh) {
-            let initialControllerPosition: B.Vector3 | undefined;
-            let initialMeshRotation: B.Vector3 | undefined;
+            let initialControllerRotationQuaternion: B.Quaternion | undefined;
+            let initialMeshRotationQuaternion: B.Quaternion | undefined;
+            let targetMeshRotationQuaternion: B.Quaternion | undefined;
+            const smoothingFactor = 0.3; // Ajustez cette valeur entre 0 et 1 pour contrôler le lissage
+            const sensitivity = 0.7; // Ajustez cette valeur pour contrôler la sensibilité
+
+            let previousMeshEulerRotation: B.Vector3 | undefined;
 
             this._observer = this.app.scene.onBeforeRenderObservable.add(() => {
                 if (this._isSqueezePressed && controller.grip) {
-                    const currentControllerPosition = controller.grip.position.clone();
-
-                    if (!initialControllerPosition) {
-                        initialControllerPosition = currentControllerPosition;
-                        initialMeshRotation = this._selectedMesh!.rotation.clone();
+                    if (!controller.grip.rotationQuaternion) {
                         return;
                     }
 
-                    const deltaPosition = currentControllerPosition.subtract(initialControllerPosition);
+                    const controllerRotationQuaternion = controller.grip.rotationQuaternion.clone();
 
-                    const deltaX = deltaPosition.y;
-                    const deltaY = deltaPosition.x;
-                    //const deltaZ = deltaPosition.z;
+                    if (!initialControllerRotationQuaternion) {
+                        initialControllerRotationQuaternion = controllerRotationQuaternion.clone();
+                        initialMeshRotationQuaternion = B.Quaternion.FromEulerVector(this._selectedMesh!.rotation);
+                        targetMeshRotationQuaternion = initialMeshRotationQuaternion.clone();
+                        previousMeshEulerRotation = this._selectedMesh!.rotation.clone();
+                        return;
+                    }
 
-                    const sensitivity = 5;
-                    const rotationX = initialMeshRotation!.x + deltaX * sensitivity;
-                    const rotationY = initialMeshRotation!.y + deltaY * sensitivity;
-                    //const rotationZ = initialMeshRotation!.z + deltaZ * sensitivity;
+                    const deltaRotationQuaternion = controllerRotationQuaternion.multiply(B.Quaternion.Inverse(initialControllerRotationQuaternion));
+                    const adjustedDeltaRotationQuaternion = B.Quaternion.Slerp(B.Quaternion.Identity(), deltaRotationQuaternion, sensitivity);
 
-                    const smoothingFactor = 0.1;
-                    this._selectedMesh!.rotation.x += (rotationX - this._selectedMesh!.rotation.x) * smoothingFactor;
-                    this._selectedMesh!.rotation.y += (rotationY - this._selectedMesh!.rotation.y) * smoothingFactor;
-                    //this._selectedMesh!.rotation.z += (rotationZ - this._selectedMesh!.rotation.z) * smoothingFactor;
+                    targetMeshRotationQuaternion = adjustedDeltaRotationQuaternion.multiply(initialMeshRotationQuaternion!);
 
+                    const currentMeshRotationQuaternion = B.Quaternion.FromEulerVector(this._selectedMesh!.rotation);
+                    const newMeshRotationQuaternion = B.Quaternion.Slerp(
+                        currentMeshRotationQuaternion,
+                        targetMeshRotationQuaternion,
+                        smoothingFactor
+                    );
+
+                    let newMeshRotationEuler = this._quaternionToEuler(newMeshRotationQuaternion, previousMeshEulerRotation);
+                    this._selectedMesh!.rotation.copyFrom(newMeshRotationEuler);
+                    previousMeshEulerRotation = newMeshRotationEuler.clone();
                 } else {
-                    initialControllerPosition = undefined;
-                    initialMeshRotation = undefined;
+                    initialControllerRotationQuaternion = undefined;
+                    initialMeshRotationQuaternion = undefined;
+                    targetMeshRotationQuaternion = undefined;
+                    previousMeshEulerRotation = undefined;
                     if (this._observer) {
                         this.app.scene.onBeforeRenderObservable.remove(this._observer);
                         this._observer = null;
@@ -111,79 +129,36 @@ export class RotateBoundingBox implements B.Behavior<B.AbstractMesh> {
         }
     }
 
-    /*
-    // Tester les 2 versions pour voir celle que vous préférez, celle-ci est la premiere version ou j'ai demandé a chatgpt d'améliorer
-    // Celle ci utilise la rotation du controller pour faire tourner l'objet
-        private _startRotation(controller: B.WebXRInputSource): void {
-        if (this._selectedMesh) {
-            let initialControllerRotation: B.Vector3 | undefined;
-            let initialMeshRotation: B.Vector3 | undefined;
+    private _quaternionToEuler(q: B.Quaternion, previousEuler: B.Vector3 | undefined): B.Vector3 {
+        let currentEuler = q.toEulerAngles();
 
-            this._observer = this.app.scene.onBeforeRenderObservable.add(() => {
-                if (this._isSqueezePressed && controller.grip) {
-                    const currentControllerRotation = controller.grip.rotationQuaternion!.toEulerAngles();
-
-                    if (!initialControllerRotation) {
-                        // Stocker les rotations initiales
-                        initialControllerRotation = currentControllerRotation.clone();
-                        initialMeshRotation = this._selectedMesh!.rotation.clone();
-                        return;
-                    }
-
-                    // Calculer les deltas
-                    let deltaX = currentControllerRotation.x - initialControllerRotation.x;
-                    let deltaY = currentControllerRotation.y - initialControllerRotation.y;
-                    let deltaZ = currentControllerRotation.z - initialControllerRotation.z;
-
-                    // Normaliser les angles
-                    deltaX = this._normalizeAngle(deltaX);
-                    deltaY = this._normalizeAngle(deltaY);
-                    deltaZ = this._normalizeAngle(deltaZ);
-
-                    // Ajuster la sensibilité
-                    const sensitivity = 1.0;
-                    deltaX *= sensitivity;
-                    deltaY *= sensitivity;
-                    deltaZ *= sensitivity;
-
-                    // Calculer les rotations cibles
-                    const targetRotationX = initialMeshRotation!.x + deltaX;
-                    const targetRotationY = initialMeshRotation!.y + deltaY;
-                    const targetRotationZ = initialMeshRotation!.z + deltaZ;
-
-                    // Appliquer le lissage
-                    const smoothingFactor = 0.1;
-                    this._selectedMesh!.rotation.x += (targetRotationX - this._selectedMesh!.rotation.x) * smoothingFactor;
-                    this._selectedMesh!.rotation.y += (targetRotationY - this._selectedMesh!.rotation.y) * smoothingFactor;
-                    this._selectedMesh!.rotation.z += (targetRotationZ - this._selectedMesh!.rotation.z) * smoothingFactor;
-
-                } else {
-                    // Réinitialiser les variables
-                    initialControllerRotation = undefined;
-                    initialMeshRotation = undefined;
-
-                    // Supprimer l'observer
-                    if (this._observer) {
-                        this.app.scene.onBeforeRenderObservable.remove(this._observer);
-                        this._observer = null;
-                    }
-                }
-            });
+        if (previousEuler) {
+            currentEuler = this._ensureEulerContinuity(previousEuler, currentEuler);
         }
+
+        return currentEuler;
     }
 
+    private _ensureEulerContinuity(previous: B.Vector3, current: B.Vector3): B.Vector3 {
+        const unwrapped = current.clone();
 
-    private _normalizeAngle(angle: number): number {
-        angle = angle % (2 * Math.PI);
-        if (angle > Math.PI) {
-            angle -= 2 * Math.PI;
-        } else if (angle < -Math.PI) {
-            angle += 2 * Math.PI;
-        }
-        return angle;
+        unwrapped.x = this._closestAngle(previous.x, current.x);
+        unwrapped.y = this._closestAngle(previous.y, current.y);
+        unwrapped.z = this._closestAngle(previous.z, current.z);
+
+        return unwrapped;
     }
-     */
-    logRed(msg: string): void {
-        console.log("%c" + msg, "color:red");
+
+    private _closestAngle(previous: number, current: number): number {
+        const twoPi = 2 * Math.PI;
+        let delta = current - previous;
+
+        if (delta > Math.PI) {
+            current -= twoPi;
+        } else if (delta < -Math.PI) {
+            current += twoPi;
+        }
+
+        return current;
     }
 }
