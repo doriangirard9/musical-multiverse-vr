@@ -168,7 +168,8 @@ export class BoundingBox {
         // Right-click action (show or hide the menu)
         this.boundingBox.actionManager!.registerAction(
             new B.ExecuteCodeAction(B.ActionManager.OnRightPickTrigger, (): void => {
-                this.handleMenu();
+                console.log("right click on bounding box");
+                this._handleDelete();
             })
         );
 
@@ -206,17 +207,13 @@ export class BoundingBox {
 
     private _leftXButtonHandler = (component: B.WebXRControllerComponent): void => {
         if (component.pressed) {
-            this.handleMenu();
+            this._handleDelete();
         }
     }
 
     private _rightBButtonHandler = (component: B.WebXRControllerComponent): void => {
         if (component.pressed) {
-            if (this.audioNode3D._isMenuOpen) {
-                this.audioNode3D._hideMenu();
-            } else {
-                this.audioNode3D._showMenu();
-            }
+            this._handleDelete()
         }
     };
 
@@ -300,15 +297,17 @@ export class BoundingBox {
         }
     }
 
-    // Handle menu interactions (open/close the menu)
-    private handleMenu(): void {
-        if (this.audioNode3D._isMenuOpen) {
-            this.audioNode3D._hideMenu();
-        } else {
+
+    private _handleDelete(): void {
+        let controller = this._app.xrManager.xrInputManager.rightController;
+        if (!controller) return;
+        const ray = new B.Ray(controller.pointer.position, controller.pointer.forward, 100);
+        const pickResult = this._app.scene.pickWithRay(ray);
+
+        if (pickResult && pickResult.pickedMesh && pickResult.pickedMesh === this.boundingBox) {
             this.audioNode3D._showMenu();
         }
     }
-
     // Update the arcs that connect the bounding box to other objects
     private updateArcs(): void {
         if (this.boundingBox) {
