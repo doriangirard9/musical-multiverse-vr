@@ -22,7 +22,7 @@ export class BoundingBox {
         this.rotationBehavior = new RotateBoundingBox(this._app);
         this.createBoundingBox();
         console.log("BoundingBox created");
-
+        this.boundingBox.rotation.x = -Math.PI / 6;
         // another methode for dragin behavior
         // // Add SixDofDragBehavior
         // const dragBehavior = new B.SixDofDragBehavior();
