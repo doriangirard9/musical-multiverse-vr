@@ -166,7 +166,7 @@ export class IOManager {
         // Add ActionManager to the tube for click handling
         tube.actionManager = new B.ActionManager(this._scene);
         tube.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickTrigger, () => {
-            this.deleteArc(tube, outputNode, inputNode);
+            // this.deleteArc(tube, outputNode, inputNode);
         }));
         const tubeParams: TubeParams = {options:optionsTube, TubeMesh: tube,OutputMesh:outputNode.outputMesh!,inputMesh: inputNode.inputMesh!,arrow:arrow,outputNode:outputNode,inputNode:inputNode} ;
         outputNode.outputArcs.push(tubeParams);
