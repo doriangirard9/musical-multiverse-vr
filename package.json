@@ -10,6 +10,7 @@
   },
   "devDependencies": {
     "@types/uuid": "^9.0.8",
+    "@webaudiomodules/api": "github:webaudiomodules/api",
     "typescript": "^5.2.2",
     "vite": "^5.1.6"
   },

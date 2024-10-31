@@ -19,9 +19,6 @@ export class Wam3D extends AudioNode3D {
         super(scene, audioCtx, id);
         this._config = config;
         this._configFile = configFile;
-
-        
-    
     }
 
     private async _initWamInstance(wamUrl: string): Promise<WamInstance> {
@@ -38,7 +35,7 @@ export class Wam3D extends AudioNode3D {
     public async instantiate(): Promise<void> {
         this._app.menu.hide();
         this._wamInstance = await this._initWamInstance(this._config.url);
-        this._parametersInfo = await this._wamInstance.audioNode._wamNode.getParameterInfo() as {[name: string]: ParameterInfo};
+        this._parametersInfo = await this._wamInstance.audioNode.getParameterInfo() as {[name: string]: ParameterInfo};
         this._paramBuilder = new ParamBuilder(this._scene, this._config);
 
         this._usedParameters = this._config.customParameters.filter((param: CustomParameter): boolean => param.used);
@@ -77,10 +74,6 @@ export class Wam3D extends AudioNode3D {
 
     }
 
-
-
-
-
     private async _createParameter(param: CustomParameter, index: number): Promise<void> {
         const parameterStand: B.Mesh = this._createParameterStand(new B.Vector3(index - (this._usedParameters.length - 1) / 2, 0.1, this.baseMesh.position.z), param.name);
 
@@ -97,9 +90,15 @@ export class Wam3D extends AudioNode3D {
                 parameter3D = this._paramBuilder.createCylinder(param, parameterStand, this._parametersInfo[fullParamName], defaultValue);
                 break;
         }
+
         // update audio node when parameter value changes
         parameter3D.onValueChangedObservable.add((value: number): void => {
-            this._wamInstance.audioNode._wamNode.setParamValue(fullParamName, value);
+            console.log("value", value);
+            console.log("fullParamName", fullParamName);
+            const parameterValue = {
+                [fullParamName]: { id : fullParamName, value: value, normalized : true, timestamp : this._wamInstance.audioNode.context.currentTime }
+            }
+            this._wamInstance.audioNode.setParameterValues(parameterValue);
         });
         parameter3D.onValueChangedObservable.notifyObservers(defaultValue);
 
@@ -126,7 +125,7 @@ export class Wam3D extends AudioNode3D {
 
         this._usedParameters.forEach((param: CustomParameter): void => {
             const fullParamName: string = `${this._config.root}${param.name}`;
-            parameters[fullParamName] = this._wamInstance.audioNode._wamNode.getParamValue(fullParamName);
+            parameters[fullParamName] = this._wamInstance.audioNode.getParamValue(fullParamName);
         });
 
         const inputNodes: string[] = [];

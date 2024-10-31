@@ -1,4 +1,5 @@
 import * as B from "@babylonjs/core";
+import {WamNode} from "@webaudiomodules/api";
 
 export interface IAudioNodeConfig {
     customParameters: CustomParameter[];
@@ -13,14 +14,15 @@ export interface IWamConfig extends IAudioNodeConfig {
 }
 
 export type WamInstance = {
-    audioNode: { _wamNode: WamAudioNode };
+    audioNode: WamNode;
 };
 
+/*
 export interface WamAudioNode extends AudioNode {
     getParamValue(paramId: string): number;
     setParamValue(paramId: string, value: number): void;
     getParameterInfo(): Promise<{[name: string]: ParameterInfo}>;
-}
+}*/
 
 export type CustomParameter = {
     name: string;

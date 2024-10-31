@@ -26,9 +26,23 @@
           {
             "name": "Ping Pong Delay",
             "configFile": "PingPongDelayConfig"
+          },
+          {
+            "name": "Grey Hole",
+            "configFile": "greyHoleConfig"
           }
-          
         ]
+    },
+    {
+      "name": "Instruments",
+      "plugins": [
+        {
+          "name": "Spectrum Modal",
+          "configFile": "spectrumModalConfig"
+        }
+      ]
     }
+
+
   ]
 }
