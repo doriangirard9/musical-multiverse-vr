@@ -162,20 +162,17 @@ export class StepSequencer3D extends AudioNode3D {
         return merger;
     }
 
-    public getState(): Promise<{
-        inputNodes: string[];
-        configFile: string;
-        rotation: { x: number; y: number; z: number };
-        name: string;
-        id: string;
-        position: { x: number; y: number; z: number };
-        parameters: WamParameterDataMap
-    }> {
-        const parameters: {[name: string]: number} = {};
+    public async getState(): Promise<AudioNodeState> {
+        const parameters: WamParameterDataMap = {};
 
         this._grid.forEach((row, rowIndex: number): void => {
             row.forEach((note, i: number): void => {
-                parameters[`note${rowIndex}:${i}`] = note.isActivated ? 1 : 0;
+                const paramId = `note${rowIndex}:${i}`;
+                parameters[paramId] = {
+                    id: paramId,
+                    value: note.isActivated ? 1 : 0,
+                    normalized: false,
+                };
             });
         });
 
@@ -187,23 +184,43 @@ export class StepSequencer3D extends AudioNode3D {
         return {
             id: this.id,
             name: 'stepSequencer',
-            position: { x: this.boundingBox.position.x, y: this.boundingBox.position.y, z: this.boundingBox.position.z },
-            rotation: { x: this.boundingBox.rotation.x, y: this.boundingBox.rotation.y, z: this.boundingBox.rotation.z },
-            // position: { x: this.baseMesh.position.x, y: this.baseMesh.position.y, z: this.baseMesh.position.z },
-            // rotation: { x: this.baseMesh.rotation.x, y: this.baseMesh.rotation.y, z: this.baseMesh.rotation.z },
+            configFile: 'stepSequencer',
+            position: {
+                x: this.boundingBox.position.x,
+                y: this.boundingBox.position.y,
+                z: this.boundingBox.position.z,
+            },
+            rotation: {
+                x: this.boundingBox.rotation.x,
+                y: this.boundingBox.rotation.y,
+                z: this.boundingBox.rotation.z,
+            },
             inputNodes: inputNodes,
-            parameters: parameters
+            parameters: parameters,
         };
     }
 
+
     public setState(state: AudioNodeState): void {
         super.setState(state);
+        console.log("trigger3");
 
         this._grid.forEach((row, rowIndex: number): void => {
             row.forEach((note, i: number): void => {
-                note.isActivated = state.parameters[`note${rowIndex}:${i}`] === 1;
+                const paramId = `note${rowIndex}:${i}`;
+                const paramData = state.parameters[paramId];
+
+                if (paramData) {
+                    note.isActivated = paramData.value === 1;
+                } else {
+                    console.warn(`Parameter ${paramId} is missing in state.parameters.`);
+                    // You can decide to default to false or handle it differently
+                    note.isActivated = false;
+                }
+
                 this._updateNoteColor(rowIndex, i);
             });
         });
     }
+
 }

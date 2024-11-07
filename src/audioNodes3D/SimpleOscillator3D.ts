@@ -111,31 +111,33 @@ export class SimpleOscillator3D extends AudioNode3D {
         return this._oscillator.output as AudioNode;
     }
 
-    public getState(): Promise<{
-        inputNodes: string[];
-        configFile: string;
-        rotation: { x: number; y: number; z: number };
-        name: string;
-        id: string;
-        position: { x: number; y: number; z: number };
-        parameters: WamParameterDataMap
-    }> {
-        const parameters: {[name: string]: number} = {};
+    public async getState(): Promise<AudioNodeState> {
+        const parameters: WamParameterDataMap = {};
 
         this._usedParameters.forEach((param: CustomParameter): void => {
+            const paramValue = {
+                id: param.name,
+                value: 0,
+                normalized: false,
+            };
+
             switch (param.name) {
                 case 'frequency':
-                    parameters[param.name] = this._oscillator.frequency.value as number;
+                    paramValue.value = this._oscillator.frequency.value as number;
                     break;
                 case 'detune':
-                    parameters[param.name] = this._oscillator.detune.value;
+                    paramValue.value = this._oscillator.detune.value;
                     break;
                 case 'volume':
-                    parameters[param.name] = this._oscillator.volume.value;
+                    paramValue.value = this._oscillator.volume.value;
                     break;
                 default:
                     break;
             }
+
+            // Assure que chaque paramètre est normalisé entre 0 et 1 si nécessaire
+
+            parameters[param.name] = paramValue;
         });
 
         const inputNodes: string[] = [];
@@ -145,6 +147,8 @@ export class SimpleOscillator3D extends AudioNode3D {
 
         return {
             id: this.id,
+            //@ts-expect-error
+            configFile: this._config,
             name: 'simpleOscillator',
             // position: { x: this.baseMesh.position.x, y: this.baseMesh.position.y, z: this.baseMesh.position.z },
             // rotation: { x: this.baseMesh.rotation.x, y: this.baseMesh.rotation.y, z: this.baseMesh.rotation.z },
@@ -157,7 +161,7 @@ export class SimpleOscillator3D extends AudioNode3D {
 
     public setState(state: AudioNodeState): void {
         super.setState(state);
-
+        console.log("trigger2")
         this._usedParameters.forEach((param: CustomParameter): void => {
             this._parameter3D[param.name].setParamValue(state.parameters[param.name]);
         });

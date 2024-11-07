@@ -1,6 +1,7 @@
 import * as B from "@babylonjs/core";
 import * as GUI from "@babylonjs/gui";
 import {IParameter, ParameterInfo} from "../types.ts";
+import {WamParameterData} from "@webaudiomodules/api";
 
 export class ButtonParam implements IParameter {
     private readonly _scene: B.Scene;
@@ -39,8 +40,8 @@ export class ButtonParam implements IParameter {
 
         manager.addControl(this._button);
         buttonMesh.parent = this._parentMesh;
-
-        this.setParamValue(this._parameterInfo.defaultValue);
+        let value: WamParameterData = {id: "null", normalized: false, value: this._parameterInfo.defaultValue};
+        this.setParamValue(value);
     }
 
     private _initButtonEvents(): void {
@@ -48,13 +49,19 @@ export class ButtonParam implements IParameter {
         this._button.pointerOutAnimation = (): void => {}
         this._button.pointerUpAnimation = (): void => {}
         this._button.pointerDownAnimation = (): void => {
-            if (this._isPushed) this.setParamValue(0);
-            else this.setParamValue(1);
+            if (this._isPushed){
+                let value: WamParameterData = {id: "null", normalized: false, value: 0};
+                this.setParamValue(value);
+            }
+            else {
+                let value: WamParameterData = {id: "null", normalized: false, value: 1};
+                this.setParamValue(value);
+            }
         }
     }
 
-    public setParamValue(value: number): void {
-        if (value === 1) {
+    public setParamValue(value: WamParameterData): void {
+        if (value.value === 1) {
             this._isPushed = true;
             this._cylinder.position.y = 0;
         }
@@ -63,6 +70,6 @@ export class ButtonParam implements IParameter {
             this._cylinder.position.y = 0.2;
         }
 
-        this.onValueChangedObservable.notifyObservers(value);
+        this.onValueChangedObservable.notifyObservers(value.value);
     }
 }

@@ -85,14 +85,19 @@ export class NetworkManager {
     private _onAudioNode3DChange(change: {action: "add" | "update" | "delete", oldValue: any}, key: string): void {
         switch (change.action) {
             case "add":
+                console.log("ici ? ", key)
                 if (this._audioNodes3D.has(key)) return;
                 this.onAudioNodeChangeObservable.notifyObservers({action: 'add', state: this._networkAudioNodes3D.get(key)!});
                 break;
             case "update":
+                console.log("ici ? 2",key)
+                console.log(this._networkAudioNodes3D.get(key))
                 const state: AudioNodeState = this._networkAudioNodes3D.get(key)!;
+
                 this._audioNodes3D.get(key)!.setState(state);
                 break;
             case "delete":
+                console.log("ici ? 3",key)
                 if (this._audioNodes3D.has(key)) {
                     const audioNode = this._audioNodes3D.get(key)!;
                     
@@ -138,17 +143,17 @@ export class NetworkManager {
     /**
      * Add a new audio node to the network that will be synchronized with other clients
      */
-    public createNetworkAudioNode3D(audioNode3D: AudioNode3D): void {
-        const state: AudioNodeState = audioNode3D.getState();
-        this.addRemoteAudioNode3D(audioNode3D);
+    public async createNetworkAudioNode3D(audioNode3D: AudioNode3D): Promise<void> {
+        const state: AudioNodeState = await audioNode3D.getState();
+        await this.addRemoteAudioNode3D(audioNode3D);
         this._networkAudioNodes3D.set(state.id, state);
     }
 
     /**
      * Add a remote audio node locally
      */
-    public addRemoteAudioNode3D(audioNode3D: AudioNode3D): void {
-        const state: AudioNodeState = audioNode3D.getState();
+    public async addRemoteAudioNode3D(audioNode3D: AudioNode3D): Promise<void> {
+        const state: AudioNodeState = await audioNode3D.getState();
         this._audioNodes3D.set(state.id, audioNode3D);
     }
     public getAudioNode3D(id: string): AudioNode3D | undefined {
@@ -177,8 +182,8 @@ export class NetworkManager {
      * Update the network with the latest audio node states
      */
     private _update(): void {
-        this._audioNodes3D.forEach((audioNode3D: AudioNode3D): void => {
-            const state: AudioNodeState = audioNode3D.getState();
+        this._audioNodes3D.forEach(async (audioNode3D: AudioNode3D): Promise<void> => {
+            const state: AudioNodeState = await audioNode3D.getState();
             if (!this._compare(state, this._networkAudioNodes3D.get(state.id)!)) {
                 this._networkAudioNodes3D.set(state.id, state);
             }

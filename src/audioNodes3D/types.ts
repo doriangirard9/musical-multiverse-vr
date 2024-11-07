@@ -1,4 +1,5 @@
 import * as B from "@babylonjs/core";
+import {WamParameterData} from "@webaudiomodules/api";
 
 export interface IAudioNodeConfig {
     customParameters: CustomParameter[];
@@ -34,5 +35,5 @@ export type ParameterInfo = {
 
 export type IParameter = {
     onValueChangedObservable: B.Observable<number>;
-    setParamValue(value: number): void;
+    setParamValue(value: WamParameterData): void;
 }

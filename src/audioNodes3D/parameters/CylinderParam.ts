@@ -1,6 +1,7 @@
 import * as B from "@babylonjs/core";
 import * as GUI from "@babylonjs/gui";
 import {IParameter, ParameterInfo} from "../types.ts";
+import {WamParameterData} from "@webaudiomodules/api";
 
 export class CylinderParam implements IParameter {
     private readonly _scene: B.Scene;
@@ -26,7 +27,7 @@ export class CylinderParam implements IParameter {
 
         this._createCylinder(parentMesh);
         this._currentCylinder = this._cylinder;
-        this.setParamValue(this._defaultValue);
+        this.setParamValue({id: "null", normalized: false, value: this._defaultValue});
         this._initActionManager();
     }
 
@@ -94,7 +95,7 @@ export class CylinderParam implements IParameter {
             ) {
                 const newValue: number = this._currentValue + (event.delta.y - lastDeltaY) * step;
                 const roundedValue: number = Math.round(newValue * 1000) / 1000;
-                this.setParamValue(roundedValue);
+                this.setParamValue({id: "null", normalized: false, value: roundedValue});
                 lastDeltaY = event.delta.y;
             }
         });
@@ -111,12 +112,12 @@ export class CylinderParam implements IParameter {
         });
     }
 
-    public setParamValue(value: number): void {
-        this._currentValue = value;
-        this.onValueChangedObservable.notifyObservers(value);
-        this._textValueBlock.text = value.toFixed(1).toString();
+    public setParamValue(value: WamParameterData): void {
+        this._currentValue = value.value;
+        this.onValueChangedObservable.notifyObservers(value.value);
+        this._textValueBlock.text = value.value.toFixed(1).toString();
 
-        let scalingY: number = (value - this._parameterInfo.minValue) / (this._parameterInfo.maxValue - this._parameterInfo.minValue);
+        let scalingY: number = (value.value - this._parameterInfo.minValue) / (this._parameterInfo.maxValue - this._parameterInfo.minValue);
         if (scalingY < 0.05) {
             scalingY = 0.05;
         }

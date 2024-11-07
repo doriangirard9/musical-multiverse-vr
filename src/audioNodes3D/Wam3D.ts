@@ -88,9 +88,12 @@ export class Wam3D extends AudioNode3D{
 
 
     private async _createParameter(param: CustomParameter, index: number): Promise<void> {
-        const parameterStand: B.Mesh = this._createParameterStand(new B.Vector3(index - (this._usedParameters.length - 1) / 2, 0.1, this.baseMesh.position.z), param.name);
+        const parameterStand: B.Mesh = this._createParameterStand(
+            new B.Vector3(index - (this._usedParameters.length - 1) / 2, 0.1, this.baseMesh.position.z),
+            param.name
+        );
 
-        // create 3D parameter according to its type
+        // Création du paramètre 3D selon son type
         let parameter3D: IParameter;
         const paramType: string = param.type ?? this._config.defaultParameter.type;
         const fullParamName: string = `${this._config.root}${param.name}`;
@@ -98,21 +101,30 @@ export class Wam3D extends AudioNode3D{
         switch (paramType) {
             case 'button':
                 parameter3D = await this._paramBuilder.createButton(param, parameterStand, this._parametersInfo[fullParamName]);
-                                break;
+                break;
             default:
                 parameter3D = this._paramBuilder.createCylinder(param, parameterStand, this._parametersInfo[fullParamName], defaultValue);
                 break;
         }
-        // update audio node when parameter value changes
+
+        // Mise à jour du module audio lorsque la valeur du paramètre change
         parameter3D.onValueChangedObservable.add((value: number): void => {
-            let paramData : WamParameterData = {id:"abcd",normalized:false,value: value};
-            let paramDataMap :  WamParameterDataMap = {[fullParamName]: paramData};
+            const paramData: WamParameterData = {
+                id: fullParamName,
+                normalized: false,
+                value: value,
+            };
+            const paramDataMap: WamParameterDataMap = { [fullParamName]: paramData };
             this._wamInstance.audioNode.setParameterValues(paramDataMap);
         });
+
+        // Initialisation de la valeur par défaut
         parameter3D.onValueChangedObservable.notifyObservers(defaultValue);
 
+        // Stocke le paramètre 3D avec le bon identifiant
         this._parameter3D[fullParamName] = parameter3D;
     }
+
 
     public getAudioNode(): AudioNode {
         return this._wamInstance.audioNode;
@@ -128,20 +140,13 @@ export class Wam3D extends AudioNode3D{
     }
 
 
-    public async getState(): Promise<{
-        inputNodes: string[];
-        configFile: string;
-        rotation: { x: number; y: number; z: number };
-        name: string;
-        id: string;
-        position: { x: number; y: number; z: number };
-        parameters: WamParameterDataMap
-    }> {
-        let parameters:  WamParameterDataMap = {};
+    public async getState(): Promise<AudioNodeState> {
+        let parameters: WamParameterDataMap = {};
 
         for (const param of this._usedParameters) {
             const fullParamName: string = `${this._config.root}${param.name}`;
-            parameters = await this._wamInstance.audioNode.getParameterValues(false, fullParamName);
+            const paramValues = await this._wamInstance.audioNode.getParameterValues(false, fullParamName);
+            parameters = { ...parameters, ...paramValues }; // Fusionne les paramètres
         }
 
         const inputNodes: string[] = [];
@@ -153,21 +158,41 @@ export class Wam3D extends AudioNode3D{
             id: this.id,
             configFile: this._configFile,
             name: this._config.name,
-            position: { x: this.boundingBox.position.x, y: this.boundingBox.position.y, z: this.boundingBox.position.z },
-            rotation: { x: this.boundingBox.rotation.x, y: this.boundingBox.rotation.y, z: this.boundingBox.rotation.z },
+            position: {
+                x: this.boundingBox.position.x,
+                y: this.boundingBox.position.y,
+                z: this.boundingBox.position.z,
+            },
+            rotation: {
+                x: this.boundingBox.rotation.x,
+                y: this.boundingBox.rotation.y,
+                z: this.boundingBox.rotation.z,
+            },
             inputNodes: inputNodes,
-            parameters: parameters
+            parameters: parameters,
         };
     }
 
-    public setState(state: AudioNodeState): void {
-        super.setState(state);
 
-        this._usedParameters.forEach((param: CustomParameter): void => {
-            const fullParamName: string = `${this._config.root}${param.name}`;
-            this._parameter3D[fullParamName].setParamValue(state.parameters[fullParamName]);
-        });
+    public async setState(state: AudioNodeState): Promise<void> {
+        super.setState(state);
+        console.log("trigger1");
+
+        // Met à jour les valeurs des paramètres dans le module audio
+        await this._wamInstance.audioNode.setParameterValues(state.parameters);
+
+        // Met à jour les représentations 3D des paramètres
+        for (const paramId in state.parameters) {
+            const paramData = state.parameters[paramId];
+            if (this._parameter3D[paramId]) {
+                this._parameter3D[paramId].setParamValue({id: paramId,normalized:false,value:paramData.value});
+            } else {
+                console.warn(`Paramètre manquant pour ${paramId}`);
+            }
+        }
     }
+
+
 
 
 

@@ -6,7 +6,6 @@
     // import {XRInputStates} from "../xr/types.ts";
     import {AudioNodeState, INetworkObject} from "../network/types.ts";
     import {WebAudioModule} from "@webaudiomodules/sdk";
-    import {WamParameterDataMap} from "@webaudiomodules/api";
 
     export abstract class AudioNode3D extends WebAudioModule implements INetworkObject<AudioNodeState> {
         static menuOnScene: boolean = false;
@@ -324,15 +323,7 @@
             this._rotationGizmo.onDragEndObservable.clear();
         }
     
-        public abstract getState(): Promise<{
-            inputNodes: string[];
-            configFile: string;
-            rotation: { x: number; y: number; z: number };
-            name: string;
-            id: string;
-            position: { x: number; y: number; z: number };
-            parameters: WamParameterDataMap
-        }>;
+        public abstract getState(): Promise<AudioNodeState>;
     
         public setState(state: AudioNodeState): void {
             this.boundingBox.position = new B.Vector3(state.position.x, state.position.y, state.position.z);
