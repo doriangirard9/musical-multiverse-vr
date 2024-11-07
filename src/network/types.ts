@@ -1,5 +1,15 @@
+import {WamParameterDataMap} from "@webaudiomodules/api";
+
 export interface INetworkObject<T> {
-    getState(): T;
+    getState(): Promise<{
+        inputNodes: string[];
+        configFile: string;
+        rotation: { x: number; y: number; z: number };
+        name: string;
+        id: string;
+        position: { x: number; y: number; z: number };
+        parameters: WamParameterDataMap
+    }>;
     setState(state: T): void;
 }
 

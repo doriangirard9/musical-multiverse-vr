@@ -1,30 +1,33 @@
 import * as B from "@babylonjs/core";
 import {ParamBuilder} from "./parameters/ParamBuilder.ts";
-import {CustomParameter, IParameter, IWamConfig, ParameterInfo, WamInstance} from "./types.ts";
+import {CustomParameter, IParameter, IWamConfig} from "./types.ts";
+import {WamParameterData, WamParameterDataMap, WamParameterInfoMap} from "@webaudiomodules/api";
 import {AudioNode3D} from "./AudioNode3D.ts";
 import {AudioNodeState} from "../network/types.ts";
 import { BoundingBox } from "./BoundingBox.ts";
+import {WebAudioModule} from "@webaudiomodules/sdk";
 
-export class Wam3D extends AudioNode3D {
+export class Wam3D extends AudioNode3D{
     private readonly _config: IWamConfig;
     private _usedParameters!: CustomParameter[];
-    private _wamInstance!: WamInstance;
-    private _parametersInfo!: {[name: string]: ParameterInfo};
+    private _wamInstance!: WebAudioModule;
+    private _parametersInfo!:  WamParameterInfoMap;
     private _parameter3D: {[name: string]: IParameter} = {};
     private _paramBuilder!: ParamBuilder;
     private readonly _configFile!: string;
     // public drag = new Drag(this._app)
+
 
     constructor(scene: B.Scene, audioCtx: AudioContext, id: string, config: IWamConfig, configFile: string) {
         super(scene, audioCtx, id);
         this._config = config;
         this._configFile = configFile;
 
-        
+
     
     }
 
-    private async _initWamInstance(wamUrl: string): Promise<WamInstance> {
+    private async _initWamInstance(wamUrl: string): Promise<WebAudioModule> {
         // Init WamEnvironment
         const scriptUrl: string = 'https://mainline.i3s.unice.fr/wam2/packages/sdk/src/initializeWamHost.js';
         const { default: initializeWamHost } = await import(/* @vite-ignore */ scriptUrl);
@@ -32,13 +35,15 @@ export class Wam3D extends AudioNode3D {
 
         // Import WAM
         const { default: WAM } = await import(/* @vite-ignore */ wamUrl);
-        return await WAM.createInstance(hostGroupId, this._audioCtx) as WamInstance;
+        return await WAM.createInstance(hostGroupId, this.audioContext);
+
+
     }
 
     public async instantiate(): Promise<void> {
         this._app.menu.hide();
         this._wamInstance = await this._initWamInstance(this._config.url);
-        this._parametersInfo = await this._wamInstance.audioNode._wamNode.getParameterInfo() as {[name: string]: ParameterInfo};
+        this._parametersInfo = await this._wamInstance.audioNode.getParameterInfo();
         this._paramBuilder = new ParamBuilder(this._scene, this._config);
 
         this._usedParameters = this._config.customParameters.filter((param: CustomParameter): boolean => param.used);
@@ -62,6 +67,7 @@ export class Wam3D extends AudioNode3D {
         // this._app.shadowGenerator.addShadowCaster(this.inputMesh!)
 
         // this.createBoundingBox();
+        // @ts-ignore
         const bo  = new BoundingBox(this,this._scene,this.id,this._app)
         this.boundingBox = bo.boundingBox;
         
@@ -99,7 +105,9 @@ export class Wam3D extends AudioNode3D {
         }
         // update audio node when parameter value changes
         parameter3D.onValueChangedObservable.add((value: number): void => {
-            this._wamInstance.audioNode._wamNode.setParamValue(fullParamName, value);
+            let paramData : WamParameterData = {id:"abcd",normalized:false,value: value};
+            let paramDataMap :  WamParameterDataMap = {[fullParamName]: paramData};
+            this._wamInstance.audioNode.setParameterValues(paramDataMap);
         });
         parameter3D.onValueChangedObservable.notifyObservers(defaultValue);
 
@@ -107,7 +115,6 @@ export class Wam3D extends AudioNode3D {
     }
 
     public getAudioNode(): AudioNode {
-        // @ts-ignore
         return this._wamInstance.audioNode;
     }
 
@@ -121,13 +128,21 @@ export class Wam3D extends AudioNode3D {
     }
 
 
-    public getState(): AudioNodeState {
-        const parameters: {[name: string]: number} = {};
+    public async getState(): Promise<{
+        inputNodes: string[];
+        configFile: string;
+        rotation: { x: number; y: number; z: number };
+        name: string;
+        id: string;
+        position: { x: number; y: number; z: number };
+        parameters: WamParameterDataMap
+    }> {
+        let parameters:  WamParameterDataMap = {};
 
-        this._usedParameters.forEach((param: CustomParameter): void => {
+        for (const param of this._usedParameters) {
             const fullParamName: string = `${this._config.root}${param.name}`;
-            parameters[fullParamName] = this._wamInstance.audioNode._wamNode.getParamValue(fullParamName);
-        });
+            parameters = await this._wamInstance.audioNode.getParameterValues(false, fullParamName);
+        }
 
         const inputNodes: string[] = [];
         this.inputNodes.forEach((node: AudioNode3D): void => {
@@ -153,5 +168,8 @@ export class Wam3D extends AudioNode3D {
             this._parameter3D[fullParamName].setParamValue(state.parameters[fullParamName]);
         });
     }
+
+
+
 
 }

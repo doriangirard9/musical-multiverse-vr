@@ -4,6 +4,7 @@ import {AudioNode3D} from "./AudioNode3D.ts";
 import {AudioNodeState} from "../network/types.ts";
 import { BoundingBox } from "./BoundingBox.ts";
 import {ControllerBehaviorManager} from "../xr/BehaviorControllerManager.ts";
+import {WamParameterDataMap} from "@webaudiomodules/api";
 
 export class StepSequencer3D extends AudioNode3D {
 
@@ -161,7 +162,15 @@ export class StepSequencer3D extends AudioNode3D {
         return merger;
     }
 
-    public getState(): AudioNodeState {
+    public getState(): Promise<{
+        inputNodes: string[];
+        configFile: string;
+        rotation: { x: number; y: number; z: number };
+        name: string;
+        id: string;
+        position: { x: number; y: number; z: number };
+        parameters: WamParameterDataMap
+    }> {
         const parameters: {[name: string]: number} = {};
 
         this._grid.forEach((row, rowIndex: number): void => {

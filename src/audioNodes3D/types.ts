@@ -12,16 +12,6 @@ export interface IWamConfig extends IAudioNodeConfig {
     root: string;
 }
 
-export type WamInstance = {
-    audioNode: { _wamNode: WamAudioNode };
-};
-
-export interface WamAudioNode extends AudioNode {
-    getParamValue(paramId: string): number;
-    setParamValue(paramId: string, value: number): void;
-    getParameterInfo(): Promise<{[name: string]: ParameterInfo}>;
-}
-
 export type CustomParameter = {
     name: string;
     used: boolean;

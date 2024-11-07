@@ -5,6 +5,7 @@ import {ParamBuilder} from "./parameters/ParamBuilder.ts";
 import {AudioNode3D} from "./AudioNode3D.ts";
 import {AudioNodeState} from "../network/types.ts";
 import { BoundingBox } from "./BoundingBox.ts";
+import {WamParameterDataMap} from "@webaudiomodules/api";
 
 export class SimpleOscillator3D extends AudioNode3D {
     private _oscillator!: Tone.Oscillator;
@@ -110,7 +111,15 @@ export class SimpleOscillator3D extends AudioNode3D {
         return this._oscillator.output as AudioNode;
     }
 
-    public getState(): AudioNodeState {
+    public getState(): Promise<{
+        inputNodes: string[];
+        configFile: string;
+        rotation: { x: number; y: number; z: number };
+        name: string;
+        id: string;
+        position: { x: number; y: number; z: number };
+        parameters: WamParameterDataMap
+    }> {
         const parameters: {[name: string]: number} = {};
 
         this._usedParameters.forEach((param: CustomParameter): void => {
