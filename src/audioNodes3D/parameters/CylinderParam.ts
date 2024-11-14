@@ -1,11 +1,11 @@
 import * as B from "@babylonjs/core";
 import * as GUI from "@babylonjs/gui";
-import {IParameter} from "../types.ts";
+import {IParameter, ParameterInfo} from "../types.ts";
 import {WamParameterData,WamParameterInfo} from "@webaudiomodules/api";
 
 export class CylinderParam implements IParameter {
     private readonly _scene: B.Scene;
-    private _parameterInfo: WamParameterInfo;
+    private _parameterInfo: ParameterInfo;
     private readonly _defaultValue: number;
     private readonly _color: string;
 
@@ -18,7 +18,7 @@ export class CylinderParam implements IParameter {
 
     public onValueChangedObservable = new B.Observable<number>();
 
-    constructor(scene: B.Scene, parentMesh: B.Mesh, parameterInfo: WamParameterInfo, defaultValue: number, color: string) {
+    constructor(scene: B.Scene, parentMesh: B.Mesh, parameterInfo: ParameterInfo, defaultValue: number, color: string) {
         this._scene = scene;
         this._parameterInfo = parameterInfo;
         this._defaultValue = defaultValue;
@@ -27,7 +27,7 @@ export class CylinderParam implements IParameter {
 
         this._createCylinder(parentMesh);
         this._currentCylinder = this._cylinder;
-        this.setParamValue({id: parameterInfo.id, normalized: false, value: this._defaultValue});
+        this.setParamValue(this._defaultValue);
         this._initActionManager();
     }
 
@@ -95,7 +95,7 @@ export class CylinderParam implements IParameter {
             ) {
                 const newValue: number = this._currentValue + (event.delta.y - lastDeltaY) * step;
                 const roundedValue: number = Math.round(newValue * 1000) / 1000;
-                this.setParamValue({id: this._parameterInfo.id, normalized: false, value: roundedValue});
+                this.setParamValue(roundedValue);
                 lastDeltaY = event.delta.y;
             }
         });
@@ -112,12 +112,12 @@ export class CylinderParam implements IParameter {
         });
     }
 
-    public setParamValue(value: WamParameterData): void {
-        this._currentValue = value.value;
-        this.onValueChangedObservable.notifyObservers(value.value);
-        this._textValueBlock.text = value.value.toFixed(1).toString();
+    public setParamValue(value: number): void {
+        this._currentValue = value;
+        this.onValueChangedObservable.notifyObservers(value);
+        this._textValueBlock.text = value.toFixed(1).toString();
 
-        let scalingY: number = (value.value - this._parameterInfo.minValue) / (this._parameterInfo.maxValue - this._parameterInfo.minValue);
+        let scalingY: number = (value - this._parameterInfo.minValue) / (this._parameterInfo.maxValue - this._parameterInfo.minValue);
         if (scalingY < 0.05) {
             scalingY = 0.05;
         }

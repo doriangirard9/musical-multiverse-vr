@@ -16,12 +16,14 @@ export class Wam3D extends AudioNode3D{
     private _paramBuilder!: ParamBuilder;
     private readonly _configFile!: string;
     // public drag = new Drag(this._app)
+    
 
 
     constructor(scene: B.Scene, audioCtx: AudioContext, id: string, config: IWamConfig, configFile: string) {
         super(scene, audioCtx, id);
         this._config = config;
         this._configFile = configFile;
+
 
 
     
@@ -160,6 +162,14 @@ export class Wam3D extends AudioNode3D{
             inputNodes.push(node.id);
         });
 
+        // create variable with this type { [name: string]: number };
+        const params: {[name: string]: number} = {};
+
+        //loop on parameters of type WamParameterDataMap and fill params
+        for (const [key, value] of Object.entries(parameters)) {
+            params[key] = value.value;
+        }
+
         return {
             id: this.id,
             configFile: this._configFile,
@@ -175,13 +185,13 @@ export class Wam3D extends AudioNode3D{
                 z: this.boundingBox.rotation.z,
             },
             inputNodes: inputNodes,
-            parameters: parameters,
+            parameters: params,
         };
     }
 
 
 
-    public setState(state: AudioNodeState): void {
+    public async setState(state: AudioNodeState): Promise<void> {
        super.setState(state);
 
         // Met à jour les représentations 3D des paramètres
@@ -189,13 +199,23 @@ export class Wam3D extends AudioNode3D{
          for (const paramId in state.parameters) {
             const paramData = state.parameters[paramId];
             if (this._parameter3D[paramId]) {
-                this._parameter3D[paramId].setParamValue({id: paramId,normalized:false,value:paramData.value});
+                this._parameter3D[paramId].setParamValue(paramData);
             } else {
                 console.warn(`Paramètre manquant pour ${paramId}`);
             }
         }
         // Met à jour les valeurs des paramètres dans le module audio
-        //await this._wamInstance.audioNode.setParameterValues(state.parameters);
+        let p : WamParameterDataMap = {}
+
+
+        for (const [key, value] of Object.entries(state.parameters)) {
+            p[key] = {
+                id: this.id,
+                value: value,
+                normalized: false
+            }
+        }
+        await this._wamInstance.audioNode.setParameterValues(p);
 
     }
 

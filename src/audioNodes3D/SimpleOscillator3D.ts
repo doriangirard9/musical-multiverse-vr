@@ -140,6 +140,14 @@ export class SimpleOscillator3D extends AudioNode3D {
             parameters[param.name] = paramValue;
         });
 
+        // create variable with this type { [name: string]: number };
+        const params: {[name: string]: number} = {};
+
+        //loop on parameters of type WamParameterDataMap and fill params
+        for (const [key, value] of Object.entries(parameters)) {
+            params[key] = value.value;
+        }
+
         const inputNodes: string[] = [];
         this.inputNodes.forEach((node: AudioNode3D): void => {
             inputNodes.push(node.id);
@@ -155,13 +163,14 @@ export class SimpleOscillator3D extends AudioNode3D {
             position: { x: this.boundingBox.position.x, y: this.boundingBox.position.y, z: this.boundingBox.position.z },
             rotation: { x: this.boundingBox.rotation.x, y: this.boundingBox.rotation.y, z: this.boundingBox.rotation.z },
             inputNodes: inputNodes,
-            parameters: parameters
+            parameters: params
         };
     }
 
     public setState(state: AudioNodeState): void {
         super.setState(state);
         console.log("trigger2")
+        
         this._usedParameters.forEach((param: CustomParameter): void => {
             this._parameter3D[param.name].setParamValue(state.parameters[param.name]);
         });

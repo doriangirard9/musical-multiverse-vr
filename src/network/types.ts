@@ -1,4 +1,4 @@
-import {WamParameterDataMap} from "@webaudiomodules/api";
+// import {WamParameterDataMap} from "@webaudiomodules/api";
 
 export interface INetworkObject<T> {
     getState(): Promise<AudioNodeState>;
@@ -12,7 +12,7 @@ export type AudioNodeState = {
     position: { x: number, y: number, z: number };
     rotation: { x: number, y: number, z: number };
     inputNodes: string[];
-    parameters: WamParameterDataMap
+    parameters: { [name: string]: number };
 }
 
 export type PlayerState = {

@@ -1,11 +1,11 @@
 import * as B from "@babylonjs/core";
 import * as GUI from "@babylonjs/gui";
-import {IParameter} from "../types.ts";
+import {IParameter, ParameterInfo} from "../types.ts";
 import {WamParameterData, WamParameterInfo} from "@webaudiomodules/api";
 
 export class ButtonParam implements IParameter {
     private readonly _scene: B.Scene;
-    private _parameterInfo: WamParameterInfo;
+    private _parameterInfo: ParameterInfo;
     private readonly _color: string;
     private _parentMesh!: B.Mesh;
 
@@ -15,7 +15,7 @@ export class ButtonParam implements IParameter {
 
     public onValueChangedObservable = new B.Observable<number>();
 
-    constructor(scene: B.Scene, parentMesh: B.Mesh, parameterInfo: WamParameterInfo, color: string) {
+    constructor(scene: B.Scene, parentMesh: B.Mesh, parameterInfo: ParameterInfo, color: string) {
         this._scene = scene;
         this._parameterInfo = parameterInfo;
         this._color = color;
@@ -40,7 +40,7 @@ export class ButtonParam implements IParameter {
 
         manager.addControl(this._button);
         buttonMesh.parent = this._parentMesh;
-        let value: WamParameterData = {id: this._parameterInfo.id, normalized: false, value: this._parameterInfo.defaultValue};
+        let value=this._parameterInfo.defaultValue;
         this.setParamValue(value);
     }
 
@@ -50,18 +50,18 @@ export class ButtonParam implements IParameter {
         this._button.pointerUpAnimation = (): void => {}
         this._button.pointerDownAnimation = (): void => {
             if (this._isPushed){
-                let value: WamParameterData = {id: "null", normalized: false, value: 0};
+                let value= 0;
                 this.setParamValue(value);
             }
             else {
-                let value: WamParameterData = {id: "null", normalized: false, value: 1};
+                let value= 1;
                 this.setParamValue(value);
             }
         }
     }
 
-    public setParamValue(value: WamParameterData): void {
-        if (value.value === 1) {
+    public setParamValue(value: number): void {
+        if (value === 1) {
             this._isPushed = true;
             this._cylinder.position.y = 0;
         }
@@ -70,6 +70,6 @@ export class ButtonParam implements IParameter {
             this._cylinder.position.y = 0.2;
         }
 
-        this.onValueChangedObservable.notifyObservers(value.value);
+        this.onValueChangedObservable.notifyObservers(value);
     }
 }

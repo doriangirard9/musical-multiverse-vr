@@ -35,5 +35,5 @@ export type ParameterInfo = {
 
 export type IParameter = {
     onValueChangedObservable: B.Observable<number>;
-    setParamValue(value: WamParameterData): void;
+    setParamValue(value: number): void;
 }
