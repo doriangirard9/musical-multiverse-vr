@@ -1,11 +1,11 @@
 import * as B from "@babylonjs/core";
 import * as GUI from "@babylonjs/gui";
-import {IParameter, ParameterInfo} from "../types.ts";
-import {WamParameterData} from "@webaudiomodules/api";
+import {IParameter} from "../types.ts";
+import {WamParameterData, WamParameterInfo} from "@webaudiomodules/api";
 
 export class ButtonParam implements IParameter {
     private readonly _scene: B.Scene;
-    private _parameterInfo: ParameterInfo;
+    private _parameterInfo: WamParameterInfo;
     private readonly _color: string;
     private _parentMesh!: B.Mesh;
 
@@ -15,7 +15,7 @@ export class ButtonParam implements IParameter {
 
     public onValueChangedObservable = new B.Observable<number>();
 
-    constructor(scene: B.Scene, parentMesh: B.Mesh, parameterInfo: ParameterInfo, color: string) {
+    constructor(scene: B.Scene, parentMesh: B.Mesh, parameterInfo: WamParameterInfo, color: string) {
         this._scene = scene;
         this._parameterInfo = parameterInfo;
         this._color = color;
@@ -40,7 +40,7 @@ export class ButtonParam implements IParameter {
 
         manager.addControl(this._button);
         buttonMesh.parent = this._parentMesh;
-        let value: WamParameterData = {id: "null", normalized: false, value: this._parameterInfo.defaultValue};
+        let value: WamParameterData = {id: this._parameterInfo.id, normalized: false, value: this._parameterInfo.defaultValue};
         this.setParamValue(value);
     }
 

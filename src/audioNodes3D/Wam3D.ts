@@ -143,11 +143,17 @@ export class Wam3D extends AudioNode3D{
     public async getState(): Promise<AudioNodeState> {
         let parameters: WamParameterDataMap = {};
 
-        for (const param of this._usedParameters) {
+        // Create an array of promises to fetch all parameter values concurrently
+        const parameterPromises = this._usedParameters.map(async (param) => {
             const fullParamName: string = `${this._config.root}${param.name}`;
-            const paramValues = await this._wamInstance.audioNode.getParameterValues(false, fullParamName);
-            parameters = { ...parameters, ...paramValues }; // Fusionne les paramètres
-        }
+            return this._wamInstance.audioNode.getParameterValues(false, fullParamName);
+        });
+
+        // Wait for all promises to resolve and merge results into `parameters`
+        const resolvedParameters = await Promise.all(parameterPromises);
+        resolvedParameters.forEach(paramValues => {
+            parameters = { ...parameters, ...paramValues }; // Merge each parameter set
+        });
 
         const inputNodes: string[] = [];
         this.inputNodes.forEach((node: AudioNode3D): void => {
@@ -174,15 +180,13 @@ export class Wam3D extends AudioNode3D{
     }
 
 
-    public async setState(state: AudioNodeState): Promise<void> {
-        super.setState(state);
-        console.log("trigger1");
 
-        // Met à jour les valeurs des paramètres dans le module audio
-        await this._wamInstance.audioNode.setParameterValues(state.parameters);
+    public setState(state: AudioNodeState): void {
+       super.setState(state);
 
         // Met à jour les représentations 3D des paramètres
-        for (const paramId in state.parameters) {
+        console.log(state.parameters)
+         for (const paramId in state.parameters) {
             const paramData = state.parameters[paramId];
             if (this._parameter3D[paramId]) {
                 this._parameter3D[paramId].setParamValue({id: paramId,normalized:false,value:paramData.value});
@@ -190,6 +194,9 @@ export class Wam3D extends AudioNode3D{
                 console.warn(`Paramètre manquant pour ${paramId}`);
             }
         }
+        // Met à jour les valeurs des paramètres dans le module audio
+        //await this._wamInstance.audioNode.setParameterValues(state.parameters);
+
     }
 
 

@@ -42,7 +42,7 @@
         private _isBeingDeleted!: boolean;
     
         protected constructor(scene: B.Scene, audioCtx: AudioContext, id: string) {
-            super("1",audioCtx);
+            super(id,audioCtx);
             this._scene = scene;
             this._audioCtx = audioCtx;
             this.id = id;
@@ -329,12 +329,13 @@
             this.boundingBox.position = new B.Vector3(state.position.x, state.position.y, state.position.z);
             this.boundingBox.rotation = new B.Vector3(state.rotation.x, state.rotation.y, state.rotation.z);
             // this.baseMesh.position = new B.Vector3(this.boundingBox.position.x, this.boundingBox.position.y, this.boundingBox.position.z);
-            // this.baseMesh.rotation = new B.Vector3(this.boundingBox.rotation.x, this.boundingBox.rotation.y, this.boundingBox.rotation.z);   
-            state.inputNodes.forEach((id: string): void => {
+            // this.baseMesh.rotation = new B.Vector3(this.boundingBox.rotation.x, this.boundingBox.rotation.y, this.boundingBox.rotation.z);
+            for (const id of state.inputNodes) {
                 const inputNode: AudioNode3D | undefined = this._app.networkManager.getAudioNode3D(id);
                 if (!this.inputNodes.has(id) && inputNode) {
                     this._app.ioManager.connectNodes(this, inputNode);
                 }
-            });
+            }
+
         }
     }

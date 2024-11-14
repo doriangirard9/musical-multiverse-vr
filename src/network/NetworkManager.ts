@@ -39,8 +39,10 @@ export class NetworkManager {
         // Audio nodes
         this._networkAudioNodes3D = this._doc.getMap('audioNodes3D');
         this._networkAudioNodes3D.observe((event: Y.YMapEvent<any>): void => {
-            event.changes.keys.forEach(this._onAudioNode3DChange.bind(this));
-        });
+            event.changes.keys.forEach((change, key) => {
+                this._onAudioNode3DChange(change, key, event);
+            });
+        })
 
         // Players
         this._networkPlayers = this._doc.getMap('players');
@@ -82,31 +84,41 @@ export class NetworkManager {
 
         });
     }
-    private _onAudioNode3DChange(change: {action: "add" | "update" | "delete", oldValue: any}, key: string): void {
+    private _onAudioNode3DChange(
+        change: { action: "add" | "delete" | "update"; oldValue: any },
+        key: string,
+        event: Y.YMapEvent<any>
+    ): void {
+        // Ignore changes that originated from this client
+        if (event.transaction.origin === this) {
+            return;
+        }
+
         switch (change.action) {
             case "add":
-                console.log("ici ? ", key)
                 if (this._audioNodes3D.has(key)) return;
-                this.onAudioNodeChangeObservable.notifyObservers({action: 'add', state: this._networkAudioNodes3D.get(key)!});
+                this.onAudioNodeChangeObservable.notifyObservers({
+                    action: 'add',
+                    state: this._networkAudioNodes3D.get(key)!,
+                });
                 break;
             case "update":
-                console.log("ici ? 2",key)
-                console.log(this._networkAudioNodes3D.get(key))
                 const state: AudioNodeState = this._networkAudioNodes3D.get(key)!;
-
                 this._audioNodes3D.get(key)!.setState(state);
                 break;
             case "delete":
-                console.log("ici ? 3",key)
                 if (this._audioNodes3D.has(key)) {
                     const audioNode = this._audioNodes3D.get(key)!;
-                    
+
                     // Notify any observers about the deletion
-                    this.onAudioNodeChangeObservable.notifyObservers({action: 'delete', state: change.oldValue});
-                    
+                    this.onAudioNodeChangeObservable.notifyObservers({
+                        action: 'delete',
+                        state: change.oldValue,
+                    });
+
                     // Remove the node from the local state
                     this._audioNodes3D.delete(key);
-                    
+
                     // Call the delete method on the audio node to clean up resources
                     audioNode.delete();
                 }
@@ -181,14 +193,19 @@ export class NetworkManager {
     /**
      * Update the network with the latest audio node states
      */
-    private _update(): void {
-        this._audioNodes3D.forEach(async (audioNode3D: AudioNode3D): Promise<void> => {
+    private async _update(): Promise<void> {
+        const updatePromises = Array.from(this._audioNodes3D).map(async ([_, audioNode3D]: [string, AudioNode3D]) => {
             const state: AudioNodeState = await audioNode3D.getState();
-            if (!this._compare(state, this._networkAudioNodes3D.get(state.id)!)) {
+            const currentState = this._networkAudioNodes3D.get(state.id)!;
+
+            if (!this._compare(state, currentState)) {
                 this._networkAudioNodes3D.set(state.id, state);
             }
         });
+
+        await Promise.all(updatePromises);
     }
+
 
     private _compare(state1: AudioNodeState, state2: AudioNodeState): boolean {
         return JSON.stringify(state1) === JSON.stringify(state2);
