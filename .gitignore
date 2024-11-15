@@ -26,3 +26,4 @@ dist-ssr
 # for dev porpuses
 # localhost*
 # vite.config.js
+/bin/package-lock.json

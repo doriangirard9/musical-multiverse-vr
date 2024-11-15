@@ -1,21 +1,20 @@
-# Use the official Node.js image as the base image
-FROM node:18-alpine
+FROM node:lts-alpine AS builder
 
-# Set the working directory inside the container
 WORKDIR /app
 
-# Copy the package.json and package-lock.json files
-COPY package*.json ./
+COPY package.json ./
 
-# Install the dependencies
-RUN npm install
+RUN npm install --production
 
-# Copy the rest of the application files
 COPY . .
 
-# Expose the port the app runs on
+FROM node:lts-alpine
+
+WORKDIR /app
+
+COPY --from=builder /app /app
+
 EXPOSE 3000
 
-# Start the server with nodemon for development
-# CMD ["npx", "nodemon", "index.js"]
 CMD ["node", "server.js"]
+
