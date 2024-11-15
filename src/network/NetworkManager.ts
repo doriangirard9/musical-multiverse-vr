@@ -6,7 +6,7 @@ import {AudioNode3D} from "../audioNodes3D/AudioNode3D.ts";
 import {Player} from "../Player.ts";
 import {Awareness} from 'y-protocols/awareness';
 const TICK_RATE: number = 1000 / 30;
-const SIGNALING_SERVER: string = 'wss://musical-multiverse-vr.onrender.com'//'wss://musical-multiverse-vr.onrender.com';
+const SIGNALING_SERVER: string = 'ws://localhost:443'//'wss://musical-multiverse-vr.onrender.com';
 
 export class NetworkManager {
     private readonly _doc: Y.Doc;

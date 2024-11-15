@@ -1,0 +1,28 @@
+services:
+  wss-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "443:443"
+    volumes:
+      - ./localhost.crt:/app/localhost.crt:ro
+      - ./localhost.key:/app/localhost.key:ro
+      - ./bin:/app/bin
+    environment:
+      - NODE_ENV=production
+      - PORT=443
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile-app
+    ports:
+      - "5173:5173"
+    environment:
+      - NODE_ENV=development
+  config:
+    build:
+      context: ./server-config
+      dockerfile: Dockerfile
+    ports:
+        - "3000:3000"
