@@ -1,0 +1,34 @@
+{
+    "name": "PingPongDelay",
+    "url": "https://www.webaudiomodules.com/community/plugins/wimmics/pingpongdelay/dist/index.js",
+    "root": "",
+    "customParameters": [
+      {
+        "name": "feedback",
+        "used": true
+      },
+      {
+        "name": "time",
+        "used": true,
+        "color": "#00ff00"
+
+      },
+      {
+        "name": "mix",
+        "used": true,
+        "color": "#9c1276"
+
+      },
+      {
+        "name": "enabled",
+        "used": true,
+        "type": "button"
+        
+      }
+    ],
+    "defaultParameter": {
+      "type": "cylinder",
+      "color": "#ff0000"
+    }
+  }
+  
