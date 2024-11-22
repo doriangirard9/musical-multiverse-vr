@@ -1,0 +1,52 @@
+{
+  "name": "Disto Machine",
+  "url": "https://www.webaudiomodules.com/community/plugins/wimmics/disto_machine/src/index.js",
+  "root": "",
+  "customParameters": [
+    {
+      "name": "preset",
+      "used": true
+    },
+    {
+      "name": "volume",
+      "used": true
+    },
+    {
+      "name": "master",
+      "used": true
+    },
+    {
+      "name": "drive",
+      "used": true
+    },
+    {
+      "name": "bass",
+      "used": true
+    },
+    {
+      "name": "middle",
+      "used": true
+    },
+    {
+      "name": "treble",
+      "used": true
+    },
+    {
+      "name": "reverb",
+      "used": true
+    },
+    {
+      "name": "presence",
+      "used": true
+    },
+    {
+      "name": "enabled",
+      "used": true,
+      "type": "button"
+    }
+  ],
+  "defaultParameter": {
+    "type": "cylinder",
+    "color": "#ff0000"
+  }
+}

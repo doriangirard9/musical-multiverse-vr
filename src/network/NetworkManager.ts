@@ -1,16 +1,15 @@
 import * as Y from 'yjs';
 import { WebrtcProvider } from 'y-webrtc';
 import * as B from "@babylonjs/core";
-import { AudioNodeState, PlayerState } from "./types";
-import { AudioNode3D } from "../audioNodes3D/AudioNode3D";
-import { Player } from "../Player";
-import { Awareness } from 'y-protocols/awareness';
-import { AudioEventBus, AudioEventPayload } from '../AudioEvents.ts'
+import {AudioNodeState, PlayerState} from "./types.ts";
+import {AudioNode3D} from "../audioNodes3D/AudioNode3D.ts";
+import {Player} from "../Player.ts";
+import {Awareness} from 'y-protocols/awareness';
+import {AudioEventBus, AudioEventPayload} from "../AudioEvents.ts";
+import {NodeTransform, ParamUpdate} from "../audioNodes3D/types.ts";
 import {Wam3D} from "../audioNodes3D/Wam3D.ts";
-import {ParamUpdate,NodeTransform} from "../audioNodes3D/types.ts";
-
-
-const SIGNALING_SERVER: string = 'wss://musical-multiverse-vr.onrender.com';
+const TICK_RATE: number = 1000 / 30;
+const SIGNALING_SERVER: string = 'ws://localhost:443'//'wss://musical-multiverse-vr.onrender.com';
 
 export class NetworkManager {
     private readonly _doc: Y.Doc;
