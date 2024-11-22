@@ -1,0 +1,51 @@
+{
+    "name": "Grey Hole",
+    "url": "https://www.webaudiomodules.com/community/plugins/wimmics/greyhole/index.js",
+    "root": "/greyhole/",
+    "customParameters": [
+      {
+        "name": "diffusion",
+        "used": true,
+        "color": "#00ff00"
+      },
+      {
+        "name": "modDepth",
+        "used": true,
+        "color": "#ffcc00"
+      },
+      {
+        "name": "bypass",
+        "used": true,
+        "type": "button"
+      },
+      {
+        "name": "damping",
+        "used": true,
+        "color": "#0000ff"
+      },
+      {
+        "name": "feedback",
+        "used": true,
+        "color": "#ff9900"
+      },
+      {
+        "name": "modFreq",
+        "used": true,
+        "color": "#ff00ff"
+      },
+      {
+        "name": "size",
+        "used": true,
+        "color": "#00ffff"
+      },
+      {
+        "name": "delayTime",
+        "used": false
+      }
+    ],
+    "defaultParameter": {
+      "type": "slider",
+      "color": "#ff0000"
+    }
+  }
+  

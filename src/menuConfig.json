@@ -26,6 +26,18 @@
           {
             "name": "Ping Pong Delay",
             "configFile": "PingPongDelayConfig"
+          },
+          {
+            "name": "Grey Hole",
+            "configFile": "greyholeConfig"
+          },
+          {
+            "name": "OWLShimmer",
+            "configFile": "OWLShimmerConfig"
+          },
+          {
+            "name": "ThruZeroFlanger",
+            "configFile": "ThruZeroFlangerConfig"
           }
           
         ]

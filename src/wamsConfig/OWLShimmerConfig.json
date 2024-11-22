@@ -1,0 +1,37 @@
+{
+    "name": "OWLShimmer",
+    "url": "https://www.webaudiomodules.com/community/plugins/wimmics/OwlShimmer/index.js",
+    "root": "/untitled/",
+    "customParameters": [
+      {
+        "name": "TONE",
+        "used": true,
+        "color": "#00ff00"
+      },
+      {
+        "name": "DECAY",
+        "used": true,
+        "color": "#ffcc00"
+      },
+      {
+        "name": "MIX",
+        "used": true,
+        "color": "#0000ff"
+      },
+      {
+        "name": "bypass",
+        "used": true,
+        "type": "button"
+      },
+      {
+        "name": "SHIMMER",
+        "used": true,
+        "color": "#ff00ff"
+      }
+    ],
+    "defaultParameter": {
+      "type": "slider",
+      "color": "#ff0000"
+    }
+  }
+  
