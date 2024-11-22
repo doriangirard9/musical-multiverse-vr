@@ -5,6 +5,7 @@ import {AudioNode3D} from "./AudioNode3D";
 import {XRInputStates} from "../xr/types";
 import {RotateBoundingBox} from "./RotateBoundingBox.ts";
 import {ControllerBehaviorManager} from "../xr/BehaviorControllerManager.ts";
+import {AudioEventBus} from "../AudioEvents.ts";
 
 export class BoundingBox {
 
@@ -14,8 +15,7 @@ export class BoundingBox {
     private _app: App;
     private id: string;
     private highlightLayer!: B.HighlightLayer;
-
-    constructor(private audioNode3D: AudioNode3D, private scene: B.Scene, id: string, app: App) {
+    constructor(private audioNode3D: AudioNode3D, private scene: B.Scene, id: string, app: App, networkPosition?: any) {
         this._app = app;
         this.id = id;
         this.dragBehavior = new DragBoundingBox(this._app);

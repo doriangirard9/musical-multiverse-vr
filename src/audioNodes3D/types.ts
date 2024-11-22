@@ -42,7 +42,24 @@ export type ParameterInfo = {
     minValue: number;
 }
 
+export interface ParamUpdate {
+    nodeId: string;
+    paramId: string;
+    value: number;
+}
 export type IParameter = {
     onValueChangedObservable: B.Observable<number>;
+    setDirectValue(value: number): void;
     setParamValue(value: number): void;
+}
+
+export interface Position3D {
+    x: number;
+    y: number;
+    z: number;
+}
+
+export interface NodeTransform {
+    position: Position3D;
+    rotation: Position3D;
 }

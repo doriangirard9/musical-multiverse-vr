@@ -1,13 +1,15 @@
 import * as B from "@babylonjs/core";
 import {App} from "../App";
+import {AudioEventBus} from "../AudioEvents.ts";
 
 export class RotateBoundingBox implements B.Behavior<B.AbstractMesh> {
     name = "RotateBoundingBox";
     private _isSqueezePressed: boolean = false;
     private _selectedMesh: B.AbstractMesh | null = null;
     private _observer: B.Nullable<B.Observer<B.Scene>> = null;
-
+    private _eventBus = AudioEventBus.getInstance();
     constructor(private app: App) {
+
     }
 
     init(): void {

@@ -4,6 +4,7 @@ import {CustomParameter, IParameter, IWamConfig, ParameterInfo, WamInstance} fro
 import {AudioNode3D} from "./AudioNode3D.ts";
 import {AudioNodeState} from "../network/types.ts";
 import { BoundingBox } from "./BoundingBox.ts";
+import {AudioEventBus} from "../AudioEvents.ts";
 
 export class Wam3D extends AudioNode3D {
     private readonly _config: IWamConfig;
@@ -15,13 +16,15 @@ export class Wam3D extends AudioNode3D {
     private readonly _configFile!: string;
     // public drag = new Drag(this._app)
 
+    private eventBus = AudioEventBus.getInstance();
     constructor(scene: B.Scene, audioCtx: AudioContext, id: string, config: IWamConfig, configFile: string) {
         super(scene, audioCtx, id);
         this._config = config;
         this._configFile = configFile;
 
-        
-    
+
+        this.eventBus.emit('WAM_CREATED', {nodeId: this.id, name: config.name, configFile: configFile});
+
     }
 
     private async _initWamInstance(wamUrl: string): Promise<WamInstance> {
@@ -64,9 +67,35 @@ export class Wam3D extends AudioNode3D {
         // this.createBoundingBox();
         const bo  = new BoundingBox(this,this._scene,this.id,this._app)
         this.boundingBox = bo.boundingBox;
+        this.eventBus.emit('WAM_LOADED', {nodeId: this.id, instance: this._wamInstance});
         
     }
+    public async instantiateAtPosition(networkPosition: any | undefined): Promise<void> {
+        this._wamInstance = await this._initWamInstance(this._config.url);
+        this._parametersInfo = await this._wamInstance.audioNode._wamNode.getParameterInfo();
+        this._paramBuilder = new ParamBuilder(this._scene, this._config);
+        this._usedParameters = this._config.customParameters.filter((param: CustomParameter): boolean => param.used);
 
+        this._createBaseMesh();
+        for (let i: number = 0; i < this._usedParameters.length; i++) {
+            await this._createParameter(this._usedParameters[i], i);
+        }
+
+        this._utilityLayer = new B.UtilityLayerRenderer(this._scene);
+        this._rotationGizmo = new B.RotationGizmo(this._utilityLayer);
+
+        this._initActionManager();
+        this._createInput(new B.Vector3(-(this._usedParameters.length / 2 + 0.2), this.baseMesh.position.y, this.baseMesh.position.z));
+        this._createOutput(new B.Vector3(this._usedParameters.length / 2 + 0.2, this.baseMesh.position.y, this.baseMesh.position.z));
+
+        const bo = new BoundingBox(this, this._scene, this.id, this._app, networkPosition);
+        this.boundingBox = bo.boundingBox;
+
+        this.eventBus.emit('WAM_LOADED', {
+            nodeId: this.id,
+            instance: this._wamInstance
+        });
+    }
     protected _createBaseMesh(): void {
         const size: number = this._usedParameters.length;
         this.baseMesh = B.MeshBuilder.CreateBox('box', { width: size, height: 0.2 }, this._scene);
@@ -76,8 +105,6 @@ export class Wam3D extends AudioNode3D {
         this.baseMesh.material = material;
 
     }
-
-
 
 
 
@@ -104,6 +131,11 @@ export class Wam3D extends AudioNode3D {
         parameter3D.onValueChangedObservable.notifyObservers(defaultValue);
 
         this._parameter3D[fullParamName] = parameter3D;
+
+
+        parameter3D.onValueChangedObservable.add((value: number): void => {
+            this.eventBus.emit('PARAM_CHANGE', {nodeId: this.id, paramId: fullParamName, value: value, source: 'user'});
+        });
     }
 
     public getAudioNode(): AudioNode {
@@ -143,15 +175,49 @@ export class Wam3D extends AudioNode3D {
             inputNodes: inputNodes,
             parameters: parameters
         };
+
+
     }
 
     public setState(state: AudioNodeState): void {
-        super.setState(state);
+        this.boundingBox.position = new B.Vector3(
+            state.position.x,
+            state.position.y,
+            state.position.z
+        );
+        this.boundingBox.rotation = new B.Vector3(
+            state.rotation.x,
+            state.rotation.y,
+            state.rotation.z
+        );
 
-        this._usedParameters.forEach((param: CustomParameter): void => {
-            const fullParamName: string = `${this._config.root}${param.name}`;
-            this._parameter3D[fullParamName].setParamValue(state.parameters[fullParamName]);
+        // Gestion des connexions uniquement
+        state.inputNodes.forEach((id: string): void => {
+            const inputNode = this._app.networkManager.getAudioNode3D(id);
+            if (!this.inputNodes.has(id) && inputNode) {
+                this._app.ioManager.connectNodes(this, inputNode);
+            }
         });
+
     }
 
+
+
+    public updateSingleParameter(paramId: string, value: number): void {
+        // Mise à jour directe du WAM
+        this._wamInstance.audioNode._wamNode.setParamValue(paramId, value);
+
+        // Mise à jour visuelle
+        if (this._parameter3D[paramId]) {
+            this._parameter3D[paramId].setDirectValue(value);
+        }
+
+        if (process.env.NODE_ENV === 'development') {
+            console.log(`Single parameter update: ${paramId} = ${value}`);
+        }
+    }
+    public updatePosition(position: B.Vector3, rotation: B.Vector3): void {
+        this.boundingBox.position = position.clone();
+        this.boundingBox.rotation = rotation.clone();
+    }
 }

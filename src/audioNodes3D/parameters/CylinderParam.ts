@@ -17,6 +17,8 @@ export class CylinderParam implements IParameter {
 
     public onValueChangedObservable = new B.Observable<number>();
 
+    private isSettingFromNetwork = false;
+
     constructor(scene: B.Scene, parentMesh: B.Mesh, parameterInfo: ParameterInfo, defaultValue: number, color: string) {
         this._scene = scene;
         this._parameterInfo = parameterInfo;
@@ -113,15 +115,35 @@ export class CylinderParam implements IParameter {
 
     public setParamValue(value: number): void {
         this._currentValue = value;
-        this.onValueChangedObservable.notifyObservers(value);
         this._textValueBlock.text = value.toFixed(1).toString();
 
-        let scalingY: number = (value - this._parameterInfo.minValue) / (this._parameterInfo.maxValue - this._parameterInfo.minValue);
+        let scalingY: number = (value - this._parameterInfo.minValue) /
+            (this._parameterInfo.maxValue - this._parameterInfo.minValue);
         if (scalingY < 0.05) {
             scalingY = 0.05;
         }
 
         this._currentCylinder.scaling.y = scalingY;
         this._currentCylinder.position.z = -(this._currentCylinder.scaling.y * 1.5) / 2;
+
+        // Émettre l'événement seulement si ce n'est pas une mise à jour réseau
+        if (!this.isSettingFromNetwork) {
+            this.onValueChangedObservable.notifyObservers(value);
+        }
+    }
+
+    public setDirectValue(value: number): void {
+        this._currentValue = value;
+        this._textValueBlock.text = value.toFixed(1).toString();
+
+        let scalingY: number = (value - this._parameterInfo.minValue) /
+            (this._parameterInfo.maxValue - this._parameterInfo.minValue);
+        if (scalingY < 0.05) {
+            scalingY = 0.05;
+        }
+
+        this._currentCylinder.scaling.y = scalingY;
+        this._currentCylinder.position.z = -(this._currentCylinder.scaling.y * 1.5) / 2;
+        // Pas d'émission d'événement
     }
 }

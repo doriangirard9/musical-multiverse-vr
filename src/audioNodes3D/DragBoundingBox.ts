@@ -1,14 +1,44 @@
 import * as B from "@babylonjs/core";
 import { App } from "../App";
+import {AudioEventBus} from "../AudioEvents.ts";
+import {NodeTransform} from "./types.ts";
 
 export class DragBoundingBox implements B.Behavior<B.AbstractMesh> {
     name = "DragBoundingBox";
     selected: B.AbstractMesh | null = null;
     drag: B.PointerDragBehavior;
 
+    private eventBus = AudioEventBus.getInstance();
     constructor(private app: App) {
         // Initialize drag behavior with a default normal
         this.drag = new B.PointerDragBehavior({ dragPlaneNormal: new B.Vector3(0, 0, 1) });
+
+        // Dans DragBoundingBox.ts
+        this.drag.onDragObservable.add(() => {
+            if (this.selected) {
+                const transform: NodeTransform = {
+                    position: {
+                        x: this.selected.position.x,
+                        y: this.selected.position.y,
+                        z: this.selected.position.z
+                    },
+                    rotation: {
+                        x: this.selected.rotation.x,
+                        y: this.selected.rotation.y,
+                        z: this.selected.rotation.z
+                    }
+                };
+
+                console.log("Émission position drag:", transform);
+
+                this.eventBus.emit('POSITION_CHANGE', {
+                    nodeId: this.selected.id.split('boundingBox')[1],
+                    position: transform.position,
+                    rotation: transform.rotation,
+                    source: 'user'
+                });
+            }
+        });
     }
 
     init(): void {

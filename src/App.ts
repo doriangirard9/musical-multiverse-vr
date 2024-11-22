@@ -18,6 +18,8 @@ import { v4 as uuid } from 'uuid';
 import {Player} from "./Player.ts";
 import { GridMaterial } from "@babylonjs/materials";
 import { MessageManager } from "./MessageManger.ts";
+import {AudioEventBus, AudioEventType} from "./AudioEvents.ts";
+import {Wam3D} from "./audioNodes3D/Wam3D.ts";
 
 export class App {
     public canvas: HTMLCanvasElement;
@@ -37,6 +39,8 @@ export class App {
     public ground! : B.Mesh;
     private messageManager!: MessageManager;
 
+
+    private eventBus = AudioEventBus.getInstance();
     private constructor(audioCtx: AudioContext) {
         this.canvas = document.querySelector('#renderCanvas') as HTMLCanvasElement;
         this.engine = new B.Engine(this.canvas, true);
@@ -55,7 +59,16 @@ export class App {
         this.networkManager = new NetworkManager(this.id);
         this.messageManager = new MessageManager(this.scene, this.xrManager);
 
+        const debug = true;
+        if (debug) {
+            const events: (keyof AudioEventType)[] = ['PARAM_CHANGE', 'WAM_CREATED', 'WAM_LOADED', 'WAM_ERROR'];
 
+            events.forEach(event => {
+                this.eventBus.on(event, (payload) => {
+                    console.log(`[Debug] ${event}:`, payload);
+                });
+            });
+        }
 
     }  
 
@@ -111,27 +124,29 @@ export class App {
     }
 
     public async createAudioNode3D(name: string, id: string, configFile?: string): Promise<void> {
-        this.menu.hide()
-        this.messageManager.showMessage("Loading...",0);
-        try{
+        console.log("Création WAM avec ID:", id);
+        const networkPosition = this.networkManager.getNodePosition(id);
+        console.log("Position réseau disponible ?", networkPosition);
 
+        this.menu.hide();
+        this.messageManager.showMessage("Loading...", 0);
+
+        try {
             const audioNode3D: AudioNode3D = await this._audioNode3DBuilder.create(name, id, configFile);
-            await audioNode3D.instantiate();
-            // await a certain delay before adding listeners
+
+            if (audioNode3D instanceof Wam3D) {
+                await (audioNode3D as Wam3D).instantiateAtPosition(networkPosition);
+            } else {
+                await audioNode3D.instantiate();
+            }
 
             await audioNode3D.ioObservable.add(this.ioManager.onIOEvent.bind(this.ioManager));
             await this.networkManager.createNetworkAudioNode3D(audioNode3D);
             console.log('Audio node added successfully.');
-            await console.log('end of init')
-
-
-            // this.messageManager.hideMessage()
-        }catch(e){
-            console.log(e)
-        }
-        finally{
-            console.log("end of message")
-            this.messageManager.hideMessage()
+        } catch(e) {
+            console.log(e);
+        } finally {
+            this.messageManager.hideMessage();
         }
     }
 
