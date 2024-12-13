@@ -37,7 +37,7 @@ export class IOManager {
                 console.log("inputMidi node")
                 console.log("event DOWN",event)
                 this.createVirtualDragPoint(event.node.inputMeshMidi!);
-                this._inputNodeMidi = event.node;
+                this._inputNode = event.node;
 
             }
             else {
@@ -162,7 +162,8 @@ export class IOManager {
         outputNode.connect(inputNode.getAudioNode());
         outputNode.addInputNode(inputNode);
         //outputNode.addInputNodeMidi(inputNode); // TODO: ajouter la connexion midi
-        if (!inputNode.inputMesh || !outputNode.outputMesh) throw new Error("Input or output mesh not found");
+        if (!inputNode.inputMesh || !outputNode.outputMesh)  // todo: add midi sphere check
+            throw new Error("Input or output mesh not found");
         this.createArc(outputNode, inputNode);
     }
 

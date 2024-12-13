@@ -39,6 +39,8 @@
         public inputMeshBig?: B.Mesh;
         public inputMeshMidi?: B.Mesh;
         public inputMeshBigMidi?: B.Mesh;
+        public outputMeshMidi?: B.Mesh;
+        public outputMeshBigMidi?: B.Mesh;
 
         public inputNodes = new Map<string, AudioNode3D>();
         public ioObservable = new B.Observable<IOEvent>();
@@ -101,8 +103,9 @@
                         this._app.ioManager.connectNodes(inputArc.outputNode, outputArc.inputNode);
                 })
             });
-            
+            // tube table of the output node (audioNode3D)
             this.outputArcs = [];
+            // tube table of the input node (audioNode3D)
             this.inputArcs = [];
     
             // Disconnect audio node
