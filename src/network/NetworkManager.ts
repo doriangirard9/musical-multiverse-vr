@@ -1,123 +1,172 @@
 import * as Y from 'yjs';
 import { WebrtcProvider } from 'y-webrtc';
 import * as B from "@babylonjs/core";
-import {AudioNodeState, PlayerState} from "./types.ts";
-import {AudioNode3D} from "../audioNodes3D/AudioNode3D.ts";
-import {Player} from "../Player.ts";
-import {Awareness} from 'y-protocols/awareness';
-import {AudioEventBus, AudioEventPayload} from "../AudioEvents.ts";
-import {NodeTransform, ParamUpdate} from "../audioNodes3D/types.ts";
-import {Wam3D} from "../audioNodes3D/Wam3D.ts";
-const TICK_RATE: number = 1000 / 30;
-const SIGNALING_SERVER: string = 'ws://localhost:443'//'wss://musical-multiverse-vr.onrender.com';
+import { AudioNodeState, PlayerState } from "./types";
+import { AudioNode3D } from "../audioNodes3D/AudioNode3D";
+import { Player } from "../Player";
+import { Awareness } from 'y-protocols/awareness';
+import { AudioEventBus, AudioEventPayload } from "../AudioEvents";
+import { NodeTransform, ParamUpdate } from "../audioNodes3D/types";
+import { Wam3D } from "../audioNodes3D/Wam3D";
 
+const SIGNALING_SERVER = 'ws://localhost:443';//'wss://musical-multiverse-vr.onrender.com';
+
+interface PendingConnection {
+    sourceId: string;
+    targetId: string;
+    attempts: number;
+    maxAttempts: number;
+}
+
+/**
+ * Manages network synchronization for audio nodes and players in a WebXR environment.
+ * Uses Y.js for CRDT-based state synchronization and WebRTC for peer-to-peer communication.
+ *
+ * @events
+ * - PARAM_CHANGE: Emitted when a parameter value changes on an audio node
+ * - POSITION_CHANGE: Emitted when an audio node's position changes
+ * - CONNECT_NODES: Emitted when two audio nodes are connected
+ * - DISCONNECT_NODES: Emitted when two audio nodes are disconnected
+ * - WAM_LOADED: Emitted when a WAM is fully loaded
+ *
+ * @observables
+ * - onAudioNodeChangeObservable: Notifies about audio node additions and deletions
+ * - onPlayerChangeObservable: Notifies about player additions and deletions
+ *
+ */
 export class NetworkManager {
+    // Private readonly properties
     private readonly _doc: Y.Doc;
     private readonly _id: string;
-    private awareness!: Awareness;
-    private eventBus = AudioEventBus.getInstance();
+    private readonly eventBus = AudioEventBus.getInstance();
+    private readonly _audioNodes3D = new Map<string, AudioNode3D>();
+    private readonly _players = new Map<string, Player>();
+    private readonly _peerToPlayerMap = new Map<string, string>();
+    private readonly _pendingConnections = new Map<string, PendingConnection>();
+    private static readonly MAX_CONNECTION_ATTEMPTS = 5;
+    private static readonly CONNECTION_RETRY_DELAY = 1000;
 
-    // Flags pour éviter les boucles infinies
+    // Y.js maps
+    private _networkAudioNodes3D!: Y.Map<AudioNodeState>;
+    private _networkPlayers!: Y.Map<PlayerState>;
+    private _networkParamUpdates!: Y.Map<ParamUpdate>;
+    private _networkPositions!: Y.Map<NodeTransform>;
+    private _networkConnections!: Y.Map<{sourceId: string, targetId: string}>;
+
+    // State flags
     private isProcessingYjsEvent = false;
     private isProcessingLocalEvent = false;
 
-    // Audio nodes
-    private _networkAudioNodes3D!: Y.Map<AudioNodeState>;
-    private _audioNodes3D = new Map<string, AudioNode3D>();
-    public onAudioNodeChangeObservable = new B.Observable<{action: 'add' | 'delete', state: AudioNodeState}>();
+    // Public observables
+    public onAudioNodeChangeObservable = new B.Observable<{
+        action: 'add' | 'delete',
+        state: AudioNodeState
+    }>();
+    public onPlayerChangeObservable = new B.Observable<{
+        action: 'add' | 'delete',
+        state: PlayerState
+    }>();
 
-    // Players
-    private _networkPlayers!: Y.Map<PlayerState>;
-    private _players = new Map<string, Player>();
-    public onPlayerChangeObservable = new B.Observable<{action: 'add' | 'delete', state: PlayerState}>();
-
-    private _peerToPlayerMap = new Map<string, string>();
-    private _networkParamUpdates: Y.Map<ParamUpdate>;
-    private _networkPositions: Y.Map<NodeTransform>;
+    // Awareness
+    private awareness!: Awareness;
 
     constructor(id: string) {
         this._doc = new Y.Doc();
         this._id = id;
-        console.log("Current player id: " + this._id);
+        this.initializeYMaps();
+        this.setupEventListeners();
+        console.log("Current player id:", this._id);
+    }
 
+    private initializeYMaps(): void {
         this._networkParamUpdates = this._doc.getMap('paramUpdates');
         this._networkPositions = this._doc.getMap('positions');
+        this._networkConnections = this._doc.getMap('connections');
+    }
 
-        // Écoute des changements de paramètres locaux via EventBus
+    private setupEventListeners(): void {
+        // Parameter changes
         this.eventBus.on('PARAM_CHANGE', (payload) => {
             if (payload.source === 'user' && !this.isProcessingYjsEvent) {
-                this.isProcessingLocalEvent = true;
-                this._handleParamChange(payload);
-                this.isProcessingLocalEvent = false;
+                this.withLocalProcessing(() => this.handleParamChange(payload));
             }
         });
 
+        // Position changes
         this.eventBus.on('POSITION_CHANGE', (payload) => {
             if (payload.source === 'user' && !this.isProcessingYjsEvent) {
-                const transform: NodeTransform = {
-                    position: {
-                        x: payload.position.x,
-                        y: payload.position.y,
-                        z: payload.position.z
-                    },
-                    rotation: {
-                        x: payload.rotation.x,
-                        y: payload.rotation.y,
-                        z: payload.rotation.z
-                    }
-                };
-
-                console.log("Envoi position:", transform);
-
-                this.isProcessingLocalEvent = true;
-                this._networkPositions.set(payload.nodeId, transform);
-                this.isProcessingLocalEvent = false;
+                this.withLocalProcessing(() => this.handlePositionChange(payload));
             }
         });
 
-        this.eventBus.on('CONNECT_NODES', this.handleNodeConnection.bind(this));
+        // Node connections
+        this.eventBus.on('CONNECT_NODES', (payload) => {
+            if (payload.source === 'user' && !this.isProcessingYjsEvent) {
+                this.withLocalProcessing(() => this.handleNodeConnection(payload));
+            }
+        });
+
+        // Node disconnections
         this.eventBus.on('DISCONNECT_NODES', this.handleNodeDisconnection.bind(this));
 
-        // Observer uniquement les mises à jour de paramètres
-        this._networkParamUpdates.observe((event: Y.YMapEvent<any>) => {
-            if (!this.isProcessingLocalEvent) {
-                this.isProcessingYjsEvent = true;
-                event.changes.keys.forEach((change, key) => {
-                    if (change.action === "add") {
-                        const paramUpdate = this._networkParamUpdates.get(key);
-                        if (paramUpdate) {
-                            const node = this._audioNodes3D.get(paramUpdate.nodeId);
-                            if (node && node instanceof Wam3D) {
-                                // Mise à jour d'un seul paramètre
-                                node.updateSingleParameter(paramUpdate.paramId, paramUpdate.value);
-                            }
-                        }
-                        // Nettoyage après utilisation
-                        this._networkParamUpdates.delete(key);
-                    }
-                });
-                this.isProcessingYjsEvent = false;
-            }
-        })
+        // WAM loaded
+        this.eventBus.on('WAM_LOADED', (payload) => {
+            console.log('[NetworkManager] WAM loaded, checking existing connections:', payload.nodeId);
+            this.processConnectionsForNode(payload.nodeId);
+        });
     }
-    private handleNodeConnection(payload: AudioEventPayload['CONNECT_NODES']): void {
-        if (payload.source === 'network') return;
 
-        const sourceNode = this._audioNodes3D.get(payload.sourceId);
-        const targetNode = this._audioNodes3D.get(payload.targetId);
-
-        if (!sourceNode || !targetNode) return;
-
-        // Mise à jour des états
-        const sourceState = sourceNode.getState();
-        const targetState = targetNode.getState();
-
-        // Propagation sur le réseau
+    private withLocalProcessing<T>(action: () => T): T {
         this.isProcessingLocalEvent = true;
-        this._networkAudioNodes3D.set(payload.sourceId, sourceState);
-        this._networkAudioNodes3D.set(payload.targetId, targetState);
-        this.isProcessingLocalEvent = false;
+        try {
+            return action();
+        } finally {
+            this.isProcessingLocalEvent = false;
+        }
     }
+
+    private withNetworkProcessing<T>(action: () => T): T {
+        this.isProcessingYjsEvent = true;
+        try {
+            return action();
+        } finally {
+            this.isProcessingYjsEvent = false;
+        }
+    }
+
+    private handleParamChange(payload: AudioEventPayload['PARAM_CHANGE']): void {
+        const { nodeId, paramId, value } = payload;
+        const update: ParamUpdate = { nodeId, paramId, value };
+        const key = `${nodeId}-${paramId}-${Date.now()}`;
+        console.log("Sending param update:", update);
+        this._networkParamUpdates.set(key, update);
+    }
+
+    private handlePositionChange(payload: AudioEventPayload['POSITION_CHANGE']): void {
+        const transform: NodeTransform = {
+            position: {
+                x: payload.position.x,
+                y: payload.position.y,
+                z: payload.position.z
+            },
+            rotation: {
+                x: payload.rotation.x,
+                y: payload.rotation.y,
+                z: payload.rotation.z
+            }
+        };
+        this._networkPositions.set(payload.nodeId, transform);
+    }
+
+    private handleNodeConnection(payload: AudioEventPayload['CONNECT_NODES']): void {
+        const connectionId = `${payload.sourceId}-${payload.targetId}-${Date.now()}`;
+        console.log('[NetworkManager] Storing new connection:', connectionId);
+        this._networkConnections.set(connectionId, {
+            sourceId: payload.sourceId,
+            targetId: payload.targetId
+        });
+    }
+
     private handleNodeDisconnection(payload: AudioEventPayload['DISCONNECT_NODES']): void {
         if (payload.source === 'network') return;
 
@@ -126,116 +175,153 @@ export class NetworkManager {
 
         if (!sourceNode || !targetNode) return;
 
-        // Mise à jour des états
-        const sourceState = sourceNode.getState();
-        const targetState = targetNode.getState();
-
-        // Propagation sur le réseau
-        this.isProcessingLocalEvent = true;
-        this._networkAudioNodes3D.set(payload.sourceId, sourceState);
-        this._networkAudioNodes3D.set(payload.targetId, targetState);
-        this.isProcessingLocalEvent = false;
-    }
-    private handleRemoteNodeConnection(state: AudioNodeState): void {
-        const node = this._audioNodes3D.get(state.id);
-        if (!node) return;
-
-        // Propager l'état avec le flag 'network' pour éviter les boucles
-        this.eventBus.emit('NODE_CONNECTION_CHANGED', {
-            sourceId: state.id,
-            targetId: state.id, // L'ID du nœud cible sera dans inputNodes
-            action: 'connected',
-            source: 'network'
+        this.withLocalProcessing(() => {
+            this._networkAudioNodes3D.set(payload.sourceId, sourceNode.getState());
+            this._networkAudioNodes3D.set(payload.targetId, targetNode.getState());
         });
     }
+
+    private async processConnectionsForNode(nodeId: string): Promise<void> {
+        this._networkConnections.forEach((connection) => {
+            if (connection.sourceId === nodeId || connection.targetId === nodeId) {
+                this.attemptConnection(connection);
+            }
+        });
+    }
+
+    private async attemptConnection(connection: {sourceId: string, targetId: string}, attempt = 0): Promise<void> {
+        const sourceNode = this._audioNodes3D.get(connection.sourceId);
+        const targetNode = this._audioNodes3D.get(connection.targetId);
+
+        if (sourceNode && targetNode) {
+            this.eventBus.emit('APPLY_CONNECTION', connection);
+            return;
+        }
+
+        if (attempt < NetworkManager.MAX_CONNECTION_ATTEMPTS) {
+            setTimeout(() => {
+                this.attemptConnection(connection, attempt + 1);
+            }, NetworkManager.CONNECTION_RETRY_DELAY);
+        } else {
+            console.warn('Failed to establish connection after max attempts:', connection);
+        }
+    }
+
     public connect(roomName: string): void {
         const provider = new WebrtcProvider(roomName, this._doc, {
             signaling: [SIGNALING_SERVER]
         });
 
+        this.setupAwareness(provider);
+        this.setupNetworkObservers();
+    }
+
+    private setupAwareness(provider: WebrtcProvider): void {
         this.awareness = provider.awareness;
         this.awareness.setLocalStateField('playerId', this._id);
-        this.awareness.on('change', this._onAwarenessChange.bind(this));
+        this.awareness.on('change', this.handleAwarenessChange.bind(this));
 
-        // Audio nodes
         this._networkAudioNodes3D = this._doc.getMap('audioNodes3D');
-        this._networkAudioNodes3D.observe((event: Y.YMapEvent<any>): void => {
-            if (!this.isProcessingLocalEvent) {
-                this.isProcessingYjsEvent = true;
-                event.changes.keys.forEach(this._onAudioNode3DChange.bind(this));
-                this.isProcessingYjsEvent = false;
-            }
-        });
-
-        // Players
         this._networkPlayers = this._doc.getMap('players');
-        this._networkPlayers.observe((event: Y.YMapEvent<any>): void => {
-            event.changes.keys.forEach(this._onPlayerChange.bind(this));
-        });
+    }
 
-        this._networkParamUpdates.observe((event: Y.YMapEvent<ParamUpdate>) => {
+    private setupNetworkObservers(): void {
+        // Audio nodes observer
+        this._networkAudioNodes3D.observe((event) => {
             if (!this.isProcessingLocalEvent) {
-                this.isProcessingYjsEvent = true;
-                event.changes.keys.forEach((change, key) => {
-                    if (change.action === "add") {
-                        const update = this._networkParamUpdates.get(key);
-                        if (update) {
-                            const node = this._audioNodes3D.get(update.nodeId);
-                            if (node && node instanceof Wam3D) {
-                                if (process.env.NODE_ENV === 'development') {
-                                    console.log(`Param update received:`, update);
-                                }
-                                node.updateSingleParameter(update.paramId, update.value);
-                            }
-                            this._networkParamUpdates.delete(key);
-                        }
-                    }
+                this.withNetworkProcessing(() => {
+                    event.changes.keys.forEach(this.handleAudioNodeChange.bind(this));
                 });
-                this.isProcessingYjsEvent = false;
             }
         });
 
-        this._networkPositions.observe((event: Y.YMapEvent<NodeTransform>) => {
-            if (!this.isProcessingLocalEvent) {
-                this.isProcessingYjsEvent = true;
-                event.changes.keys.forEach((_, key) => {
-                    const transform = this._networkPositions.get(key);
-                    console.log("Réception position:", transform);
+        // Players observer
+        this._networkPlayers.observe((event) => {
+            event.changes.keys.forEach(this.handlePlayerChange.bind(this));
+        });
 
-                    if (transform) {
-                        const node = this._audioNodes3D.get(key);
-                        if (node) {
-                            node.setState({
-                                ...node.getState(),
-                                position: new B.Vector3(transform.position.x, transform.position.y, transform.position.z),
-                                rotation: new B.Vector3(transform.rotation.x, transform.rotation.y, transform.rotation.z)
-                            });
-                        }
-                    }
-                });
-                this.isProcessingYjsEvent = false;
+        // Parameters observer
+        this._networkParamUpdates.observe((event) => {
+            if (!this.isProcessingLocalEvent) {
+                this.withNetworkProcessing(() => this.handleParameterUpdates(event));
+            }
+        });
+
+        // Positions observer
+        this._networkPositions.observe((event) => {
+            if (!this.isProcessingLocalEvent) {
+                this.withNetworkProcessing(() => this.handlePositionUpdates(event));
+            }
+        });
+
+        // Connections observer
+        this._networkConnections.observe((event) => {
+            if (!this.isProcessingLocalEvent) {
+                this.withNetworkProcessing(() => this.handleConnectionUpdates(event));
             }
         });
     }
 
-    private _handleParamChange(payload: AudioEventPayload['PARAM_CHANGE']): void {
-        if (payload.source === 'user') {
-            const { nodeId, paramId, value } = payload;
-            const update: ParamUpdate = { nodeId, paramId, value };
-            const key = `${nodeId}-${paramId}-${Date.now()}`;
-
-            console.log(`Sending param update:`, update);
-
-
-            this._networkParamUpdates.set(key, update);
-        }
+    private handleParameterUpdates(event: Y.YMapEvent<ParamUpdate>): void {
+        event.changes.keys.forEach((change, key) => {
+            if (change.action === "add") {
+                const update = this._networkParamUpdates.get(key);
+                if (update) {
+                    const node = this._audioNodes3D.get(update.nodeId);
+                    if (node instanceof Wam3D) {
+                        node.updateSingleParameter(update.paramId, update.value);
+                    }
+                    this._networkParamUpdates.delete(key);
+                }
+            }
+        });
     }
 
+    private handlePositionUpdates(event: Y.YMapEvent<NodeTransform>): void {
+        event.changes.keys.forEach((change, key) => {
+            if (change.action === "update" || change.action === "add") {
+                const update = this._networkPositions.get(key);
+                if (update) {
+                    const node = this._audioNodes3D.get(key);
+                    if (node) {
+                        node.updatePosition(
+                            new B.Vector3(
+                                update.position.x,
+                                update.position.y,
+                                update.position.z
+                            ),
+                            new B.Vector3(
+                                update.rotation.x,
+                                update.rotation.y,
+                                update.rotation.z
+                            )
+                        );
+                    }
+                }
+            }
+        });
+    }
 
-    private _onAwarenessChange({ added, updated, removed }: { added: number[], updated: number[], removed: number[] }): void {
+    private handleConnectionUpdates(event: Y.YMapEvent<{sourceId: string, targetId: string}>): void {
+        event.changes.keys.forEach((change, key) => {
+            if (change.action === "add") {
+                const connection = this._networkConnections.get(key);
+                if (connection) {
+                    console.log('[NetworkManager] Received new connection:', connection);
+                    this.attemptConnection(connection);
+                }
+            }
+        });
+    }
+
+    private handleAwarenessChange({ added, updated, removed }: {
+        added: number[],
+        updated: number[],
+        removed: number[]
+    }): void {
         const states = this.awareness.getStates();
 
-        added.concat(updated).forEach(peerId => {
+        [...added, ...updated].forEach(peerId => {
             console.log(`Peer ${peerId} connected/updated.`);
             const state = states.get(peerId);
             if (state?.playerId) {
@@ -243,91 +329,98 @@ export class NetworkManager {
             }
         });
 
-        removed.forEach(peerId => {
-            console.log(`Peer ${peerId} disconnected.`);
-            const playerId = this._peerToPlayerMap.get(String(peerId));
-            if (playerId) {
-                const player = this._players.get(playerId);
-                if (player) {
-                    player.dispose();
-                    this._players.delete(playerId);
-                    this._networkPlayers.delete(playerId);
-                }
-                this._peerToPlayerMap.delete(String(peerId));
-            }
-        });
+        removed.forEach(this.handlePeerRemoval.bind(this));
     }
 
-    private _onAudioNode3DChange(change: any, key: string): void {
+    private handlePeerRemoval(peerId: number): void {
+        console.log(`Peer ${peerId} disconnected.`);
+        const playerId = this._peerToPlayerMap.get(String(peerId));
+        if (playerId) {
+            const player = this._players.get(playerId);
+            if (player) {
+                player.dispose();
+                this._players.delete(playerId);
+                this._networkPlayers.delete(playerId);
+            }
+            this._peerToPlayerMap.delete(String(peerId));
+        }
+    }
+
+    private handleAudioNodeChange(change: any, key: string): void {
         switch (change.action) {
             case "add":
-                if (!this._audioNodes3D.has(key)) {
-                    const state = this._networkAudioNodes3D.get(key);
-                    if (state) {
-                        // Stop! C'est ICI qu'on doit vérifier la position avant de notifier
-                        const position = this._networkPositions.get(key);
-                        if (position) {
-                            state.position = position.position;
-                            state.rotation = position.rotation;
-                        }
-
-                        this.onAudioNodeChangeObservable.notifyObservers({
-                            action: 'add',
-                            state: state
-                        });
-                    }
-                }
+                this.handleAudioNodeAdd(key);
                 break;
-
             case "update":
-                const state = this._networkAudioNodes3D.get(key);
-                if (state) {
-                    const audioNode = this._audioNodes3D.get(key);
-                    if (audioNode) {
-                        // Ne mettre à jour que la position/rotation
-                        audioNode.setState({
-                            ...state,
-                            // On ne touche pas aux paramètres ici
-                            parameters: audioNode.getState().parameters
-                        });
-                    }
-                }
+                this.handleAudioNodeUpdate(key);
                 break;
-
             case "delete":
-                if (this._audioNodes3D.has(key)) {
-                    const audioNode = this._audioNodes3D.get(key)!;
-                    this.onAudioNodeChangeObservable.notifyObservers({
-                        action: 'delete',
-                        state: change.oldValue
-                    });
-                    this._audioNodes3D.delete(key);
-                    audioNode.delete();
-                }
+                this.handleAudioNodeDelete(key, change.oldValue);
                 break;
         }
     }
 
-    private _onPlayerChange(change: {action: "add" | "update" | "delete", oldValue: any}, key: string): void {
+    private handleAudioNodeAdd(key: string): void {
+        if (!this._audioNodes3D.has(key)) {
+            const state = this._networkAudioNodes3D.get(key);
+            if (state) {
+                const position = this._networkPositions.get(key);
+                if (position) {
+                    state.position = position.position;
+                    state.rotation = position.rotation;
+                }
+                this.onAudioNodeChangeObservable.notifyObservers({
+                    action: 'add',
+                    state: state
+                });
+            }
+        }
+    }
+
+    private handleAudioNodeUpdate(key: string): void {
+        const state = this._networkAudioNodes3D.get(key);
+        if (state) {
+            const audioNode = this._audioNodes3D.get(key);
+            if (audioNode) {
+                audioNode.setState({
+                    ...state,
+                    parameters: audioNode.getState().parameters
+                });
+            }
+        }
+    }
+
+    private handleAudioNodeDelete(key: string, oldValue: any): void {
+        if (this._audioNodes3D.has(key)) {
+            const audioNode = this._audioNodes3D.get(key)!;
+            this.onAudioNodeChangeObservable.notifyObservers({
+                action: 'delete',
+                state: oldValue
+            });
+            this._audioNodes3D.delete(key);
+            audioNode.delete();
+        }
+    }
+
+    private handlePlayerChange(change: {action: "add" | "update" | "delete", oldValue: any}, key: string): void {
         if (key === this._id) return;
 
         switch (change.action) {
             case "add":
-                if (this._players.has(key)) return;
-                this.onPlayerChangeObservable.notifyObservers({
-                    action: 'add',
-                    state: this._networkPlayers.get(key)!
-                });
+                if (!this._players.has(key)) {
+                    this.onPlayerChangeObservable.notifyObservers({
+                        action: 'add',
+                        state: this._networkPlayers.get(key)!
+                    });
+                }
                 break;
-
             case "update":
-                const playerState: PlayerState = this._networkPlayers.get(key)!;
                 const player = this._players.get(key);
+                const playerState = this._networkPlayers.get(key)!;
                 if (player) {
                     player.setState(playerState);
                 }
                 break;
-
             case "delete":
                 const playerToDelete = this._players.get(key);
                 if (playerToDelete) {
@@ -392,8 +485,26 @@ export class NetworkManager {
     public updatePlayerState(playerState: PlayerState): void {
         this._networkPlayers.set(playerState.id, playerState);
     }
-    public getNodePosition(id: string) {
+
+    public getNodePosition(id: string): NodeTransform | undefined {
         return this._networkPositions.get(id);
     }
 
+    public dispose(): void {
+        // Clean up Y.js resources
+        this._doc.destroy();
+
+        // Clean up event listeners
+        this.awareness?.destroy();
+
+        // Clear all maps
+        this._audioNodes3D.clear();
+        this._players.clear();
+        this._peerToPlayerMap.clear();
+        this._pendingConnections.clear();
+
+        // Clean up observables
+        this.onAudioNodeChangeObservable.clear();
+        this.onPlayerChangeObservable.clear();
+    }
 }

@@ -39,8 +39,10 @@ export class Wam3D extends AudioNode3D {
     }
 
     public async instantiate(): Promise<void> {
+        console.log('[Wam3D] Starting instantiation:', this.id);
         this._app.menu.hide();
         this._wamInstance = await this._initWamInstance(this._config.url);
+        console.log('[Wam3D] WAM instance created:', this.id);
         this._parametersInfo = await this._wamInstance.audioNode._wamNode.getParameterInfo() as {[name: string]: ParameterInfo};
         this._paramBuilder = new ParamBuilder(this._scene, this._config);
 
@@ -70,32 +72,7 @@ export class Wam3D extends AudioNode3D {
         this.eventBus.emit('WAM_LOADED', {nodeId: this.id, instance: this._wamInstance});
         
     }
-    public async instantiateAtPosition(networkPosition: any | undefined): Promise<void> {
-        this._wamInstance = await this._initWamInstance(this._config.url);
-        this._parametersInfo = await this._wamInstance.audioNode._wamNode.getParameterInfo();
-        this._paramBuilder = new ParamBuilder(this._scene, this._config);
-        this._usedParameters = this._config.customParameters.filter((param: CustomParameter): boolean => param.used);
 
-        this._createBaseMesh();
-        for (let i: number = 0; i < this._usedParameters.length; i++) {
-            await this._createParameter(this._usedParameters[i], i);
-        }
-
-        this._utilityLayer = new B.UtilityLayerRenderer(this._scene);
-        this._rotationGizmo = new B.RotationGizmo(this._utilityLayer);
-
-        this._initActionManager();
-        this._createInput(new B.Vector3(-(this._usedParameters.length / 2 + 0.2), this.baseMesh.position.y, this.baseMesh.position.z));
-        this._createOutput(new B.Vector3(this._usedParameters.length / 2 + 0.2, this.baseMesh.position.y, this.baseMesh.position.z));
-
-        const bo = new BoundingBox(this, this._scene, this.id, this._app, networkPosition);
-        this.boundingBox = bo.boundingBox;
-
-        this.eventBus.emit('WAM_LOADED', {
-            nodeId: this.id,
-            instance: this._wamInstance
-        });
-    }
     protected _createBaseMesh(): void {
         const size: number = this._usedParameters.length;
         this.baseMesh = B.MeshBuilder.CreateBox('box', { width: size, height: 0.2 }, this._scene);
@@ -201,8 +178,6 @@ export class Wam3D extends AudioNode3D {
 
     }
 
-
-
     public updateSingleParameter(paramId: string, value: number): void {
         // Mise à jour directe du WAM
         this._wamInstance.audioNode._wamNode.setParamValue(paramId, value);
@@ -216,8 +191,5 @@ export class Wam3D extends AudioNode3D {
             console.log(`Single parameter update: ${paramId} = ${value}`);
         }
     }
-    public updatePosition(position: B.Vector3, rotation: B.Vector3): void {
-        this.boundingBox.position = position.clone();
-        this.boundingBox.rotation = rotation.clone();
-    }
+
 }

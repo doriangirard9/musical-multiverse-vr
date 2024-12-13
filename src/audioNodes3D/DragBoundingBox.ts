@@ -73,6 +73,20 @@ export class DragBoundingBox implements B.Behavior<B.AbstractMesh> {
             console.log("drag behavior: picked out");
             if (e.meshUnderPointer && e.meshUnderPointer.position.y < 0) {
                 target.position.y = 1;
+                this.eventBus.emit('POSITION_CHANGE', {
+                    nodeId: target.id.split('boundingBox')[1],
+                    position: {
+                        x: target.position.x,
+                        y: target.position.y,
+                        z: target.position.z
+                    },
+                    rotation: {
+                        x: target.rotation.x,
+                        y: target.rotation.y,
+                        z: target.rotation.z
+                    },
+                    source: 'user'
+                });
             }
             this.onRelease(/*target*/);
         }));

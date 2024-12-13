@@ -9,7 +9,7 @@ export type AudioEventType = {
     WAM_ERROR: 'WAM_ERROR';
     CONNECT_NODES: 'CONNECT_NODES';
     DISCONNECT_NODES: 'DISCONNECT_NODES';
-    NODE_CONNECTION_CHANGED: 'NODE_CONNECTION_CHANGED';
+    APPLY_CONNECTION: 'APPLY_CONNECTION';
 };
 
 export type AudioEventPayload = {
@@ -50,12 +50,11 @@ export type AudioEventPayload = {
         targetId: string;
         source: 'user' | 'network';
     };
-    NODE_CONNECTION_CHANGED: {
+    APPLY_CONNECTION: {
         sourceId: string;
         targetId: string;
-        action: 'connected' | 'disconnected';
-        source: 'user' | 'network';
     };
+
 };
 
 export class AudioEventBus {

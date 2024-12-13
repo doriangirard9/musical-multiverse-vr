@@ -1,6 +1,7 @@
 import * as B from "@babylonjs/core";
 import {App} from "../App";
 import {AudioEventBus} from "../AudioEvents.ts";
+import {NodeTransform} from "./types.ts";
 
 export class RotateBoundingBox implements B.Behavior<B.AbstractMesh> {
     name = "RotateBoundingBox";
@@ -9,7 +10,6 @@ export class RotateBoundingBox implements B.Behavior<B.AbstractMesh> {
     private _observer: B.Nullable<B.Observer<B.Scene>> = null;
     private _eventBus = AudioEventBus.getInstance();
     constructor(private app: App) {
-
     }
 
     init(): void {
@@ -73,7 +73,9 @@ export class RotateBoundingBox implements B.Behavior<B.AbstractMesh> {
         if (pickResult?.hit && pickResult.pickedMesh && pickResult.pickedMesh.name.startsWith("boundingBox")) {
             this.select(pickResult.pickedMesh);
             this._startRotation(controller);
+
         }
+
     }
 
     private _startRotation(controller: B.WebXRInputSource): void {
@@ -81,10 +83,11 @@ export class RotateBoundingBox implements B.Behavior<B.AbstractMesh> {
             let initialControllerRotationQuaternion: B.Quaternion | undefined;
             let initialMeshRotationQuaternion: B.Quaternion | undefined;
             let targetMeshRotationQuaternion: B.Quaternion | undefined;
-            const smoothingFactor = 0.3; // Ajustez cette valeur entre 0 et 1 pour contrôler le lissage
-            const sensitivity = 0.7; // Ajustez cette valeur pour contrôler la sensibilité
+            const smoothingFactor = 0.3;
+            const sensitivity = 0.7;
 
             let previousMeshEulerRotation: B.Vector3 | undefined;
+            let lastEmittedTransform: NodeTransform | undefined;
 
             this._observer = this.app.scene.onBeforeRenderObservable.add(() => {
                 if (this._isSqueezePressed && controller.grip) {
@@ -117,11 +120,37 @@ export class RotateBoundingBox implements B.Behavior<B.AbstractMesh> {
                     let newMeshRotationEuler = this._quaternionToEuler(newMeshRotationQuaternion, previousMeshEulerRotation);
                     this._selectedMesh!.rotation.copyFrom(newMeshRotationEuler);
                     previousMeshEulerRotation = newMeshRotationEuler.clone();
+
+                    if(this._selectedMesh) {
+                        const currentTransform: NodeTransform = {
+                            position: {
+                                x: this._selectedMesh.position.x,
+                                y: this._selectedMesh.position.y,
+                                z: this._selectedMesh.position.z
+                            },
+                            rotation: {
+                                x: this._selectedMesh.rotation.x,
+                                y: this._selectedMesh.rotation.y,
+                                z: this._selectedMesh.rotation.z
+                            }
+                        };
+
+                        if (this._hasSignificantChange(currentTransform, lastEmittedTransform)) {
+                            this._eventBus.emit('POSITION_CHANGE', {
+                                nodeId: this._selectedMesh.id.split('boundingBox')[1],
+                                position: currentTransform.position,
+                                rotation: currentTransform.rotation,
+                                source: 'user'
+                            });
+                            lastEmittedTransform = { ...currentTransform };
+                        }
+                    }
                 } else {
                     initialControllerRotationQuaternion = undefined;
                     initialMeshRotationQuaternion = undefined;
                     targetMeshRotationQuaternion = undefined;
                     previousMeshEulerRotation = undefined;
+                    lastEmittedTransform = undefined;
                     if (this._observer) {
                         this.app.scene.onBeforeRenderObservable.remove(this._observer);
                         this._observer = null;
@@ -129,6 +158,19 @@ export class RotateBoundingBox implements B.Behavior<B.AbstractMesh> {
                 }
             });
         }
+    }
+
+    private _hasSignificantChange(current: NodeTransform, last?: NodeTransform): boolean {
+        if (!last) return true;
+
+        const threshold = 0.05;
+
+        return Math.abs(current.position.x - last.position.x) > threshold ||
+            Math.abs(current.position.y - last.position.y) > threshold ||
+            Math.abs(current.position.z - last.position.z) > threshold ||
+            Math.abs(current.rotation.x - last.rotation.x) > threshold ||
+            Math.abs(current.rotation.y - last.rotation.y) > threshold ||
+            Math.abs(current.rotation.z - last.rotation.z) > threshold;
     }
 
     private _quaternionToEuler(q: B.Quaternion, previousEuler: B.Vector3 | undefined): B.Vector3 {

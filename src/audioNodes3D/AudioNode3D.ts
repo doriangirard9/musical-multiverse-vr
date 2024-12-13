@@ -335,4 +335,8 @@
                 }
             });
         }
+        public updatePosition(position: B.Vector3, rotation: B.Vector3): void {
+            this.boundingBox.position = position;
+            this.boundingBox.rotation = rotation;
+        }
     }

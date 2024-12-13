@@ -18,8 +18,8 @@ import { v4 as uuid } from 'uuid';
 import {Player} from "./Player.ts";
 import { GridMaterial } from "@babylonjs/materials";
 import { MessageManager } from "./MessageManger.ts";
-import {AudioEventBus, AudioEventType} from "./AudioEvents.ts";
-import {Wam3D} from "./audioNodes3D/Wam3D.ts";
+import {AudioEventBus, AudioEventPayload, AudioEventType} from "./AudioEvents.ts";
+import {ConnectionQueueManager} from "./network/ConnectionQueueManager.ts";
 
 export class App {
     public canvas: HTMLCanvasElement;
@@ -38,7 +38,7 @@ export class App {
     public menu!: Menu;
     public ground! : B.Mesh;
     private messageManager!: MessageManager;
-
+    private connectionQueueManager: ConnectionQueueManager;
 
     private eventBus = AudioEventBus.getInstance();
     private constructor(audioCtx: AudioContext) {
@@ -58,7 +58,7 @@ export class App {
 
         this.networkManager = new NetworkManager(this.id);
         this.messageManager = new MessageManager(this.scene, this.xrManager);
-
+        this.connectionQueueManager = new ConnectionQueueManager(this.networkManager, this.ioManager);
         const debug = true;
         if (debug) {
             const events: (keyof AudioEventType)[] = ['PARAM_CHANGE', 'WAM_CREATED', 'WAM_LOADED', 'WAM_ERROR'];
@@ -69,6 +69,9 @@ export class App {
                 });
             });
         }
+        this.eventBus.on('APPLY_CONNECTION', (payload: AudioEventPayload['APPLY_CONNECTION']) => {
+            this.connectionQueueManager.addConnection(payload.sourceId, payload.targetId);
+        });
 
     }  
 
@@ -134,11 +137,7 @@ export class App {
         try {
             const audioNode3D: AudioNode3D = await this._audioNode3DBuilder.create(name, id, configFile);
 
-            if (audioNode3D instanceof Wam3D) {
-                await (audioNode3D as Wam3D).instantiateAtPosition(networkPosition);
-            } else {
-                await audioNode3D.instantiate();
-            }
+            await audioNode3D.instantiate();
 
             await audioNode3D.ioObservable.add(this.ioManager.onIOEvent.bind(this.ioManager));
             await this.networkManager.createNetworkAudioNode3D(audioNode3D);
