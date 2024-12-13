@@ -12,7 +12,7 @@ export interface MenuConfig {
 }
 
 export type IOEvent = {
-    type: "input" | "output";
+    type: "input" | "output" | "inputMidi"| "outputMidi";
     pickType: "up" | "down" | "out";
     node: AudioNode3D;
 }

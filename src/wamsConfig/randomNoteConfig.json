@@ -1,0 +1,35 @@
+{
+  "name": "randomNote",
+  "url": "https://mainline.i3s.unice.fr/wam2/packages/randomnote/index.js",
+  "root": "",
+  "customParameters": [
+    {
+      "name": "pitchMax",
+      "used": true,
+      "type": "cylinder",
+      "color": "#ff0000"
+    },
+    {
+      "name": "pitchMin",
+      "used": true,
+      "type": "cylinder",
+      "color": "#0000ff"
+    },
+    {
+      "name": "velocityMax",
+      "used": true,
+      "type": "cylinder",
+      "color": "#00ff00"},
+    {
+      "name": "velocityMin",
+      "used": true,
+      "type": "cylinder",
+      "color": "#958751"}
+
+  ],
+  "defaultParameter": {
+    "type": "cylinder",
+    "color": "#da8138"
+  }
+}
+32 changes: 32 additions & 0 deletions32

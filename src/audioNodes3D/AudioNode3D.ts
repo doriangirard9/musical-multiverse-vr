@@ -38,6 +38,8 @@
         public inputMeshBig?: B.Mesh;
         public inputNodes = new Map<string, AudioNode3D>();
         public ioObservable = new B.Observable<IOEvent>();
+        public inputMeshMidi?: B.Mesh;
+        public inputMeshBigMidi?: B.Mesh;
         private _isBeingDeleted!: boolean;
     
         protected constructor(scene: B.Scene, audioCtx: AudioContext, id: string) {

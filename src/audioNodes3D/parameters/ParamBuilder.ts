@@ -2,6 +2,7 @@ import * as B from "@babylonjs/core";
 import {CylinderParam} from "./CylinderParam.ts";
 import {ButtonParam} from "./ButtonParam.ts";
 import {CustomParameter, IAudioNodeConfig, ParameterInfo} from "../types.ts";
+import {MenuParam} from "./MenuParam.ts";
 
 export class ParamBuilder {
     private readonly _scene: B.Scene;
@@ -20,6 +21,9 @@ export class ParamBuilder {
 
     public createCylinder(param: CustomParameter, parentMesh: B.Mesh, parameterInfo: ParameterInfo, defaultValue: number): CylinderParam {
         return new CylinderParam(this._scene, parentMesh, parameterInfo, defaultValue, this._getColor(param));
+    }
+    public createMenu(param: CustomParameter, parentMesh: B.Mesh, parameterInfo: ParameterInfo, defaultValue: number, choice:string[]): MenuParam {
+        return new MenuParam(this._scene, parentMesh, parameterInfo, defaultValue, this._getColor(param), choice);
     }
 
     private _getColor(param: CustomParameter): string {

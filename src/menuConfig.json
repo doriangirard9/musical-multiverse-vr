@@ -41,6 +41,19 @@
           }
           
         ]
+    },
+    {
+      "name": "Instruments",
+      "plugins": [
+        {
+          "name": "Spectrum Modal",
+          "configFile": "spectrumModalConfig"
+        },
+        {
+          "name": "Random Note",
+          "configFile": "RandomNoteConfig"
+        }
+      ]
     }
   ]
 }
