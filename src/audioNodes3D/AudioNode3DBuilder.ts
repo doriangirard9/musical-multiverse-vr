@@ -5,9 +5,12 @@ import {SimpleOscillator3D} from "./SimpleOscillator3D.ts";
 import {AudioOutput3D} from "./AudioOutput3D.ts";
 import {Wam3D} from "./Wam3D.ts";
 import {StepSequencer3D} from "./StepSequencer3D.ts";
+import {RandomNote3D} from "./RandomNote3D.ts";
+import {Instrument3D} from "./Instrument3D.ts";
 
 // const WAM_CONFIGS_URL: string = "https://wam-configs.onrender.com";
-const WAM_CONFIGS_URL: string = "https://wam-configs.onrender.com";
+//const WAM_CONFIGS_URL: string = "https://wam-configs.onrender.com";
+const WAM_CONFIGS_URL: string = "http://localhost:5173/src/";
 
 export class AudioNode3DBuilder {
     constructor(private readonly _scene: B.Scene, private readonly _audioCtx: AudioContext) {}
@@ -28,15 +31,22 @@ export class AudioNode3DBuilder {
         else if (name === "audioOutput") {
             return new AudioOutput3D(this._scene, this._audioCtx, id);
         }
+        else if (name === "Random Note") {
+            console.log("Random Note");
+            const config: IWamConfig = await import(/* @vite-ignore */`../wamsConfig/${configFile}.json`);
+            return new RandomNote3D(this._scene, this._audioCtx, id, config, configFile!);
+        }
+        else if (name === "Spectrum Modal") {
+            console.log("Spectrum Modal");
+            const config: IWamConfig = await import(/* @vite-ignore */`../wamsConfig/${configFile}.json`);
+            return new Instrument3D(this._scene, this._audioCtx, id, config, configFile!);
+        }
         // WAMs
         else {
-            const response: Response = await fetch(`${WAM_CONFIGS_URL}/wamsConfig/${configFile}`, {
-                method: "get",
-                headers: {"Content-Type": "application/json"}
-            });
-            const configString: string = await response.json();
-            const config: IWamConfig = JSON.parse(configString);
+            console.log("WAM");
+            const config: IWamConfig = await import(/* @vite-ignore */`../wamsConfig/${configFile}.json`);
             return new Wam3D(this._scene, this._audioCtx, id, config, configFile!);
+
         }
     }
 }

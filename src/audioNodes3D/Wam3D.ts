@@ -6,14 +6,15 @@ import {AudioNode3D} from "./AudioNode3D.ts";
 import {AudioNodeState} from "../network/types.ts";
 import { BoundingBox } from "./BoundingBox.ts";
 import {WebAudioModule} from "@webaudiomodules/sdk";
+import {App} from "../App.ts";
 
 export class Wam3D extends AudioNode3D{
-    private readonly _config: IWamConfig;
-    private _usedParameters!: CustomParameter[];
-    private _wamInstance!: WebAudioModule;
-    private _parametersInfo!:  WamParameterInfoMap;
-    private _parameter3D: {[name: string]: IParameter} = {};
-    private _paramBuilder!: ParamBuilder;
+    protected readonly _config: IWamConfig;
+    protected _usedParameters!: CustomParameter[];
+    protected _wamInstance!: WebAudioModule;
+    protected _parametersInfo!:  WamParameterInfoMap;
+    protected _parameter3D: {[name: string]: IParameter} = {};
+    protected _paramBuilder!: ParamBuilder;
     private readonly _configFile!: string;
     // public drag = new Drag(this._app)
     
@@ -29,11 +30,11 @@ export class Wam3D extends AudioNode3D{
     
     }
 
-    private async _initWamInstance(wamUrl: string): Promise<WebAudioModule> {
+    protected async _initWamInstance(wamUrl: string): Promise<WebAudioModule> {
         // Init WamEnvironment
-        const scriptUrl: string = 'https://mainline.i3s.unice.fr/wam2/packages/sdk/src/initializeWamHost.js';
-        const { default: initializeWamHost } = await import(/* @vite-ignore */ scriptUrl);
-        const [hostGroupId] = await initializeWamHost(this._audioCtx);
+        //const scriptUrl: string = 'https://mainline.i3s.unice.fr/wam2/packages/sdk/src/initializeWamHost.js';
+        //const { default: initializeWamHost } = await import(/* @vite-ignore */ scriptUrl);
+        const [hostGroupId] = await App.getHostGroupId()
 
         // Import WAM
         const { default: WAM } = await import(/* @vite-ignore */ wamUrl);
@@ -89,7 +90,7 @@ export class Wam3D extends AudioNode3D{
 
 
 
-    private async _createParameter(param: CustomParameter, index: number): Promise<void> {
+    protected async _createParameter(param: CustomParameter, index: number): Promise<void> {
         const parameterStand: B.Mesh = this._createParameterStand(
             new B.Vector3(index - (this._usedParameters.length - 1) / 2, 0.1, this.baseMesh.position.z),
             param.name

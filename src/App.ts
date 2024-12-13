@@ -36,6 +36,7 @@ export class App {
     public menu!: Menu;
     public ground! : B.Mesh;
     private messageManager!: MessageManager;
+    private static hostGroupId : [string, string];
 
     private constructor(audioCtx: AudioContext) {
         this.canvas = document.querySelector('#renderCanvas') as HTMLCanvasElement;
@@ -57,7 +58,16 @@ export class App {
 
 
 
-    }  
+    }
+
+    public static async getHostGroupId(): Promise<[string, string]> {
+        if (!App.hostGroupId) {
+            const scriptUrl: string = 'https://mainline.i3s.unice.fr/wam2/packages/sdk/src/initializeWamHost.js';
+            const {default: initializeWamHost} = await import(/* @vite-ignore */ scriptUrl);
+            App.hostGroupId = await initializeWamHost(App.getInstance()._audioCtx);
+        }
+        return App.hostGroupId;
+    }
 
     public static getInstance(audioCtx?: AudioContext): App {
         if (!this._instance) {

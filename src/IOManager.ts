@@ -9,6 +9,9 @@ import { App } from "./App.ts";
 export class IOManager {
     private _inputNode: B.Nullable<AudioNode3D> = null;
     private _outputNode: B.Nullable<AudioNode3D> = null;
+    private _inputNodeMidi: B.Nullable<AudioNode3D> = null;
+    private _outputNodeMidi: B.Nullable<AudioNode3D> = null;
+
     private readonly _scene: B.Scene;
     private virtualTube!: B.Mesh |null;
     private virtualArrow: B.Mesh | null = null;
@@ -25,10 +28,17 @@ export class IOManager {
         if (event.pickType === "down") {
             if (event.type === 'input') {
                 if (event.node.inputMesh) {
-                console.log("input node")
-                this.createVirtualDragPoint(event.node.inputMesh);
-                this._inputNode = event.node;
+                    console.log("input node")
+                    this.createVirtualDragPoint(event.node.inputMesh);
+                    this._inputNode = event.node;
                 }
+            }
+            else if (event.type === 'inputMidi')  {
+                console.log("inputMidi node")
+                console.log("event DOWN",event)
+                this.createVirtualDragPoint(event.node.inputMeshMidi!);
+                this._inputNodeMidi = event.node;
+
             }
             else {
                 if(event.node.outputMesh){
@@ -47,6 +57,7 @@ export class IOManager {
                         this.deleteVirtualTube();
 
                     }
+
                     else {
                         this.connectNodes(this._outputNode, event.node);
                         this._outputNode = null;
@@ -58,6 +69,31 @@ export class IOManager {
                     // alert("You have to connect an output node");
                     this.messageManager.showMessage("You have to connect an output node",3000)
                     this._inputNode = null;
+                    this.deleteVirtualTube();
+
+                }
+            }
+            else if (event.type === 'inputMidi')  {
+                if (this._outputNodeMidi) {
+                    if (event.node.id === this._outputNodeMidi.id) {
+                        // alert("Can't connect a node to itself");
+                        this.messageManager.showMessage("Can't connect a node to itself",3000)
+                        this._outputNodeMidi = null;
+                        this.deleteVirtualTube();
+
+                    }
+
+                    else {
+                        this.connectNodes(this._outputNodeMidi, event.node);
+                        this._outputNodeMidi = null;
+                        this.deleteVirtualTube();
+
+                    }
+                }
+                else if (this._inputNodeMidi) {
+                    // alert("You have to connect an output node");
+                    this.messageManager.showMessage("You have to connect an output node",3000)
+                    this._inputNodeMidi = null;
                     this.deleteVirtualTube();
 
                 }
@@ -79,6 +115,8 @@ export class IOManager {
 
                     }
                 }
+
+
                 else if (this._outputNode) {
                     this.messageManager.showMessage("You have to connect an input node",3000)
                     // alert("You have to connect an input node");
@@ -93,7 +131,7 @@ export class IOManager {
             this.deleteVirtualTube();
             this._inputNode = null;
             this._outputNode = null;
-        
+
         }
     }
 
@@ -123,7 +161,7 @@ export class IOManager {
     public connectNodes(outputNode: AudioNode3D, inputNode: AudioNode3D): void {
         outputNode.connect(inputNode.getAudioNode());
         outputNode.addInputNode(inputNode);
-
+        //outputNode.addInputNodeMidi(inputNode); // TODO: ajouter la connexion midi
         if (!inputNode.inputMesh || !outputNode.outputMesh) throw new Error("Input or output mesh not found");
         this.createArc(outputNode, inputNode);
     }

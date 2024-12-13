@@ -1,9 +1,9 @@
 import * as B from "@babylonjs/core";
 import * as GUI from "@babylonjs/gui";
 import {IParameter, ParameterInfo} from "../types.ts";
-import {WamParameterData,WamParameterInfo} from "@webaudiomodules/api";
+import {Mesh, Scene} from "@babylonjs/core";
 
-export class CylinderParam implements IParameter {
+export class MenuParam implements IParameter {
     private readonly _scene: B.Scene;
     private _parameterInfo: ParameterInfo;
     private readonly _defaultValue: number;
@@ -15,15 +15,16 @@ export class CylinderParam implements IParameter {
     private _cylinderMaterial!: B.StandardMaterial;
     private _textValueBlock!: GUI.TextBlock;
     private _valueAdvancedTexture!: GUI.AdvancedDynamicTexture;
-
+    private _choice: string[];
     public onValueChangedObservable = new B.Observable<number>();
 
-    constructor(scene: B.Scene, parentMesh: B.Mesh, parameterInfo: ParameterInfo, defaultValue: number, color: string) {
+    constructor(scene: Scene, parentMesh: Mesh, parameterInfo: ParameterInfo, defaultValue: number, color: string, choice: string[]) {
         this._scene = scene;
         this._parameterInfo = parameterInfo;
         this._defaultValue = defaultValue;
         this._currentValue = defaultValue;
         this._color = color;
+        this._choice = choice;
 
         this._createCylinder(parentMesh);
         this._currentCylinder = this._cylinder;
@@ -113,8 +114,11 @@ export class CylinderParam implements IParameter {
 
     public setParamValue(value: number): void {
         this._currentValue = value;
-        this.onValueChangedObservable.notifyObservers(value);
-        this._textValueBlock.text = value.toFixed(1).toString();
+        this.onValueChangedObservable.notifyObservers(Math.round(value));
+        if (this._choice[Math.round(value)] !== undefined)
+            this._textValueBlock.text = Math.round(value).toString() + " " + this._choice[Math.round(value)];
+        else
+            this._textValueBlock.text = Math.round(value).toString();
 
         let scalingY: number = (value - this._parameterInfo.minValue) / (this._parameterInfo.maxValue - this._parameterInfo.minValue);
         if (scalingY < 0.05) {

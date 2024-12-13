@@ -37,6 +37,9 @@
         public outputMesh?: B.Mesh;
         public outputMeshBig?: B.Mesh;
         public inputMeshBig?: B.Mesh;
+        public inputMeshMidi?: B.Mesh;
+        public inputMeshBigMidi?: B.Mesh;
+
         public inputNodes = new Map<string, AudioNode3D>();
         public ioObservable = new B.Observable<IOEvent>();
         private _isBeingDeleted!: boolean;
@@ -173,7 +176,7 @@
             return parameterStand;
         }
     
-      protected _createInput(position: B.Vector3): void {
+        protected _createInput(position: B.Vector3): void {
         this.inputMesh = B.MeshBuilder.CreateSphere('inputSphere', { diameter: 0.5 }, this._scene);
         this.inputMeshBig = B.MeshBuilder.CreateSphere('inputSphere', { diameter: 1 }, this._scene);
         this.inputMeshBig.parent = this.inputMesh;
