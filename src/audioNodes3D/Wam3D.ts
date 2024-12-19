@@ -7,6 +7,7 @@ import {AudioNodeState} from "../network/types.ts";
 import { BoundingBox } from "./BoundingBox.ts";
 import {WebAudioModule} from "@webaudiomodules/sdk";
 import {App} from "../App.ts";
+import {AudioEventBus} from "../AudioEvents.ts";
 
 export class Wam3D extends AudioNode3D{
     protected readonly _config: IWamConfig;
@@ -17,17 +18,16 @@ export class Wam3D extends AudioNode3D{
     protected _paramBuilder!: ParamBuilder;
     private readonly _configFile!: string;
     // public drag = new Drag(this._app)
-    
 
-
+    private eventBus = AudioEventBus.getInstance();
     constructor(scene: B.Scene, audioCtx: AudioContext, id: string, config: IWamConfig, configFile: string) {
         super(scene, audioCtx, id);
         this._config = config;
         this._configFile = configFile;
 
 
+        this.eventBus.emit('WAM_CREATED', {nodeId: this.id, name: config.name, configFile: configFile});
 
-    
     }
 
     protected async _initWamInstance(wamUrl: string): Promise<WebAudioModule> {
@@ -44,6 +44,7 @@ export class Wam3D extends AudioNode3D{
     }
 
     public async instantiate(): Promise<void> {
+        console.log('[Wam3D] Starting instantiation:', this.id);
         this._app.menu.hide();
         this._wamInstance = await this._initWamInstance(this._config.url);
         this._parametersInfo = await this._wamInstance.audioNode.getParameterInfo();
@@ -73,7 +74,8 @@ export class Wam3D extends AudioNode3D{
         // @ts-ignore
         const bo  = new BoundingBox(this,this._scene,this.id,this._app)
         this.boundingBox = bo.boundingBox;
-        
+        this.eventBus.emit('WAM_LOADED', {nodeId: this.id, instance: this._wamInstance});
+
     }
 
     protected _createBaseMesh(): void {
@@ -90,13 +92,10 @@ export class Wam3D extends AudioNode3D{
 
 
 
-    protected async _createParameter(param: CustomParameter, index: number): Promise<void> {
-        const parameterStand: B.Mesh = this._createParameterStand(
-            new B.Vector3(index - (this._usedParameters.length - 1) / 2, 0.1, this.baseMesh.position.z),
-            param.name
-        );
+    private async _createParameter(param: CustomParameter, index: number): Promise<void> {
+        const parameterStand: B.Mesh = this._createParameterStand(new B.Vector3(index - (this._usedParameters.length - 1) / 2, 0.1, this.baseMesh.position.z), param.name);
 
-        // Création du paramètre 3D selon son type
+        // create 3D parameter according to its type
         let parameter3D: IParameter;
         const paramType: string = param.type ?? this._config.defaultParameter.type;
         const fullParamName: string = `${this._config.root}${param.name}`;
@@ -104,13 +103,12 @@ export class Wam3D extends AudioNode3D{
         switch (paramType) {
             case 'button':
                 parameter3D = await this._paramBuilder.createButton(param, parameterStand, this._parametersInfo[fullParamName]);
-                break;
+                                break;
             default:
                 parameter3D = this._paramBuilder.createCylinder(param, parameterStand, this._parametersInfo[fullParamName], defaultValue);
                 break;
         }
-
-        // Mise à jour du module audio lorsque la valeur du paramètre change
+        // update audio node when parameter value changes
         parameter3D.onValueChangedObservable.add((value: number): void => {
             const paramData: WamParameterData = {
                 id: fullParamName,
@@ -120,16 +118,18 @@ export class Wam3D extends AudioNode3D{
             const paramDataMap: WamParameterDataMap = { [fullParamName]: paramData };
             this._wamInstance.audioNode.setParameterValues(paramDataMap);
         });
-
-        // Initialisation de la valeur par défaut
         parameter3D.onValueChangedObservable.notifyObservers(defaultValue);
 
-        // Stocke le paramètre 3D avec le bon identifiant
         this._parameter3D[fullParamName] = parameter3D;
+
+
+        parameter3D.onValueChangedObservable.add((value: number): void => {
+            this.eventBus.emit('PARAM_CHANGE', {nodeId: this.id, paramId: fullParamName, value: value, source: 'user'});
+        });
     }
 
-
     public getAudioNode(): AudioNode {
+        // @ts-ignore
         return this._wamInstance.audioNode;
     }
 
@@ -188,16 +188,15 @@ export class Wam3D extends AudioNode3D{
             inputNodes: inputNodes,
             parameters: params,
         };
+
+
     }
-
-
-
     public async setState(state: AudioNodeState): Promise<void> {
-       super.setState(state);
+        super.setState(state);
 
         // Met à jour les représentations 3D des paramètres
         console.log(state.parameters)
-         for (const paramId in state.parameters) {
+        for (const paramId in state.parameters) {
             const paramData = state.parameters[paramId];
             if (this._parameter3D[paramId]) {
                 this._parameter3D[paramId].setParamValue(paramData);
@@ -220,9 +219,40 @@ export class Wam3D extends AudioNode3D{
 
     }
 
+    public setState(state: AudioNodeState): void {
+        this.boundingBox.position = new B.Vector3(
+            state.position.x,
+            state.position.y,
+            state.position.z
+        );
+        this.boundingBox.rotation = new B.Vector3(
+            state.rotation.x,
+            state.rotation.y,
+            state.rotation.z
+        );
 
+        // Gestion des connexions uniquement
+        state.inputNodes.forEach((id: string): void => {
+            const inputNode = this._app.networkManager.getAudioNode3D(id);
+            if (!this.inputNodes.has(id) && inputNode) {
+                this._app.ioManager.connectNodes(this, inputNode);
+            }
+        });
 
+    }
 
+    public updateSingleParameter(paramId: string, value: number): void {
+        // Mise à jour directe du WAM
+        this._wamInstance.audioNode._wamNode.setParamValue(paramId, value);
 
+        // Mise à jour visuelle
+        if (this._parameter3D[paramId]) {
+            this._parameter3D[paramId].setDirectValue(value);
+        }
+
+        if (process.env.NODE_ENV === 'development') {
+            console.log(`Single parameter update: ${paramId} = ${value}`);
+        }
+    }
 
 }

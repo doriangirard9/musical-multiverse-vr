@@ -9,8 +9,7 @@ import {RandomNote3D} from "./RandomNote3D.ts";
 import {Instrument3D} from "./Instrument3D.ts";
 
 // const WAM_CONFIGS_URL: string = "https://wam-configs.onrender.com";
-//const WAM_CONFIGS_URL: string = "https://wam-configs.onrender.com";
-const WAM_CONFIGS_URL: string = "http://localhost:5173/src/";
+const WAM_CONFIGS_URL: string = "http://localhost:3000";
 
 export class AudioNode3DBuilder {
     constructor(private readonly _scene: B.Scene, private readonly _audioCtx: AudioContext) {}
@@ -43,10 +42,13 @@ export class AudioNode3DBuilder {
         }
         // WAMs
         else {
-            console.log("WAM");
-            const config: IWamConfig = await import(/* @vite-ignore */`../wamsConfig/${configFile}.json`);
+            const response: Response = await fetch(`${WAM_CONFIGS_URL}/wamsConfig/${configFile}`, {
+                method: "get",
+                headers: {"Content-Type": "application/json"}
+            });
+            const configString: string = await response.json();
+            const config: IWamConfig = JSON.parse(configString);
             return new Wam3D(this._scene, this._audioCtx, id, config, configFile!);
-
         }
     }
 }

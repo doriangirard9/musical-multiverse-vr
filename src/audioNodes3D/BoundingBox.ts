@@ -14,7 +14,6 @@ export class BoundingBox {
     private _app: App;
     private id: string;
     private highlightLayer!: B.HighlightLayer;
-
     constructor(private audioNode3D: AudioNode3D, private scene: B.Scene, id: string, app: App) {
         this._app = app;
         this.id = id;
@@ -32,6 +31,7 @@ export class BoundingBox {
         // dragBehavior.onDragObservable.add((event) => {
         //     this.boundingBox.position.y = 0; // Keeps the box at y = 0 to restrict it to the XZ plane
         // });
+
 
     }
 

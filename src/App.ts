@@ -18,6 +18,8 @@ import { v4 as uuid } from 'uuid';
 import {Player} from "./Player.ts";
 import { GridMaterial } from "@babylonjs/materials";
 import { MessageManager } from "./MessageManger.ts";
+import {AudioEventBus, AudioEventPayload, AudioEventType} from "./AudioEvents.ts";
+import {ConnectionQueueManager} from "./network/ConnectionQueueManager.ts";
 
 export class App {
     public canvas: HTMLCanvasElement;
@@ -36,7 +38,9 @@ export class App {
     public menu!: Menu;
     public ground! : B.Mesh;
     private messageManager!: MessageManager;
+    private connectionQueueManager: ConnectionQueueManager;
     private static hostGroupId : [string, string];
+    private eventBus = AudioEventBus.getInstance();
 
     private constructor(audioCtx: AudioContext) {
         this.canvas = document.querySelector('#renderCanvas') as HTMLCanvasElement;
@@ -55,10 +59,22 @@ export class App {
 
         this.networkManager = new NetworkManager(this.id);
         this.messageManager = new MessageManager(this.scene, this.xrManager);
+        this.connectionQueueManager = new ConnectionQueueManager(this.networkManager, this.ioManager);
+        const debug = true;
+        if (debug) {
+            const events: (keyof AudioEventType)[] = ['PARAM_CHANGE', 'WAM_CREATED', 'WAM_LOADED', 'WAM_ERROR'];
 
+            events.forEach(event => {
+                this.eventBus.on(event, (payload) => {
+                    console.log(`[Debug] ${event}:`, payload);
+                });
+            });
+        }
+        this.eventBus.on('APPLY_CONNECTION', (payload: AudioEventPayload['APPLY_CONNECTION']) => {
+            this.connectionQueueManager.addConnection(payload.sourceId, payload.targetId);
+        });
 
-
-    }
+    }  
 
     public static async getHostGroupId(): Promise<[string, string]> {
         if (!App.hostGroupId) {
@@ -121,11 +137,16 @@ export class App {
     }
 
     public async createAudioNode3D(name: string, id: string, configFile?: string): Promise<void> {
-        this.menu.hide()
-        this.messageManager.showMessage("Loading...",0);
-        try{
+        console.log("Création WAM avec ID:", id);
+        const networkPosition = this.networkManager.getNodePosition(id);
+        console.log("Position réseau disponible ?", networkPosition);
 
+        this.menu.hide();
+        this.messageManager.showMessage("Loading...", 0);
+
+        try {
             const audioNode3D: AudioNode3D = await this._audioNode3DBuilder.create(name, id, configFile);
+
             await audioNode3D.instantiate();
             // await a certain delay before adding listeners
 

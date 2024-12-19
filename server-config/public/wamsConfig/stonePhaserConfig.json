@@ -1,0 +1,39 @@
+{
+  "name": "StonePhaser",
+  "url": "https://www.webaudiomodules.com/community/plugins/wimmics/stonephaser/index.js",
+  "root": "/untitled/",
+  "customParameters": [
+    {
+      "name": "Dry/wet mix",
+      "used": true,
+      "color": "#00ff00"
+    },
+    {
+      "name": "Feedback depth",
+      "used": true
+    },
+    {
+      "name": "Color",
+      "type": "button",
+      "used": false
+    },
+    {
+      "name": "LFO frequency",
+      "used": true,
+      "color": "#0000ff"
+    },
+    {
+      "name": "Bypass",
+      "used": true,
+      "type": "button"
+    },
+    {
+      "name": "Feedback bass cut",
+      "used": true
+    }
+  ],
+  "defaultParameter": {
+    "type": "cylinder",
+    "color": "#ff0000"
+  }
+}

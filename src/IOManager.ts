@@ -4,6 +4,7 @@ import {AudioNode3D} from "./audioNodes3D/AudioNode3D.ts";
 import { v4 as uuid } from 'uuid';
 import { MessageManager } from "./MessageManger.ts";
 import { App } from "./App.ts";
+import {AudioEventBus} from "./AudioEvents.ts";
 
 
 export class IOManager {
@@ -19,6 +20,7 @@ export class IOManager {
     private pointerDragBehavior!: B.PointerDragBehavior;
     private highlightLayer!: B.HighlightLayer |null;
     private messageManager!: MessageManager;
+    private eventBus = AudioEventBus.getInstance();
     constructor(scene: B.Scene,app:App) {
         this._scene = scene;
         this.messageManager = new MessageManager(this._scene,app.xrManager)
@@ -165,6 +167,12 @@ export class IOManager {
         if (!inputNode.inputMesh || !outputNode.outputMesh)  // todo: add midi sphere check
             throw new Error("Input or output mesh not found");
         this.createArc(outputNode, inputNode);
+
+        this.eventBus.emit('CONNECT_NODES', {
+            sourceId: outputNode.id,
+            targetId: inputNode.id,
+            source: 'user'
+        });
     }
 
     // Function to create an arc (edge) with an arrowhead

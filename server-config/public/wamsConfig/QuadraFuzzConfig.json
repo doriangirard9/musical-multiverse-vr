@@ -1,0 +1,33 @@
+{
+    "name": "Quadrafuzz",
+    "url": "https://www.webaudiomodules.com/community/plugins/wimmics/quadrafuzz/dist/index.js",
+    "root": "",
+    "customParameters": [
+      {
+        "name": "lowGain",
+        "used": true
+      },
+      {
+        "name": "midLowGain",
+        "used": true
+      },
+      {
+        "name": "midHighGain",
+        "used": true
+      },
+      {
+        "name": "highGain",
+        "used": true
+      },
+      {
+        "name": "enabled",
+        "used": true,
+        "type": "button"
+      }
+    ],
+    "defaultParameter": {
+      "type": "cylinder",
+      "color": "#ff0000"
+    }
+  }
+  
