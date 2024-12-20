@@ -1,5 +1,4 @@
 import * as B from "@babylonjs/core";
-import {WamParameterData} from "@webaudiomodules/api";
 
 export interface IAudioNodeConfig {
     customParameters: CustomParameter[];

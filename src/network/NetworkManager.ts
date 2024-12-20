@@ -175,9 +175,9 @@ export class NetworkManager {
 
         if (!sourceNode || !targetNode) return;
 
-        this.withLocalProcessing(() => {
-            this._networkAudioNodes3D.set(payload.sourceId, sourceNode.getState());
-            this._networkAudioNodes3D.set(payload.targetId, targetNode.getState());
+        this.withLocalProcessing(async () => {
+            this._networkAudioNodes3D.set(payload.sourceId, await sourceNode.getState());
+            this._networkAudioNodes3D.set(payload.targetId, await targetNode.getState());
         });
     }
 
@@ -377,14 +377,14 @@ export class NetworkManager {
         }
     }
 
-    private handleAudioNodeUpdate(key: string): void {
+    private async handleAudioNodeUpdate(key: string): Promise<void> {
         const state = this._networkAudioNodes3D.get(key);
         if (state) {
             const audioNode = this._audioNodes3D.get(key);
             if (audioNode) {
                 audioNode.setState({
                     ...state,
-                    parameters: audioNode.getState().parameters
+                    parameters: (await audioNode.getState()).parameters
                 });
             }
         }
@@ -435,8 +435,8 @@ export class NetworkManager {
         }
     }
 
-    public createNetworkAudioNode3D(audioNode3D: AudioNode3D): void {
-        const state: AudioNodeState = audioNode3D.getState();
+    public async createNetworkAudioNode3D(audioNode3D: AudioNode3D): Promise<void> {
+        const state: AudioNodeState = await audioNode3D.getState();
         this.addRemoteAudioNode3D(audioNode3D);
 
         // IMPORTANT: Sauvegarder la position AVANT de notifier les autres
@@ -455,8 +455,8 @@ export class NetworkManager {
         this._networkAudioNodes3D.set(state.id, state);
     }
 
-    public addRemoteAudioNode3D(audioNode3D: AudioNode3D): void {
-        const state: AudioNodeState = audioNode3D.getState();
+    public async addRemoteAudioNode3D(audioNode3D: AudioNode3D): Promise<void> {
+        const state: AudioNodeState = await audioNode3D.getState();
         this._audioNodes3D.set(state.id, audioNode3D);
     }
 

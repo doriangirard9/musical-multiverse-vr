@@ -41,7 +41,7 @@ export class App {
     private connectionQueueManager: ConnectionQueueManager;
     private static hostGroupId : [string, string];
     private eventBus = AudioEventBus.getInstance();
-
+    private count = 0;
     private constructor(audioCtx: AudioContext) {
         this.canvas = document.querySelector('#renderCanvas') as HTMLCanvasElement;
         this.engine = new B.Engine(this.canvas, true);
@@ -148,6 +148,9 @@ export class App {
             const audioNode3D: AudioNode3D = await this._audioNode3DBuilder.create(name, id, configFile);
 
             await audioNode3D.instantiate();
+            this.count++;
+            console.log("count = ", this.count)
+
             // await a certain delay before adding listeners
 
             audioNode3D.ioObservable.add(this.ioManager.onIOEvent.bind(this.ioManager));
@@ -173,6 +176,7 @@ export class App {
             console.log('Adding audio node:', change.state);
             const audioNode3D: AudioNode3D = await this._audioNode3DBuilder.create(change.state.name, change.state.id, change.state.configFile);
             await audioNode3D.instantiate();
+            console.log("_onRemoteAudioNodeChange count = ", this.count)
             // @@ MB CHECK : no await here !!!
 
                 audioNode3D.ioObservable.add(this.ioManager.onIOEvent.bind(this.ioManager));

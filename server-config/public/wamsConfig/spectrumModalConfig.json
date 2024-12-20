@@ -1,0 +1,32 @@
+{
+  "name": "Spectrum Modal",
+  "url": "https://www.webaudiomodules.com/community/plugins/burns-audio/modal/index.js",
+  "root": "",
+  "customParameters": [
+    {
+      "name": "exciterEnvShape",
+      "used": true,
+      "color": "#00ff00"
+    },
+    {
+      "name": "resonatorModel",
+      "used": true,
+      "type": "menu",
+      "color": "#222222"
+    },
+    {
+      "name": "exciterBowLevel",
+      "color": "#ff0000",
+      "used": true
+    },
+    {
+      "name": "exciterBowTimbre",
+      "used": true,
+      "color": "#0000ff"
+    }
+  ],
+  "defaultParameter": {
+    "type": "cylinder",
+    "color": "#f0f0f0"
+  }
+}

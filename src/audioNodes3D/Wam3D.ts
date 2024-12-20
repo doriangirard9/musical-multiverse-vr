@@ -192,66 +192,58 @@ export class Wam3D extends AudioNode3D{
 
     }
     public async setState(state: AudioNodeState): Promise<void> {
+        // Appel du setState parent pour gérer la position et rotation
         super.setState(state);
 
-        // Met à jour les représentations 3D des paramètres
-        console.log(state.parameters)
-        for (const paramId in state.parameters) {
-            const paramData = state.parameters[paramId];
-            if (this._parameter3D[paramId]) {
-                this._parameter3D[paramId].setParamValue(paramData);
+        const parameterUpdates: WamParameterDataMap = {};
+
+        // Traitement des paramètres
+        for (const [paramId, value] of Object.entries(state.parameters)) {
+            // Mise à jour visuelle 3D
+            const param3D = this._parameter3D[paramId];
+            if (param3D) {
+                param3D.setParamValue(value);
             } else {
-                console.warn(`Paramètre manquant pour ${paramId}`);
+                console.warn(`Paramètre 3D manquant: ${paramId}`);
             }
+
+            // Préparation de la mise à jour audio
+            parameterUpdates[paramId] = {
+                id: paramId,
+                value: value,
+                normalized: false
+            };
         }
-        // Met à jour les valeurs des paramètres dans le module audio
-        let p : WamParameterDataMap = {}
 
+        // Mise à jour groupée des paramètres audio
+        if (Object.keys(parameterUpdates).length > 0) {
+            await this._wamInstance.audioNode.setParameterValues(parameterUpdates);
+        }
+    }
 
-        for (const [key, value] of Object.entries(state.parameters)) {
-            p[key] = {
-                id: this.id,
+    public async updateSingleParameter(paramId: string, value: number): Promise<void> {
+        // Création d'un objet WamParameterDataMap pour un seul paramètre
+        const paramUpdate: WamParameterDataMap = {
+            [paramId]: {
+                id: paramId,
                 value: value,
                 normalized: false
             }
-        }
-        await this._wamInstance.audioNode.setParameterValues(p);
+        };
 
-    }
+        // Mise à jour du paramètre audio
+        await this._wamInstance.audioNode.setParameterValues(paramUpdate);
 
-    public setState(state: AudioNodeState): void {
-        this.boundingBox.position = new B.Vector3(
-            state.position.x,
-            state.position.y,
-            state.position.z
-        );
-        this.boundingBox.rotation = new B.Vector3(
-            state.rotation.x,
-            state.rotation.y,
-            state.rotation.z
-        );
-
-        // Gestion des connexions uniquement
-        state.inputNodes.forEach((id: string): void => {
-            const inputNode = this._app.networkManager.getAudioNode3D(id);
-            if (!this.inputNodes.has(id) && inputNode) {
-                this._app.ioManager.connectNodes(this, inputNode);
-            }
-        });
-
-    }
-
-    public updateSingleParameter(paramId: string, value: number): void {
-        // Mise à jour directe du WAM
-        this._wamInstance.audioNode._wamNode.setParamValue(paramId, value);
-
-        // Mise à jour visuelle
-        if (this._parameter3D[paramId]) {
-            this._parameter3D[paramId].setDirectValue(value);
+        // Mise à jour visuelle 3D
+        const param3D = this._parameter3D[paramId];
+        if (param3D) {
+            param3D.setParamValue(value);
+        } else {
+            console.warn(`Paramètre 3D manquant: ${paramId}`);
         }
 
         if (process.env.NODE_ENV === 'development') {
-            console.log(`Single parameter update: ${paramId} = ${value}`);
+            console.log(`Mise à jour paramètre: ${paramId} = ${value}`);
         }
     }
 
