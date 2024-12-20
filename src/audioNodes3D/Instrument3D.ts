@@ -36,7 +36,6 @@ export class Instrument3D extends Wam3D {
 
         const bo  = new BoundingBox(this,this._scene,this.id,this._app)
         this.boundingBox = bo.boundingBox;
-
     }
 
     public async configureSphers(): Promise<void> {
@@ -77,8 +76,15 @@ export class Instrument3D extends Wam3D {
         let parameter3D: IParameter;
         const paramType: string = param.type ?? this._config.defaultParameter.type;
         const fullParamName: string = `${this._config.root}${param.name}`;
+        console.log(this._parametersInfo);
         const defaultValue: number = this._parametersInfo[fullParamName].defaultValue;
         switch (paramType) {
+            case 'sphere':
+                parameter3D = this._paramBuilder.createSphere(param, parameterStand, this._parametersInfo[fullParamName], defaultValue);
+                break;
+            case 'sphereCylinder':
+                parameter3D = this._paramBuilder.createSphereCylinder(param, parameterStand, this._parametersInfo[fullParamName], defaultValue);
+                break
             case 'button':
                 parameter3D = await this._paramBuilder.createButton(param, parameterStand, this._parametersInfo[fullParamName]);
                 break;
@@ -118,7 +124,6 @@ export class Instrument3D extends Wam3D {
         this.inputMeshMidi.parent = this.baseMesh;
         this.inputMeshMidi.position = position;
 
-        // color
         const inputSphereMaterial = new B.StandardMaterial('material', this._scene);
         inputSphereMaterial.diffuseColor = new B.Color3(0, 0, 1);
         this.inputMeshMidi.material = inputSphereMaterial;

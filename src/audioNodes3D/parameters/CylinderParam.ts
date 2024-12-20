@@ -1,20 +1,19 @@
 import * as B from "@babylonjs/core";
 import * as GUI from "@babylonjs/gui";
 import {IParameter, ParameterInfo} from "../types.ts";
-import {WamParameterData,WamParameterInfo} from "@webaudiomodules/api";
 
 export class CylinderParam implements IParameter {
-    private readonly _scene: B.Scene;
-    private _parameterInfo: ParameterInfo;
-    private readonly _defaultValue: number;
+    protected readonly _scene: B.Scene;
+    protected _parameterInfo: ParameterInfo;
+    protected readonly _defaultValue: number;
     private readonly _color: string;
 
-    private _currentValue: number;
-    private _currentCylinder!: B.Mesh;
-    private _cylinder!: B.Mesh;
-    private _cylinderMaterial!: B.StandardMaterial;
-    private _textValueBlock!: GUI.TextBlock;
-    private _valueAdvancedTexture!: GUI.AdvancedDynamicTexture;
+    protected _currentValue: number;
+    protected _currentCylinder!: B.Mesh;
+    protected _cylinder!: B.Mesh;
+    protected _cylinderMaterial!: B.StandardMaterial;
+    protected _textValueBlock!: GUI.TextBlock;
+    protected _valueAdvancedTexture!: GUI.AdvancedDynamicTexture;
 
     public onValueChangedObservable = new B.Observable<number>();
 
@@ -55,7 +54,7 @@ export class CylinderParam implements IParameter {
         this._textValueBlock.outlineWidth = 30;
     }
 
-    private _initActionManager(): void {
+    protected _initActionManager(): void {
         const highlightLayer = new B.HighlightLayer('hl', this._scene);
 
         this._cylinder.actionManager = new B.ActionManager(this._scene);
@@ -76,7 +75,7 @@ export class CylinderParam implements IParameter {
         }));
     }
 
-    private _scaleCylinder(): void {
+    protected _scaleCylinder(): void {
         const sixDofDragBehavior = new B.SixDofDragBehavior();
         this._cylinder.addBehavior(sixDofDragBehavior);
 

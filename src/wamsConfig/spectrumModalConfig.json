@@ -6,7 +6,8 @@
     {
       "name": "exciterEnvShape",
       "used": true,
-      "color": "#00ff00"
+      "color": "#00ff00",
+      "type": "sphereCylinder"
     },
     {
       "name": "resonatorModel",

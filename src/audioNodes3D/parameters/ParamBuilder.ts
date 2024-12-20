@@ -2,8 +2,9 @@ import * as B from "@babylonjs/core";
 import {CylinderParam} from "./CylinderParam.ts";
 import {ButtonParam} from "./ButtonParam.ts";
 import {CustomParameter, IAudioNodeConfig, ParameterInfo} from "../types.ts";
-import {WamParameterInfo} from "@webaudiomodules/api";
 import {MenuParam} from "./MenuParam.ts";
+import {Sphere} from "./Sphere.ts";
+import {SphereCylinderParam} from "./SphereCylinderParam.ts";
 
 export class ParamBuilder {
     private readonly _scene: B.Scene;
@@ -24,10 +25,16 @@ export class ParamBuilder {
         return new CylinderParam(this._scene, parentMesh, parameterInfo, defaultValue, this._getColor(param));
     }
 
+    public createSphereCylinder(param: CustomParameter, parentMesh: B.Mesh, parameterInfo: ParameterInfo, defaultValue: number): CylinderParam {
+        return new SphereCylinderParam(this._scene, parentMesh, parameterInfo, defaultValue, this._getColor(param));
+    }
+
     public createMenu(param: CustomParameter, parentMesh: B.Mesh, parameterInfo: ParameterInfo, defaultValue: number, choice:string[]): MenuParam {
         return new MenuParam(this._scene, parentMesh, parameterInfo, defaultValue, this._getColor(param), choice);
     }
-
+    public createSphere (param: CustomParameter, parentMesh: B.Mesh, parameterInfo: ParameterInfo, defaultValue: number ): Sphere {
+        return new Sphere(this._scene, parentMesh, parameterInfo, defaultValue, this._getColor(param));
+    }
     private _getColor(param: CustomParameter): string {
         return param.color ?? this._config.defaultParameter.color;
     }
