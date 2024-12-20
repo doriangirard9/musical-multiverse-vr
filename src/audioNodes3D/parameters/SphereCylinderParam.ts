@@ -14,7 +14,7 @@ export class SphereCylinderParam extends CylinderParam implements IParameter{
     private angularSpeed : number =0.01;
     private radius : number = 3;
     private angle : number = 0;
-    private intervalUpdate =500;
+    private intervalUpdate =1000;
     private timeElapsed = 0;
   //  private havokInterface;
     //private pluginHavok;
@@ -91,6 +91,8 @@ export class SphereCylinderParam extends CylinderParam implements IParameter{
             );
         } else {
             this.angle = this.calculateAngleFromPosition(parentMesh);
+            this._currentValue = this._parameterInfo.maxValue * ((Math.cos(this.angle) + 1) / 2);
+            this.setParamValue(this._currentValue);
         }
 
         if (this.timeElapsed>this.intervalUpdate ) {
