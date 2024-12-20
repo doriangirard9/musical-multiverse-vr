@@ -47,6 +47,7 @@ export class Wam3D extends AudioNode3D{
         console.log('[Wam3D] Starting instantiation:', this.id);
         this._app.menu.hide();
         this._wamInstance = await this._initWamInstance(this._config.url);
+        console.log('[Wam3D] WAM instance created:', this.id);
         this._parametersInfo = await this._wamInstance.audioNode.getParameterInfo();
         this._paramBuilder = new ParamBuilder(this._scene, this._config);
 
@@ -188,38 +189,30 @@ export class Wam3D extends AudioNode3D{
             inputNodes: inputNodes,
             parameters: params,
         };
-
-
     }
-    public async setState(state: AudioNodeState): Promise<void> {
-        // Appel du setState parent pour gérer la position et rotation
-        super.setState(state);
 
-        const parameterUpdates: WamParameterDataMap = {};
+    public setState(state: AudioNodeState): void {
+        this.boundingBox.position = new B.Vector3(
+            state.position.x,
+            state.position.y,
+            state.position.z
+        );
+        this.boundingBox.rotation = new B.Vector3(
+            state.rotation.x,
+            state.rotation.y,
+            state.rotation.z
+        );
 
-        // Traitement des paramètres
-        for (const [paramId, value] of Object.entries(state.parameters)) {
-            // Mise à jour visuelle 3D
-            const param3D = this._parameter3D[paramId];
-            if (param3D) {
-                param3D.setParamValue(value);
-            } else {
-                console.warn(`Paramètre 3D manquant: ${paramId}`);
+        // Gestion des connexions uniquement
+        state.inputNodes.forEach((id: string): void => {
+            const inputNode = this._app.networkManager.getAudioNode3D(id);
+            if (!this.inputNodes.has(id) && inputNode) {
+                this._app.ioManager.connectNodes(this, inputNode);
             }
+        });
 
-            // Préparation de la mise à jour audio
-            parameterUpdates[paramId] = {
-                id: paramId,
-                value: value,
-                normalized: false
-            };
-        }
-
-        // Mise à jour groupée des paramètres audio
-        if (Object.keys(parameterUpdates).length > 0) {
-            await this._wamInstance.audioNode.setParameterValues(parameterUpdates);
-        }
     }
+
 
     public async updateSingleParameter(paramId: string, value: number): Promise<void> {
         // Création d'un objet WamParameterDataMap pour un seul paramètre
@@ -237,7 +230,7 @@ export class Wam3D extends AudioNode3D{
         // Mise à jour visuelle 3D
         const param3D = this._parameter3D[paramId];
         if (param3D) {
-            param3D.setParamValue(value);
+            param3D.setDirectValue(value);
         } else {
             console.warn(`Paramètre 3D manquant: ${paramId}`);
         }

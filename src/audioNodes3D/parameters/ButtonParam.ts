@@ -49,14 +49,8 @@ export class ButtonParam implements IParameter {
         this._button.pointerOutAnimation = (): void => {}
         this._button.pointerUpAnimation = (): void => {}
         this._button.pointerDownAnimation = (): void => {
-            if (this._isPushed){
-                let value= 0;
-                this.setParamValue(value);
-            }
-            else {
-                let value= 1;
-                this.setParamValue(value);
-            }
+            if (this._isPushed) this.setParamValue(0);
+            else this.setParamValue(1);
         }
     }
 

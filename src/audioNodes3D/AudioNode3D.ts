@@ -336,13 +336,12 @@
             this.boundingBox.rotation = new B.Vector3(state.rotation.x, state.rotation.y, state.rotation.z);
             // this.baseMesh.position = new B.Vector3(this.boundingBox.position.x, this.boundingBox.position.y, this.boundingBox.position.z);
             // this.baseMesh.rotation = new B.Vector3(this.boundingBox.rotation.x, this.boundingBox.rotation.y, this.boundingBox.rotation.z);
-            for (const id of state.inputNodes) {
+            state.inputNodes.forEach((id: string): void => {
                 const inputNode: AudioNode3D | undefined = this._app.networkManager.getAudioNode3D(id);
                 if (!this.inputNodes.has(id) && inputNode) {
                     this._app.ioManager.connectNodes(this, inputNode);
                 }
-            }
-
+            });
         }
         public updatePosition(position: B.Vector3, rotation: B.Vector3): void {
             this.boundingBox.position = position;

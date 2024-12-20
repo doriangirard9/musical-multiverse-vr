@@ -92,7 +92,8 @@ export class CylinderParam implements IParameter {
 
         sixDofDragBehavior.onDragObservable.add((event: {delta: B.Vector3, position: B.Vector3, pickInfo: B.PickingInfo}): void => {
             if (
-                this._currentValue + event.delta.y * step >= this._parameterInfo.minValue && this._currentValue + event.delta.y * step <= this._parameterInfo.maxValue
+                this._currentValue + event.delta.y * step >= this._parameterInfo.minValue &&
+                this._currentValue + event.delta.y * step <= this._parameterInfo.maxValue
             ) {
                 const newValue: number = this._currentValue + (event.delta.y - lastDeltaY) * step;
                 const roundedValue: number = Math.round(newValue * 1000) / 1000;
