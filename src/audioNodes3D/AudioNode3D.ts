@@ -1,11 +1,12 @@
     import * as B from "@babylonjs/core";
-    import {IOEvent} from "../types.ts";
+    import {IOEvent, TubeParamsMidi} from "../types.ts";
     import * as GUI from "@babylonjs/gui";
     import {App} from "../App.ts";
     import {TubeParams} from "../types.ts";
     // import {XRInputStates} from "../xr/types.ts";
     import {AudioNodeState, INetworkObject} from "../network/types.ts";
     import {WebAudioModule} from "@webaudiomodules/sdk";
+import { SphereTypes } from "./types.ts";
 
     export abstract class AudioNode3D extends WebAudioModule implements INetworkObject<AudioNodeState> {
         static menuOnScene: boolean = false;
@@ -21,6 +22,8 @@
     
         public inputArcs: TubeParams[] = [];
         public outputArcs: TubeParams[] = [];
+        public inputArcsMidi: TubeParamsMidi[] = [];
+        public outputArcsMidi: TubeParamsMidi[] = [];
     
         public tubeMesh?: B.Mesh;
     
@@ -42,7 +45,9 @@
         public outputMeshMidi?: B.Mesh;
         public outputMeshBigMidi?: B.Mesh;
 
+
         public inputNodes = new Map<string, AudioNode3D>();
+        public inputNodesMidi = new Map<string, AudioNode3D>();
         public ioObservable = new B.Observable<IOEvent>();
         private _isBeingDeleted!: boolean;
     
@@ -65,6 +70,9 @@
     
         public addInputNode(audioNode3D: AudioNode3D): void {
             this.inputNodes.set(audioNode3D.id, audioNode3D);
+        }
+        public addInputNodeMidi(audioNode3D: AudioNode3D): void {
+            this.inputNodesMidi.set(audioNode3D.id, audioNode3D);
         }
     
         public delete(): void {
@@ -96,6 +104,31 @@
                 if (arc.TubeMesh) arc.TubeMesh.dispose();
                 if (arc.arrow) arc.arrow.dispose();
             })
+
+            // supprimer le TubeMidi from outputNode
+            this.inputArcsMidi.forEach((arc: TubeParamsMidi): void => {
+                arc.outputNode.outputArcsMidi.forEach((outputArc: TubeParamsMidi, index: number): void => {
+                    if(outputArc.TubeMesh.name == arc.TubeMesh.name) 
+                        //splice from the array the arc that is connected to the input node
+                        arc.outputNode.outputArcsMidi.splice(index, 1);
+            })
+            if (arc.TubeMesh) arc.TubeMesh.dispose();
+            if (arc.arrow) arc.arrow.dispose();
+            });
+            // supprimer le TubeMidi from inputNode 
+            this.outputArcsMidi.forEach((arc: TubeParamsMidi): void => {
+                arc.inputNode.inputArcsMidi.forEach((inputArc: TubeParamsMidi, index: number): void => {
+                    if(inputArc.TubeMesh.name == arc.TubeMesh.name) 
+                        //splice from the array the arc that is connected to the output node
+                        arc.inputNode.inputArcsMidi.splice(index, 1);
+                        // inputArc.TubeMesh.dispose();
+                }
+            )
+                if (arc.TubeMesh) arc.TubeMesh.dispose();
+                if (arc.arrow) arc.arrow.dispose();
+            })
+
+
             //link with tube instead of audionode deleted
             this.inputArcs.forEach((inputArc: TubeParams): void => {
                 this.outputArcs.forEach((outputArc: TubeParams): void => {
@@ -107,7 +140,8 @@
             this.outputArcs = [];
             // tube table of the input node (audioNode3D)
             this.inputArcs = [];
-    
+            this.inputArcsMidi = [];
+            this.outputArcsMidi = [];
             // Disconnect audio node
             this.getAudioNode().disconnect();
         
@@ -178,7 +212,7 @@
     
             return parameterStand;
         }
-    
+
         protected _createInput(position: B.Vector3): void {
         this.inputMesh = B.MeshBuilder.CreateSphere('inputSphere', { diameter: 0.5 }, this._scene);
         this.inputMeshBig = B.MeshBuilder.CreateSphere('inputSphere', { diameter: 1 }, this._scene);
@@ -208,16 +242,23 @@
         // action manager
         this.inputMeshBig.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnLeftPickTrigger, (): void => {
             this.ioObservable.notifyObservers({ type: 'input', pickType: 'down', node: this });
+            console.log("type: 'input', pickType: 'down'")
+
         }));
         this.inputMeshBig.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickUpTrigger, (): void => {
             this.ioObservable.notifyObservers({ type: 'input', pickType: 'up', node: this });
+            console.log("type: 'input', pickType: 'up'")
+
         }));
         this.inputMeshBig.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickOutTrigger, (): void => {
             this.ioObservable.notifyObservers({ type: 'input', pickType: 'out', node: this });
+            console.log("type: 'input', pickType: 'out'")
+
         }));
     }
     
         protected _createOutput(position: B.Vector3): void {
+            console.log("create output Mesh here ayoub")
             this.outputMesh = B.MeshBuilder.CreateSphere('outputSphere', { diameter: 0.5 }, this._scene);
             this.outputMeshBig = B.MeshBuilder.CreateSphere('outputSphereBig', { diameter: 1 }, this._scene);
             this.outputMeshBig.parent = this.outputMesh; 
@@ -249,12 +290,18 @@
         
             this.outputMeshBig.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnLeftPickTrigger, (): void => {
                 this.ioObservable.notifyObservers({type: 'output', pickType: 'down', node: this});
+                console.log("type: 'output', pickType: 'down'")
             }));
             this.outputMeshBig.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickUpTrigger, (): void => {
+                
                 this.ioObservable.notifyObservers({type: 'output', pickType: 'up', node: this});
+                console.log("type: 'output', pickType: 'up'")
+
             }));
             this.outputMeshBig.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickOutTrigger, (): void => {
                 this.ioObservable.notifyObservers({type: 'output', pickType: 'out', node: this});
+                console.log("type: 'output', pickType: 'out'")
+
             }));
         }
 

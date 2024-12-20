@@ -29,7 +29,7 @@ export class RandomNote3D extends Wam3D {
         this._rotationGizmo = new B.RotationGizmo(this._utilityLayer);
 
         this._initActionManager();
-        this._createOutput(new B.Vector3(this._usedParameters.length / 2 + 0.2, this.baseMesh.position.y, this.baseMesh.position.z));
+        this._createOutputMidi(new B.Vector3(this._usedParameters.length / 2 + 0.2, this.baseMesh.position.y, this.baseMesh.position.z));
 
         const bo  = new BoundingBox(this,this._scene,this.id,this._app)
         this.boundingBox = bo.boundingBox;
@@ -44,46 +44,47 @@ export class RandomNote3D extends Wam3D {
 
     public disconnect(destination: AudioNode): void {
         // @ts-ignore
-        this._wamInstance.audioNode.disconnectEvents(destination);
+        // this._wamInstance.audioNode.disconnectEvents(destination);
+        this._wamInstance.audioNode.disconnect(destination);
     }
 
     protected _createOutputMidi(position: B.Vector3): void {
-        this.outputMesh = B.MeshBuilder.CreateSphere('outputSphere', { diameter: 0.5 }, this._scene);
-        this.outputMeshBig = B.MeshBuilder.CreateSphere('outputSphereBig', { diameter: 1 }, this._scene);
-        this.outputMeshBig.parent = this.outputMesh;
-        this.outputMeshBig.visibility = 0;
-        this.outputMesh.parent = this.baseMesh;
-        this.outputMesh.position = position;
+        this.outputMeshMidi = B.MeshBuilder.CreateSphere('outputSphere', { diameter: 0.5 }, this._scene);
+        this.outputMeshBigMidi = B.MeshBuilder.CreateSphere('outputSphereBig', { diameter: 1 }, this._scene);
+        this.outputMeshBigMidi.parent = this.outputMeshMidi;
+        this.outputMeshBigMidi.visibility = 0;
+        this.outputMeshMidi.parent = this.baseMesh;
+        this.outputMeshMidi.position = position;
 
         // color
         const outputSphereMaterial = new B.StandardMaterial('material', this._scene);
-        outputSphereMaterial.diffuseColor = new B.Color3(1, 0, 0);
-        this.outputMesh.material = outputSphereMaterial;
+        outputSphereMaterial.diffuseColor = new B.Color3(1, 0, 1);
+        this.outputMeshMidi.material = outputSphereMaterial;
 
         // action manager
-        this.outputMesh.actionManager = new B.ActionManager(this._scene);
-        this.outputMeshBig.actionManager = new B.ActionManager(this._scene);
+        this.outputMeshMidi.actionManager = new B.ActionManager(this._scene);
+        this.outputMeshBigMidi.actionManager = new B.ActionManager(this._scene);
 
         // add hightlighting on the nodes when they are survolled by the mouse
 
         const highlightLayer = new B.HighlightLayer(`hl-output-${this.id}`, this._scene);
 
-        this.outputMeshBig.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPointerOverTrigger, (): void => {
-            highlightLayer.addMesh(this.outputMesh as B.Mesh, B.Color3.Red());
+        this.outputMeshBigMidi.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPointerOverTrigger, (): void => {
+            highlightLayer.addMesh(this.outputMeshMidi as B.Mesh, B.Color3.Blue());
         }));
 
-        this.outputMeshBig.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPointerOutTrigger, (): void => {
-            highlightLayer.removeMesh(this.outputMesh as B.Mesh);
+        this.outputMeshBigMidi.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPointerOutTrigger, (): void => {
+            highlightLayer.removeMesh(this.outputMeshMidi as B.Mesh);
         }));
 
 
-        this.outputMeshBig.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnLeftPickTrigger, (): void => {
+        this.outputMeshBigMidi.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnLeftPickTrigger, (): void => {
             this.ioObservable.notifyObservers({type: 'outputMidi', pickType: 'down', node: this});
         }));
-        this.outputMeshBig.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickUpTrigger, (): void => {
+        this.outputMeshBigMidi.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickUpTrigger, (): void => {
             this.ioObservable.notifyObservers({type: 'outputMidi', pickType: 'up', node: this});
         }));
-        this.outputMeshBig.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickOutTrigger, (): void => {
+        this.outputMeshBigMidi.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickOutTrigger, (): void => {
             this.ioObservable.notifyObservers({type: 'outputMidi', pickType: 'out', node: this});
         }));
     }

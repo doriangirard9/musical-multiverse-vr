@@ -28,3 +28,14 @@ export type TubeParams = {
     inputNode: AudioNode3D,
 
 }
+
+export type TubeParamsMidi = {
+    options: {path: B.Vector3[]; updatable: boolean},
+    TubeMesh: B.Mesh,
+    OutputMeshMidi: B.Mesh,
+    inputMeshMidi: B.Mesh,
+    arrow: B.Mesh,
+    outputNode: AudioNode3D,
+    inputNode: AudioNode3D,
+
+}

@@ -32,17 +32,41 @@ export class Instrument3D extends Wam3D {
         this._rotationGizmo = new B.RotationGizmo(this._utilityLayer);
 
         this._initActionManager();
-        this._createInputMidi(new B.Vector3(-(this._usedParameters.length / 2 + 0.2), this.baseMesh.position.y, this.baseMesh.position.z+1));
-
-        this._createInput(new B.Vector3(-(this._usedParameters.length / 2 + 0.2), this.baseMesh.position.y, this.baseMesh.position.z-1));
-
-        this._createOutput(new B.Vector3(this._usedParameters.length / 2 + 0.2, this.baseMesh.position.y, this.baseMesh.position.z));
-
+        this.configureSphers();
 
         const bo  = new BoundingBox(this,this._scene,this.id,this._app)
         this.boundingBox = bo.boundingBox;
 
     }
+
+    public async configureSphers(): Promise<void> {
+        // Load the descriptor from the WAM instance
+        const descriptor = await this._wamInstance._loadDescriptor();
+    
+        const baseY = this.baseMesh.position.y;
+        const baseZ = this.baseMesh.position.z;
+    
+        // Configure MIDI Input
+        if (descriptor.hasMidiInput) {
+            this._createInputMidi(new B.Vector3(-(this._usedParameters.length / 2 + 0.2), baseY, baseZ + 1));
+        }
+    
+        // Configure MIDI Output
+        if (descriptor.hasMidiOutput) {
+            this._createOutputMidi(new B.Vector3(this._usedParameters.length / 2 + 0.2, baseY, baseZ + 1));
+        }
+    
+        // Configure Audio Input
+        if (descriptor.hasAudioInput) {
+            this._createInput(new B.Vector3(-(this._usedParameters.length / 2 + 0.2), baseY, baseZ - 1));
+        }
+    
+        // Configure Audio Output
+        if (descriptor.hasAudioOutput) {
+            this._createOutput(new B.Vector3(this._usedParameters.length / 2 + 0.2, baseY, baseZ));
+        }
+    }
+    
 
     protected async _createParameter(param: CustomParameter, index: number): Promise<void> {
         const parameterStand: B.Mesh = this._createParameterStand(
@@ -123,7 +147,43 @@ export class Instrument3D extends Wam3D {
             this.ioObservable.notifyObservers({ type: 'inputMidi', pickType: 'out', node: this });
         }));
     }
+    protected _createOutputMidi(position: B.Vector3): void {
+        this.outputMeshMidi = B.MeshBuilder.CreateSphere('outputSphereMidi', { diameter: 0.5 }, this._scene);
+        this.outputMeshBigMidi = B.MeshBuilder.CreateSphere('outputBigSphereMidi', { diameter: 1 }, this._scene);
+        this.outputMeshBigMidi.parent = this.outputMeshMidi;
+        this.outputMeshBigMidi.visibility = 0;
+        this.outputMeshMidi.parent = this.baseMesh;
+        this.outputMeshMidi.position = position;
 
+        // color
+        const inputSphereMaterial = new B.StandardMaterial('material', this._scene);
+        inputSphereMaterial.diffuseColor = new B.Color3(0, 0, 1);
+        this.outputMeshMidi.material = inputSphereMaterial;
+
+        this.outputMeshMidi.actionManager = new B.ActionManager(this._scene);
+        this.outputMeshBigMidi.actionManager = new B.ActionManager(this._scene);
+
+        const highlightLayer = new B.HighlightLayer(`hl-outputMidi-${this.id}`, this._scene);
+
+        this.outputMeshBigMidi.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPointerOverTrigger, (): void => {
+            highlightLayer.addMesh(this.inputMeshMidi as B.Mesh, B.Color3.Blue());
+        }));
+
+        this.outputMeshBigMidi.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPointerOutTrigger, (): void => {
+            highlightLayer.removeMesh(this.inputMeshMidi as B.Mesh);
+        }));
+
+        // action manager
+        this.outputMeshBigMidi.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnLeftPickTrigger, (): void => {
+            this.ioObservable.notifyObservers({ type: 'outputMidi', pickType: 'down', node: this });
+        }));
+        this.outputMeshBigMidi.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickUpTrigger, (): void => {
+            this.ioObservable.notifyObservers({ type: 'outputMidi', pickType: 'up', node: this });
+        }));
+        this.outputMeshBigMidi.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickOutTrigger, (): void => {
+            this.ioObservable.notifyObservers({ type: 'outputMidi', pickType: 'out', node: this });
+        }));
+    }
 
     public disconnect(destination: AudioNode): void {
         // @ts-ignore

@@ -37,3 +37,12 @@ export type IParameter = {
     onValueChangedObservable: B.Observable<number>;
     setParamValue(value: number): void;
 }
+
+export type SphereTypes = {
+   hasMidiInput?:boolean, hasMidiOutput?: boolean, hasAudioOutput?: boolean, hasAudioInput?: boolean
+}
+
+export type sphereInfo = {
+    midi: boolean,
+    type : string
+}

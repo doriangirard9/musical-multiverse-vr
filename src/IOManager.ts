@@ -1,4 +1,4 @@
-import {IOEvent, TubeParams} from "./types.ts";
+import {IOEvent, TubeParams, TubeParamsMidi} from "./types.ts";
 import * as B from "@babylonjs/core";
 import {AudioNode3D} from "./audioNodes3D/AudioNode3D.ts";
 import { v4 as uuid } from 'uuid';
@@ -9,8 +9,8 @@ import { App } from "./App.ts";
 export class IOManager {
     private _inputNode: B.Nullable<AudioNode3D> = null;
     private _outputNode: B.Nullable<AudioNode3D> = null;
-    private _inputNodeMidi: B.Nullable<AudioNode3D> = null;
-    private _outputNodeMidi: B.Nullable<AudioNode3D> = null;
+    // private _inputNodeMidi: B.Nullable<AudioNode3D> = null;
+    // private _outputNodeMidi: B.Nullable<AudioNode3D> = null;
 
     private readonly _scene: B.Scene;
     private virtualTube!: B.Mesh |null;
@@ -33,6 +33,12 @@ export class IOManager {
                     this._inputNode = event.node;
                 }
             }
+            else if (event.type === 'output') {
+                if(event.node.outputMesh){
+                this.createVirtualDragPoint(event.node.outputMesh);
+                this._outputNode = event.node;
+                }
+            }
             else if (event.type === 'inputMidi')  {
                 console.log("inputMidi node")
                 console.log("event DOWN",event)
@@ -40,15 +46,45 @@ export class IOManager {
                 this._inputNode = event.node;
 
             }
-            else {
-                if(event.node.outputMesh){
-                this.createVirtualDragPoint(event.node.outputMesh);
+            else if (event.type === 'outputMidi') {
+                console.log("outputMidi node")
+                console.log("event DOWN",event)
+                if(event.node.outputMeshMidi){
+                this.createVirtualDragPoint(event.node.outputMeshMidi);
                 this._outputNode = event.node;
                 }
             }
+            // else {
+            //     if(event.node.outputMesh){
+            //     this.createVirtualDragPoint(event.node.outputMesh);
+            //     this._outputNode = event.node;
+            //     }
+            // }
         }
         else if (event.pickType === "up") {
             if (event.type === 'input') {
+                if (this._outputNode) {
+                    if (event.node.id === this._outputNode.id) {
+                        // alert("Can't connect a node to itself");
+                        this.messageManager.showMessage("Can't connect a node to itself",3000)
+                        this._outputNode = null;
+                        this.deleteVirtualTube();
+                    }
+                    else {
+                        this.connectNodes(this._outputNode, event.node);
+                        this._outputNode = null;
+                        this.deleteVirtualTube();
+                    }
+                }
+                else if (this._inputNode) {
+                    // alert("You have to connect an output node");
+                    this.messageManager.showMessage("You have to connect an output node",3000)
+                    this._inputNode = null;
+                    this.deleteVirtualTube();
+
+                }
+            }
+            else if (event.type === 'inputMidi')  {
                 if (this._outputNode) {
                     if (event.node.id === this._outputNode.id) {
                         // alert("Can't connect a node to itself");
@@ -59,7 +95,7 @@ export class IOManager {
                     }
 
                     else {
-                        this.connectNodes(this._outputNode, event.node);
+                        this.connectNodesMidi(this._outputNode, event.node);
                         this._outputNode = null;
                         this.deleteVirtualTube();
 
@@ -73,30 +109,30 @@ export class IOManager {
 
                 }
             }
-            else if (event.type === 'inputMidi')  {
-                if (this._outputNodeMidi) {
-                    if (event.node.id === this._outputNodeMidi.id) {
+            else if(event.type === 'outputMidi') {
+                if (this._inputNode) {
+                    if (event.node.id === this._inputNode.id) {
                         // alert("Can't connect a node to itself");
                         this.messageManager.showMessage("Can't connect a node to itself",3000)
-                        this._outputNodeMidi = null;
+                        this._inputNode = null;
                         this.deleteVirtualTube();
 
                     }
-
                     else {
-                        this.connectNodes(this._outputNodeMidi, event.node);
-                        this._outputNodeMidi = null;
+                        this.connectNodesMidi(event.node, this._inputNode);
+                        this._inputNode = null;
                         this.deleteVirtualTube();
 
                     }
                 }
-                else if (this._inputNodeMidi) {
-                    // alert("You have to connect an output node");
-                    this.messageManager.showMessage("You have to connect an output node",3000)
-                    this._inputNodeMidi = null;
+                else if (this._outputNode) {
+                    // alert("You have to connect an input node");
+                    this.messageManager.showMessage("You have to connect an input node",3000)
+                    this._outputNode = null;
                     this.deleteVirtualTube();
 
                 }
+                this.deleteVirtualTube();
             }
             else {
                 if (this._inputNode) {
@@ -166,7 +202,13 @@ export class IOManager {
             throw new Error("Input or output mesh not found");
         this.createArc(outputNode, inputNode);
     }
-
+    public connectNodesMidi(outputNode: AudioNode3D, inputNode: AudioNode3D): void {
+        outputNode.connect(inputNode.getAudioNode());
+        outputNode.addInputNodeMidi(inputNode); // TODO: ajouter la connexion midi
+        if (!inputNode.inputMeshMidi || !outputNode.outputMeshMidi)  // todo: add midi sphere check
+            throw new Error("InputMidi or outputMidi mesh not found");
+        this.createArcMidi(outputNode, inputNode);
+    }
     // Function to create an arc (edge) with an arrowhead
     private createArc(outputNode: AudioNode3D, inputNode: AudioNode3D): void  {
         // Ensure that the spheres have updated positions by getting the absolute positions
@@ -210,13 +252,55 @@ export class IOManager {
         const tubeParams: TubeParams = {options:optionsTube, TubeMesh: tube,OutputMesh:outputNode.outputMesh!,inputMesh: inputNode.inputMesh!,arrow:arrow,outputNode:outputNode,inputNode:inputNode} ;
         outputNode.outputArcs.push(tubeParams);
         inputNode.inputArcs.push(tubeParams);
+    }
+
+    private createArcMidi(outputNode: AudioNode3D, inputNode: AudioNode3D): void  {
+        // Ensure that the spheres have updated positions by getting the absolute positions
+        var start = outputNode.outputMeshMidi!.getAbsolutePosition();
+        var end = inputNode.inputMeshMidi!.getAbsolutePosition();
+
+        // Calculate the direction of the arc
+        var direction = end.subtract(start).normalize();
+
+        // Adjust the end position to account for the radius of the incoming sphere and arrow length
+        var arrowLength = 0.7; // Length of the arrowhead
+        var sphereRadius = 0.25; // Radius of the sphere
+        var adjustedEnd = end.subtract(direction.scale(sphereRadius + arrowLength / 2));
+
+        // Create the path for the tube
+        var path = [start, adjustedEnd];
+
+        var optionsTube = { path: path, radius: 0.1, tessellation: 8, updatable: true };
+        var tube = B.MeshBuilder.CreateTube(`tube-${uuid()}`, optionsTube, this._scene);
+
+        // Create the arrowhead (cone)
+        var arrow = B.MeshBuilder.CreateCylinder("arrow", { height: arrowLength, diameterTop: 0, diameterBottom: 0.5, tessellation: 8 }, this._scene);
+        arrow.position = adjustedEnd;
+        arrow.parent = tube;
+
+        // Orient the arrowhead to point in the direction of the edge
+        arrow.lookAt(end);
+        arrow.rotate(B.Axis.X, Math.PI / 2, B.Space.LOCAL);
+
+        // Color the arrowhead
+        var arrowMaterial = new B.StandardMaterial("arrowMat",this._scene );
+        arrowMaterial.diffuseColor = new B.Color3(0, 0, 1);
+        arrow.material = arrowMaterial;
+        
+        tube.isPickable = true;
+        // Add ActionManager to the tube for click handling
+        tube.actionManager = new B.ActionManager(this._scene);
+        tube.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickTrigger, () => {
+            // this.deleteArc(tube, outputNode, inputNode);
+        }));
+        const tubeParamsMidi: TubeParamsMidi = {options:optionsTube, TubeMesh: tube,OutputMeshMidi:outputNode.outputMeshMidi!,inputMeshMidi: inputNode.inputMeshMidi!,arrow:arrow,outputNode:outputNode,inputNode:inputNode} ;
+        outputNode.outputArcsMidi.push(tubeParamsMidi);
+        inputNode.inputArcsMidi.push(tubeParamsMidi);
 
 
 
     }
-
-
-
+    // delete connected arc between two nodes
     public deleteArc(arc:B.Mesh,outputNode: AudioNode3D, inputNode: AudioNode3D): void {
         console.log("Deleting arc between nodes", outputNode.id, inputNode.id);
     
@@ -244,6 +328,31 @@ export class IOManager {
             }
             return true;
         });
+        // remove the arc from input midi node
+        inputNode.inputArcsMidi = inputNode.inputArcsMidi.filter((tubeParamsMidi: TubeParamsMidi) => {
+            if (tubeParamsMidi.OutputMeshMidi && arc === tubeParamsMidi.TubeMesh) {
+                console.log("Disposing TubeMesh and arrow");
+                // // tubeParams.outputNode.getAudioNode.disconnect(tubeParams.inputNode.getAudioNode());
+                // tubeParams.outputNode.disconnect(tubeParams.inputNode.getAudioNode());
+                tubeParamsMidi.TubeMesh.dispose();
+                tubeParamsMidi.arrow.dispose();
+                return false;
+            }
+            return true;
+        });
+
+        // remove the arc from input midi node
+        outputNode.outputArcsMidi = outputNode.outputArcsMidi.filter((tubeParamsMidi: TubeParamsMidi) => {
+            if (tubeParamsMidi.inputMeshMidi && arc === tubeParamsMidi.TubeMesh) {
+                console.log("Disposing TubeMesh and arrow");
+                tubeParamsMidi.outputNode.disconnect(tubeParamsMidi.inputNode.getAudioNode());
+                tubeParamsMidi.TubeMesh.dispose();
+                tubeParamsMidi.arrow.dispose();
+                return false;
+            }
+            return true;
+        });
+
 
 
     }
