@@ -1,28 +1,30 @@
 import * as B from "@babylonjs/core";
 import * as GUI from "@babylonjs/gui";
 import {IParameter, ParameterInfo} from "../types.ts";
+import {Mesh, Scene} from "@babylonjs/core";
 
-export class CylinderParam implements IParameter {
-    protected readonly _scene: B.Scene;
-    protected _parameterInfo: ParameterInfo;
-    protected readonly _defaultValue: number;
+export class MenuParam implements IParameter {
+    private readonly _scene: B.Scene;
+    private _parameterInfo: ParameterInfo;
+    private readonly _defaultValue: number;
     private readonly _color: string;
 
-    protected _currentValue: number;
-    protected _currentCylinder!: B.Mesh;
-    protected _cylinder!: B.Mesh;
-    protected _cylinderMaterial!: B.StandardMaterial;
-    protected _textValueBlock!: GUI.TextBlock;
-    protected _valueAdvancedTexture!: GUI.AdvancedDynamicTexture;
-
+    private _currentValue: number;
+    private _currentCylinder!: B.Mesh;
+    private _cylinder!: B.Mesh;
+    private _cylinderMaterial!: B.StandardMaterial;
+    private _textValueBlock!: GUI.TextBlock;
+    private _valueAdvancedTexture!: GUI.AdvancedDynamicTexture;
+    private _choice: string[];
     public onValueChangedObservable = new B.Observable<number>();
 
-    constructor(scene: B.Scene, parentMesh: B.Mesh, parameterInfo: ParameterInfo, defaultValue: number, color: string) {
+    constructor(scene: Scene, parentMesh: Mesh, parameterInfo: ParameterInfo, defaultValue: number, color: string, choice: string[]) {
         this._scene = scene;
         this._parameterInfo = parameterInfo;
         this._defaultValue = defaultValue;
         this._currentValue = defaultValue;
         this._color = color;
+        this._choice = choice;
 
         this._createCylinder(parentMesh);
         this._currentCylinder = this._cylinder;
@@ -54,7 +56,7 @@ export class CylinderParam implements IParameter {
         this._textValueBlock.outlineWidth = 30;
     }
 
-    protected _initActionManager(): void {
+    private _initActionManager(): void {
         const highlightLayer = new B.HighlightLayer('hl', this._scene);
 
         this._cylinder.actionManager = new B.ActionManager(this._scene);
@@ -75,7 +77,7 @@ export class CylinderParam implements IParameter {
         }));
     }
 
-    protected _scaleCylinder(): void {
+    private _scaleCylinder(): void {
         const sixDofDragBehavior = new B.SixDofDragBehavior();
         this._cylinder.addBehavior(sixDofDragBehavior);
 
@@ -89,8 +91,7 @@ export class CylinderParam implements IParameter {
 
         sixDofDragBehavior.onDragObservable.add((event: {delta: B.Vector3, position: B.Vector3, pickInfo: B.PickingInfo}): void => {
             if (
-                this._currentValue + event.delta.y * step >= this._parameterInfo.minValue &&
-                this._currentValue + event.delta.y * step <= this._parameterInfo.maxValue
+                this._currentValue + event.delta.y * step >= this._parameterInfo.minValue && this._currentValue + event.delta.y * step <= this._parameterInfo.maxValue
             ) {
                 const newValue: number = this._currentValue + (event.delta.y - lastDeltaY) * step;
                 const roundedValue: number = Math.round(newValue * 1000) / 1000;
@@ -111,37 +112,20 @@ export class CylinderParam implements IParameter {
         });
     }
 
-    public setParamValue(value: number, silent: boolean = false): void {
+    public setParamValue(value: number): void {
         this._currentValue = value;
-        this._textValueBlock.text = value.toFixed(1).toString();
+        this.onValueChangedObservable.notifyObservers(Math.round(value));
+        if (this._choice[Math.round(value)] !== undefined)
+            this._textValueBlock.text = Math.round(value).toString() + " " + this._choice[Math.round(value)];
+        else
+            this._textValueBlock.text = Math.round(value).toString();
 
-        let scalingY: number = (value - this._parameterInfo.minValue) /
-            (this._parameterInfo.maxValue - this._parameterInfo.minValue);
+        let scalingY: number = (value - this._parameterInfo.minValue) / (this._parameterInfo.maxValue - this._parameterInfo.minValue);
         if (scalingY < 0.05) {
             scalingY = 0.05;
         }
 
         this._currentCylinder.scaling.y = scalingY;
         this._currentCylinder.position.z = -(this._currentCylinder.scaling.y * 1.5) / 2;
-
-        // Émettre l'événement seulement si ce n'est pas silencieux
-        if (!silent) {
-            this.onValueChangedObservable.notifyObservers(value);
-        }
-    }
-
-    public setDirectValue(value: number): void {
-        this._currentValue = value;
-        this._textValueBlock.text = value.toFixed(1).toString();
-
-        let scalingY: number = (value - this._parameterInfo.minValue) /
-            (this._parameterInfo.maxValue - this._parameterInfo.minValue);
-        if (scalingY < 0.05) {
-            scalingY = 0.05;
-        }
-
-        this._currentCylinder.scaling.y = scalingY;
-        this._currentCylinder.position.z = -(this._currentCylinder.scaling.y * 1.5) / 2;
-        // Pas d'émission d'événement
     }
 }

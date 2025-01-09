@@ -1,16 +1,27 @@
+import {WamParameterDataMap} from "@webaudiomodules/api";
+import {IAudioNodeConfig} from "../audioNodes3D/types.ts";
+
 export interface INetworkObject<T> {
-    getState(): T;
+    getState(): Promise<{
+        id: string;
+        configFile: IAudioNodeConfig;
+        name: string;
+        position: { x: number; y: number; z: number };
+        rotation: { x: number; y: number; z: number };
+        inputNodes: string[];
+        parameters: WamParameterDataMap
+    }>;
     setState(state: T): void;
 }
 
 export type AudioNodeState = {
     id: string;
     name: string;
-    configFile?: string;
+    configFile: IAudioNodeConfig;
     position: { x: number, y: number, z: number };
     rotation: { x: number, y: number, z: number };
     inputNodes: string[];
-    parameters: { [name: string]: number };
+    parameters: WamParameterDataMap;
 }
 
 export type PlayerState = {

@@ -12,7 +12,7 @@ export interface MenuConfig {
 }
 
 export type IOEvent = {
-    type: "input" | "output";
+    type: "input" | "output" | "inputMidi"| "outputMidi";
     pickType: "up" | "down" | "out";
     node: AudioNode3D;
 }
@@ -23,6 +23,17 @@ export type TubeParams = {
     TubeMesh: B.Mesh,
     OutputMesh: B.Mesh,
     inputMesh: B.Mesh,
+    arrow: B.Mesh,
+    outputNode: AudioNode3D,
+    inputNode: AudioNode3D,
+
+}
+
+export type TubeParamsMidi = {
+    options: {path: B.Vector3[]; updatable: boolean},
+    TubeMesh: B.Mesh,
+    OutputMeshMidi: B.Mesh,
+    inputMeshMidi: B.Mesh,
     arrow: B.Mesh,
     outputNode: AudioNode3D,
     inputNode: AudioNode3D,

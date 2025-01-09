@@ -136,7 +136,7 @@ export class NetworkManager {
 
     private handleParamChange(payload: AudioEventPayload['PARAM_CHANGE']): void {
         const { nodeId, paramId, value } = payload;
-        const update: ParamUpdate = { nodeId, paramId, value };
+        const update: ParamUpdate = { nodeId, paramId, value: value };
         const key = `${nodeId}-${paramId}-${Date.now()}`;
         console.log("Sending param update:", update);
         this._networkParamUpdates.set(key, update);
@@ -167,7 +167,7 @@ export class NetworkManager {
         });
     }
 
-    private handleNodeDisconnection(payload: AudioEventPayload['DISCONNECT_NODES']): void {
+    private async handleNodeDisconnection(payload: AudioEventPayload['DISCONNECT_NODES']): Promise<void> {
         if (payload.source === 'network') return;
 
         const sourceNode = this._audioNodes3D.get(payload.sourceId);
@@ -175,9 +175,11 @@ export class NetworkManager {
 
         if (!sourceNode || !targetNode) return;
 
+        const sourceState = await sourceNode.getState();
+        const targetState = await targetNode.getState();
         this.withLocalProcessing(() => {
-            this._networkAudioNodes3D.set(payload.sourceId, sourceNode.getState());
-            this._networkAudioNodes3D.set(payload.targetId, targetNode.getState());
+            this._networkAudioNodes3D.set(payload.sourceId, sourceState as AudioNodeState);
+            this._networkAudioNodes3D.set(payload.targetId, targetState as AudioNodeState);
         });
     }
 
@@ -269,7 +271,9 @@ export class NetworkManager {
                 if (update) {
                     const node = this._audioNodes3D.get(update.nodeId);
                     if (node instanceof Wam3D) {
-                        node.updateSingleParameter(update.paramId, update.value);
+                        this.withNetworkProcessing(() => {
+                            node.updateSingleParameter(update.paramId, update.value);
+                        });
                     }
                     this._networkParamUpdates.delete(key);
                 }
@@ -347,6 +351,11 @@ export class NetworkManager {
     }
 
     private handleAudioNodeChange(change: any, key: string): void {
+        // Ne pas traiter si c'est un événement local
+        if (this.isProcessingLocalEvent) {
+            return;
+        }
+
         switch (change.action) {
             case "add":
                 this.handleAudioNodeAdd(key);
@@ -377,14 +386,14 @@ export class NetworkManager {
         }
     }
 
-    private handleAudioNodeUpdate(key: string): void {
+    private async handleAudioNodeUpdate(key: string): Promise<void> {
         const state = this._networkAudioNodes3D.get(key);
         if (state) {
             const audioNode = this._audioNodes3D.get(key);
             if (audioNode) {
                 audioNode.setState({
                     ...state,
-                    parameters: audioNode.getState().parameters
+                    parameters: state.parameters
                 });
             }
         }
@@ -435,28 +444,39 @@ export class NetworkManager {
         }
     }
 
-    public createNetworkAudioNode3D(audioNode3D: AudioNode3D): void {
-        const state: AudioNodeState = audioNode3D.getState();
+    public async createNetworkAudioNode3D(audioNode3D: AudioNode3D): Promise<void> {
+        const state: AudioNodeState = await audioNode3D.getState();
+
+        // Ajouter d'abord au map local
         this.addRemoteAudioNode3D(audioNode3D);
 
-        // IMPORTANT: Sauvegarder la position AVANT de notifier les autres
-        this._networkPositions.set(state.id, {
-            position: {
-                x: audioNode3D.boundingBox.position.x,
-                y: audioNode3D.boundingBox.position.y,
-                z: audioNode3D.boundingBox.position.z
-            },
-            rotation: {
-                x: audioNode3D.boundingBox.rotation.x,
-                y: audioNode3D.boundingBox.rotation.y,
-                z: audioNode3D.boundingBox.rotation.z
-            }
-        });
-        this._networkAudioNodes3D.set(state.id, state);
+        // Marquer qu'on est en train de traiter un événement local
+        this.isProcessingLocalEvent = true;
+        try {
+            // Sauvegarder la position
+            this._networkPositions.set(state.id, {
+                position: {
+                    x: audioNode3D.boundingBox.position.x,
+                    y: audioNode3D.boundingBox.position.y,
+                    z: audioNode3D.boundingBox.position.z
+                },
+                rotation: {
+                    x: audioNode3D.boundingBox.rotation.x,
+                    y: audioNode3D.boundingBox.rotation.y,
+                    z: audioNode3D.boundingBox.rotation.z
+                }
+            });
+
+            // Propager au réseau
+            this._networkAudioNodes3D.set(state.id, state);
+        } finally {
+            this.isProcessingLocalEvent = false;
+        }
     }
 
-    public addRemoteAudioNode3D(audioNode3D: AudioNode3D): void {
-        const state: AudioNodeState = audioNode3D.getState();
+
+    public async addRemoteAudioNode3D(audioNode3D: AudioNode3D): Promise<void> {
+        const state: AudioNodeState = await audioNode3D.getState();
         this._audioNodes3D.set(state.id, audioNode3D);
     }
 
@@ -489,7 +509,6 @@ export class NetworkManager {
     public getNodePosition(id: string): NodeTransform | undefined {
         return this._networkPositions.get(id);
     }
-
     public dispose(): void {
         // Clean up Y.js resources
         this._doc.destroy();

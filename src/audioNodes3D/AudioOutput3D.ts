@@ -5,6 +5,8 @@ import { BoundingBox } from "./BoundingBox.ts";
 import { TubeParams } from "../types.ts";
 import { StepSequencer3D } from "./StepSequencer3D.ts";
 import * as Tone from "tone";
+import {WamParameterDataMap} from "@webaudiomodules/api";
+import {IAudioNodeConfig} from "./types.ts";
 
 export class AudioOutput3D extends AudioNode3D {
     constructor(scene: B.Scene, audioCtx: AudioContext, id: string) {
@@ -44,15 +46,21 @@ export class AudioOutput3D extends AudioNode3D {
         this.baseMesh.material = material;
     }
 
-    public getState(): AudioNodeState {
-        return {
+    public getState(): Promise<AudioNodeState> {
+        let parameters : WamParameterDataMap = {}
+        let config: IAudioNodeConfig = {defaultParameter: {
+                type: "",
+                color: ""
+            }, customParameters: [] }
+        return Promise.resolve({
             id: this.id,
-            name: 'audioOutput',
+            name: "audioOutput",
+            configFile: config,
             position: { x: this.boundingBox.position.x, y: this.boundingBox.position.y, z: this.boundingBox.position.z },
             rotation: { x: this.boundingBox.rotation.x, y: this.boundingBox.rotation.y, z: this.boundingBox.rotation.z },
             inputNodes: [],
-            parameters: {}
-        };
+            parameters: parameters
+        });
     }
 
     public delete():void{

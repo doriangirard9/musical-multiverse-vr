@@ -12,16 +12,6 @@ export interface IWamConfig extends IAudioNodeConfig {
     root: string;
 }
 
-export type WamInstance = {
-    audioNode: { _wamNode: WamAudioNode };
-};
-
-export interface WamAudioNode extends AudioNode {
-    getParamValue(paramId: string): number;
-    setParamValue(paramId: string, value: number): void;
-    getParameterInfo(): Promise<{[name: string]: ParameterInfo}>;
-}
-
 export type CustomParameter = {
     name: string;
     used: boolean;
@@ -50,16 +40,22 @@ export interface ParamUpdate {
 export type IParameter = {
     onValueChangedObservable: B.Observable<number>;
     setDirectValue(value: number): void;
-    setParamValue(value: number): void;
+    setParamValue(value: number, silent?: boolean): void;
 }
-
 export interface Position3D {
     x: number;
     y: number;
     z: number;
 }
+export type SphereTypes = {
+   hasMidiInput?:boolean, hasMidiOutput?: boolean, hasAudioOutput?: boolean, hasAudioInput?: boolean
+}
 
 export interface NodeTransform {
     position: Position3D;
     rotation: Position3D;
+}
+export type sphereInfo = {
+    midi: boolean,
+    type : string
 }

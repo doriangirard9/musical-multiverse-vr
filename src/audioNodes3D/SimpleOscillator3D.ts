@@ -5,6 +5,7 @@ import {ParamBuilder} from "./parameters/ParamBuilder.ts";
 import {AudioNode3D} from "./AudioNode3D.ts";
 import {AudioNodeState} from "../network/types.ts";
 import { BoundingBox } from "./BoundingBox.ts";
+import {WamParameterDataMap} from "@webaudiomodules/api";
 
 export class SimpleOscillator3D extends AudioNode3D {
     private _oscillator!: Tone.Oscillator;
@@ -110,24 +111,42 @@ export class SimpleOscillator3D extends AudioNode3D {
         return this._oscillator.output as AudioNode;
     }
 
-    public getState(): AudioNodeState {
-        const parameters: {[name: string]: number} = {};
+    public async getState(): Promise<AudioNodeState> {
+        const parameters: WamParameterDataMap = {};
 
         this._usedParameters.forEach((param: CustomParameter): void => {
+            const paramValue = {
+                id: param.name,
+                value: 0,
+                normalized: false,
+            };
+
             switch (param.name) {
                 case 'frequency':
-                    parameters[param.name] = this._oscillator.frequency.value as number;
+                    paramValue.value = this._oscillator.frequency.value as number;
                     break;
                 case 'detune':
-                    parameters[param.name] = this._oscillator.detune.value;
+                    paramValue.value = this._oscillator.detune.value;
                     break;
                 case 'volume':
-                    parameters[param.name] = this._oscillator.volume.value;
+                    paramValue.value = this._oscillator.volume.value;
                     break;
                 default:
                     break;
             }
+
+            // Assure que chaque paramètre est normalisé entre 0 et 1 si nécessaire
+
+            parameters[param.name] = paramValue;
         });
+
+        // create variable with this type { [name: string]: number };
+        const params: WamParameterDataMap = {};
+
+        //loop on parameters of type WamParameterDataMap and fill params
+        for (const [key, value] of Object.entries(parameters)) {
+            params[key] = value;
+        }
 
         const inputNodes: string[] = [];
         this.inputNodes.forEach((node: AudioNode3D): void => {
@@ -136,13 +155,14 @@ export class SimpleOscillator3D extends AudioNode3D {
 
         return {
             id: this.id,
+            configFile: this._config,
             name: 'simpleOscillator',
             // position: { x: this.baseMesh.position.x, y: this.baseMesh.position.y, z: this.baseMesh.position.z },
             // rotation: { x: this.baseMesh.rotation.x, y: this.baseMesh.rotation.y, z: this.baseMesh.rotation.z },
             position: { x: this.boundingBox.position.x, y: this.boundingBox.position.y, z: this.boundingBox.position.z },
             rotation: { x: this.boundingBox.rotation.x, y: this.boundingBox.rotation.y, z: this.boundingBox.rotation.z },
             inputNodes: inputNodes,
-            parameters: parameters
+            parameters: params
         };
     }
 
@@ -150,7 +170,7 @@ export class SimpleOscillator3D extends AudioNode3D {
         super.setState(state);
 
         this._usedParameters.forEach((param: CustomParameter): void => {
-            this._parameter3D[param.name].setParamValue(state.parameters[param.name]);
+            this._parameter3D[param.name].setParamValue(state.parameters[param.name].value);
         });
     }
 }

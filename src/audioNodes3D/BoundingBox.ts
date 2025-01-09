@@ -357,5 +357,54 @@ export class BoundingBox {
         }
     }
 
+        // Update the arcs that connect to the midi input/output
+    public updateArcsMidi(): void {
+        if (this.boundingBox) {
+            this.boundingBox.onAfterWorldMatrixUpdateObservable.add((): void => {
+                // Update incoming arcs
+                this.audioNode3D.inputArcsMidi.forEach(a => {
+                    if (a.TubeMesh && a.OutputMeshMidi && a.inputMeshMidi) {
+                        let start = a.OutputMeshMidi.getAbsolutePosition();
+                        let end = a.inputMeshMidi.getAbsolutePosition();
+                        let direction = end.subtract(start).normalize();
+                        var arrowLength = 0.7; // Length of the arrowhead
+                        var sphereRadius = 0.25; // Radius of the sphere
+                        var adjustedEnd = end.subtract(direction.scale(sphereRadius + arrowLength / 2));
+
+                        let options = {path: [start, adjustedEnd], radius: 0.1, tessellation: 8, instance: a.TubeMesh};
+                        B.MeshBuilder.CreateTube("tube", options, this.scene);
+
+                        // Update arrow
+                        a.arrow.position = adjustedEnd;
+                        a.arrow.lookAt(end);
+                        a.arrow.rotate(B.Axis.X, Math.PI / 2, B.Space.LOCAL);
+                        this._app.shadowGenerator.addShadowCaster(a.TubeMesh);
+                        this._app.shadowGenerator.addShadowCaster(a.arrow);
+                    }
+                });
+
+                // Update outgoing arcs
+                this.audioNode3D.outputArcsMidi.forEach(a => {
+                    if (a.TubeMesh && a.OutputMeshMidi && a.inputMeshMidi) {
+                        let start = a.OutputMeshMidi.getAbsolutePosition();
+                        let end = a.inputMeshMidi.getAbsolutePosition();
+                        let direction = end.subtract(start).normalize();
+                        var arrowLength = 0.7; // Length of the arrowhead
+                        var sphereRadius = 0.25; // Radius of the sphere
+                        var adjustedEnd = end.subtract(direction.scale(sphereRadius + arrowLength / 2));
+
+                        let options = {path: [start, adjustedEnd], radius: 0.1, tessellation: 8, instance: a.TubeMesh};
+                        B.MeshBuilder.CreateTube("tube", options, this.scene);
+
+                        // Update arrow
+                        a.arrow.position = adjustedEnd;
+                        a.arrow.lookAt(end);
+                        a.arrow.rotate(B.Axis.X, Math.PI / 2, B.Space.LOCAL);
+                    }
+                });
+            })
+        }
+    }
+
 
 }

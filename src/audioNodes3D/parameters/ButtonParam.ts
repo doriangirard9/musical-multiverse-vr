@@ -13,7 +13,6 @@ export class ButtonParam implements IParameter {
     private _isPushed: boolean = false;
 
     public onValueChangedObservable = new B.Observable<number>();
-    private isSettingFromNetwork = false;
     constructor(scene: B.Scene, parentMesh: B.Mesh, parameterInfo: ParameterInfo, color: string) {
         this._scene = scene;
         this._parameterInfo = parameterInfo;
@@ -53,7 +52,7 @@ export class ButtonParam implements IParameter {
         }
     }
 
-    public setParamValue(value: number): void {
+    public setParamValue(value: number, silent: boolean = false): void {
         if (value === 1) {
             this._isPushed = true;
             this._cylinder.position.y = 0;
@@ -62,8 +61,8 @@ export class ButtonParam implements IParameter {
             this._cylinder.position.y = 0.2;
         }
 
-        // Émettre l'événement seulement si ce n'est pas une mise à jour réseau
-        if (!this.isSettingFromNetwork) {
+        // Émettre l'événement seulement si ce n'est pas silencieux
+        if (!silent) {
             this.onValueChangedObservable.notifyObservers(value);
         }
     }

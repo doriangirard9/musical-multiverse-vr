@@ -1,5 +1,6 @@
 // audioEvents.ts
-import {Position3D, WamInstance} from "./audioNodes3D/types.ts";
+import {IAudioNodeConfig, Position3D} from "./audioNodes3D/types.ts";
+import {WebAudioModule} from "@webaudiomodules/sdk";
 
 export type AudioEventType = {
     PARAM_CHANGE: 'PARAM_CHANGE';
@@ -28,11 +29,11 @@ export type AudioEventPayload = {
     WAM_CREATED: {
         nodeId: string;
         name: string;
-        configFile?: string;
+        configFile?: IAudioNodeConfig;
     };
     WAM_LOADED: {
         nodeId: string;
-        instance: WamInstance;
+        instance: WebAudioModule;
     };
     WAM_ERROR: {
         nodeId: string;

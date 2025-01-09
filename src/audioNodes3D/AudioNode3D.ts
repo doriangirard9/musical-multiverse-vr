@@ -1,12 +1,13 @@
     import * as B from "@babylonjs/core";
-    import {IOEvent} from "../types.ts";
+    import {IOEvent, TubeParamsMidi} from "../types.ts";
     import * as GUI from "@babylonjs/gui";
     import {App} from "../App.ts";
     import {TubeParams} from "../types.ts";
     // import {XRInputStates} from "../xr/types.ts";
     import {AudioNodeState, INetworkObject} from "../network/types.ts";
-    
-    export abstract class AudioNode3D implements INetworkObject<AudioNodeState> {
+    import {WebAudioModule} from "@webaudiomodules/sdk";
+
+    export abstract class AudioNode3D extends WebAudioModule implements INetworkObject<AudioNodeState> {
         static menuOnScene: boolean = false;
         public static currentMenuInstance: AudioNode3D | null = null;
     
@@ -20,7 +21,9 @@
     
         public inputArcs: TubeParams[] = [];
         public outputArcs: TubeParams[] = [];
-    
+        public inputArcsMidi: TubeParamsMidi[] = [];
+        public outputArcsMidi: TubeParamsMidi[] = [];
+
         public tubeMesh?: B.Mesh;
     
         // Gizmo
@@ -36,11 +39,19 @@
         public outputMesh?: B.Mesh;
         public outputMeshBig?: B.Mesh;
         public inputMeshBig?: B.Mesh;
+        public inputMeshMidi?: B.Mesh;
+        public inputMeshBigMidi?: B.Mesh;
+        public outputMeshMidi?: B.Mesh;
+        public outputMeshBigMidi?: B.Mesh;
+
+
         public inputNodes = new Map<string, AudioNode3D>();
+        public inputNodesMidi = new Map<string, AudioNode3D>();
         public ioObservable = new B.Observable<IOEvent>();
         private _isBeingDeleted!: boolean;
     
         protected constructor(scene: B.Scene, audioCtx: AudioContext, id: string) {
+            super(id,audioCtx);
             this._scene = scene;
             this._audioCtx = audioCtx;
             this.id = id;
@@ -59,7 +70,10 @@
         public addInputNode(audioNode3D: AudioNode3D): void {
             this.inputNodes.set(audioNode3D.id, audioNode3D);
         }
-    
+        public addInputNodeMidi(audioNode3D: AudioNode3D): void {
+            this.inputNodesMidi.set(audioNode3D.id, audioNode3D);
+        }
+
         public delete(): void {
             this._hideMenu();
             this._hideRotationGizmo();
@@ -89,6 +103,31 @@
                 if (arc.TubeMesh) arc.TubeMesh.dispose();
                 if (arc.arrow) arc.arrow.dispose();
             })
+
+            // supprimer le TubeMidi from outputNode
+            this.inputArcsMidi.forEach((arc: TubeParamsMidi): void => {
+                arc.outputNode.outputArcsMidi.forEach((outputArc: TubeParamsMidi, index: number): void => {
+                    if(outputArc.TubeMesh.name == arc.TubeMesh.name)
+                        //splice from the array the arc that is connected to the input node
+                        arc.outputNode.outputArcsMidi.splice(index, 1);
+            })
+            if (arc.TubeMesh) arc.TubeMesh.dispose();
+            if (arc.arrow) arc.arrow.dispose();
+            });
+            // supprimer le TubeMidi from inputNode
+            this.outputArcsMidi.forEach((arc: TubeParamsMidi): void => {
+                arc.inputNode.inputArcsMidi.forEach((inputArc: TubeParamsMidi, index: number): void => {
+                    if(inputArc.TubeMesh.name == arc.TubeMesh.name)
+                        //splice from the array the arc that is connected to the output node
+                        arc.inputNode.inputArcsMidi.splice(index, 1);
+                        // inputArc.TubeMesh.dispose();
+                }
+            )
+                if (arc.TubeMesh) arc.TubeMesh.dispose();
+                if (arc.arrow) arc.arrow.dispose();
+            })
+
+
             //link with tube instead of audionode deleted
             this.inputArcs.forEach((inputArc: TubeParams): void => {
                 this.outputArcs.forEach((outputArc: TubeParams): void => {
@@ -99,7 +138,8 @@
             
             this.outputArcs = [];
             this.inputArcs = [];
-    
+            this.inputArcsMidi = [];
+            this.outputArcsMidi = [];
             // Disconnect audio node
             this.getAudioNode().disconnect();
         
@@ -321,7 +361,7 @@
             this._rotationGizmo.onDragEndObservable.clear();
         }
     
-        public abstract getState(): AudioNodeState;
+        public abstract getState(): Promise<AudioNodeState>;
     
         public setState(state: AudioNodeState): void {
             this.boundingBox.position = new B.Vector3(state.position.x, state.position.y, state.position.z);
