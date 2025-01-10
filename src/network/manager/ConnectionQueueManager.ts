@@ -1,5 +1,5 @@
-import {NetworkManager} from "./NetworkManager.ts";
-import {IOManager} from "../IOManager.ts";
+import {NetworkManager} from "../NetworkManager.ts";
+import {IOManager} from "../../IOManager.ts";
 
 interface PendingConnection {
     sourceId: string;

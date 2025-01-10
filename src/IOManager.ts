@@ -212,6 +212,12 @@ export class IOManager {
         if (!inputNode.inputMeshMidi || !outputNode.outputMeshMidi)  // todo: add midi sphere check
             throw new Error("InputMidi or outputMidi mesh not found");
         this.createArcMidi(outputNode, inputNode);
+
+        this.eventBus.emit('CONNECT_NODES', {
+            sourceId: outputNode.id,
+            targetId: inputNode.id,
+            source: 'user'
+        });
     }
     // Function to create an arc (edge) with an arrowhead
     private createArc(outputNode: AudioNode3D, inputNode: AudioNode3D): void  {

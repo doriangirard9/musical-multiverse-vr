@@ -19,7 +19,8 @@ import {Player} from "./Player.ts";
 import { GridMaterial } from "@babylonjs/materials";
 import { MessageManager } from "./MessageManger.ts";
 import {AudioEventBus, AudioEventPayload, AudioEventType} from "./AudioEvents.ts";
-import {ConnectionQueueManager} from "./network/ConnectionQueueManager.ts";
+import {ConnectionQueueManager} from "./network/manager/ConnectionQueueManager.ts";
+import {IAudioNodeConfig} from "./audioNodes3D/types.ts";
 
 export class App {
     public canvas: HTMLCanvasElement;
@@ -135,7 +136,7 @@ export class App {
         this.networkManager.onPlayerChangeObservable.add(this._onRemotePlayerChange.bind(this));
     }
 
-    public async createAudioNode3D(name: string, id: string, configFile?: string): Promise<void> {
+    public async createAudioNode3D(name: string, id: string, configFile?: IAudioNodeConfig): Promise<void> {
         console.log("Création WAM avec ID:", id);
         const networkPosition = this.networkManager.getNodePosition(id);
         console.log("Position réseau disponible ?", networkPosition);
