@@ -6,8 +6,9 @@ import {BoundingBox} from "./BoundingBox.ts";
 import {Scene} from "@babylonjs/core";
 
 export class RandomNote3D extends Wam3D {
-    constructor(scene: Scene, audioCtx: AudioContext, id: string, config: IWamConfig, s: IAudioNodeConfig) {;
+    constructor(scene: Scene, audioCtx: AudioContext, id: string, config: IWamConfig, s: IAudioNodeConfig) {
         super(scene, audioCtx, id, config, s);
+
     }
 
 
@@ -33,9 +34,8 @@ export class RandomNote3D extends Wam3D {
 
         const bo  = new BoundingBox(this,this._scene,this.id,this._app)
         this.boundingBox = bo.boundingBox;
-
+        this.eventBus.emit('WAM_LOADED', {nodeId: this.id, instance: this._wamInstance});
     }
-
 
     public connect(destination: AudioNode): void {
         // @ts-ignore
@@ -76,7 +76,6 @@ export class RandomNote3D extends Wam3D {
         this.outputMeshBigMidi.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPointerOutTrigger, (): void => {
             highlightLayer.removeMesh(this.outputMeshMidi as B.Mesh);
         }));
-
 
         this.outputMeshBigMidi.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnLeftPickTrigger, (): void => {
             this.ioObservable.notifyObservers({type: 'outputMidi', pickType: 'down', node: this});

@@ -4,22 +4,23 @@ import {CustomParameter, IAudioNodeConfig, IParameter, IWamConfig} from "./types
 import {WamParameterData, WamParameterDataMap, WamParameterInfoMap} from "@webaudiomodules/api";
 import {AudioNode3D} from "./AudioNode3D.ts";
 import {AudioNodeState} from "../network/types.ts";
-import { BoundingBox } from "./BoundingBox.ts";
+import {BoundingBox} from "./BoundingBox.ts";
 import {WebAudioModule} from "@webaudiomodules/sdk";
 import {App} from "../App.ts";
 import {AudioEventBus} from "../AudioEvents.ts";
 
-export class Wam3D extends AudioNode3D{
+export class Wam3D extends AudioNode3D {
     protected readonly _config: IWamConfig;
     protected _usedParameters!: CustomParameter[];
     protected _wamInstance!: WebAudioModule;
-    protected _parametersInfo!:  WamParameterInfoMap;
-    protected _parameter3D: {[name: string]: IParameter} = {};
+    protected _parametersInfo!: WamParameterInfoMap;
+    protected _parameter3D: { [name: string]: IParameter } = {};
     protected _paramBuilder!: ParamBuilder;
     private readonly _configFile!: IAudioNodeConfig;
     // public drag = new Drag(this._app)
 
-    private eventBus = AudioEventBus.getInstance();
+    protected eventBus = AudioEventBus.getInstance();
+
     constructor(scene: B.Scene, audioCtx: AudioContext, id: string, config: IWamConfig, configFile: IAudioNodeConfig) {
         super(scene, audioCtx, id);
         this._config = config;
@@ -36,7 +37,7 @@ export class Wam3D extends AudioNode3D{
         const [hostGroupId] = await App.getHostGroupId()
 
         // Import WAM
-        const { default: WAM } = await import(/* @vite-ignore */ wamUrl);
+        const {default: WAM} = await import(/* @vite-ignore */ wamUrl);
         return await WAM.createInstance(hostGroupId, this._audioCtx);
     }
 
@@ -69,7 +70,7 @@ export class Wam3D extends AudioNode3D{
         // this._app.shadowGenerator.addShadowCaster(this.inputMesh!)
 
         // this.createBoundingBox();
-        const bo  = new BoundingBox(this,this._scene,this.id,this._app)
+        const bo = new BoundingBox(this, this._scene, this.id, this._app)
         this.boundingBox = bo.boundingBox;
         this.eventBus.emit('WAM_LOADED', {nodeId: this.id, instance: this._wamInstance});
 
@@ -77,7 +78,7 @@ export class Wam3D extends AudioNode3D{
 
     protected _createBaseMesh(): void {
         const size: number = this._usedParameters.length;
-        this.baseMesh = B.MeshBuilder.CreateBox('box', { width: size, height: 0.2 }, this._scene);
+        this.baseMesh = B.MeshBuilder.CreateBox('box', {width: size, height: 0.2}, this._scene);
 
         const material = new B.StandardMaterial('material', this._scene);
         material.diffuseColor = new B.Color3(0, 0, 0);
@@ -85,7 +86,7 @@ export class Wam3D extends AudioNode3D{
 
     }
 
-    private async _createParameter(param: CustomParameter, index: number): Promise<void> {
+    protected async _createParameter(param: CustomParameter, index: number): Promise<void> {
         const parameterStand: B.Mesh = this._createParameterStand(new B.Vector3(index - (this._usedParameters.length - 1) / 2, 0.1, this.baseMesh.position.z), param.name);
 
         // create 3D parameter according to its type
@@ -108,7 +109,7 @@ export class Wam3D extends AudioNode3D{
                 normalized: false,
                 value: value,
             };
-            const paramDataMap: WamParameterDataMap = { [fullParamName]: paramData };
+            const paramDataMap: WamParameterDataMap = {[fullParamName]: paramData};
             this._wamInstance.audioNode.setParameterValues(paramDataMap);
         });
         parameter3D.onValueChangedObservable.notifyObservers(defaultValue);
@@ -129,6 +130,7 @@ export class Wam3D extends AudioNode3D{
         // @ts-ignore
         this._wamInstance.audioNode.connect(destination);
     }
+
     public disconnect(destination: AudioNode): void {
         // @ts-ignore
         this._wamInstance.audioNode.disconnect(destination);
@@ -146,7 +148,7 @@ export class Wam3D extends AudioNode3D{
         // Wait for all promises to resolve and merge results into `parameters`
         const resolvedParameters = await Promise.all(parameterPromises);
         resolvedParameters.forEach(paramValues => {
-            parameters = { ...parameters, ...paramValues }; // Merge each parameter set
+            parameters = {...parameters, ...paramValues}; // Merge each parameter set
         });
 
         const inputNodes: string[] = [];
@@ -170,8 +172,8 @@ export class Wam3D extends AudioNode3D{
             id: this.id,
             configFile: this._configFile,
             name: this._config.name,
-            position: { x: this.boundingBox.position.x, y: this.boundingBox.position.y, z: this.boundingBox.position.z },
-            rotation: { x: this.boundingBox.rotation.x, y: this.boundingBox.rotation.y, z: this.boundingBox.rotation.z },
+            position: {x: this.boundingBox.position.x, y: this.boundingBox.position.y, z: this.boundingBox.position.z},
+            rotation: {x: this.boundingBox.rotation.x, y: this.boundingBox.rotation.y, z: this.boundingBox.rotation.z},
             inputNodes: inputNodes,
             parameters: params
         };
@@ -208,7 +210,7 @@ export class Wam3D extends AudioNode3D{
                 normalized: false
             };
 
-            const paramDataMap = { [paramId]: paramData };
+            const paramDataMap = {[paramId]: paramData};
             await this._wamInstance.audioNode.setParameterValues(paramDataMap);
 
             // Mise à jour visuelle silencieuse (sans déclencher d'événement)

@@ -128,4 +128,8 @@ export class MenuParam implements IParameter {
         this._currentCylinder.scaling.y = scalingY;
         this._currentCylinder.position.z = -(this._currentCylinder.scaling.y * 1.5) / 2;
     }
+
+    setDirectValue(value: number): void {
+        this.setParamValue(value);
+    }
 }

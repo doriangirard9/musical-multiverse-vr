@@ -7,12 +7,15 @@ export class Sphere implements IParameter {
     private readonly _scene: B.Scene;
     private _parameterInfo: ParameterInfo;
     private readonly _defaultValue: number;
+    //@ts-ignore
     private readonly _color: string;
 
     private _currentValue: number;
 
     private _sphere!: B.Mesh;
+    //@ts-ignore
     private _textValueBlock!: GUI.TextBlock;
+    //@ts-ignore
     private _dragOffset = Vector3.Zero();
 
     public onValueChangedObservable = new B.Observable<number>();
@@ -144,6 +147,10 @@ export class Sphere implements IParameter {
         //this._textValueBlock.text = value.toFixed(1).toString();
 
 
+    }
+
+    setDirectValue(value: number): void {
+        this.setParamValue(value);
     }
 
 

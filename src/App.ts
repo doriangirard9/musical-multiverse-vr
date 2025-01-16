@@ -1,6 +1,6 @@
 import * as B from "@babylonjs/core";
 import * as GUI from "@babylonjs/gui";
-import { Inspector } from '@babylonjs/inspector';
+import {Inspector} from '@babylonjs/inspector';
 // // Enable GLTF/GLB loader for loading controller models from WebXR Input registry
 import '@babylonjs/loaders/glTF';
 import '@babylonjs/core/Materials/Node/Blocks';
@@ -14,10 +14,10 @@ import {AdvancedDynamicTexture} from "@babylonjs/gui";
 import {AudioNode3DBuilder} from "./audioNodes3D/AudioNode3DBuilder.ts";
 import {AudioNode3D} from "./audioNodes3D/AudioNode3D.ts";
 import {AudioNodeState, PlayerState} from "./network/types.ts";
-import { v4 as uuid } from 'uuid';
+import {v4 as uuid} from 'uuid';
 import {Player} from "./Player.ts";
-import { GridMaterial } from "@babylonjs/materials";
-import { MessageManager } from "./MessageManger.ts";
+import {GridMaterial} from "@babylonjs/materials";
+import {MessageManager} from "./MessageManger.ts";
 import {AudioEventBus, AudioEventPayload, AudioEventType} from "./AudioEvents.ts";
 import {ConnectionQueueManager} from "./network/manager/ConnectionQueueManager.ts";
 import {IAudioNodeConfig} from "./audioNodes3D/types.ts";
@@ -37,10 +37,10 @@ export class App {
     public readonly ioManager!: IOManager;
     public id: string = uuid();
     public menu!: Menu;
-    public ground! : B.Mesh;
+    public ground!: B.Mesh;
     private messageManager!: MessageManager;
     private connectionQueueManager: ConnectionQueueManager;
-    private static hostGroupId : [string, string];
+    private static hostGroupId: [string, string];
     private eventBus = AudioEventBus.getInstance();
 
     private constructor(audioCtx: AudioContext) {
@@ -56,7 +56,7 @@ export class App {
         this.guiManager = new GUI.GUI3DManager(this.scene);
         this.guiManager.controlScaling = 0.5;
 
-        this.ioManager = new IOManager(this.scene,this);
+        this.ioManager = new IOManager(this.scene, this);
 
         this.networkManager = new NetworkManager(this.id);
         this.messageManager = new MessageManager(this.scene, this.xrManager);
@@ -76,6 +76,7 @@ export class App {
         });
 
     }
+
     public static async getHostGroupId(): Promise<[string, string]> {
         if (!App.hostGroupId) {
             const scriptUrl: string = 'https://mainline.i3s.unice.fr/wam2/packages/sdk/src/initializeWamHost.js';
@@ -98,7 +99,7 @@ export class App {
 
         this.engine.runRenderLoop((): void => {
             this._sendPlayerState();
-            this.scene.render();   
+            this.scene.render();
         });
 
         window.addEventListener('resize', (): void => {
@@ -152,14 +153,14 @@ export class App {
             await audioNode3D.ioObservable.add(this.ioManager.onIOEvent.bind(this.ioManager));
             await this.networkManager.createNetworkAudioNode3D(audioNode3D);
             console.log('Audio node added successfully.');
-        } catch(e) {
+        } catch (e) {
             console.log(e);
         } finally {
             this.messageManager.hideMessage();
         }
     }
 
-   private async _onRemoteAudioNodeChange(change: {action: 'add' | 'delete', state: AudioNodeState}): Promise<void> {
+    private async _onRemoteAudioNodeChange(change: { action: 'add' | 'delete', state: AudioNodeState }): Promise<void> {
         console.log('Remote audio node change detected:', change);
 
         if (change.action === 'add') {
@@ -168,10 +169,10 @@ export class App {
             await audioNode3D.instantiate();
             // @@ MB CHECK : no await here !!!
 
-                audioNode3D.ioObservable.add(this.ioManager.onIOEvent.bind(this.ioManager));
-                this.networkManager.addRemoteAudioNode3D(audioNode3D);
-                audioNode3D.setState(change.state);
-                console.log('Audio node added successfully.');
+            audioNode3D.ioObservable.add(this.ioManager.onIOEvent.bind(this.ioManager));
+            this.networkManager.addRemoteAudioNode3D(audioNode3D);
+            audioNode3D.setState(change.state);
+            console.log('Audio node added successfully.');
 
         } else if (change.action === 'delete') {
             // console.log('Deleting audio node:', change.state);
@@ -199,13 +200,13 @@ export class App {
             // }
         }
     }
-    private _onRemotePlayerChange(change: {action: 'add' | 'delete', state: PlayerState}): void {
+
+    private _onRemotePlayerChange(change: { action: 'add' | 'delete', state: PlayerState }): void {
         if (change.action === 'add') {
             const player = new Player(this.scene, change.state.id);
             this.networkManager.addRemotePlayer(player);
             player.setState(change.state);
-        }
-        else if (change.action === 'delete') {
+        } else if (change.action === 'delete') {
             const player = this.networkManager.getPlayer(change.state.id);
             if (player) {
                 player.dispose();
@@ -213,62 +214,63 @@ export class App {
             }
         }
     }
-    private _createGround(){
-        var grid = new GridMaterial("grid", this.scene);    
-                grid.gridRatio = 0.1;
-                grid.majorUnitFrequency = 5;
-                // make squares color between black and white 
-                grid.mainColor = new B.Color3(0.5, 0.5, 0.5);
-                grid.lineColor = new B.Color3(1, 1, 1);
-                var wallgrid = grid.clone("wallgrid");
+
+    private _createGround() {
+        var grid = new GridMaterial("grid", this.scene);
+        grid.gridRatio = 0.1;
+        grid.majorUnitFrequency = 5;
+        // make squares color between black and white
+        grid.mainColor = new B.Color3(0.5, 0.5, 0.5);
+        grid.lineColor = new B.Color3(1, 1, 1);
+        var wallgrid = grid.clone("wallgrid");
         //         grid.opacity = 0.5;
-                
-                var groundSize = { width: 100, height: 1, depth: 100 };
-                var wallHeight = 2;
-                var wallThickness = 1;
+
+        var groundSize = {width: 100, height: 1, depth: 100};
+        var wallHeight = 2;
+        var wallThickness = 1;
 
         //         // Create the ground
-                var ground = B.MeshBuilder.CreateBox("ground", groundSize, this.scene);
-                ground.position.y -=  2;
-                // ground.material = grid;
+        var ground = B.MeshBuilder.CreateBox("ground", groundSize, this.scene);
+        ground.position.y -= 2;
+        // ground.material = grid;
 
 
-                ground.checkCollisions  = true; 
+        ground.checkCollisions = true;
 
-                                // Function to create and position a wall
-            const wall= function createWall(width:number, height:number, depth:number, posX:number, posY:number, posZ:number) {
-                    var wall = B.MeshBuilder.CreateBox("wall", { width: width, height: height, depth: depth });
-                    // wall.material = grid;
-                    wall.position.set(posX, posY, posZ);
-                    // change the color of the wall to lime
-                    wallgrid.mainColor = new B.Color3(0, 0, 0);
-                    wall.material = wallgrid;
-                    
-                    wall.checkCollisions  = true; 
-                    wall.position.y -=  2;
+        // Function to create and position a wall
+        const wall = function createWall(width: number, height: number, depth: number, posX: number, posY: number, posZ: number) {
+            var wall = B.MeshBuilder.CreateBox("wall", {width: width, height: height, depth: depth});
+            // wall.material = grid;
+            wall.position.set(posX, posY, posZ);
+            // change the color of the wall to lime
+            wallgrid.mainColor = new B.Color3(0, 0, 0);
+            wall.material = wallgrid;
 
-                    return wall;
-                }
-                // Create and position the walls
-                var halfHeight = wallHeight / 2;
-                var halfDepth = groundSize.depth / 2;
-                var halfWidth = groundSize.width / 2;
-                
-                wall(groundSize.width, wallHeight, wallThickness, 0, halfHeight, halfDepth); // Front wall
-                wall(groundSize.width, wallHeight, wallThickness, 0, halfHeight, -halfDepth); // Back wall
-                wall(wallThickness, wallHeight, groundSize.depth, halfWidth, halfHeight, 0); // Right wall
-                wall(wallThickness, wallHeight, groundSize.depth, -halfWidth, halfHeight, 0); // Left wall
-                ground.receiveShadows = true;     
-                ground.checkCollisions = true;
+            wall.checkCollisions = true;
+            wall.position.y -= 2;
 
-                B.NodeMaterial.ParseFromSnippetAsync("I4DJ9Z", this.scene).then( (nodeMaterial) => {
-                    ground.material = nodeMaterial;
-                
-                });
-                this.ground = ground;
+            return wall;
+        }
+        // Create and position the walls
+        var halfHeight = wallHeight / 2;
+        var halfDepth = groundSize.depth / 2;
+        var halfWidth = groundSize.width / 2;
+
+        wall(groundSize.width, wallHeight, wallThickness, 0, halfHeight, halfDepth); // Front wall
+        wall(groundSize.width, wallHeight, wallThickness, 0, halfHeight, -halfDepth); // Back wall
+        wall(wallThickness, wallHeight, groundSize.depth, halfWidth, halfHeight, 0); // Right wall
+        wall(wallThickness, wallHeight, groundSize.depth, -halfWidth, halfHeight, 0); // Left wall
+        ground.receiveShadows = true;
+        ground.checkCollisions = true;
+
+        B.NodeMaterial.ParseFromSnippetAsync("I4DJ9Z", this.scene).then((nodeMaterial) => {
+            ground.material = nodeMaterial;
+
+        });
+        this.ground = ground;
     }
 
-    
+
     // TODO : use get state from XRManager
     public _sendPlayerState(): void {
         if (!this.xrManager.xrHelper || !this.xrManager.xrHelper.baseExperience.camera) {
@@ -290,17 +292,26 @@ export class App {
             id: this.id,
             position: {x: xrCameraPosition.x, y: xrCameraPosition.y, z: xrCameraPosition.z},
             direction: {x: xrCameraDirection.x, y: xrCameraDirection.y, z: xrCameraDirection.z},
-            leftHandPosition: {x: xrLeftControllerPosition.x + 0.05, y: xrLeftControllerPosition.y, z: xrLeftControllerPosition.z - 0.2},
-            rightHandPosition: {x: xrRightControllerPosition.x - 0.05, y: xrRightControllerPosition.y, z: xrRightControllerPosition.z - 0.2},
+            leftHandPosition: {
+                x: xrLeftControllerPosition.x + 0.05,
+                y: xrLeftControllerPosition.y,
+                z: xrLeftControllerPosition.z - 0.2
+            },
+            rightHandPosition: {
+                x: xrRightControllerPosition.x - 0.05,
+                y: xrRightControllerPosition.y,
+                z: xrRightControllerPosition.z - 0.2
+            },
         }
 
         this.networkManager.updatePlayerState(playerState);
     }
-    public _getPlayerState(){
+
+    public _getPlayerState() {
         const xrCameraPosition: B.Vector3 = this.xrManager.xrHelper.baseExperience.camera.position;
         const xrCameraDirection: B.Vector3 = this.xrManager.xrHelper.baseExperience.camera.getDirection(B.Axis.Z);
-        
-        console.log("camera",xrCameraDirection.asArray())
+
+        console.log("camera", xrCameraDirection.asArray())
         if (!this.xrManager.xrInputManager.leftController || !this.xrManager.xrInputManager.rightController) {
             return;
         }
@@ -313,10 +324,18 @@ export class App {
             id: this.id,
             position: {x: xrCameraPosition.x, y: xrCameraPosition.y, z: xrCameraPosition.z},
             direction: {x: xrCameraDirection.x, y: xrCameraDirection.y, z: xrCameraDirection.z},
-            leftHandPosition: {x: xrLeftControllerPosition.x + 0.05, y: xrLeftControllerPosition.y, z: xrLeftControllerPosition.z - 0.2},
-            rightHandPosition: {x: xrRightControllerPosition.x - 0.05, y: xrRightControllerPosition.y, z: xrRightControllerPosition.z - 0.2},
+            leftHandPosition: {
+                x: xrLeftControllerPosition.x + 0.05,
+                y: xrLeftControllerPosition.y,
+                z: xrLeftControllerPosition.z - 0.2
+            },
+            rightHandPosition: {
+                x: xrRightControllerPosition.x - 0.05,
+                y: xrRightControllerPosition.y,
+                z: xrRightControllerPosition.z - 0.2
+            },
         }
         return playerState;
     }
-    
+
 }
