@@ -45,23 +45,17 @@ export class AudioOutput3D extends AudioNode3D {
         this.baseMesh.material = material;
     }
 
-    public getState(): Promise<{
-        inputNodes: string[];
-        configFile: string;
-        rotation: { x: number; y: number; z: number };
-        name: string;
-        id: string;
-        position: { x: number; y: number; z: number };
-        parameters: WamParameterDataMap
-    }> {
-        return {
+    public getState(): Promise<AudioNodeState> {
+        return Promise.resolve({
             id: this.id,
             name: 'audioOutput',
+            configFile: '',
             position: { x: this.boundingBox.position.x, y: this.boundingBox.position.y, z: this.boundingBox.position.z },
             rotation: { x: this.boundingBox.rotation.x, y: this.boundingBox.rotation.y, z: this.boundingBox.rotation.z },
             inputNodes: [],
+            inputNodesMidi: [],
             parameters: {}
-        };
+        });
     }
 
     public delete():void{

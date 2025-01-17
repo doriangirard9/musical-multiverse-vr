@@ -163,6 +163,11 @@ export class Wam3D extends AudioNode3D{
         this.inputNodes.forEach((node: AudioNode3D): void => {
             inputNodes.push(node.id);
         });
+    
+        const inputNodesMidi: string[] = [];
+        this.inputNodesMidi.forEach((node: AudioNode3D): void => {
+            inputNodesMidi.push(node.id);
+        });
 
         // create variable with this type { [name: string]: number };
         const params: {[name: string]: number} = {};
@@ -187,6 +192,7 @@ export class Wam3D extends AudioNode3D{
                 z: this.boundingBox.rotation.z,
             },
             inputNodes: inputNodes,
+            inputNodesMidi:inputNodesMidi,
             parameters: params,
         };
     }

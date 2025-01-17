@@ -389,6 +389,12 @@ import { SphereTypes } from "./types.ts";
                     this._app.ioManager.connectNodes(this, inputNode);
                 }
             }
+            for (const id of state.inputNodesMidi) {
+                const inputNodeMidi: AudioNode3D | undefined = this._app.networkManager.getAudioNode3D(id);
+                if (!this.inputNodesMidi.has(id) && inputNodeMidi) {
+                    this._app.ioManager.connectNodesMidi(this, inputNodeMidi);
+                }
+            }
 
         }
     }

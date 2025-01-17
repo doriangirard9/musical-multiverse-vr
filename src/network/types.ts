@@ -12,6 +12,7 @@ export type AudioNodeState = {
     position: { x: number, y: number, z: number };
     rotation: { x: number, y: number, z: number };
     inputNodes: string[];
+    inputNodesMidi : string[];
     parameters: { [name: string]: number };
 }
 

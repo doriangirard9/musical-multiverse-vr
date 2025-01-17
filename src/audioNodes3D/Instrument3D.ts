@@ -106,6 +106,7 @@ export class Instrument3D extends Wam3D {
     }
 
     public connect(destination: AudioNode): void {
+        console.log("depuis Intrument3D")
         // @ts-ignore
         this._wamInstance.audioNode.connect(destination);
     }
