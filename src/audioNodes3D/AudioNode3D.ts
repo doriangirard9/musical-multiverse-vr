@@ -72,7 +72,7 @@ import { SphereTypes } from "./types.ts";
             this.inputNodes.set(audioNode3D.id, audioNode3D);
         }
         public addInputNodeMidi(audioNode3D: AudioNode3D): void {
-            this.inputNodesMidi.set(audioNode3D.id, audioNode3D);
+            this.inputNodesMidi.set(audioNode3D.instanceId, audioNode3D);
         }
     
         public delete(): void {
