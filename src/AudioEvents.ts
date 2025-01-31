@@ -44,6 +44,7 @@ export type AudioEventPayload = {
     CONNECT_NODES: {
         sourceId: string;
         targetId: string;
+        isSrcMidi: boolean;
         source: 'user' | 'network';
     };
     DISCONNECT_NODES: {
@@ -54,6 +55,7 @@ export type AudioEventPayload = {
     APPLY_CONNECTION: {
         sourceId: string;
         targetId: string;
+        isSrcMidi: boolean;
     };
 
 };
@@ -80,9 +82,7 @@ export class AudioEventBus {
         event: K,
         payload: AudioEventPayload[K]
     ): void {
-        if (this.debugMode) {
-            console.log(`[AudioEventBus] Emitting ${event}:`, payload);
-        }
+
         const callbacks = this.listeners.get(event) || [];
         callbacks.forEach(callback => {
             try {

@@ -42,7 +42,7 @@ export class App {
     private connectionQueueManager: ConnectionQueueManager;
     private static hostGroupId: [string, string];
     private eventBus = AudioEventBus.getInstance();
-
+    private hostGroupIdPromise: Promise<[string, string]> | null = null;
     private constructor(audioCtx: AudioContext) {
         this.canvas = document.querySelector('#renderCanvas') as HTMLCanvasElement;
         this.engine = new B.Engine(this.canvas, true);
@@ -61,9 +61,10 @@ export class App {
         this.networkManager = new NetworkManager(this.id);
         this.messageManager = new MessageManager(this.scene, this.xrManager);
         this.connectionQueueManager = new ConnectionQueueManager(this.networkManager, this.ioManager);
+        this.initializeHostGroupId();
         const debug = true;
         if (debug) {
-            const events: (keyof AudioEventType)[] = ['PARAM_CHANGE', 'WAM_CREATED', 'WAM_LOADED', 'WAM_ERROR'];
+            const events: (keyof AudioEventType)[] = ['PARAM_CHANGE', 'WAM_CREATED', 'WAM_LOADED', 'WAM_ERROR','CONNECT_NODES','APPLY_CONNECTION'];
 
             events.forEach(event => {
                 this.eventBus.on(event, (payload) => {
@@ -71,24 +72,50 @@ export class App {
                 });
             });
         }
+
         this.eventBus.on('APPLY_CONNECTION', (payload: AudioEventPayload['APPLY_CONNECTION']) => {
-            this.connectionQueueManager.addConnection(payload.sourceId, payload.targetId);
+            this.connectionQueueManager.addConnection(payload.sourceId, payload.targetId, payload.isSrcMidi);
         });
 
     }
 
     public static async getHostGroupId(): Promise<[string, string]> {
-        if (!App.hostGroupId) {
-            const scriptUrl: string = 'https://mainline.i3s.unice.fr/wam2/packages/sdk/src/initializeWamHost.js';
-            const {default: initializeWamHost} = await import(/* @vite-ignore */ scriptUrl);
-            App.hostGroupId = await initializeWamHost(App.getInstance()._audioCtx);
+        const app = App.getInstance();
+
+        if (!app.hostGroupIdPromise) {
+            await app.initializeHostGroupId();
         }
-        return App.hostGroupId;
+
+        if (!app.hostGroupIdPromise) {
+            throw new Error('Failed to initialize host group ID');
+        }
+
+        return app.hostGroupIdPromise;
     }
 
+    private async initializeHostGroupId(): Promise<void> {
+        if (!this.hostGroupIdPromise) {
+            this.hostGroupIdPromise = this.createHostGroupId();
+            try {
+                App.hostGroupId = await this.hostGroupIdPromise;
+                console.log('Host group ID initialized:', App.hostGroupId);
+            } catch (error) {
+                console.error('Failed to initialize host group ID:', error);
+                this.hostGroupIdPromise = null; // Permettre une nouvelle tentative en cas d'échec
+            }
+        }
+    }
+    private async createHostGroupId(): Promise<[string, string]> {
+        const scriptUrl: string = 'https://mainline.i3s.unice.fr/wam2/packages/sdk/src/initializeWamHost.js';
+        const {default: initializeWamHost} = await import(/* @vite-ignore */ scriptUrl);
+        return await initializeWamHost(this._audioCtx);
+    }
     public static getInstance(audioCtx?: AudioContext): App {
         if (!this._instance) {
-            this._instance = new App(audioCtx!);
+            if (!audioCtx) {
+                throw new Error('AudioContext is required for first instantiation');
+            }
+            this._instance = new App(audioCtx);
         }
         return this._instance;
     }
@@ -137,26 +164,29 @@ export class App {
         this.networkManager.onPlayerChangeObservable.add(this._onRemotePlayerChange.bind(this));
     }
 
+
     public async createAudioNode3D(name: string, id: string, configFile?: IAudioNodeConfig): Promise<void> {
-        console.log("Création WAM avec ID:", id);
-        const networkPosition = this.networkManager.getNodePosition(id);
-        console.log("Position réseau disponible ?", networkPosition);
+        this.menu.hide()
+        this.messageManager.showMessage("Loading...",0);
+        try{
 
-        this.menu.hide();
-        this.messageManager.showMessage("Loading...", 0);
-
-        try {
             const audioNode3D: AudioNode3D = await this._audioNode3DBuilder.create(name, id, configFile);
-
             await audioNode3D.instantiate();
+            // await a certain delay before adding listeners
 
-            await audioNode3D.ioObservable.add(this.ioManager.onIOEvent.bind(this.ioManager));
+            audioNode3D.ioObservable.add(this.ioManager.onIOEvent.bind(this.ioManager));
             await this.networkManager.createNetworkAudioNode3D(audioNode3D);
             console.log('Audio node added successfully.');
-        } catch (e) {
-            console.log(e);
-        } finally {
-            this.messageManager.hideMessage();
+            console.log('end of init')
+
+
+            // this.messageManager.hideMessage()
+        }catch(e){
+            console.log(e)
+        }
+        finally{
+            console.log("end of message")
+            this.messageManager.hideMessage()
         }
     }
 

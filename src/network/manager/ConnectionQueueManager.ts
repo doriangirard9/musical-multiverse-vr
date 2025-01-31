@@ -4,20 +4,21 @@ import {IOManager} from "../../IOManager.ts";
 interface PendingConnection {
     sourceId: string;
     targetId: string;
+    isSrcMidi: boolean;
     attempts?: number;
     maxAttempts?: number;
-}
-
-export class ConnectionQueueManager {
+}export class ConnectionQueueManager {
     private pendingConnections: PendingConnection[] = [];
     private isProcessing: boolean = false;
-    private checkInterval: number = 500; // Check every 500ms
-    private maxAttempts: number = 10; // Maximum number of attempts per connection
+    private checkInterval: number = 1000;
+    private maxAttempts: number = 15;
 
     constructor(private networkManager: NetworkManager, private ioManager: IOManager) {}
 
-    public addConnection(sourceId: string, targetId: string): void {
-        // Add to queue if not already present
+
+    public addConnection(sourceId: string, targetId: string, isSrcMidi: boolean): void {
+        console.log(`[ConnectionQueue] Adding connection request: ${sourceId} -> ${targetId} (MIDI: ${isSrcMidi})`);
+
         const exists = this.pendingConnections.some(
             conn => conn.sourceId === sourceId && conn.targetId === targetId
         );
@@ -26,13 +27,18 @@ export class ConnectionQueueManager {
             this.pendingConnections.push({
                 sourceId,
                 targetId,
+                isSrcMidi,
                 attempts: 0,
                 maxAttempts: this.maxAttempts
             });
 
+            console.log('[ConnectionQueue] Connection added to queue. Current queue size:', this.pendingConnections.length);
+
             if (!this.isProcessing) {
                 this.processQueue();
             }
+        } else {
+            console.log('[ConnectionQueue] Connection request already in queue');
         }
     }
 
@@ -42,6 +48,7 @@ export class ConnectionQueueManager {
         }
 
         this.isProcessing = true;
+        console.log('[ConnectionQueue] Processing queue...');
 
         try {
             const currentConnections = [...this.pendingConnections];
@@ -51,24 +58,33 @@ export class ConnectionQueueManager {
                 const sourceNode = this.networkManager.getAudioNode3D(connection.sourceId);
                 const targetNode = this.networkManager.getAudioNode3D(connection.targetId);
 
-                if (sourceNode && targetNode) {
-                    // Both nodes are available, make the connection
-                    await this.ioManager.connectNodes(sourceNode, targetNode);
-                    // Remove from pending queue
-                    this.pendingConnections = this.pendingConnections.filter(
-                        conn => !(conn.sourceId === connection.sourceId && conn.targetId === connection.targetId)
-                    );
-                    console.log(`[ConnectionQueue] Successfully connected nodes: ${connection.sourceId} -> ${connection.targetId}`);
-                } else {
-                    // Increment attempt counter
-                    connection.attempts = (connection.attempts || 0) + 1;
+                console.log(`[ConnectionQueue] Checking connection ${connection.sourceId} -> ${connection.targetId}`);
 
-                    // Remove if max attempts reached
-                    if (connection.attempts >= (connection.maxAttempts || this.maxAttempts)) {
+                if (sourceNode && targetNode) {
+                    try {
+                        if (connection.isSrcMidi) {
+                            this.ioManager.connectNodesMidi(sourceNode, targetNode);
+                        } else {
+                            this.ioManager.connectNodes(sourceNode, targetNode);
+                        }
+
                         this.pendingConnections = this.pendingConnections.filter(
                             conn => !(conn.sourceId === connection.sourceId && conn.targetId === connection.targetId)
                         );
-                        console.warn(`[ConnectionQueue] Failed to connect nodes after ${connection.attempts} attempts: ${connection.sourceId} -> ${connection.targetId}`);
+                        console.log(`[ConnectionQueue] Successfully connected nodes: ${connection.sourceId} -> ${connection.targetId}`);
+                    } catch (error) {
+                        console.error('[ConnectionQueue] Error connecting nodes:', error);
+                        connection.attempts = (connection.attempts || 0) + 1;
+                    }
+                } else {
+                    connection.attempts = (connection.attempts || 0) + 1;
+                    console.log(`[ConnectionQueue] Connection attempt ${connection.attempts}/${this.maxAttempts}`);
+
+                    if (connection.attempts >= this.maxAttempts) {
+                        this.pendingConnections = this.pendingConnections.filter(
+                            conn => !(conn.sourceId === connection.sourceId && conn.targetId === connection.targetId)
+                        );
+                        console.warn(`[ConnectionQueue] Failed to connect nodes after ${connection.attempts} attempts`);
                     }
                 }
             }

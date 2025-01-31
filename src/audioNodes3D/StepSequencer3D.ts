@@ -163,15 +163,7 @@ export class StepSequencer3D extends AudioNode3D {
         return merger;
     }
 
-    public async getState(): Promise<{
-        id: string;
-        configFile: IAudioNodeConfig;
-        name: string;
-        position: { x: number; y: number; z: number };
-        rotation: { x: number; y: number; z: number };
-        inputNodes: string[];
-        parameters: WamParameterDataMap
-    }> {
+    public async getState(): Promise<AudioNodeState> {
         const parameters: WamParameterDataMap = {};
 
         this._grid.forEach((row, rowIndex: number): void => {
@@ -220,7 +212,7 @@ export class StepSequencer3D extends AudioNode3D {
                 const paramData = state.parameters[paramId];
 
                 if (paramData) {
-                    note.isActivated = paramData.valueOf() > 0;
+                    note.isActivated = paramData.value === 1;
                 } else {
                     console.warn(`Parameter ${paramId} is missing in state.parameters.`);
                     // You can decide to default to false or handle it differently

@@ -51,7 +51,7 @@ export class NetworkManager {
     private _networkPlayers!: Y.Map<PlayerState>;
     private _networkParamUpdates!: Y.Map<ParamUpdate>;
     private _networkPositions!: Y.Map<NodeTransform>;
-    private _networkConnections!: Y.Map<{sourceId: string, targetId: string}>;
+    private _networkConnections!: Y.Map<{sourceId: string, targetId: string,isSrcMidi: boolean}>;
 
     // State flags
     private isProcessingYjsEvent = false;
@@ -112,7 +112,7 @@ export class NetworkManager {
         // WAM loaded
         this.eventBus.on('WAM_LOADED', (payload) => {
             console.log('[NetworkManager] WAM loaded, checking existing connections:', payload.nodeId);
-            this.processConnectionsForNode(payload.nodeId);
+            //this.processConnectionsForNode(payload.nodeId);
         });
     }
 
@@ -159,14 +159,36 @@ export class NetworkManager {
     }
 
     private handleNodeConnection(payload: AudioEventPayload['CONNECT_NODES']): void {
-        const connectionId = `${payload.sourceId}-${payload.targetId}-${Date.now()}`;
-        console.log('[NetworkManager] Storing new connection:', connectionId);
-        this._networkConnections.set(connectionId, {
-            sourceId: payload.sourceId,
-            targetId: payload.targetId
+        // Check if the connection already exists in network storage
+        if (!this.isConnectionStoredInNetwork(payload.sourceId, payload.targetId, payload.isSrcMidi)) {
+            const connectionId = `${payload.sourceId}-${payload.targetId}-${Date.now()}`;
+            console.log('[NetworkManager] Storing new connection:', connectionId);
+            this._networkConnections.set(connectionId, {
+                sourceId: payload.sourceId,
+                targetId: payload.targetId,
+                isSrcMidi: payload.isSrcMidi
+            });
+        } else {
+            console.log('[NetworkManager] Connection already stored in network:', {
+                sourceId: payload.sourceId,
+                targetId: payload.targetId,
+                isSrcMidi: payload.isSrcMidi
+            });
+        }
+    }
+    private handleConnectionUpdates(event: Y.YMapEvent<{sourceId: string, targetId: string, isSrcMidi: boolean}>): void {
+        event.changes.keys.forEach((change, key) => {
+            if (change.action === "add") {
+                const connection = this._networkConnections.get(key);
+                if (connection && !this.isConnectionExists(connection.sourceId, connection.targetId, connection.isSrcMidi)) {
+                    console.log('[NetworkManager] Processing new network connection:', connection);
+                    this.attemptConnection(connection);
+                } else if (connection) {
+                    console.log('[NetworkManager] Skipping existing connection:', connection);
+                }
+            }
         });
     }
-
     private async handleNodeDisconnection(payload: AudioEventPayload['DISCONNECT_NODES']): Promise<void> {
         if (payload.source === 'network') return;
 
@@ -183,21 +205,55 @@ export class NetworkManager {
         });
     }
 
-    private async processConnectionsForNode(nodeId: string): Promise<void> {
-        this._networkConnections.forEach((connection) => {
-            if (connection.sourceId === nodeId || connection.targetId === nodeId) {
-                this.attemptConnection(connection);
+    private isConnectionStoredInNetwork(sourceId: string, targetId: string, isSrcMidi: boolean): boolean {
+        // Check all stored connections
+        let isStored = false;
+        this._networkConnections.forEach((connection, _) => {
+            if (connection.sourceId === sourceId &&
+                connection.targetId === targetId &&
+                connection.isSrcMidi === isSrcMidi) {
+                isStored = true;
             }
         });
+        return isStored;
     }
+    private isConnectionExists(sourceId: string, targetId: string, isSrcMidi: boolean): boolean {
+        const sourceNode = this._audioNodes3D.get(sourceId);
+        const targetNode = this._audioNodes3D.get(targetId);
 
-    private async attemptConnection(connection: {sourceId: string, targetId: string}, attempt = 0): Promise<void> {
+        if (!sourceNode || !targetNode) {
+            return false;
+        }
+
+        // Check MIDI connections
+        if (isSrcMidi) {
+            return sourceNode.outputArcsMidi.some(arc =>
+                arc.inputNode.id === targetId && arc.outputNode.id === sourceId
+            ) || targetNode.inputArcsMidi.some(arc =>
+                arc.outputNode.id === sourceId && arc.inputNode.id === targetId
+            );
+        }
+
+        // Check audio connections
+        return sourceNode.outputArcs.some(arc =>
+            arc.inputNode.id === targetId && arc.outputNode.id === sourceId
+        ) || targetNode.inputArcs.some(arc =>
+            arc.outputNode.id === sourceId && arc.inputNode.id === targetId
+        );
+    }
+    private async attemptConnection(connection: {sourceId: string, targetId: string, isSrcMidi: boolean}, attempt = 0): Promise<void> {
         const sourceNode = this._audioNodes3D.get(connection.sourceId);
         const targetNode = this._audioNodes3D.get(connection.targetId);
 
         if (sourceNode && targetNode) {
-            this.eventBus.emit('APPLY_CONNECTION', connection);
-            return;
+            // Check if connection already exists before attempting to create it
+            if (!this.isConnectionExists(connection.sourceId, connection.targetId, connection.isSrcMidi)) {
+                this.eventBus.emit('APPLY_CONNECTION', connection);
+                return;
+            } else {
+                console.log(`Connection already exists between ${connection.sourceId} and ${connection.targetId}`);
+                return;
+            }
         }
 
         if (attempt < NetworkManager.MAX_CONNECTION_ATTEMPTS) {
@@ -306,18 +362,6 @@ export class NetworkManager {
         });
     }
 
-    private handleConnectionUpdates(event: Y.YMapEvent<{sourceId: string, targetId: string}>): void {
-        event.changes.keys.forEach((change, key) => {
-            if (change.action === "add") {
-                const connection = this._networkConnections.get(key);
-                if (connection) {
-                    console.log('[NetworkManager] Received new connection:', connection);
-                    this.attemptConnection(connection);
-                }
-            }
-        });
-    }
-
     private handleAwarenessChange({ added, updated, removed }: {
         added: number[],
         updated: number[],
@@ -351,7 +395,6 @@ export class NetworkManager {
     }
 
     private handleAudioNodeChange(change: any, key: string): void {
-        // Ne pas traiter si c'est un événement local
         if (this.isProcessingLocalEvent) {
             return;
         }
@@ -368,7 +411,6 @@ export class NetworkManager {
                 break;
         }
     }
-
     private handleAudioNodeAdd(key: string): void {
         if (!this._audioNodes3D.has(key)) {
             const state = this._networkAudioNodes3D.get(key);
@@ -385,6 +427,7 @@ export class NetworkManager {
             }
         }
     }
+
 
     private async handleAudioNodeUpdate(key: string): Promise<void> {
         const state = this._networkAudioNodes3D.get(key);
@@ -446,11 +489,7 @@ export class NetworkManager {
 
     public async createNetworkAudioNode3D(audioNode3D: AudioNode3D): Promise<void> {
         const state: AudioNodeState = await audioNode3D.getState();
-
-        // Ajouter d'abord au map local
-        this.addRemoteAudioNode3D(audioNode3D);
-
-        // Marquer qu'on est en train de traiter un événement local
+        await this.addRemoteAudioNode3D(audioNode3D);
         this.isProcessingLocalEvent = true;
         try {
             // Sauvegarder la position

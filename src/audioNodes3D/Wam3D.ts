@@ -37,8 +37,8 @@ export class Wam3D extends AudioNode3D {
         const [hostGroupId] = await App.getHostGroupId()
 
         // Import WAM
-        const {default: WAM} = await import(/* @vite-ignore */ wamUrl);
-        return await WAM.createInstance(hostGroupId, this._audioCtx);
+        const { default: WAM } = await import(/* @vite-ignore */ wamUrl);
+        return await WAM.createInstance(hostGroupId, this.audioContext);
     }
 
     public async instantiate(): Promise<void> {
@@ -156,6 +156,11 @@ export class Wam3D extends AudioNode3D {
             inputNodes.push(node.id);
         });
 
+        const inputNodesMidi: string[] = [];
+        this.inputNodesMidi.forEach((node: AudioNode3D): void => {
+            inputNodesMidi.push(node.id);
+        });
+
         // create variable with this type { [name: string]: number };
         const params: WamParameterDataMap = {};
 
@@ -175,6 +180,7 @@ export class Wam3D extends AudioNode3D {
             position: {x: this.boundingBox.position.x, y: this.boundingBox.position.y, z: this.boundingBox.position.z},
             rotation: {x: this.boundingBox.rotation.x, y: this.boundingBox.rotation.y, z: this.boundingBox.rotation.z},
             inputNodes: inputNodes,
+            inputNodesMidi:inputNodesMidi,
             parameters: params
         };
     }
@@ -190,15 +196,6 @@ export class Wam3D extends AudioNode3D {
             state.rotation.y,
             state.rotation.z
         );
-
-        // Gestion des connexions uniquement
-        state.inputNodes.forEach((id: string): void => {
-            const inputNode = this._app.networkManager.getAudioNode3D(id);
-            if (!this.inputNodes.has(id) && inputNode) {
-                this._app.ioManager.connectNodes(this, inputNode);
-            }
-        });
-
     }
 
     public async updateSingleParameter(paramId: string, value: number): Promise<void> {

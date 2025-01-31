@@ -29,7 +29,6 @@ export class DragBoundingBox implements B.Behavior<B.AbstractMesh> {
                     }
                 };
 
-                console.log("Émission position drag:", transform);
 
                 this.eventBus.emit('POSITION_CHANGE', {
                     nodeId: this.selected.id.split('boundingBox')[1],

@@ -5,17 +5,16 @@ import {CustomParameter, IAudioNodeConfig, IParameter, IWamConfig} from "./types
 import {WamParameterData, WamParameterDataMap} from "@webaudiomodules/api";
 import {ParamBuilder} from "./parameters/ParamBuilder.ts";
 import {BoundingBox} from "./BoundingBox.ts";
-import {Scene} from "@babylonjs/core";
 
 export class Instrument3D extends Wam3D {
-
-    constructor(scene: Scene, audioCtx: AudioContext, id: string, config: IWamConfig, configFile: IAudioNodeConfig) {
+    constructor(scene: B.Scene, audioCtx: AudioContext, id: string, config: IWamConfig, configFile: IAudioNodeConfig) {
         super(scene, audioCtx, id, config, configFile);
 
 
     }
 
     public async instantiate(): Promise<void> {
+        console.error("-------------INSTRUMENT3D INSTANTIATE-----------------");
         this._app.menu.hide();
         this._wamInstance = await this._initWamInstance(this._config.url);
         this._parametersInfo = await this._wamInstance.audioNode.getParameterInfo();
@@ -37,6 +36,9 @@ export class Instrument3D extends Wam3D {
 
         const bo  = new BoundingBox(this,this._scene,this.id,this._app)
         this.boundingBox = bo.boundingBox;
+
+
+        this.eventBus.emit('WAM_LOADED', {nodeId: this.id, instance: this._wamInstance});
     }
 
     public async configureSphers(): Promise<void> {
@@ -77,7 +79,6 @@ export class Instrument3D extends Wam3D {
         let parameter3D: IParameter;
         const paramType: string = param.type ?? this._config.defaultParameter.type;
         const fullParamName: string = `${this._config.root}${param.name}`;
-        console.log(this._parametersInfo);
         const defaultValue: number = this._parametersInfo[fullParamName].defaultValue;
         switch (paramType) {
             case 'sphere':

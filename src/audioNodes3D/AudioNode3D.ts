@@ -71,7 +71,7 @@
             this.inputNodes.set(audioNode3D.id, audioNode3D);
         }
         public addInputNodeMidi(audioNode3D: AudioNode3D): void {
-            this.inputNodesMidi.set(audioNode3D.id, audioNode3D);
+            this.inputNodesMidi.set(audioNode3D.instanceId, audioNode3D);
         }
 
         public delete(): void {
@@ -362,21 +362,29 @@
         }
     
         public abstract getState(): Promise<AudioNodeState>;
-    
+
         public setState(state: AudioNodeState): void {
             this.boundingBox.position = new B.Vector3(state.position.x, state.position.y, state.position.z);
             this.boundingBox.rotation = new B.Vector3(state.rotation.x, state.rotation.y, state.rotation.z);
             // this.baseMesh.position = new B.Vector3(this.boundingBox.position.x, this.boundingBox.position.y, this.boundingBox.position.z);
-            // this.baseMesh.rotation = new B.Vector3(this.boundingBox.rotation.x, this.boundingBox.rotation.y, this.boundingBox.rotation.z);   
-            state.inputNodes.forEach((id: string): void => {
+            // this.baseMesh.rotation = new B.Vector3(this.boundingBox.rotation.x, this.boundingBox.rotation.y, this.boundingBox.rotation.z);
+            for (const id of state.inputNodes) {
                 const inputNode: AudioNode3D | undefined = this._app.networkManager.getAudioNode3D(id);
                 if (!this.inputNodes.has(id) && inputNode) {
                     this._app.ioManager.connectNodes(this, inputNode);
                 }
-            });
+            }
+            for (const id of state.inputNodesMidi) {
+                const inputNodeMidi: AudioNode3D | undefined = this._app.networkManager.getAudioNode3D(id);
+                if (!this.inputNodesMidi.has(id) && inputNodeMidi) {
+                    this._app.ioManager.connectNodesMidi(this, inputNodeMidi);
+                }
+            }
+
         }
         public updatePosition(position: B.Vector3, rotation: B.Vector3): void {
             this.boundingBox.position = position;
             this.boundingBox.rotation = rotation;
         }
+
     }

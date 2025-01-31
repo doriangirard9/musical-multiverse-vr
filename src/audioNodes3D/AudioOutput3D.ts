@@ -59,6 +59,7 @@ export class AudioOutput3D extends AudioNode3D {
             position: { x: this.boundingBox.position.x, y: this.boundingBox.position.y, z: this.boundingBox.position.z },
             rotation: { x: this.boundingBox.rotation.x, y: this.boundingBox.rotation.y, z: this.boundingBox.rotation.z },
             inputNodes: [],
+            inputNodesMidi: [],
             parameters: parameters
         });
     }

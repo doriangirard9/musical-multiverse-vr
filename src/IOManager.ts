@@ -5,6 +5,8 @@ import { v4 as uuid } from 'uuid';
 import { MessageManager } from "./MessageManger.ts";
 import { App } from "./App.ts";
 import {AudioEventBus} from "./AudioEvents.ts";
+import {RandomNote3D} from "./audioNodes3D/RandomNote3D.ts";
+import {Instrument3D} from "./audioNodes3D/Instrument3D.ts";
 
 
 export class IOManager {
@@ -27,9 +29,9 @@ export class IOManager {
         if (event.pickType === "down") {
             if (event.type === 'input') {
                 if (event.node.inputMesh) {
-                console.log("input node")
-                this.createVirtualDragPoint(event.node.inputMesh);
-                this._inputNode = event.node;
+                    console.log("input node")
+                    this.createVirtualDragPoint(event.node.inputMesh);
+                    this._inputNode = event.node;
                 }
             }
             else if (event.type === 'output') {
@@ -203,12 +205,13 @@ export class IOManager {
         this.eventBus.emit('CONNECT_NODES', {
             sourceId: outputNode.id,
             targetId: inputNode.id,
+            isSrcMidi: false,
             source: 'user'
         });
     }
     public connectNodesMidi(outputNode: AudioNode3D, inputNode: AudioNode3D): void {
         outputNode.connect(inputNode.getAudioNode());
-        outputNode.addInputNodeMidi(inputNode); // TODO: ajouter la connexion midi
+        outputNode.addInputNodeMidi(inputNode);
         if (!inputNode.inputMeshMidi || !outputNode.outputMeshMidi)  // todo: add midi sphere check
             throw new Error("InputMidi or outputMidi mesh not found");
         this.createArcMidi(outputNode, inputNode);
@@ -216,6 +219,7 @@ export class IOManager {
         this.eventBus.emit('CONNECT_NODES', {
             sourceId: outputNode.id,
             targetId: inputNode.id,
+            isSrcMidi: true,
             source: 'user'
         });
     }

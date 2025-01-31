@@ -13,6 +13,7 @@ export class RandomNote3D extends Wam3D {
 
 
     public async instantiate(): Promise<void> {
+        console.error("-------------RANDOMNOTE INSTANTIATE-----------------");
         this._app.menu.hide();
         this._wamInstance = await this._initWamInstance(this._config.url);
         this._parametersInfo = await this._wamInstance.audioNode.getParameterInfo();
@@ -34,14 +35,14 @@ export class RandomNote3D extends Wam3D {
 
         const bo  = new BoundingBox(this,this._scene,this.id,this._app)
         this.boundingBox = bo.boundingBox;
+
         this.eventBus.emit('WAM_LOADED', {nodeId: this.id, instance: this._wamInstance});
     }
 
     public connect(destination: AudioNode): void {
         // @ts-ignore
-            this._wamInstance.audioNode.connectEvents(destination.instanceId);
+        this._wamInstance.audioNode.connectEvents(destination.instanceId);
     }
-
     public disconnect(destination: AudioNode): void {
         // @ts-ignore
         // this._wamInstance.audioNode.disconnectEvents(destination);
