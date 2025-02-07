@@ -7,7 +7,8 @@ interface PendingConnection {
     isSrcMidi: boolean;
     attempts?: number;
     maxAttempts?: number;
-}export class ConnectionQueueManager {
+}
+export class ConnectionQueueManager {
     private pendingConnections: PendingConnection[] = [];
     private isProcessing: boolean = false;
     private checkInterval: number = 1000;

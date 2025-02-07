@@ -356,6 +356,20 @@ export class NetworkManager {
                                 update.rotation.z
                             )
                         );
+                        this.eventBus.emit('POSITION_CHANGE', {
+                            nodeId: key,
+                            position: {
+                                x: update.position.x,
+                                y: update.position.y,
+                                z: update.position.z
+                            },
+                            rotation: {
+                                x: update.rotation.x,
+                                y: update.rotation.y,
+                                z: update.rotation.z
+                            },
+                            source: 'network'
+                        });
                     }
                 }
             }

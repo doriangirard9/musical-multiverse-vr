@@ -101,7 +101,7 @@ export class App {
                 console.log('Host group ID initialized:', App.hostGroupId);
             } catch (error) {
                 console.error('Failed to initialize host group ID:', error);
-                this.hostGroupIdPromise = null; // Permettre une nouvelle tentative en cas d'échec
+                this.hostGroupIdPromise = null;
             }
         }
     }
