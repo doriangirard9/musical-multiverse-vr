@@ -21,6 +21,8 @@ import {MessageManager} from "./MessageManger.ts";
 import {AudioEventBus, AudioEventPayload, AudioEventType} from "./AudioEvents.ts";
 import {ConnectionQueueManager} from "./network/manager/ConnectionQueueManager.ts";
 import {IAudioNodeConfig} from "./audioNodes3D/types.ts";
+import { NoteExtension } from "./wamExtension/notes/NoteExtension.ts";
+import {PatternExtension} from "./wamExtension/patterns/PatternExtension.ts";
 
 export class App {
     public canvas: HTMLCanvasElement;
@@ -62,6 +64,7 @@ export class App {
         this.messageManager = new MessageManager(this.scene, this.xrManager);
         this.connectionQueueManager = new ConnectionQueueManager(this.networkManager, this.ioManager);
         this.initializeHostGroupId();
+        this._wamExtensionSetup();
         const debug = true;
         if (debug) {
             const events: (keyof AudioEventType)[] = ['PARAM_CHANGE', 'WAM_CREATED', 'WAM_LOADED', 'WAM_ERROR','CONNECT_NODES','APPLY_CONNECTION'];
@@ -164,6 +167,11 @@ export class App {
         this.networkManager.onPlayerChangeObservable.add(this._onRemotePlayerChange.bind(this));
     }
 
+    private _wamExtensionSetup(){
+        window.WAMExtensions = window.WAMExtensions || {};
+        window.WAMExtensions.notes = new NoteExtension();
+        window.WAMExtensions.patterns = new PatternExtension();
+    }
 
     public async createAudioNode3D(name: string, id: string, configFile?: IAudioNodeConfig): Promise<void> {
         this.menu.hide()
