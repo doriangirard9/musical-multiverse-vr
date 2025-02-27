@@ -91,6 +91,12 @@ export class Menu {
         stepSequencerButton.text = "Step Sequencer";
         stepSequencerButton.onPointerUpObservable.add((): Promise<void> => this._app.createAudioNode3D("stepSequencer", uuid()));
         this._menu.addButton(stepSequencerButton);
+
+        // Piano Roll
+        const pianoRollButton = new GUI.TouchHolographicButton("PianoRoll");
+        pianoRollButton.text = "Piano Roll";
+        pianoRollButton.onPointerUpObservable.add((): Promise<void> => this._app.createAudioNode3D("PianoRoll", uuid()));
+        this._menu.addButton(pianoRollButton);
     }
 
     private _createPluginsMenu(categoryIndex: number): void {

@@ -1,0 +1,10 @@
+{
+    "name": "Piano Roll",
+    "url": "https://sequencer.party/plugins/piano-roll/dist/index.js",
+    "root": "",
+    "customParameters": [],
+    "defaultParameter": {
+        "type": "cylinder",
+        "color": "#ff0000"
+    }
+}

@@ -1,0 +1,10 @@
+{
+    "name": "Piano Roll",
+    "url": "https://www.webaudiomodules.com/community/plugins/burns-audio/pianoroll/index.js",
+    "root": "",
+    "customParameters": [],
+    "defaultParameter": {
+        "type": "cylinder",
+        "color": "#ff0000"
+    }
+}
