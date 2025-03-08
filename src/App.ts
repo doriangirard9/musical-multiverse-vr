@@ -21,6 +21,8 @@ import {MessageManager} from "./MessageManger.ts";
 import {AudioEventBus, AudioEventPayload, AudioEventType} from "./AudioEvents.ts";
 import {ConnectionQueueManager} from "./network/manager/ConnectionQueueManager.ts";
 import {IAudioNodeConfig} from "./audioNodes3D/types.ts";
+import { NoteExtension } from "./wamExtension/notes/NoteExtension.ts";
+import {PatternExtension} from "./wamExtension/patterns/PatternExtension.ts";
 import { controls, WamGUIGenerator } from "wam3dgenerator";
 import { WamGUI3DPedal } from "./audioNodes3D/pedal3d/WamGUI3DPedal.ts";
 import { Pedal3DObject } from "./audioNodes3D/pedal3d/Pedal3DObject.ts";
@@ -66,6 +68,7 @@ export class App {
         this.messageManager = new MessageManager(this.scene, this.xrManager);
         this.connectionQueueManager = new ConnectionQueueManager(this.networkManager, this.ioManager);
         this.initializeHostGroupId();
+        this._wamExtensionSetup();
         const debug = true;
         if (debug) {
             const events: (keyof AudioEventType)[] = ['PARAM_CHANGE', 'WAM_CREATED', 'WAM_LOADED', 'WAM_ERROR','CONNECT_NODES','APPLY_CONNECTION'];
@@ -105,7 +108,7 @@ export class App {
                 console.log('Host group ID initialized:', App.hostGroupId);
             } catch (error) {
                 console.error('Failed to initialize host group ID:', error);
-                this.hostGroupIdPromise = null; // Permettre une nouvelle tentative en cas d'échec
+                this.hostGroupIdPromise = null;
             }
         }
     }

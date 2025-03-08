@@ -5,7 +5,6 @@ import {AudioNodeState} from "../network/types.ts";
 import { BoundingBox } from "./BoundingBox.ts";
 import {ControllerBehaviorManager} from "../xr/BehaviorControllerManager.ts";
 import {WamParameterDataMap} from "@webaudiomodules/api";
-import {IAudioNodeConfig} from "./types.ts";
 
 export class StepSequencer3D extends AudioNode3D {
 
@@ -185,6 +184,7 @@ export class StepSequencer3D extends AudioNode3D {
         return {
             id: this.id,
             name: 'stepSequencer',
+            //@ts-ignore
             configFile: 'stepSequencer',
             position: {
                 x: this.boundingBox.position.x,

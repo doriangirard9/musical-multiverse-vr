@@ -5,9 +5,6 @@ import { v4 as uuid } from 'uuid';
 import { MessageManager } from "./MessageManger.ts";
 import { App } from "./App.ts";
 import {AudioEventBus} from "./AudioEvents.ts";
-import {RandomNote3D} from "./audioNodes3D/RandomNote3D.ts";
-import {Instrument3D} from "./audioNodes3D/Instrument3D.ts";
-
 
 export class IOManager {
     private _inputNode: B.Nullable<AudioNode3D> = null;
@@ -55,12 +52,12 @@ export class IOManager {
                 this._outputNode = event.node;
                 }
             }
-            // else {
-            //     if(event.node.outputMesh){
-            //     this.createVirtualDragPoint(event.node.outputMesh);
-            //     this._outputNode = event.node;
-            //     }
-            // }
+            else {
+                if(event.node.outputMesh){
+                this.createVirtualDragPoint(event.node.outputMesh);
+                this._outputNode = event.node;
+                }
+            }
         }
         else if (event.pickType === "up") {
             if (event.type === 'input') {
@@ -94,9 +91,7 @@ export class IOManager {
                         this.messageManager.showMessage("Can't connect a node to itself",3000)
                         this._outputNode = null;
                         this.deleteVirtualTube();
-
                     }
-
                     else {
                         this.connectNodesMidi(this._outputNode, event.node);
                         this._outputNode = null;
@@ -422,11 +417,8 @@ public createVirtualDragPoint(node: B.Mesh): void {
         meshColor = node.material.diffuseColor;
         this.highlightLayer = new B.HighlightLayer(`hl-input-${node.id}`, this._scene);
         this.highlightLayer.addMesh(node as B.Mesh,  meshColor);
-    };
+    }
 
-    
-
-    
     this.pointerDragBehavior.onDragObservable.add((event) => {
         if (dragPoint && this.virtualTube) {
 
