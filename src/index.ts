@@ -3,9 +3,8 @@ import * as Tone from "tone";
 
 const audioCtx: AudioContext = new AudioContext();
 
-console.log("aaa")
-
 let onload = (): void => {
+    console.log("Start")
     Tone.setContext(audioCtx);
     const app: App = App.getInstance(audioCtx);
     app.startScene();

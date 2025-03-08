@@ -178,6 +178,11 @@ export class App {
 
     }
 
+    private _wamExtensionSetup(){
+        window.WAMExtensions = window.WAMExtensions || {};
+        window.WAMExtensions.notes = new NoteExtension();
+        window.WAMExtensions.patterns = new PatternExtension();
+    }
 
     public async createAudioNode3D(name: string, id: string, configFile?: IAudioNodeConfig): Promise<void> {
         this.menu.hide()
