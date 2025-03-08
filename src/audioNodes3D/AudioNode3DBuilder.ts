@@ -15,6 +15,7 @@ export class AudioNode3DBuilder {
     constructor(private readonly _scene: B.Scene, private readonly _audioCtx: AudioContext) {}
 
     public async create(name: string, id: string, configFile?: IAudioNodeConfig): Promise<AudioNode3D> {
+
         if (name === "simpleOscillator") {
             const response: Response = await fetch(`${WAM_CONFIGS_URL}/coreConfig/simpleOscillatorConfig`, {
                 method: "get",

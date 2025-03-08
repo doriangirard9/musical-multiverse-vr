@@ -21,6 +21,10 @@ import {MessageManager} from "./MessageManger.ts";
 import {AudioEventBus, AudioEventPayload, AudioEventType} from "./AudioEvents.ts";
 import {ConnectionQueueManager} from "./network/manager/ConnectionQueueManager.ts";
 import {IAudioNodeConfig} from "./audioNodes3D/types.ts";
+import { controls, WamGUIGenerator } from "wam3dgenerator";
+import { WamGUI3DPedal } from "./audioNodes3D/pedal3d/WamGUI3DPedal.ts";
+import { Pedal3DObject } from "./audioNodes3D/pedal3d/Pedal3DObject.ts";
+
 
 export class App {
     public canvas: HTMLCanvasElement;
@@ -162,14 +166,20 @@ export class App {
         this.networkManager.connect('musical-multiverse');
         this.networkManager.onAudioNodeChangeObservable.add(this._onRemoteAudioNodeChange.bind(this));
         this.networkManager.onPlayerChangeObservable.add(this._onRemotePlayerChange.bind(this));
+
+        const code = JSON.parse(`{"aspect_ratio":1.5,"bottom_color":"#dfc575","top_color":"#d2a01c","controls":[{"x":0.3,"y":0.221875,"width":0.3843750000000001,"height":0.29687500000000006,"values":{"Text":"Effect","Color":"#000000","Font":"avara"},"control":"text"},{"x":0.10312500000000002,"y":0.5031242774161134,"width":0.2125,"height":0.2343757038154738,"values":{"Base Color":"#222222","Cursor Color":"#ff0000","Target":"overdrive"},"control":"cursor_control"},{"x":0.4137499999999999,"y":0.48562416480563764,"width":0.21250000000000002,"height":0.2343757038154738,"values":{"Base Color":"#222222","Cursor Color":"#ff0000","Target":"level"},"control":"cursor_control"},{"x":0.70875,"y":0.4774990803477809,"width":0.21250000000000002,"height":0.2343757038154738,"values":{"Base Color":"#222222","Cursor Color":"#ff0000","Target":"offset"},"control":"cursor_control"}],"wam_url":"https://www.webaudiomodules.com/community/plugins/burns-audio/distortion/index.js"}`)
+        const object = new Pedal3DObject(
+            App._instance,
+            await WamGUI3DPedal.create(code, this.scene, this._audioCtx, App.hostGroupId[0])
+        )
+
     }
 
 
     public async createAudioNode3D(name: string, id: string, configFile?: IAudioNodeConfig): Promise<void> {
         this.menu.hide()
-        this.messageManager.showMessage("Loading...",0);
+        this.messageManager.showMessage("Loading...",0)
         try{
-
             const audioNode3D: AudioNode3D = await this._audioNode3DBuilder.create(name, id, configFile);
             await audioNode3D.instantiate();
             // await a certain delay before adding listeners
