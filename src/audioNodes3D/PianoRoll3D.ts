@@ -8,6 +8,7 @@ import { Wam3D } from "./Wam3D.ts";
 import { CustomParameter, IAudioNodeConfig, IWamConfig } from "./types.ts";
 import { ParamBuilder } from "./parameters/ParamBuilder.ts";
 import { Instrument3D } from "./Instrument3D.ts";
+import * as GUI from "@babylonjs/gui";
 
 export class PianoRoll extends Wam3D {
   private _notes: string[] = ["C4", "D4", "E4", "F4", "G4", "A4", "B4"];
@@ -22,6 +23,12 @@ export class PianoRoll extends Wam3D {
     }[],
   };
 
+  private _tempo: number = 120; // Default tempo
+  private _tickDuration: number = 0; // To be calculated dynamically
+
+
+  private btnStartStop: B.Mesh;
+  private isBtnStartStop: boolean = true;
   constructor(
     scene: B.Scene,
     audioCtx: AudioContext,
@@ -30,6 +37,7 @@ export class PianoRoll extends Wam3D {
     s: IAudioNodeConfig
   ) {
     super(scene, audioCtx, id, config, s);
+    this.btnStartStop = B.MeshBuilder.CreateBox("startStopButton", { width: 2, height:1, depth: 0.6 }, this._scene);
   }
 
   public async instantiate(): Promise<void> {
@@ -45,31 +53,102 @@ export class PianoRoll extends Wam3D {
       const baseY = this.baseMesh.position.y;
       const baseZ = this.baseMesh.position.z;
 
-     
-     this._createOutputMidi(new B.Vector3( 15, baseY, baseZ + 1));
+      // this.basemesh length and width
+      const baseLength = this.baseMesh.getBoundingInfo().boundingBox.extendSize.x;
+      this._createOutputMidi(new B.Vector3(baseLength, baseY, baseZ+1));
       
-     this._wamInstance.audioNode.scheduleEvents({
-      type: 'wam-transport', data: {
+
+      // this._createOutputMidi(new B.Vector3(15, baseY, baseZ + 1));
+    console.log("x position", this.baseMesh.position.x)
+    //   this._createOutputMidi(new B.Vector3(this.baseMesh.position.x + 4.2, this.baseMesh.position.y, this.baseMesh.position.z+1));
+      // Get tempo and calculate tick duration
+      this._tempo = 120; // Change this dynamically if needed
+      this._tickDuration = (60 / this._tempo) / 4; // Quarter note duration in seconds
+
+      this._wamInstance.audioNode.scheduleEvents({
+        type: "wam-transport",
+        data: {
           playing: true,
           timeSigDenominator: 4,
           timeSigNumerator: 4,
           currentBar: 0,
           currentBarStarted: this._audioCtx.currentTime,
-          tempo: 120
-      }
-  });
-      const bo  = new BoundingBox(this,this._scene,this.id,this._app)
-      this.boundingBox = bo.boundingBox;
+          tempo: this._tempo,
+        },
+      });
 
+      // this._configSequencerLoop(); // Ensures visual sync
+
+      const bo = new BoundingBox(this, this._scene, this.id, this._app);
+      this.boundingBox = bo.boundingBox;
+      this.startStopButton();
     } catch (error) {
       console.error("Error instantiating PianoRoll:", error);
     }
+  }
+  // add function start stop button mesh
+  public startStopButton(): void {
+    this.btnStartStop.parent = this.baseMesh;
+    const material = new B.StandardMaterial("material", this._scene);
+    material.diffuseColor =  B.Color3.Green();
+    this.btnStartStop.material = material;
+    this.btnStartStop.position.x = -10.5;
+    this.btnStartStop.position.y = 1;
+    this.btnStartStop.position.z = 3.5;
+
+    // add click action to start stop button
+    this.btnStartStop.actionManager = new B.ActionManager(this._scene);
+    // write on the face of the button start
+    // const advancedTexture = GUI.AdvancedDynamicTexture.CreateForMesh(this.btnStartStop);
+    // const text1 = new GUI.TextBlock();
+    // toggle start stop
+    this.btnStartStop.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickTrigger, () => {
+
+      // check if color is green
+
+      if (this.isBtnStartStop) {
+        this._wamInstance.audioNode.scheduleEvents({
+          type: "wam-transport",
+          data: {
+            playing: false,
+            timeSigDenominator: 4,
+            timeSigNumerator: 4,
+            currentBar: 0,
+            currentBarStarted: this._audioCtx.currentTime,
+            tempo: this._tempo,
+          },
+        });
+        this.isBtnStartStop = false;
+        material.diffuseColor = B.Color3.Red();
+
+        // text1.text = "Start";
+        // advancedTexture.addControl(text1);
+
+        } else {
+          this._wamInstance.audioNode.scheduleEvents({
+            type: "wam-transport",
+            data: {
+              playing: true,
+              timeSigDenominator: 4,
+              timeSigNumerator: 4,
+              currentBar: 0,
+              currentBarStarted: this._audioCtx.currentTime,
+              tempo: this._tempo,
+            },
+          });
+          this.isBtnStartStop = true;
+          material.diffuseColor = B.Color3.Green();
+          // write on the face of the button stop
+
+          }
+    }));
+
   }
 
   protected _createBaseMesh(): void {
     this.baseMesh = B.MeshBuilder.CreateBox(
       "base",
-      { width: 10, height: 0.2, depth: 5 },
+      { width: 25, height: 0.2, depth: 10 },
       this._scene
     );
     const material = new B.StandardMaterial("material", this._scene);
@@ -80,15 +159,16 @@ export class PianoRoll extends Wam3D {
   private _createGrid(): void {
     for (let row = 0; row < this._notes.length; row++) {
       this._grid.push([]);
-      for (let col = 0; col < 16; col++) {
+      for (let col = 0; col < 22; col++) {
         this._createNoteButton(row, col);
       }
     }
   }
+
   public connect(destination: AudioNode): void {
     // @ts-ignore
     this._wamInstance.audioNode.connectEvents(destination.instanceId);
-}
+  }
 
   private _createNoteButton(row: number, column: number): void {
     const buttonMesh = B.MeshBuilder.CreateBox(
@@ -97,7 +177,7 @@ export class PianoRoll extends Wam3D {
       this._scene
     );
 
-    buttonMesh.position.x = column - 7.5;
+    buttonMesh.position.x = column - 10.5;
     buttonMesh.position.y = 0.2;
     buttonMesh.position.z = row - 3.5;
     buttonMesh.parent = this.baseMesh;
@@ -163,7 +243,7 @@ export class PianoRoll extends Wam3D {
       A4: 69,
       B4: 71,
     };
-    return noteMap[note] || 60;
+    return noteMap[note]// || 60;
   }
 
   private _updateNoteColor(row: number, column: number): void {
@@ -174,13 +254,32 @@ export class PianoRoll extends Wam3D {
       : new B.Color3(0, 0, 1); // Blue if inactive
   }
 
-  private runningNoteColor(row: number, column: number): void {
+  private _configSequencerLoop(): void {
+    let currentTick = 0;
+    setInterval(() => {
+      this._pattern.notes.forEach(note => {
+        if (note.tick === currentTick) {
+          this._onPlayButtonAnimation(note.number, note.tick);
+        }
+      });
+
+      currentTick = (currentTick + 12) % 256; // Move to next step
+    }, this._tickDuration * 1000); // Syncs with tick duration
+  }
+
+  private _onPlayButtonAnimation(noteNumber: number, tick: number): void {
+    const row = this._notes.findIndex(n => this._convertNoteToMidi(n) === noteNumber);
+    const column = tick / 12;
+    if (row === -1 || column < 0 || column >= 22) return;
+
     const button = this._grid[row][column];
     const material = button.mesh.material as B.StandardMaterial;
-    material.diffuseColor = new B.Color3(0, 1, 0) // green if playing
-  }
-  
+    material.diffuseColor = new B.Color3(0, 1, 0); // Green when playing
 
+    setTimeout(() => {
+      this._updateNoteColor(row, column);
+    }, this._tickDuration * 1000);
+  }
   private _sendPatternToPianoRoll(): void {
     if (!(window.WAMExtensions && window.WAMExtensions.patterns)) {
       console.warn("Piano roll delegate not found.");
@@ -253,6 +352,7 @@ export class PianoRoll extends Wam3D {
           this.outputMeshBigMidi.parent = this.outputMeshMidi;
           this.outputMeshBigMidi.visibility = 0;
           this.outputMeshMidi.parent = this.baseMesh;
+          position.x = position.x + this.outputMeshMidi.getBoundingInfo().boundingBox.extendSize.x;
           this.outputMeshMidi.position = position;
   
           // color
