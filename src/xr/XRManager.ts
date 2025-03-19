@@ -1,4 +1,4 @@
-import {XRInputManager} from "./XRInputManager.ts";
+import { XRInputManager } from "./XRInputManager.ts";
 import * as B from "@babylonjs/core";
 
 export class XRManager {
@@ -7,6 +7,7 @@ export class XRManager {
     public xrHelper!: B.WebXRDefaultExperience;
     private _scene!: B.Scene;
     public xrFeaturesManager!: B.WebXRFeaturesManager;
+    private _audioCtx!: AudioContext;
 
     private constructor() {
     }
@@ -21,24 +22,21 @@ export class XRManager {
     /**
      * Initialize the WebXR experience, XRInputs and XR features
      */
-    public async init(scene: B.Scene): Promise<void> {
+    public async init(scene: B.Scene, audioCtx: AudioContext): Promise<void> {
         this._scene = scene;
+        this._audioCtx = audioCtx; // Assign audio context
         this.xrHelper = await this._getWebXRExperience();
         this._initXRFeatures();
         this.xrInputManager = new XRInputManager(this.xrHelper);
 
         this.xrHelper.baseExperience.camera.checkCollisions = true;
         this.xrHelper.baseExperience.camera.applyGravity = true;
-        this.xrHelper.baseExperience.camera.ellipsoid = new B.Vector3(1, 1, 1);  // ellipsoid act as bounding for the camera
+        this.xrHelper.baseExperience.camera.ellipsoid = new B.Vector3(1, 1, 1);
         await this.xrInputManager.initControllers();
 
-
+        this._initListenerUpdate();  // Initialize listener updates here
     }
 
-    /**
-     * Get the WebXR experience helper
-     * @throws {Error} if WebXR is not supported
-     */
     private async _getWebXRExperience(): Promise<B.WebXRDefaultExperience> {
         const isSupported: boolean = await B.WebXRSessionManager.IsSessionSupportedAsync('immersive-ar');
         if (!isSupported) {
@@ -51,7 +49,6 @@ export class XRManager {
             // Explicitly disable movement and other features if enabled by default
             this.xrFeaturesManager = xrExperience.baseExperience.featuresManager;
             return xrExperience;
-
         }
     }
 
@@ -65,5 +62,28 @@ export class XRManager {
         });
     }
 
+    //  Explicitly update Audio Listener based on XR Camera
+    private _initListenerUpdate(): void {
+        this._scene.onBeforeRenderObservable.add(() => {
+            const xrCamera = this.xrHelper.baseExperience.camera;
+            const listener = this._audioCtx.listener;
 
+            // Position
+            listener.positionX.setValueAtTime(xrCamera.position.x, this._audioCtx.currentTime);
+            listener.positionY.setValueAtTime(xrCamera.position.y, this._audioCtx.currentTime);
+            listener.positionZ.setValueAtTime(xrCamera.position.z, this._audioCtx.currentTime);
+
+            // Orientation
+            const forward = xrCamera.getForwardRay().direction;
+            const up = xrCamera.upVector;
+
+            listener.forwardX.setValueAtTime(forward.x, this._audioCtx.currentTime);
+            listener.forwardY.setValueAtTime(forward.y, this._audioCtx.currentTime);
+            listener.forwardZ.setValueAtTime(forward.z, this._audioCtx.currentTime);
+
+            listener.upX.setValueAtTime(up.x, this._audioCtx.currentTime);
+            listener.upY.setValueAtTime(up.y, this._audioCtx.currentTime);
+            listener.upZ.setValueAtTime(up.z, this._audioCtx.currentTime);
+        });
+    }
 }

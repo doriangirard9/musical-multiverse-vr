@@ -124,7 +124,7 @@ export class App {
     }
 
     public async startScene(): Promise<void> {
-        await this.xrManager.init(this.scene);
+        await this.xrManager.init(this.scene,this._audioCtx);
         //await this._setupControllers();
 
         this.engine.runRenderLoop((): void => {
