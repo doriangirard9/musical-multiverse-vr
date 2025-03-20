@@ -1,5 +1,6 @@
 import {AudioNode3D} from "./audioNodes3D/AudioNode3D.ts";
 import * as B from "@babylonjs/core";
+import { Pedal3DObject } from "./audioNodes3D/pedal3d/Pedal3DObject.ts";
 
 export interface MenuConfig {
     categories: {
@@ -15,6 +16,11 @@ export type IOEvent = {
     type: "input" | "output" | "inputMidi"| "outputMidi";
     pickType: "up" | "down" | "out";
     node: AudioNode3D;
+} | {
+    type: "input" | "output",
+    pickType: "up"|"down"|"out",
+    index: number,
+    pedal: Pedal3DObject,
 }
 
 

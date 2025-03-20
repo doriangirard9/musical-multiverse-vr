@@ -7,6 +7,7 @@ import {Wam3D} from "./Wam3D.ts";
 import {StepSequencer3D} from "./StepSequencer3D.ts";
 import {RandomNote3D} from "./RandomNote3D.ts";
 import {Instrument3D} from "./Instrument3D.ts";
+import { Wam3DNode } from "./Wam3DNode.ts";
 
 // const WAM_CONFIGS_URL: string = "https://wam-configs.onrender.com";
 const WAM_CONFIGS_URL: string = "http://localhost:3000";
@@ -41,7 +42,6 @@ export class AudioNode3DBuilder {
             const config: IWamConfig = await import(/* @vite-ignore */`../wamsConfig/${configFile}.json`);
             return new Instrument3D(this._scene, this._audioCtx, id, config, configFile!);
         }
-        // WAMs
         else {
             const response: Response = await fetch(`${WAM_CONFIGS_URL}/wamsConfig/${configFile}`, {
                 method: "get",
@@ -50,8 +50,15 @@ export class AudioNode3DBuilder {
             console.log("Config File: ", configFile);
             const configString: string = await response.json();
             console.log("Config String ", configString);
-            const config: IWamConfig = JSON.parse(configString);
-            return new Wam3D(this._scene, this._audioCtx, id, config, configFile!);
+            const config = JSON.parse(configString);
+            // WAMGUI3D Editor WAMS
+            if("wam3d" in config){
+                return new Wam3DNode(this._scene, this._audioCtx, id, config.wam3d);
+            }
+            // Legacy WAMs
+            else{
+                return new Wam3D(this._scene, this._audioCtx, id, config, configFile!);
+            }
         }
     }
 }

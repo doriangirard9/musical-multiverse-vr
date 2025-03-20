@@ -1,4 +1,4 @@
-import { TransformNode, Vector3 } from "@babylonjs/core"
+import { AbstractMesh, TransformNode, Vector3 } from "@babylonjs/core"
 import { WamNode } from "@webaudiomodules/api"
 
 /**
@@ -9,12 +9,17 @@ export interface Pedal3DConnectable{
      * The visual representation of the audio input or output.
      * It is draggable and connectable. 
      **/
-    mesh: TransformNode
+    mesh: AbstractMesh
 
     /**
      * The audio node of the input or output.
      */
     audioNode: AudioNode|WamNode
+
+    /**
+     * Called when the input or output is connected to or disconnected from another input or output.
+     */
+    setConnect(isConnected:boolean): void
 }
 
 /**
@@ -22,7 +27,7 @@ export interface Pedal3DConnectable{
  */
 export interface Pedal3DInput{
     /** The visual representation of the audio input. **/
-    mesh: TransformNode
+    mesh: AbstractMesh
 
     /** Get the value of the input. Normalized between 0 and 1. **/
     getValue(): number

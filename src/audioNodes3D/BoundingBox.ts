@@ -160,10 +160,10 @@ export class BoundingBox {
     private setupMeshHierarchy(): void {
         this.audioNode3D.baseMesh.parent = this.boundingBox;
         if (this.audioNode3D.inputMesh) {
-            this.audioNode3D.inputMesh.parent = this.boundingBox;
+            // TODO this.audioNode3D.inputMesh.parent = this.boundingBox;
         }
         if (this.audioNode3D.outputMesh) {
-            this.audioNode3D.outputMesh.parent = this.boundingBox;
+            // TODO Ca cause des problème je sais pas à quoi ça sert this.audioNode3D.outputMesh.parent = this.boundingBox;
         }
     }
 

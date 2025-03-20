@@ -170,11 +170,13 @@ export class App {
         this.networkManager.onAudioNodeChangeObservable.add(this._onRemoteAudioNodeChange.bind(this));
         this.networkManager.onPlayerChangeObservable.add(this._onRemotePlayerChange.bind(this));
 
-        const code = JSON.parse(`{"aspect_ratio":1.5,"bottom_color":"#dfc575","top_color":"#d2a01c","controls":[{"x":0.3,"y":0.221875,"width":0.3843750000000001,"height":0.29687500000000006,"values":{"Text":"Effect","Color":"#000000","Font":"avara"},"control":"text"},{"x":0.10312500000000002,"y":0.5031242774161134,"width":0.2125,"height":0.2343757038154738,"values":{"Base Color":"#222222","Cursor Color":"#ff0000","Target":"overdrive"},"control":"cursor_control"},{"x":0.4137499999999999,"y":0.48562416480563764,"width":0.21250000000000002,"height":0.2343757038154738,"values":{"Base Color":"#222222","Cursor Color":"#ff0000","Target":"level"},"control":"cursor_control"},{"x":0.70875,"y":0.4774990803477809,"width":0.21250000000000002,"height":0.2343757038154738,"values":{"Base Color":"#222222","Cursor Color":"#ff0000","Target":"offset"},"control":"cursor_control"}],"wam_url":"https://www.webaudiomodules.com/community/plugins/burns-audio/distortion/index.js"}`)
+        //const code = JSON.parse(`{"aspect_ratio":1.5,"bottom_color":"#dfc575","top_color":"#d2a01c","controls":[{"x":0.3,"y":0.221875,"width":0.3843750000000001,"height":0.29687500000000006,"values":{"Text":"Effect","Color":"#000000","Font":"avara"},"control":"text"},{"x":0.10312500000000002,"y":0.5031242774161134,"width":0.2125,"height":0.2343757038154738,"values":{"Base Color":"#222222","Cursor Color":"#ff0000","Target":"overdrive"},"control":"cursor_control"},{"x":0.4137499999999999,"y":0.48562416480563764,"width":0.21250000000000002,"height":0.2343757038154738,"values":{"Base Color":"#222222","Cursor Color":"#ff0000","Target":"level"},"control":"cursor_control"},{"x":0.70875,"y":0.4774990803477809,"width":0.21250000000000002,"height":0.2343757038154738,"values":{"Base Color":"#222222","Cursor Color":"#ff0000","Target":"offset"},"control":"cursor_control"}],"wam_url":"https://www.webaudiomodules.com/community/plugins/burns-audio/distortion/index.js"}`)
+        /*const code = JSON.parse(`{"aspect_ratio":0.7,"bottom_color":"#c98005","top_color":"#eccf02","controls":[{"x":0.2,"y":0.109374,"width":0.4374368740822464,"height":0.43750000000000001,"values":{"Base Color":"#222222","Cursor Color":"#e3b835","Target":"/kbverb/feedback"},"control":"cursor_control"},{"x":0.38439100937315684,"y":0.7593526258504807,"width":0.2468737140412005,"height":0.2218552619030265,"values":{"Text":"KBVerb","Color":"#000000","Font":"rich_eatin"},"control":"text"},{"x":0,"y":0.550128966822399,"width":0.25312500000000004,"height":0.24062500000000003,"values":{"Color":"#00FF00"},"control":"input_control"},{"x":0.7531001071890189,"y":0.550128966822399,"width":0.2468998928109811,"height":0.2406293401573381,"values":{"Color":"#FF0000"},"control":"output_control"}],"wam_url":"https://www.webaudiomodules.com/community/plugins/wimmics/kbverb/index.js"}`)
         const object = new Pedal3DObject(
             App._instance,
             await WamGUI3DPedal.create(code, this.scene, this._audioCtx, App.hostGroupId[0])
         )
+        object.ioObservable.add(this.ioManager.onIOEvent.bind(this.ioManager))*/
 
     }
 
@@ -196,7 +198,6 @@ export class App {
             await this.networkManager.createNetworkAudioNode3D(audioNode3D);
             console.log('Audio node added successfully.');
             console.log('end of init')
-
 
             // this.messageManager.hideMessage()
         }catch(e){

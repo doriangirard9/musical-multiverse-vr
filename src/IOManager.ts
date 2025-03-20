@@ -23,147 +23,169 @@ export class IOManager {
     }
 
     public onIOEvent(event: IOEvent): void {
-        if (event.pickType === "down") {
-            if (event.type === 'input') {
-                if (event.node.inputMesh) {
-                    console.log("input node")
-                    this.createVirtualDragPoint(event.node.inputMesh);
+        // Handle connections of Pedal3DObject
+        if("pedal" in event){
+            if (event.pickType === "down") {
+                let connectableMesh: B.AbstractMesh|undefined = undefined
+                if(event.type=="input"){
+                    connectableMesh = event.pedal.core.inputs[event.index].mesh
+                }
+                else{
+                    connectableMesh = event.pedal.core.outputs[event.index].mesh
+                }
+            }
+            else if(event.pickType === "up"){
+
+                this.deleteVirtualTube()
+            }
+            else{
+                this.deleteVirtualTube()
+                this._inputNode = null
+                this._outputNode = null
+            }
+        }
+        // Handle connections of AudioNode3D
+        else{
+            if (event.pickType === "down") {
+                if (event.type === 'input') {
+                    if (event.node.inputMesh) {
+                        console.log("input node")
+                        this.createVirtualDragPoint(event.node.inputMesh);
+                        this._inputNode = event.node;
+                    }
+                }
+                else if (event.type === 'output') {
+                    if(event.node.outputMesh){
+                        this.createVirtualDragPoint(event.node.outputMesh);
+                        this._outputNode = event.node;
+                    }
+                }
+                else if (event.type === 'inputMidi')  {
+                    console.log("inputMidi node")
+                    console.log("event DOWN",event)
+                    this.createVirtualDragPoint(event.node.inputMeshMidi!);
                     this._inputNode = event.node;
                 }
-            }
-            else if (event.type === 'output') {
-                if(event.node.outputMesh){
-                this.createVirtualDragPoint(event.node.outputMesh);
-                this._outputNode = event.node;
+                else if (event.type === 'outputMidi') {
+                    console.log("outputMidi node")
+                    console.log("event DOWN",event)
+                    if(event.node.outputMeshMidi){
+                        this.createVirtualDragPoint(event.node.outputMeshMidi);
+                        this._outputNode = event.node;
+                    }
+                }
+                else {
+                    if(event.node.outputMesh){
+                        this.createVirtualDragPoint(event.node.outputMesh);
+                        this._outputNode = event.node;
+                    }
                 }
             }
-            else if (event.type === 'inputMidi')  {
-                console.log("inputMidi node")
-                console.log("event DOWN",event)
-                this.createVirtualDragPoint(event.node.inputMeshMidi!);
-                this._inputNode = event.node;
+            else if (event.pickType === "up") {
+                if (event.type === 'input') {
+                    if (this._outputNode) {
+                        if (event.node.id === this._outputNode.id) {
+                            // alert("Can't connect a node to itself");
+                            this.messageManager.showMessage("Can't connect a node to itself",3000)
+                            this._outputNode = null;
+                            this.deleteVirtualTube();
 
-            }
-            else if (event.type === 'outputMidi') {
-                console.log("outputMidi node")
-                console.log("event DOWN",event)
-                if(event.node.outputMeshMidi){
-                this.createVirtualDragPoint(event.node.outputMeshMidi);
-                this._outputNode = event.node;
+                        }
+                        else {
+                            this.connectNodes(this._outputNode, event.node);
+                            this._outputNode = null;
+                            this.deleteVirtualTube();
+
+                        }
+                    }
+                    else if (this._inputNode) {
+                        // alert("You have to connect an output node");
+                        this.messageManager.showMessage("You have to connect an output node",3000)
+                        this._inputNode = null;
+                        this.deleteVirtualTube();
+
+                    }
+                }
+                else if (event.type === 'inputMidi')  {
+                    if (this._outputNode) {
+                        if (event.node.id === this._outputNode.id) {
+                            // alert("Can't connect a node to itself");
+                            this.messageManager.showMessage("Can't connect a node to itself",3000)
+                            this._outputNode = null;
+                            this.deleteVirtualTube();
+                        }
+                        else {
+                            this.connectNodesMidi(this._outputNode, event.node);
+                            this._outputNode = null;
+                            this.deleteVirtualTube();
+
+                        }
+                    }
+                    else if (this._inputNode) {
+                        // alert("You have to connect an output node");
+                        this.messageManager.showMessage("You have to connect an output node",3000)
+                        this._inputNode = null;
+                        this.deleteVirtualTube();
+
+                    }
+                }
+                else if(event.type === 'outputMidi') {
+                    if (this._inputNode) {
+                        if (event.node.id === this._inputNode.id) {
+                            // alert("Can't connect a node to itself");
+                            this.messageManager.showMessage("Can't connect a node to itself",3000)
+                            this._inputNode = null;
+                            this.deleteVirtualTube();
+
+                        }
+                        else {
+                            this.connectNodesMidi(event.node, this._inputNode);
+                            this._inputNode = null;
+                            this.deleteVirtualTube();
+
+                        }
+                    }
+                    else if (this._outputNode) {
+                        // alert("You have to connect an input node");
+                        this.messageManager.showMessage("You have to connect an input node",3000)
+                        this._outputNode = null;
+                        this.deleteVirtualTube();
+
+                    }
+                    this.deleteVirtualTube();
+                }
+                else {
+                    if (this._inputNode) {
+                        if (event.node.id === this._inputNode.id) {
+                            // alert("Can't connect a node to itself");
+                            this.messageManager.showMessage("Can't connect a node to itself",3000)
+
+                            this._inputNode = null;
+                            this.deleteVirtualTube();
+
+                        }
+                        else {
+                            this.connectNodes(event.node, this._inputNode);
+                            this._inputNode = null;
+                            this.deleteVirtualTube();
+
+                        }
+                    }
+                    else if (this._outputNode) {
+                        this.messageManager.showMessage("You have to connect an input node",3000)
+                        // alert("You have to connect an input node");
+                        this._outputNode = null;
+                        this.deleteVirtualTube();
+
+                    }
+                    this.deleteVirtualTube();
                 }
             }
             else {
-                if(event.node.outputMesh){
-                this.createVirtualDragPoint(event.node.outputMesh);
-                this._outputNode = event.node;
-                }
-            }
-        }
-        else if (event.pickType === "up") {
-            if (event.type === 'input') {
-                if (this._outputNode) {
-                    if (event.node.id === this._outputNode.id) {
-                        // alert("Can't connect a node to itself");
-                        this.messageManager.showMessage("Can't connect a node to itself",3000)
-                        this._outputNode = null;
-                        this.deleteVirtualTube();
-
-                    }
-                    else {
-                        this.connectNodes(this._outputNode, event.node);
-                        this._outputNode = null;
-                        this.deleteVirtualTube();
-
-                    }
-                }
-                else if (this._inputNode) {
-                    // alert("You have to connect an output node");
-                    this.messageManager.showMessage("You have to connect an output node",3000)
-                    this._inputNode = null;
-                    this.deleteVirtualTube();
-
-                }
-            }
-            else if (event.type === 'inputMidi')  {
-                if (this._outputNode) {
-                    if (event.node.id === this._outputNode.id) {
-                        // alert("Can't connect a node to itself");
-                        this.messageManager.showMessage("Can't connect a node to itself",3000)
-                        this._outputNode = null;
-                        this.deleteVirtualTube();
-                    }
-                    else {
-                        this.connectNodesMidi(this._outputNode, event.node);
-                        this._outputNode = null;
-                        this.deleteVirtualTube();
-
-                    }
-                }
-                else if (this._inputNode) {
-                    // alert("You have to connect an output node");
-                    this.messageManager.showMessage("You have to connect an output node",3000)
-                    this._inputNode = null;
-                    this.deleteVirtualTube();
-
-                }
-            }
-            else if(event.type === 'outputMidi') {
-                if (this._inputNode) {
-                    if (event.node.id === this._inputNode.id) {
-                        // alert("Can't connect a node to itself");
-                        this.messageManager.showMessage("Can't connect a node to itself",3000)
-                        this._inputNode = null;
-                        this.deleteVirtualTube();
-
-                    }
-                    else {
-                        this.connectNodesMidi(event.node, this._inputNode);
-                        this._inputNode = null;
-                        this.deleteVirtualTube();
-
-                    }
-                }
-                else if (this._outputNode) {
-                    // alert("You have to connect an input node");
-                    this.messageManager.showMessage("You have to connect an input node",3000)
-                    this._outputNode = null;
-                    this.deleteVirtualTube();
-
-                }
                 this.deleteVirtualTube();
+                this._inputNode = null;
+                this._outputNode = null;
             }
-            else {
-                if (this._inputNode) {
-                    if (event.node.id === this._inputNode.id) {
-                        // alert("Can't connect a node to itself");
-                        this.messageManager.showMessage("Can't connect a node to itself",3000)
-
-                        this._inputNode = null;
-                        this.deleteVirtualTube();
-
-                    }
-                    else {
-                        this.connectNodes(event.node, this._inputNode);
-                        this._inputNode = null;
-                        this.deleteVirtualTube();
-
-                    }
-                }
-                else if (this._outputNode) {
-                    this.messageManager.showMessage("You have to connect an input node",3000)
-                    // alert("You have to connect an input node");
-                    this._outputNode = null;
-                    this.deleteVirtualTube();
-
-                }
-                this.deleteVirtualTube();
-            }
-        }
-        else {
-            this.deleteVirtualTube();
-            this._inputNode = null;
-            this._outputNode = null;
-        
         }
     }
 
