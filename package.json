@@ -9,22 +9,22 @@
     "preview": "vite preview"
   },
   "devDependencies": {
-    "@types/node": "^22.10.5",
-    "@types/uuid": "^9.0.8",
+    "@types/node": "^22.13.10",
+    "@types/uuid": "^10.0.0",
     "@webaudiomodules/api": "^2.0.0-alpha.6",
-    "typescript": "^5.2.2",
-    "vite": "^5.1.6"
+    "typescript": "^5.8.2",
+    "vite": "^6.2.2"
   },
   "dependencies": {
-    "@babylonjs/core": "^6.48.0",
-    "@babylonjs/gui": "^6.48.0",
-    "@babylonjs/inspector": "^6.49.0",
-    "@babylonjs/loaders": "^6.48.0",
+    "@babylonjs/core": "^7.54.0",
+    "@babylonjs/gui": "^7.54.0",
+    "@babylonjs/inspector": "^7.54.0",
+    "@babylonjs/loaders": "^7.54.0",
     "@webaudiomodules/sdk": "^0.0.12",
-    "tone": "^14.7.77",
-    "uuid": "^9.0.1",
-    "ws": "^8.16.0",
+    "tone": "^15.0.4",
+    "uuid": "^11.1.0",
+    "ws": "^8.18.1",
     "y-webrtc": "^10.3.0",
-    "yjs": "^13.6.14"
+    "yjs": "^13.6.24"
   }
 }
