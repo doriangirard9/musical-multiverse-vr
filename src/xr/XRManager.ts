@@ -9,8 +9,7 @@ export class XRManager {
     public xrFeaturesManager!: B.WebXRFeaturesManager;
     private _audioCtx!: AudioContext;
 
-    private constructor() {
-    }
+    private constructor() {}
 
     public static getInstance(): XRManager {
         if (!this._instance) {
@@ -37,6 +36,10 @@ export class XRManager {
         this._initListenerUpdate();  // Initialize listener updates here
     }
 
+    /**
+     * Get the WebXR experience helper
+     * @throws {Error} if WebXR is not supported
+     */
     private async _getWebXRExperience(): Promise<B.WebXRDefaultExperience> {
         const isSupported: boolean = await B.WebXRSessionManager.IsSessionSupportedAsync('immersive-ar');
         if (!isSupported) {
@@ -62,18 +65,33 @@ export class XRManager {
         });
     }
 
-    //  Explicitly update Audio Listener based on XR Camera
+    /**
+     * Explicitly update audio listener's position and orientation based on XR camera
+     */
     private _initListenerUpdate(): void {
+        if (!this._audioCtx) {
+            console.error("AudioContext is undefined in XRManager!");
+            return;
+        }
+
         this._scene.onBeforeRenderObservable.add(() => {
             const xrCamera = this.xrHelper.baseExperience.camera;
+
             const listener = this._audioCtx.listener;
 
-            // Position
-            listener.positionX.setValueAtTime(xrCamera.position.x, this._audioCtx.currentTime);
-            listener.positionY.setValueAtTime(xrCamera.position.y, this._audioCtx.currentTime);
-            listener.positionZ.setValueAtTime(xrCamera.position.z, this._audioCtx.currentTime);
+            // Ensure XR camera exists
+            if (!xrCamera) {
+                console.error("xrCamera is undefined in XRManager!");
+                return;
+            }
 
-            // Orientation
+            // Listener Position Update
+            const pos = xrCamera.position;
+            listener.positionX.setValueAtTime(pos.x, this._audioCtx.currentTime);
+            listener.positionY.setValueAtTime(pos.y, this._audioCtx.currentTime);
+            listener.positionZ.setValueAtTime(pos.z, this._audioCtx.currentTime);
+
+            // Listener Orientation Update
             const forward = xrCamera.getForwardRay().direction;
             const up = xrCamera.upVector;
 

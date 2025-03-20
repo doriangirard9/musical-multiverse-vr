@@ -63,11 +63,8 @@ export class AudioOutput3D extends AudioNode3D {
     }
 
     public getState(): Promise<AudioNodeState> {
-        let parameters : WamParameterDataMap = {}
-        let config: IAudioNodeConfig = {defaultParameter: {
-                type: "",
-                color: ""
-            }, customParameters: [] }
+        const parameters: WamParameterDataMap = {};
+        const config: IAudioNodeConfig = { defaultParameter: { type: "", color: "" }, customParameters: [] };
         return Promise.resolve({
             id: this.id,
             name: "audioOutput",

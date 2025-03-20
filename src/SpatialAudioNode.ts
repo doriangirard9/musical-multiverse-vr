@@ -9,25 +9,25 @@ export class SpatialAudioNode {
     constructor(audioCtx: AudioContext, mesh: B.Mesh, scene: B.Scene) {
         this.audioCtx = audioCtx;
         this.mesh = mesh;
-
         this.pannerNode = this.audioCtx.createPanner();
-        this._initPanner();
 
-        // Update position on each frame
+        this.pannerNode.panningModel = "HRTF";
+        this.pannerNode.distanceModel = "inverse";
+        this.pannerNode.refDistance = 1;
+        this.pannerNode.rolloffFactor = 1;
+        this.pannerNode.maxDistance = 10000;
+
+        // Important: explicitly update position here
         this.observer = scene.onBeforeRenderObservable.add(() => {
-            const pos = this.mesh.position;
-            this.pannerNode.positionX.value = pos.x;
-            this.pannerNode.positionY.value = pos.y;
-            this.pannerNode.positionZ.value = pos.z;
+            const pos = this.mesh.getAbsolutePosition();
+            this.pannerNode.positionX.setValueAtTime(pos.x, this.audioCtx.currentTime);
+            this.pannerNode.positionY.setValueAtTime(pos.y, this.audioCtx.currentTime);
+            this.pannerNode.positionZ.setValueAtTime(pos.z, this.audioCtx.currentTime);
         });
     }
 
-    private _initPanner(): void {
-        this.pannerNode.panningModel = 'HRTF';
-        this.pannerNode.distanceModel = 'inverse';
-        this.pannerNode.refDistance = 1;
-        this.pannerNode.rolloffFactor = 1;
-        this.pannerNode.maxDistance = 1000;
+    public getAudioNode(): AudioNode {
+        return this.pannerNode;
     }
 
     public connect(destination: AudioNode): void {
@@ -36,10 +36,6 @@ export class SpatialAudioNode {
 
     public disconnect(): void {
         this.pannerNode.disconnect();
-    }
-
-    public getAudioNode(): AudioNode {
-        return this.pannerNode;
     }
 
     public dispose(scene: B.Scene): void {
