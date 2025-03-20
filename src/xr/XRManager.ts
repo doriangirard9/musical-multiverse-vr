@@ -86,13 +86,13 @@ export class XRManager {
             }
 
             // Listener Position Update
-            const pos = xrCamera.position;
-            listener.positionX.setValueAtTime(pos.x, this._audioCtx.currentTime);
-            listener.positionY.setValueAtTime(pos.y, this._audioCtx.currentTime);
-            listener.positionZ.setValueAtTime(pos.z, this._audioCtx.currentTime);
 
-            // Listener Orientation Update
-            const forward = xrCamera.getForwardRay().direction;
+            listener.positionX.setValueAtTime(xrCamera.position.x, this._audioCtx.currentTime);
+            listener.positionY.setValueAtTime(xrCamera.position.y, this._audioCtx.currentTime);
+            listener.positionZ.setValueAtTime(xrCamera.position.z, this._audioCtx.currentTime);
+
+            // FIX: Invert forward vector to correct left/right inversion
+            const forward = xrCamera.getForwardRay().direction.scale(-1);
             const up = xrCamera.upVector;
 
             listener.forwardX.setValueAtTime(forward.x, this._audioCtx.currentTime);
