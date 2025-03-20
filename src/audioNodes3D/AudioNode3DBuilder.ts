@@ -7,6 +7,7 @@ import {Wam3D} from "./Wam3D.ts";
 import {StepSequencer3D} from "./StepSequencer3D.ts";
 import {RandomNote3D} from "./RandomNote3D.ts";
 import {Instrument3D} from "./Instrument3D.ts";
+import {WamSampler3D} from "./WamSampler/WamSampler3D.ts";
 
 // const WAM_CONFIGS_URL: string = "https://wam-configs.onrender.com";
 const WAM_CONFIGS_URL: string = "http://localhost:3000";
@@ -39,6 +40,11 @@ export class AudioNode3DBuilder {
             console.log("Spectrum Modal");
             const config: IWamConfig = await import(/* @vite-ignore */`../wamsConfig/${configFile}.json`);
             return new Instrument3D(this._scene, this._audioCtx, id, config, configFile!);
+        }
+        else if (name === "Wam Sampler"){
+            console.log("Wam Sampler");
+            const config: IWamConfig = await import(/* @vite-ignore */`../wamsConfig/${configFile}.json`);
+            return new WamSampler3D(this._scene, this._audioCtx, id, config, configFile!);
         }
         // WAMs
         else {

@@ -40,6 +40,10 @@
           {
             "name": "Random Note",
             "configFile": "randomNoteConfig"
+          },
+          {
+            "name" : "Wam Sampler",
+            "configFile": "wamSamplerConfig"
           }
         ]
     }

@@ -13,7 +13,7 @@ export class Instrument3D extends Wam3D {
 
     }
 
-    public async instantiate(): Promise<void> {
+    protected async instantiate(): Promise<void> {
         console.error("-------------INSTRUMENT3D INSTANTIATE-----------------");
         this._app.menu.hide();
         this._wamInstance = await this._initWamInstance(this._config.url);
@@ -31,8 +31,8 @@ export class Instrument3D extends Wam3D {
         this._utilityLayer = new B.UtilityLayerRenderer(this._scene);
         this._rotationGizmo = new B.RotationGizmo(this._utilityLayer);
 
-        this._initActionManager();
         this.configureSphers();
+        this._initActionManager();
 
         const bo  = new BoundingBox(this,this._scene,this.id,this._app)
         this.boundingBox = bo.boundingBox;
@@ -41,28 +41,28 @@ export class Instrument3D extends Wam3D {
         this.eventBus.emit('WAM_LOADED', {nodeId: this.id, instance: this._wamInstance});
     }
 
-    public async configureSphers(): Promise<void> {
+    protected async configureSphers(): Promise<void> {
         // Load the descriptor from the WAM instance
-        const descriptor = await this._wamInstance._loadDescriptor();
-    
+        const descriptor = this._wamInstance.descriptor;
+        console.log(descriptor);
         const baseY = this.baseMesh.position.y;
         const baseZ = this.baseMesh.position.z;
-    
+
         // Configure MIDI Input
         if (descriptor.hasMidiInput) {
             this._createInputMidi(new B.Vector3(-(this._usedParameters.length / 2 + 0.2), baseY, baseZ + 1));
         }
-    
+
         // Configure MIDI Output
         if (descriptor.hasMidiOutput) {
             this._createOutputMidi(new B.Vector3(this._usedParameters.length / 2 + 0.2, baseY, baseZ + 1));
         }
-    
+
         // Configure Audio Input
         if (descriptor.hasAudioInput) {
             this._createInput(new B.Vector3(-(this._usedParameters.length / 2 + 0.2), baseY, baseZ - 1));
         }
-    
+
         // Configure Audio Output
         if (descriptor.hasAudioOutput) {
             this._createOutput(new B.Vector3(this._usedParameters.length / 2 + 0.2, baseY, baseZ));

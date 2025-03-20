@@ -60,7 +60,7 @@
             this._pointerDragBehavior = new B.PointerDragBehavior();
         }
     
-        public abstract instantiate(): any;
+        protected abstract instantiate(): any;
     
         public abstract connect(destination: AudioNode): void;
         public abstract disconnect(destination: AudioNode): void;
@@ -284,6 +284,7 @@
             }));
             this.outputMeshBig.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickUpTrigger, (): void => {
                 this.ioObservable.notifyObservers({type: 'output', pickType: 'up', node: this});
+                console.log("pick up");
             }));
             this.outputMeshBig.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickOutTrigger, (): void => {
                 this.ioObservable.notifyObservers({type: 'output', pickType: 'out', node: this});
