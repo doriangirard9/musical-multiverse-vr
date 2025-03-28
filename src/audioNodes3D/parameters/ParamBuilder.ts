@@ -3,8 +3,9 @@ import {CylinderParam} from "./CylinderParam.ts";
 import {ButtonParam} from "./ButtonParam.ts";
 import {CustomParameter, IAudioNodeConfig, ParameterInfo} from "../types.ts";
 import {MenuParam} from "./MenuParam.ts";
-import {Sphere} from "./Sphere.ts";
+import {Sphere} from "../Modulation/Sphere.ts";
 import {SphereCylinderParam} from "./SphereCylinderParam.ts";
+import {Cage} from "../Modulation/Cage.ts";
 
 export class ParamBuilder {
     private readonly _scene: B.Scene;
@@ -35,7 +36,12 @@ export class ParamBuilder {
     public createSphere (param: CustomParameter, parentMesh: B.Mesh, parameterInfo: ParameterInfo, defaultValue: number ): Sphere {
         return new Sphere(this._scene, parentMesh, parameterInfo, defaultValue, this._getColor(param));
     }
+    public createCage (param: CustomParameter, parentMesh: B.Mesh, parameterInfo: ParameterInfo, defaultValue: number, audioCtx : AudioContext ): Cage {
+        return new Cage(this._scene, parentMesh, parameterInfo, defaultValue, this._getColor(param), audioCtx);
+    }
+
     private _getColor(param: CustomParameter): string {
         return param.color ?? this._config.defaultParameter.color;
     }
+
 }

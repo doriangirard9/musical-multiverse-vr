@@ -153,5 +153,8 @@ export class Sphere implements IParameter {
         this.setParamValue(value);
     }
 
+    addModulation(moduleName: string): void {
+    }
+
 
 }

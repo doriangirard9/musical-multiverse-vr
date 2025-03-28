@@ -76,4 +76,13 @@ export class ButtonParam implements IParameter {
         }
         // Pas d'émission d'événement
     }
+
+    addModulation(moduleName: string): void {
+        switch (moduleName) {
+            case "oscillator":
+                break;
+            default:
+                break;
+        }
+    }
 }

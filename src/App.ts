@@ -23,8 +23,17 @@ import {ConnectionQueueManager} from "./network/manager/ConnectionQueueManager.t
 import {IAudioNodeConfig} from "./audioNodes3D/types.ts";
 import { NoteExtension } from "./wamExtension/notes/NoteExtension.ts";
 import {PatternExtension} from "./wamExtension/patterns/PatternExtension.ts";
+import HavokPhysics from "@babylonjs/havok";
+import { PhysicsMotionType } from "@babylonjs/core/Physics/v2/IPhysicsEnginePlugin";
+import { HavokPlugin } from "@babylonjs/core/Physics/v2/Plugins/havokPlugin";
+import {havokModule} from "./externals/havok.ts";
+import {ModuleMenu} from "./audioNodes3D/parameters/ModuleMenu.ts";
+import {Wam3D} from "./audioNodes3D/Wam3D.ts";
 
 export class App {
+    preTasks = [havokModule];
+
+
     public canvas: HTMLCanvasElement;
     public engine: B.Engine;
     public scene: B.Scene;
@@ -45,6 +54,8 @@ export class App {
     private static hostGroupId: [string, string];
     private eventBus = AudioEventBus.getInstance();
     private hostGroupIdPromise: Promise<[string, string]> | null = null;
+
+
     private constructor(audioCtx: AudioContext) {
         this.canvas = document.querySelector('#renderCanvas') as HTMLCanvasElement;
         this.engine = new B.Engine(this.canvas, true);

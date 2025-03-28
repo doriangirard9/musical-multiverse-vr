@@ -3,16 +3,16 @@ import * as GUI from "@babylonjs/gui";
 import {IParameter, ParameterInfo} from "../types.ts";
 
 export class CylinderParam implements IParameter {
-    private readonly _scene: B.Scene;
-    private _parameterInfo: ParameterInfo;
-    private readonly _defaultValue: number;
+    protected readonly _scene: B.Scene;
+    protected _parameterInfo: ParameterInfo;
+    protected readonly _defaultValue: number;
     private readonly _color: string;
 
-    private _currentValue: number;
-    private _currentCylinder!: B.Mesh;
+    protected _currentValue: number;
+    protected _currentCylinder!: B.Mesh;
     private _cylinder!: B.Mesh;
     private _cylinderMaterial!: B.StandardMaterial;
-    private _textValueBlock!: GUI.TextBlock;
+    protected _textValueBlock!: GUI.TextBlock;
     private _valueAdvancedTexture!: GUI.AdvancedDynamicTexture;
 
     public onValueChangedObservable = new B.Observable<number>();
@@ -143,5 +143,14 @@ export class CylinderParam implements IParameter {
         this._currentCylinder.scaling.y = scalingY;
         this._currentCylinder.position.z = -(this._currentCylinder.scaling.y * 1.5) / 2;
         // Pas d'émission d'événement
+    }
+
+    addModulation(moduleName: string): void {
+        switch (moduleName) {
+            case "oscillator":
+                break;
+            default:
+                break;
+        }
     }
 }

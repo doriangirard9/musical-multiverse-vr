@@ -14,7 +14,7 @@ export class SphereCylinderParam extends CylinderParam implements IParameter{
     private angularSpeed : number =0.01;
     private radius : number = 3;
     private angle : number = 0;
-    private intervalUpdate =1000;
+    private intervalUpdate =10;
     private timeElapsed = 0;
   //  private havokInterface;
     //private pluginHavok;
@@ -145,5 +145,14 @@ export class SphereCylinderParam extends CylinderParam implements IParameter{
         this._currentValue = value;
         this.onValueChangedObservable.notifyObservers(value);
         //this._textValueBlock.text = value.toFixed(1).toString();
+    }
+
+    addModulation(moduleName: string): void {
+        switch (moduleName) {
+            case "oscillator":
+                break;
+            default:
+                break;
+        }
     }
 }
