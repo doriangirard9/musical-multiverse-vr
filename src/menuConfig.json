@@ -1,12 +1,25 @@
 {
   "categories": [
     {
+      "name": "EDITOR",
+      "plugins": [
+        {
+          "name": "KVerb",
+          "configFile": "reverbConfig"
+        },
+        {
+          "name": "Disto Machine",
+          "configFile": "distoConfig"
+        },
+        {
+          "name": "Death Gate",
+          "configFile": "deathGateConfig"
+        }
+      ]
+    },
+    {
       "name": "Effects",
         "plugins": [
-          {
-            "name": "KVerb",
-            "configFile": "reverbConfig"
-          },
           {
             "name": "Big Muff",
             "configFile": "bigMuffConfig"
