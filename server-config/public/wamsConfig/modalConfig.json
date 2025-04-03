@@ -1,0 +1,192 @@
+{
+  "name": "Modal",
+  "wam3d": {
+    "aspect_ratio": 0.9,
+    "size": 1,
+    "bottom_color": "#96adbe",
+    "top_color": "#467ea8",
+    "controls": [
+      {
+        "x": 0.13125000321463268,
+        "y": 0.7499792006152104,
+        "width": 0.14375000000000002,
+        "height": 0.140625,
+        "values": {
+          "Low Color": "#222222",
+          "High Color": "#0000ff",
+          "Target": "exciterBowTimbre"
+        },
+        "control": "color_control"
+      },
+      {
+        "x": 0.2793750032146327,
+        "y": 0.7480960977410179,
+        "width": 0.14375000000000002,
+        "height": 0.140625,
+        "values": {
+          "Low Color": "#222222",
+          "High Color": "#0000ff",
+          "Target": "exciterBlowTimbre"
+        },
+        "control": "color_control"
+      },
+      {
+        "x": 0.43250000321463267,
+        "y": 0.7449699401875618,
+        "width": 0.14375000000000002,
+        "height": 0.140625,
+        "values": {
+          "Low Color": "#222222",
+          "High Color": "#0000ff",
+          "Target": "exciterStrikeTimbre"
+        },
+        "control": "color_control"
+      },
+      {
+        "x": 0.08874999984971678,
+        "y": 0.05405475125120962,
+        "width": 0.14375000000000002,
+        "height": 0.140625,
+        "values": {
+          "Low Color": "#757575",
+          "High Color": "#ff0000",
+          "Target": "exciterEnvShape"
+        },
+        "control": "color_control"
+      },
+      {
+        "x": 0.6843616488844867,
+        "y": 0.7718750009960044,
+        "width": 0.15312499999999998,
+        "height": 0.15000000000000005,
+        "values": {
+          "Base Color": "#325365",
+          "Cursor Color": "#ffcc00",
+          "Target": "space"
+        },
+        "control": "cursor_control"
+      },
+      {
+        "x": 0.23687499984971677,
+        "y": 0.045919323726292115,
+        "width": 0.14375000000000002,
+        "height": 0.140625,
+        "values": {
+          "Low Color": "#757575",
+          "High Color": "#ff0000",
+          "Target": "exciterBowLevel"
+        },
+        "control": "color_control"
+      },
+      {
+        "x": 0.3774999998497168,
+        "y": 0.049045482340171836,
+        "width": 0.14375000000000002,
+        "height": 0.140625,
+        "values": {
+          "Low Color": "#757575",
+          "High Color": "#ff0000",
+          "Target": "exciterBlowLevel"
+        },
+        "control": "color_control"
+      },
+      {
+        "x": 0.5243749998497168,
+        "y": 0.045919323726292115,
+        "width": 0.14375000000000002,
+        "height": 0.140625,
+        "values": {
+          "Low Color": "#757575",
+          "High Color": "#ff0000",
+          "Target": "exciterStrikeLevel"
+        },
+        "control": "color_control"
+      },
+      {
+        "x": 0.6793531446672673,
+        "y": 0.6106250009960044,
+        "width": 0.15312499999999998,
+        "height": 0.15000000000000005,
+        "values": {
+          "Base Color": "#325365",
+          "Cursor Color": "#ffcc00",
+          "Target": "resonatorPosition"
+        },
+        "control": "cursor_control"
+      },
+      {
+        "x": 0.6774706966606034,
+        "y": 0.4431250009960044,
+        "width": 0.15312499999999998,
+        "height": 0.15000000000000005,
+        "values": {
+          "Base Color": "#325365",
+          "Cursor Color": "#ffcc00",
+          "Target": "resonatorDamping"
+        },
+        "control": "cursor_control"
+      },
+      {
+        "x": 0.17187789638510037,
+        "y": 0.31247500202611883,
+        "width": 0.16875,
+        "height": 0.16562499999999997,
+        "values": {
+          "Color": "#fef101",
+          "Base Color": "#428a8a",
+          "Target": "exciterBlowMeta"
+        },
+        "control": "grow_control"
+      },
+      {
+        "x": 0.1731278963851004,
+        "y": 0.5106560201131823,
+        "width": 0.16875,
+        "height": 0.16562499999999997,
+        "values": {
+          "Color": "#fef101",
+          "Base Color": "#428a8a",
+          "Target": "resonatorGeometry"
+        },
+        "control": "grow_control"
+      },
+      {
+        "x": 0.35559510106183645,
+        "y": 0.3087111873816603,
+        "width": 0.16874999999999998,
+        "height": 0.16562499999999997,
+        "values": {
+          "Color": "#fef101",
+          "Base Color": "#428a8a",
+          "Target": "exciterStrikeMeta"
+        },
+        "control": "grow_control"
+      },
+      {
+        "x": 0.3568422073568427,
+        "y": 0.5037662722095106,
+        "width": 0.16874999999999998,
+        "height": 0.165625,
+        "values": {
+          "Color": "#fef101",
+          "Base Color": "#428a8a",
+          "Target": "resonatorBrightness"
+        },
+        "control": "grow_control"
+      },
+      {
+        "x": 0.6437147431592571,
+        "y": 0.17812499999999998,
+        "width": 0.2531378206693611,
+        "height": 0.23125000000000012,
+        "values": {
+          "Base Color": "#222222",
+          "Cursor Color": "#ffec00",
+          "Target": "resonatorModel"
+        },
+        "control": "cursor_control"
+      }
+    ],
+    "wam_url": "https://www.webaudiomodules.com/community/plugins/burns-audio/modal/index.js"
+  }
+}

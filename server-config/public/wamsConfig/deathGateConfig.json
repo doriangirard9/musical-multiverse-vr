@@ -2,32 +2,41 @@
   "name": "Death Gate",
   "wam3d": {
     "aspect_ratio": 0.7,
-    "bottom_color": "#94c0b8",
-    "top_color": "#d29191",
+    "size": 1.0,
+    "bottom_color": "#cc8888",
+    "top_color": "#aa4444",
     "face": "https://www.webaudiomodules.com/community/plugins/wimmics/deathgate/screenshot.png",
     "controls": [
       {
-        "x": 0.375,
-        "y": 0.3468736459846123,
-        "width": 0.24375000000000008,
-        "height": 0.24062499999999998,
-        "values": {
-          "Color": "#f90006",
-          "Base Color": "#6f969f",
-          "Target": "/deathgate/NoiseGate"
-        },
+        "x": 0.796875,
+        "y": 0.3937500000000001,
+        "width": 0.20312500000000006,
+        "height": 0.19999999999999996,
+        "values": { "Color": "#FF0000" },
+        "control": "output_control"
+      },
+      {
+        "x": 0,
+        "y": 0.3937523674439515,
+        "width": 0.20625,
+        "height": 0.20937578914798372,
+        "values": { "Color": "#00FF00" },
+        "control": "input_control"
+      },
+      {
+        "x": 0.39062198068434284,
+        "y": 0.03125,
+        "width": 0.215625,
+        "height": 0.2125,
+        "values": { "Color": "#ff1c1c", "Base Color": "#bf8ca6" },
         "control": "grow_control"
       },
       {
-        "x": 0.37625000000000003,
-        "y": 0.026174919056003734,
-        "width": 0.24375000000000008,
-        "height": 0.24062499999999998,
-        "values": {
-          "Color": "#f90006",
-          "Base Color": "#9a748c",
-          "Target": "/deathgate/DeadZone"
-        },
+        "x": 0.3793644323951999,
+        "y": 0.3481249999999999,
+        "width": 0.23750528864221676,
+        "height": 0.24062500000000003,
+        "values": { "Color": "#ff0000", "Base Color": "#67928c" },
         "control": "grow_control"
       }
     ],

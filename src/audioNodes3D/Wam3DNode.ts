@@ -4,7 +4,7 @@ import {Scene} from "@babylonjs/core";
 import { controls, WamGUIGenerator, WAMGuiInitCode } from "wam3dgenerator";
 import { AudioNode3D } from "./AudioNode3D.ts";
 import { AudioNodeState } from "../network/types.ts";
-import { WamNode, WamParameterInfo } from "@webaudiomodules/api";
+import { WamNode } from "@webaudiomodules/api";
 import { App } from "../App.ts";
 import { BoundingBox } from "./BoundingBox.ts";
 import { AdvancedDynamicTexture, TextBlock } from "@babylonjs/gui";
@@ -25,7 +25,9 @@ export class Wam3DNode extends AudioNode3D {
         const [hostGroupId] = await App.getHostGroupId()
 
         const node3d = this
+        const super_transform = new B.TransformNode("super_transform", this._scene)
         const transform = new B.TransformNode("root", this._scene)
+        transform.parent = super_transform
 
         this._app.menu.hide()
 
@@ -77,50 +79,77 @@ export class Wam3DNode extends AudioNode3D {
                         for(let m of target.getChildMeshes(false)) if(m instanceof B.Mesh) highlightLayer.removeMesh(m)
                         if(target instanceof B.Mesh) highlightLayer.removeMesh(target)
                     }))
+
+                    target.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnLeftPickTrigger, (): void => {
+                        node3d.ioObservable.notifyObservers({ type: 'output', pickType: 'down', node: node3d });
+                    }))
+                    target.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickUpTrigger, (): void => {
+                        node3d.ioObservable.notifyObservers({ type: 'output', pickType: 'up', node: node3d });
+                    }))
+                    target.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickOutTrigger, (): void => {
+                        node3d.ioObservable.notifyObservers({ type: 'output', pickType: 'out', node: node3d });
+                    }))
             
                     
                 },
                 defineField(settings) {
                     const {target} = settings
 
-                    const textValuePlane: B.Mesh = B.MeshBuilder.CreatePlane('textPlane', { size: 1 }, node3d._scene)
-                    textValuePlane.parent = transform
+                    const textValuePlane: B.Mesh = B.MeshBuilder.CreatePlane('textPlane', { size: 1, width: 5 }, node3d._scene)
+                    textValuePlane.parent = super_transform
                     textValuePlane.rotate(B.Axis.X, 0, B.Space.WORLD)
                     textValuePlane.setEnabled(false)
 
-                    const valueAdvancedTexture = AdvancedDynamicTexture.CreateForMesh(textValuePlane)
+                    const valueAdvancedTexture = AdvancedDynamicTexture.CreateForMesh(textValuePlane, 1024, Math.floor(1024/5))
                     const textValueBlock = new TextBlock()
-                    textValueBlock.fontSize = 200
+                    textValueBlock.fontSize = 50
                     textValueBlock.color = 'white'
                     textValueBlock.outlineColor = 'black'
-                    textValueBlock.outlineWidth = 30
+                    textValueBlock.outlineWidth = 5
                     valueAdvancedTexture.addControl(textValueBlock)
 
                     const color = B.Color3.Blue()
+                    
+                    let showStack=0
+                    function changeShowState(offset:number){
+                        showStack += offset
+                        if(showStack==1){
+                            for(let m of target.getChildMeshes(false)) if(m instanceof B.Mesh) highlightLayer.addMesh(m, color)
+                            if(target instanceof B.Mesh) highlightLayer.addMesh(target, color)
+                            textValuePlane.setEnabled(true)
+                        }
+                        else if(showStack==0){
+                            for(let m of target.getChildMeshes(false)) if(m instanceof B.Mesh) highlightLayer.removeMesh(m)
+                            if(target instanceof B.Mesh) highlightLayer.removeMesh(target)
+                            textValuePlane.setEnabled(false)
+                        }
+                    }
+
                     target.actionManager = new B.ActionManager(node3d._scene);
                     target.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPointerOverTrigger, (): void => {
-                        for(let m of target.getChildMeshes(false)) if(m instanceof B.Mesh) highlightLayer.addMesh(m, color)
-                        if(target instanceof B.Mesh) highlightLayer.addMesh(target, color)
+                        textValuePlane.setAbsolutePosition(target.getAbsolutePosition())
+                        textValuePlane.position.y += target.getBoundingInfo().boundingBox.extendSize.y
+                        textValueBlock.text = settings.getName()+"\n"+settings.stringify(settings.getValue())
+                        changeShowState(1)
+
                     }))
                     target.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPointerOutTrigger, (): void => {
-                        for(let m of target.getChildMeshes(false)) if(m instanceof B.Mesh) highlightLayer.removeMesh(m)
-                        if(target instanceof B.Mesh) highlightLayer.removeMesh(target)
-                    }))
-                    target.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickDownTrigger, (): void => {
-                        textValuePlane.setEnabled(true)
-                        textValuePlane.setAbsolutePosition(target.getAbsolutePosition())
-                        textValuePlane.position.y += target.getBoundingInfo().boundingBox.extendSize.y/2
-                        textValueBlock.text = settings.stringify(settings.getValue())
-                    }))
-                    target.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickOutTrigger, (): void => {
-                        textValuePlane.setEnabled(false)
-                    }))
-                    target.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickUpTrigger, (): void => {
-                        textValuePlane.setEnabled(false)
+                        changeShowState(-1)
                     }))
 
                     const sixDofDragBehavior = new B.SixDofDragBehavior()
+                    sixDofDragBehavior.onDragStartObservable.add(() => changeShowState(1))
+                    sixDofDragBehavior.onDragEndObservable.add(() => changeShowState(-1))
+                    sixDofDragBehavior.onDragObservable.add(() => {
+                        textValuePlane.setAbsolutePosition(target.getAbsolutePosition())
+                        textValuePlane.position.y += target.getBoundingInfo().boundingBox.extendSize.y
+                        textValueBlock.text = settings.getName()+"\n"+settings.stringify(settings.getValue())
+                    })
+
+                    sixDofDragBehavior.allowMultiPointer = false
                     sixDofDragBehavior.disableMovement = true
+                    sixDofDragBehavior.rotateWithMotionController = false
+                    sixDofDragBehavior.rotateDraggedObject = false
                     target.addBehavior(sixDofDragBehavior)
                                 
                     let startingValue = 0
@@ -143,21 +172,22 @@ export class Wam3DNode extends AudioNode3D {
                         newvalue = newvalue - newvalue % stepSize
                         newvalue = Math.max(0, Math.min(1, newvalue))
                         settings.setValue(newvalue)
-                        textValueBlock.text = settings.stringify(newvalue)
-                        textValuePlane.setAbsolutePosition(target.getAbsolutePosition())
-                        textValuePlane.position.y += target.getBoundingInfo().boundingBox.extendSize.y
+                        target.rotationQuaternion = null
                     })
-                },
-                onFieldChange(label, value) {
-                    
-                },
+                }
             },
             {babylonjs:transform as any},
             this.code, controls, this._audioCtx, hostGroupId
         )
+        const size_factor = .25/this._wam_generator.calculateAverageControlSize()
+        transform!!.scaling.setAll(size_factor)
         const boundinginfo = this._wam_generator.pad_mesh!!.getBoundingInfo().boundingBox.extendSize
-        const boundingblock = B.MeshBuilder.CreateBox('box', { width: boundinginfo.x, height: boundinginfo.y, depth: boundinginfo.z }, this._scene)
-        transform.parent = boundingblock
+        const boundingblock = B.MeshBuilder.CreateBox('box', {
+            width: 1 *size_factor *this._wam_generator.pad_mesh!!.scaling.x,
+            height: boundinginfo.y *size_factor *this._wam_generator.pad_mesh!!.scaling.y,
+            depth: 1 *size_factor *this._wam_generator.pad_mesh!!.scaling.z,
+        }, this._scene)
+        super_transform.parent = boundingblock
         this.baseMesh = boundingblock
 
         this._utilityLayer = new B.UtilityLayerRenderer(this._scene)
@@ -199,6 +229,11 @@ export class Wam3DNode extends AudioNode3D {
         if("instanceId" in this._output_audio_node && "instanceId" in destination){
             this._output_audio_node.disconnectEvents(destination.instanceId);
         }
+    }
+
+    public delete(): void {
+        super.delete()
+        this._wam_generator.dispose()
     }
 
 

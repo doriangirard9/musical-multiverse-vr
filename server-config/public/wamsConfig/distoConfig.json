@@ -2,6 +2,7 @@
     "name": "Disto Machine",
     "wam3d": {
         "aspect_ratio": 1.9,
+        "size": 1.0,
         "bottom_color": "#cc8888",
         "top_color": "#ffffff",
         "controls": [

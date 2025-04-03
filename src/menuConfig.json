@@ -14,6 +14,10 @@
         {
           "name": "Death Gate",
           "configFile": "deathGateConfig"
+        },
+        {
+          "name": "Modal",
+          "configFile": "modalConfig"
         }
       ]
     },
