@@ -11,6 +11,13 @@ export type AudioEventType = {
     CONNECT_NODES: 'CONNECT_NODES';
     DISCONNECT_NODES: 'DISCONNECT_NODES';
     APPLY_CONNECTION: 'APPLY_CONNECTION';
+    WAM_SAMPLER_PRESET_CHANGE: 'WAM_SAMPLER_PRESET_CHANGE';
+    WAM_SAMPLER_PLAY: 'WAM_SAMPLER_PLAY';
+    WAM_SAMPLER_GET_PRESET: 'WAM_SAMPLER_GET_PRESET';
+    WAM_SAMPLER_PRESET_RESPONSE: 'WAM_SAMPLER_PRESET_RESPONSE';
+    WAM_SAMPLER_NOTE_PLAY: 'WAM_SAMPLER_NOTE_PLAY';
+    WAM_SAMPLER_NOTE_TRIGGER: 'WAM_SAMPLER_NOTE_TRIGGER';
+
 };
 
 export type AudioEventPayload = {
@@ -56,6 +63,37 @@ export type AudioEventPayload = {
         sourceId: string;
         targetId: string;
         isSrcMidi: boolean;
+    };
+    WAM_SAMPLER_PRESET_CHANGE: {
+        nodeId: string;
+        preset: string;
+        source: 'user' | 'network';
+    }
+    WAM_SAMPLER_PLAY: {
+        nodeId: string;
+        play: boolean;
+        note: number;
+        source: 'user' | 'network';
+    }
+    WAM_SAMPLER_GET_PRESET: {
+        nodeId: string;
+    };
+
+    WAM_SAMPLER_PRESET_RESPONSE: {
+        nodeId: string;
+        preset: string | null;
+    };
+    "WAM_SAMPLER_NOTE_PLAY": {
+        nodeId: string;
+        midiNote: number;
+        velocity: number;
+        timestamp: number;
+    };
+
+    "WAM_SAMPLER_NOTE_TRIGGER": {
+        nodeId: string;
+        midiNote: number;
+        velocity: number;
     };
 
 };

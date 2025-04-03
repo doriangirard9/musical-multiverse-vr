@@ -8,6 +8,8 @@ import { Awareness } from 'y-protocols/awareness';
 import { AudioEventBus, AudioEventPayload } from "../AudioEvents";
 import { NodeTransform, ParamUpdate } from "../audioNodes3D/types";
 import { Wam3D } from "../audioNodes3D/Wam3D";
+import {WamSampler3D} from "../audioNodes3D/WamSampler/WamSampler3D.ts";
+
 
 const SIGNALING_SERVER = 'ws://localhost:443';//'wss://musical-multiverse-vr.onrender.com';
 
@@ -53,6 +55,10 @@ export class NetworkManager {
     private _networkPositions!: Y.Map<NodeTransform>;
     private _networkConnections!: Y.Map<{sourceId: string, targetId: string,isSrcMidi: boolean}>;
 
+
+    // Y.js Wam Sampler
+    private _networkWamSampler!: Y.Map<{nodeId: string, preset: string}>;
+    private _networkWamNotes! : Y.Map<{nodeId: string, midiNote: number, velocity: number, timestamp: number}>;
     // State flags
     private isProcessingYjsEvent = false;
     private isProcessingLocalEvent = false;
@@ -69,6 +75,8 @@ export class NetworkManager {
 
     // Awareness
     private awareness!: Awareness;
+    private _keepAlive: NodeJS.Timeout | undefined;
+    private _lastKnownPlayerIds = new Map<string, string>();
 
     constructor(id: string) {
         this._doc = new Y.Doc();
@@ -82,6 +90,8 @@ export class NetworkManager {
         this._networkParamUpdates = this._doc.getMap('paramUpdates');
         this._networkPositions = this._doc.getMap('positions');
         this._networkConnections = this._doc.getMap('connections');
+        this._networkWamSampler = this._doc.getMap('wamSampler');
+        this._networkWamNotes = this._doc.getMap('wamNotes');
     }
 
     private setupEventListeners(): void {
@@ -113,6 +123,59 @@ export class NetworkManager {
         this.eventBus.on('WAM_LOADED', (payload) => {
             console.log('[NetworkManager] WAM loaded, checking existing connections:', payload.nodeId);
             //this.processConnectionsForNode(payload.nodeId);
+        });
+
+        /* WAM Sampler Preset Change
+         * - Réception de l'événement de changement de preset
+         * - Crée ou met à jour le preset dans yjs
+         */
+        this.eventBus.on('WAM_SAMPLER_PRESET_CHANGE', (payload : AudioEventPayload["WAM_SAMPLER_PRESET_CHANGE"]) => {
+            if (!this.isProcessingYjsEvent) {
+                this.withLocalProcessing(() => {
+                    this._networkWamSampler.set(payload.nodeId, {nodeId: payload.nodeId, preset: payload.preset});
+                });
+            }
+        });
+
+        /* WAM Sampler Get Preset
+         * - Réception de l'événement de demande de preset
+         * - Répondre avec le preset actuel pour ce nodeId
+         * - Réponse reçue dans WamSampler3D.ts
+         */
+        this.eventBus.on('WAM_SAMPLER_GET_PRESET', (payload: AudioEventPayload['WAM_SAMPLER_GET_PRESET']) => {
+            let foundPreset: string | null = null;
+            console.log(this._networkWamSampler);
+            // Chercher le preset pour ce nodeId
+            this._networkWamSampler.forEach((value, _) => {
+                if (value.nodeId === payload.nodeId) {
+                    foundPreset = value.preset;
+                    console.log("Current preset : ", foundPreset);
+                }
+            });
+
+            // Répondre avec le preset trouvé (ou null si aucun preset trouvé)
+            this.eventBus.emit('WAM_SAMPLER_PRESET_RESPONSE', {
+                nodeId: payload.nodeId,
+                preset: foundPreset
+            });
+        });
+
+        /* WAM Sampler Play
+         * - Réception de l'événement de lecture de note
+         */
+        this.eventBus.on('WAM_SAMPLER_NOTE_PLAY', (payload: AudioEventPayload["WAM_SAMPLER_NOTE_PLAY"]) => {
+            if (!this.isProcessingYjsEvent) {
+                this.withLocalProcessing(() => {
+                    // Générer un ID unique pour chaque événement de note
+                    const noteId = `${payload.nodeId}_${payload.timestamp}`;
+                    this._networkWamNotes.set(noteId, {
+                        nodeId: payload.nodeId,
+                        midiNote: payload.midiNote,
+                        velocity: payload.velocity,
+                        timestamp: payload.timestamp
+                    });
+                });
+            }
         });
     }
 
@@ -279,6 +342,17 @@ export class NetworkManager {
         this.awareness.setLocalStateField('playerId', this._id);
         this.awareness.on('change', this.handleAwarenessChange.bind(this));
 
+        this.awareness.setLocalStateField('lastActive', Date.now());
+
+        /*
+         * Dans la doc Y.JS un client est déconnecté après 30s d'inactivités
+         * (https://docs.yjs.dev/api/about-awareness) leur conseil → broadcast un message avant 30s
+         */
+        this._keepAlive = setInterval(() => {
+            this.awareness.setLocalStateField('lastActive', Date.now());
+        },15000);
+
+        this.handlePeerRemoval = this.handlePeerRemoval.bind(this);
         this._networkAudioNodes3D = this._doc.getMap('audioNodes3D');
         this._networkPlayers = this._doc.getMap('players');
     }
@@ -316,6 +390,52 @@ export class NetworkManager {
         this._networkConnections.observe((event) => {
             if (!this.isProcessingLocalEvent) {
                 this.withNetworkProcessing(() => this.handleConnectionUpdates(event));
+            }
+        });
+
+        this._networkWamSampler.observe((event) => {
+            if (!this.isProcessingLocalEvent) {
+                this.withNetworkProcessing(() => this.handleWamSamplerUpdates(event))
+            }
+        });
+
+        this._networkWamNotes.observe((event) => {
+            if (!this.isProcessingLocalEvent) {
+                this.withNetworkProcessing(() => this.handleWamNoteEvents(event));
+            }
+        });
+    }
+    private async handleWamSamplerUpdates(event: Y.YMapEvent<{nodeId: string, preset: string}>): Promise<void> {
+        event.changes.keys.forEach((change, key) => {
+            if (change.action === "add" || change.action === "update") {
+                const update = this._networkWamSampler.get(key);
+                if (update) {
+                    const node = this._audioNodes3D.get(update.nodeId);
+                    if (node instanceof WamSampler3D) {
+                        this.withNetworkProcessing(() => {
+                            let preset = node.getCurrentPreset()
+                            if(preset !== update.preset) node.loadPreset(update.preset, false);
+                        });
+                    }
+                }
+            }
+        });
+    }
+    private async handleWamNoteEvents(event: Y.YMapEvent<{nodeId: string, midiNote: number, velocity: number, timestamp: number}>): Promise<void> {
+        event.changes.keys.forEach((change, key) => {
+            if (change.action === "add") {  // Uniquement pour les nouvelles notes
+                const noteEvent = this._networkWamNotes.get(key);
+                if (noteEvent) {
+                    // Déclencher l'événement de lecture de note via l'eventBus
+                    this.eventBus.emit('WAM_SAMPLER_NOTE_TRIGGER', {
+                        nodeId: noteEvent.nodeId,
+                        midiNote: noteEvent.midiNote,
+                        velocity: noteEvent.velocity
+                    });
+
+                    // Nettoyer après traitement
+                    this._networkWamNotes.delete(key);
+                }
             }
         });
     }
@@ -383,15 +503,27 @@ export class NetworkManager {
     }): void {
         const states = this.awareness.getStates();
 
-        [...added, ...updated].forEach(peerId => {
-            console.log(`Peer ${peerId} connected/updated.`);
+        added.forEach(peerId => {
+            console.log(`Peer ${peerId} connected.`);
             const state = states.get(peerId);
             if (state?.playerId) {
                 this._peerToPlayerMap.set(String(peerId), state.playerId);
+                this._lastKnownPlayerIds.set(String(peerId), state.playerId);
             }
         });
 
-        removed.forEach(this.handlePeerRemoval.bind(this));
+        updated.forEach(peerId => {
+            const state = states.get(peerId);
+            const peerIdStr = String(peerId);
+
+            if (state?.playerId && state.playerId !== this._lastKnownPlayerIds.get(peerIdStr)) {
+                console.log(`Peer ${peerId} updated with new playerId.`);
+                this._peerToPlayerMap.set(peerIdStr, state.playerId);
+                this._lastKnownPlayerIds.set(peerIdStr, state.playerId);
+            }
+        });
+
+        removed.forEach(peerId => this.handlePeerRemoval(peerId));
     }
 
     private handlePeerRemoval(peerId: number): void {
@@ -567,6 +699,7 @@ export class NetworkManager {
         this._doc.destroy();
 
         // Clean up event listeners
+        if (this._keepAlive) clearInterval(this._keepAlive);
         this.awareness?.destroy();
 
         // Clear all maps

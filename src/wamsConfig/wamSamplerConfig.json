@@ -1,0 +1,16 @@
+{
+  "name": "Wam Sampler",
+  "url": "https://mainline.i3s.unice.fr/WamSampler/src/index.js",
+  "root": "",
+  "customParameters": [
+    {
+      "name": "presetName",
+      "type": "string",
+      "value": "default"
+    }
+  ],
+  "defaultParameter": {
+    "type": "cylinder",
+    "color": "#f0f0f0"
+  }
+}
