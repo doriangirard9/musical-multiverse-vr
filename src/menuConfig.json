@@ -18,6 +18,10 @@
         {
           "name": "Modal",
           "configFile": "modalConfig"
+        },
+        {
+          "name": "Flute",
+          "configFile": "fluteConfig"
         }
       ]
     },
