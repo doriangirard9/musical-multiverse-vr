@@ -9,12 +9,13 @@ import { CustomParameter, IAudioNodeConfig, IWamConfig } from "./types.ts";
 import { ParamBuilder } from "./parameters/ParamBuilder.ts";
 import { Instrument3D } from "./Instrument3D.ts";
 import * as GUI from "@babylonjs/gui";
+import { log } from "tone/build/esm/core/util/Debug";
 
 export class PianoRoll extends Wam3D {
-  private _notes: string[] = ["C4", "D4", "E4", "F4", "G4", "A4", "B4"];
+  private _notes: string[] = ["C3", "D3", "E3", "F3", "G3", "A3", "B3", "C4", "D4", "E4", "F4", "G4", "A4", "B4"];
   private _grid: { mesh: B.Mesh; isActivated: boolean }[][] = [];
   private _pattern = {
-    length: 256,
+    length: 64,
     notes: [] as {
       tick: number;
       number: number;
@@ -26,9 +27,11 @@ export class PianoRoll extends Wam3D {
   private _tempo: number = 120; // Default tempo
   private _tickDuration: number = 0; // To be calculated dynamically
 
+  private _activeNotes: { row: number; column: number; offTime: number }[] = [];
 
   private btnStartStop: B.Mesh;
   private isBtnStartStop: boolean = true;
+  startTime: number = 0;
   constructor(
     scene: B.Scene,
     audioCtx: AudioContext,
@@ -64,7 +67,8 @@ export class PianoRoll extends Wam3D {
       // Get tempo and calculate tick duration
       this._tempo = 120; // Change this dynamically if needed
       this._tickDuration = (60 / this._tempo) / 4; // Quarter note duration in seconds
-
+      // let e= this._wamInstance.audioNode.getState()
+      // console.log("state", e)
       this._wamInstance.audioNode.scheduleEvents({
         type: "wam-transport",
         data: {
@@ -77,8 +81,9 @@ export class PianoRoll extends Wam3D {
         },
       });
 
-      // this._configSequencerLoop(); // Ensures visual sync
-
+      this._configSequencerLoop(); // Ensures visual sync
+      this._startVisualUpdateLoop()
+      this.timer();
       const bo = new BoundingBox(this, this._scene, this.id, this._app);
       this.boundingBox = bo.boundingBox;
       this.startStopButton();
@@ -157,9 +162,10 @@ export class PianoRoll extends Wam3D {
   }
 
   private _createGrid(): void {
+    const numberOfColumns = this._pattern.length / 4; // example 16 columns for 64 ticks
     for (let row = 0; row < this._notes.length; row++) {
       this._grid.push([]);
-      for (let col = 0; col < 22; col++) {
+      for (let col = 0; col < numberOfColumns; col++) {
         this._createNoteButton(row, col);
       }
     }
@@ -203,7 +209,7 @@ export class PianoRoll extends Wam3D {
 
   private _toggleNoteState(row: number, column: number): void {
     const noteValue = this._convertNoteToMidi(this._notes[row]);
-    const tick = column * 12;
+    const tick = column * 4;
 
     // Find if note already exists in the pattern
     const existingIndex = this._pattern.notes.findIndex(
@@ -215,7 +221,7 @@ export class PianoRoll extends Wam3D {
       this._pattern.notes.push({
         tick,
         number: noteValue,
-        duration: 8,
+        duration: 4, // 1/16 note duration
         velocity: 100,
       });
       this._grid[row][column].isActivated = true;
@@ -235,6 +241,13 @@ export class PianoRoll extends Wam3D {
 
   private _convertNoteToMidi(note: string): number {
     const noteMap: { [key: string]: number } = {
+      C3: 48,
+      D3: 50,
+      E3: 52,
+      F3: 53,
+      G3: 55,
+      A3: 57,
+      B3: 59,
       C4: 60,
       D4: 62,
       E4: 64,
@@ -254,32 +267,102 @@ export class PianoRoll extends Wam3D {
       : new B.Color3(0, 0, 1); // Blue if inactive
   }
 
-  private _configSequencerLoop(): void {
-    let currentTick = 0;
-    setInterval(() => {
-      this._pattern.notes.forEach(note => {
-        if (note.tick === currentTick) {
-          this._onPlayButtonAnimation(note.number, note.tick);
-        }
-      });
+  private timer(): void {
+    // temps écoulé depuis start
 
-      currentTick = (currentTick + 12) % 256; // Move to next step
-    }, this._tickDuration * 1000); // Syncs with tick duration
+    this._scene.onBeforeRenderObservable.add(() => {
+// setInterval(()=>{
+  const elapsed = this._audioCtx.currentTime - this.startTime;
+  // En fonction du tempo, calculer la position de la tête de lecture
+  const tempo = 120;
+  // durée de 1 temps = 60 secondes / tempo
+  const tickDuration = 60 / tempo;
+  // nombre de temps écoulés
+  const currentTick = Math.floor(elapsed / tickDuration*4);
+  // affichage du temps courant
+    console.log(currentTick %16) ;
+
+// },10)
+
+});
+
+    // display the current tick on timer balise
+    
+
   }
 
-  private _onPlayButtonAnimation(noteNumber: number, tick: number): void {
-    const row = this._notes.findIndex(n => this._convertNoteToMidi(n) === noteNumber);
-    const column = tick / 12;
-    if (row === -1 || column < 0 || column >= 22) return;
+  private _configSequencerLoop(): void {
+    const lookahead = 25.0; // milliseconds
+    const scheduleAheadTime = 0.3; // seconds
+    let currentTick = 0;
+    let nextNoteTime = this._audioCtx.currentTime;
+  
+    const scheduler = () => {
+      while (nextNoteTime < this._audioCtx.currentTime + scheduleAheadTime) {
+        this._scheduleTick(currentTick, nextNoteTime);
+        nextNoteTime += this._tickDuration;
+        currentTick = (currentTick + 4) % this._pattern.length; // 4 ticks per step for 1/16 note
+      }
+    };
+  
+    setInterval(scheduler, lookahead);
+  }
 
+  private _scheduleTick(tick: number, time: number): void {
+    this._pattern.notes.forEach(note => {
+      if (note.tick === tick) {
+        this._onPlayButtonAnimation(note.number, tick, time);
+      }
+    });
+  }
+  
+
+  private _startVisualUpdateLoop(): void {
+    const update = () => {
+      const currentTime = this._audioCtx.currentTime;
+      // Update active notes based on their offTime.
+      this._activeNotes = this._activeNotes.filter(noteInfo => {
+        if (currentTime >= noteInfo.offTime) {
+          this._updateNoteColor(noteInfo.row, noteInfo.column);
+          return false;
+        }
+        return true;
+      });
+      requestAnimationFrame(update);
+    };
+    update();
+  }
+  
+  // In _onPlayButtonAnimation, add the note to _activeNotes:
+  private _onPlayButtonAnimation(noteNumber: number, tick: number, scheduledTime: number): void {
+    const row = this._notes.findIndex(n => this._convertNoteToMidi(n) === noteNumber);
+    const column = tick / 4;
+    if (row === -1 || column < 0 || column >= this._grid[0].length) return;
+    
     const button = this._grid[row][column];
     const material = button.mesh.material as B.StandardMaterial;
-    material.diffuseColor = new B.Color3(0, 1, 0); // Green when playing
-
+    
+    
+    // Use a visual offset here as well if needed.
+    const visualOffset = 0.3;
+    let delay = ((scheduledTime - visualOffset) - this._audioCtx.currentTime) * 1000;
+    // if (delay < 0) delay = 0;
     setTimeout(() => {
-      this._updateNoteColor(row, column);
-    }, this._tickDuration * 1000);
+      material.diffuseColor = new B.Color3(0, 1, 0); // Green when playing
+      // Store the note's offTime for continuous update.
+      this._activeNotes.push({
+        row,
+        column,
+        offTime: scheduledTime + this._tickDuration - visualOffset
+      });
+    }, delay);
+
+
+
   }
+  
+  
+  
   private _sendPatternToPianoRoll(): void {
     if (!(window.WAMExtensions && window.WAMExtensions.patterns)) {
       console.warn("Piano roll delegate not found.");
@@ -290,59 +373,7 @@ export class PianoRoll extends Wam3D {
       this._wamInstance.audioNode.instanceId
     );
     console.log("pattern sended")
-    const testPattern = {
-      "length": 96,
-      "notes": [
-         {
-          "tick": 0,
-          "number": 57,
-          "duration": 6,
-          "velocity": 100
-        },
-        {
-            "tick": 12,
-            "number": 58,
-            "duration": 6,
-            "velocity": 100
-        },
-        {
-            "tick": 30,
-            "number": 62,
-            "duration": 6,
-            "velocity": 100
-        },
-        {
-            "tick": 36,
-            "number": 58,
-            "duration": 12,
-            "velocity": 100
-        },
-        {
-            "tick": 36,
-            "number": 60,
-            "duration": 6,
-            "velocity": 100
-        },
-        {
-            "tick": 48,
-            "number": 56,
-            "duration": 6,
-            "velocity": 100
-        },
-        {
-            "tick": 60,
-            "number": 61,
-            "duration": 18,
-            "velocity": 100
-        },
-        {
-            "tick": 72,
-            "number": 54,
-            "duration": 6,
-            "velocity": 100
-        }
-    ]
-  }
+
     delegatePianoRoll!.setPatternState("default", this._pattern);
   }
 
