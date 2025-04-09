@@ -8,6 +8,7 @@ import { WamNode } from "@webaudiomodules/api";
 import { App } from "../App.ts";
 import { BoundingBox } from "./BoundingBox.ts";
 import { AdvancedDynamicTexture, TextBlock } from "@babylonjs/gui";
+import { IOEvent } from "../types.ts";
 
 export class Wam3DNode extends AudioNode3D {
     
@@ -31,7 +32,30 @@ export class Wam3DNode extends AudioNode3D {
 
         this._app.menu.hide()
 
-        const highlightLayer = new B.HighlightLayer(`hl-output-${node3d.id}`, node3d._scene)
+        const highlightLayer = new B.HighlightLayer(`hl-connectors-${node3d.id}`, node3d._scene)
+
+        function initConnector(color: B.Color3, mesh: B.AbstractMesh, type: IOEvent['type']){
+            mesh.actionManager = new B.ActionManager(node3d._scene);
+
+            mesh.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPointerOverTrigger, () => {
+                for(let m of target.getChildMeshes(false)) if(m instanceof B.Mesh) highlightLayer.addMesh(m, color)
+                if(target instanceof B.Mesh) highlightLayer.addMesh(target, color)
+            }))
+            mesh.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPointerOutTrigger, () => {
+                for(let m of target.getChildMeshes(false)) if(m instanceof B.Mesh) highlightLayer.removeMesh(m)
+                if(target instanceof B.Mesh) highlightLayer.removeMesh(target)
+            }))
+        
+            mesh.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnLeftPickTrigger, () => {
+                node3d.ioObservable.notifyObservers({ type, pickType: 'down', node: node3d });
+            }))
+            mesh.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickUpTrigger, () => {
+                node3d.ioObservable.notifyObservers({ type, pickType: 'up', node: node3d });
+            }))
+            mesh.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickOutTrigger, () => {
+                node3d.ioObservable.notifyObservers({ type, pickType: 'out', node: node3d });
+            }))
+        }
 
         this._wam_generator = await WamGUIGenerator.create_and_init(
             {
@@ -39,113 +63,25 @@ export class Wam3DNode extends AudioNode3D {
                     const {target} = settings as {target:B.Mesh}
                     node3d._input_audio_node = settings.node
                     node3d.inputMesh = target as B.Mesh
-                
-                    target.actionManager = new B.ActionManager(node3d._scene);
-                
-                    const highlightLayer = new B.HighlightLayer(`hl-input-${node3d.id}`, node3d._scene);
-                
-                    const color = B.Color3.Green()
-                    target.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPointerOverTrigger, () => {
-                        for(let m of target.getChildMeshes(false)) if(m instanceof B.Mesh) highlightLayer.addMesh(m, color)
-                        if(target instanceof B.Mesh) highlightLayer.addMesh(target, color)
-                    }))
-                    target.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPointerOutTrigger, () => {
-                        for(let m of target.getChildMeshes(false)) if(m instanceof B.Mesh) highlightLayer.removeMesh(m)
-                        if(target instanceof B.Mesh) highlightLayer.removeMesh(target)
-                    }))
-                
-                    target.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnLeftPickTrigger, () => {
-                        node3d.ioObservable.notifyObservers({ type: 'input', pickType: 'down', node: node3d });
-                    }))
-                    target.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickUpTrigger, () => {
-                        node3d.ioObservable.notifyObservers({ type: 'input', pickType: 'up', node: node3d });
-                    }))
-                    target.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickOutTrigger, () => {
-                        node3d.ioObservable.notifyObservers({ type: 'input', pickType: 'out', node: node3d });
-                    }))
+                    initConnector(B.Color3.Green(), target, 'input')
                 },
                 defineAnOutput(settings) {
                     const {target} = settings as {target:B.Mesh}
                     node3d._output_audio_node = settings.node
                     node3d.outputMesh = target as B.Mesh
-                    target.actionManager = new B.ActionManager(node3d._scene)
-                                            
-                    const color = B.Color3.Red()
-                    target.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPointerOverTrigger, () => {
-                        for(let m of target.getChildMeshes(false)) if(m instanceof B.Mesh) highlightLayer.addMesh(m, color)
-                        if(target instanceof B.Mesh) highlightLayer.addMesh(target, color)
-                    }))
-                    target.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPointerOutTrigger, () => {
-                        for(let m of target.getChildMeshes(false)) if(m instanceof B.Mesh) highlightLayer.removeMesh(m)
-                        if(target instanceof B.Mesh) highlightLayer.removeMesh(target)
-                    }))
-
-                    target.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnLeftPickTrigger, () => {
-                        node3d.ioObservable.notifyObservers({ type: 'output', pickType: 'down', node: node3d });
-                    }))
-                    target.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickUpTrigger, () => {
-                        node3d.ioObservable.notifyObservers({ type: 'output', pickType: 'up', node: node3d });
-                    }))
-                    target.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickOutTrigger, () => {
-                        node3d.ioObservable.notifyObservers({ type: 'output', pickType: 'out', node: node3d });
-                    }))
-            
-                    
+                    initConnector(B.Color3.Red(), target, 'output')
                 },
                 defineAnEventInput(settings) {
                     const {target} = settings as {target:B.Mesh}
                     node3d._input_audio_node = settings.node
                     node3d.inputMeshMidi = target as B.Mesh
-                
-                    target.actionManager = new B.ActionManager(node3d._scene);
-                
-                    const highlightLayer = new B.HighlightLayer(`hl-input-${node3d.id}`, node3d._scene);
-                
-                    const color = B.Color3.Green()
-                    target.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPointerOverTrigger, () => {
-                        for(let m of target.getChildMeshes(false)) if(m instanceof B.Mesh) highlightLayer.addMesh(m, color)
-                        if(target instanceof B.Mesh) highlightLayer.addMesh(target, color)
-                    }))
-                    target.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPointerOutTrigger, () => {
-                        for(let m of target.getChildMeshes(false)) if(m instanceof B.Mesh) highlightLayer.removeMesh(m)
-                        if(target instanceof B.Mesh) highlightLayer.removeMesh(target)
-                    }))
-                
-                    target.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnLeftPickTrigger, () => {
-                        node3d.ioObservable.notifyObservers({ type: 'inputMidi', pickType: 'down', node: node3d });
-                    }))
-                    target.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickUpTrigger, () => {
-                        node3d.ioObservable.notifyObservers({ type: 'inputMidi', pickType: 'up', node: node3d });
-                    }))
-                    target.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickOutTrigger, () => {
-                        node3d.ioObservable.notifyObservers({ type: 'inputMidi', pickType: 'out', node: node3d });
-                    }))
+                    initConnector(B.Color3.Green(), target, 'inputMidi')
                 },
                 defineAnEventOutput(settings) {
                     const {target} = settings as {target:B.Mesh}
                     node3d._output_audio_node = settings.node
                     node3d.outputMeshMidi = target as B.Mesh
-                    target.actionManager = new B.ActionManager(node3d._scene)
-                                            
-                    const color = B.Color3.Red()
-                    target.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPointerOverTrigger, () => {
-                        for(let m of target.getChildMeshes(false)) if(m instanceof B.Mesh) highlightLayer.addMesh(m, color)
-                        if(target instanceof B.Mesh) highlightLayer.addMesh(target, color)
-                    }))
-                    target.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPointerOutTrigger, () => {
-                        for(let m of target.getChildMeshes(false)) if(m instanceof B.Mesh) highlightLayer.removeMesh(m)
-                        if(target instanceof B.Mesh) highlightLayer.removeMesh(target)
-                    }))
-
-                    target.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnLeftPickTrigger, () => {
-                        node3d.ioObservable.notifyObservers({ type: 'outputMidi', pickType: 'down', node: node3d });
-                    }))
-                    target.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickUpTrigger, () => {
-                        node3d.ioObservable.notifyObservers({ type: 'outputMidi', pickType: 'up', node: node3d });
-                    }))
-                    target.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickOutTrigger, () => {
-                        node3d.ioObservable.notifyObservers({ type: 'outputMidi', pickType: 'out', node: node3d });
-                    }))
+                    initConnector(B.Color3.Red(), target, 'outputMidi')
                 },
                 defineField(settings) {
                     const {target} = settings
