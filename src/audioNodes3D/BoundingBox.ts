@@ -4,7 +4,7 @@ import {App} from "../App";
 import {AudioNode3D} from "./AudioNode3D";
 import {XRInputStates} from "../xr/types";
 import {RotateBoundingBox} from "./RotateBoundingBox.ts";
-import {ControllerBehaviorManager} from "../xr/BehaviorControllerManager.ts";
+import {XRControllerManager} from "../xr/XRControllerManager.ts";
 import {AudioEventBus} from "../AudioEvents.ts";
 
 export class BoundingBox {
@@ -17,16 +17,27 @@ export class BoundingBox {
     private highlightLayer!: B.HighlightLayer;
     private readonly eventBus = AudioEventBus.getInstance();
 
+    private readonly xButtonListenerId: string;
+    private readonly bButtonListenerId: string;
+    private readonly squeezeListenerId: string;
+
     constructor(private audioNode3D: AudioNode3D, private scene: B.Scene, id: string, app: App) {
         this._app = app;
         this.id = id;
         this.dragBehavior = new DragBoundingBox(this._app);
         this.rotationBehavior = new RotateBoundingBox(this._app);
+
+        this.xButtonListenerId = `x-button-${this.id}`;
+        this.bButtonListenerId = `b-button-${this.id}`;
+        this.squeezeListenerId = `squeeze-${this.id}`;
+
         this.createBoundingBox();
         this.initializeEventListeners();
 
         this.boundingBox.rotation.x = -Math.PI / 6;
-        ControllerBehaviorManager.addBoundingBox(this);
+
+        this.attachControllerBehaviors();
+
     }
 
     private initializeEventListeners(): void {
@@ -182,17 +193,71 @@ export class BoundingBox {
 
     public attachControllerBehaviors(): void {
         console.log("Attaching controller behaviors in BoundingBox");
+        this.attachXButtonHandler();
+        this.attachBButtonHandler();
+        this.attachSqueezeHandler();
+    }
+    private attachXButtonHandler(): void {
+        if (XRControllerManager.Instance.hasButtonListener('left', 'x-button', this.xButtonListenerId)) {
+            XRControllerManager.Instance.removeButtonListener('left', 'x-button', this.xButtonListenerId);
+        }
 
-        const xrLeftInputStates: XRInputStates = this._app.xrManager.xrInputManager.leftInputStates;
-        xrLeftInputStates['x-button'].onButtonStateChangedObservable.add(this._leftXButtonHandler);
+        XRControllerManager.Instance.addButtonListener('left', 'x-button', this.xButtonListenerId, (event) => {
+            if (event.pressed) {
+                console.log(`X-button pressed on BoundingBox ${this.id}`);
+                this._handleDelete();
+            }
+        });
 
-        const xrRightInputStates: XRInputStates = this._app.xrManager.xrInputManager.rightInputStates;
-        xrRightInputStates['b-button'].onButtonStateChangedObservable.add(this._rightBButtonHandler);
-
-        xrRightInputStates['xr-standard-squeeze'].onButtonStateChangedObservable.add(this._rightSqueezeHandler);
+        console.log(`X-button handler attached for BoundingBox ${this.id}`);
     }
 
-    // Add action handlers for the bounding box (pointer events, right-clicks, etc.)
+    private attachBButtonHandler(): void {
+        if (XRControllerManager.Instance.hasButtonListener('right', 'b-button', this.bButtonListenerId)) {
+            XRControllerManager.Instance.removeButtonListener('right', 'b-button', this.bButtonListenerId);
+        }
+
+        XRControllerManager.Instance.addButtonListener('right', 'b-button', this.bButtonListenerId, (event) => {
+            if (event.pressed) {
+                console.log(`B-button pressed on BoundingBox ${this.id}`);
+                this._handleDelete();
+            }
+        });
+
+        console.log(`B-button handler attached for BoundingBox ${this.id}`);
+    }
+
+    private _lastSqueezeValue: number = 0;
+
+    /**
+     * Attache le handler du bouton Squeeze (contrôleur droit) pour gérer la rotation
+     */
+    private attachSqueezeHandler(): void {
+        if (XRControllerManager.Instance.hasButtonListener('right', 'xr-standard-squeeze', this.squeezeListenerId)) {
+            XRControllerManager.Instance.removeButtonListener('right', 'xr-standard-squeeze', this.squeezeListenerId);
+        }
+
+        XRControllerManager.Instance.setScene(this._app.scene);
+
+        XRControllerManager.Instance.addButtonListener('right', 'xr-standard-squeeze', this.squeezeListenerId, (event) => {
+            const value = event.value !== undefined ? event.value : (event.pressed ? 1 : 0);
+
+            console.log(`Squeeze value: ${value}, last value: ${this._lastSqueezeValue}`);
+
+            if (value === 1 && this._lastSqueezeValue < 1) {
+                console.log(`Enabling rotation behavior for BoundingBox ${this.id}`);
+                this._enableRotationBehavior();
+            } else if (value < 1 && this._lastSqueezeValue === 1) {
+                console.log(`Disabling rotation behavior for BoundingBox ${this.id}`);
+                this._disableRotationBehavior();
+            }
+
+            this._lastSqueezeValue = value;
+        });
+
+        console.log(`Squeeze handler attached for BoundingBox ${this.id}`);
+    }
+
     public addActionHandlers(): void {
         // Make sure the bounding box exists and actionManager is properly initialized
         console.log("Entered addActionHandlers BoundingBox.ts");
@@ -299,33 +364,9 @@ export class BoundingBox {
         // }));
     }
 
-    private _leftXButtonHandler = (component: B.WebXRControllerComponent): void => {
-        if (component.pressed) {
-            this._handleDelete();
-        }
-    }
-
-    private _rightBButtonHandler = (component: B.WebXRControllerComponent): void => {
-        if (component.pressed) {
-            this._handleDelete()
-        }
-    };
-
-    private _rightSqueezeHandler = (component: B.WebXRControllerComponent): void => {
-        if (component.value < 1){
-            this._disableRotationBehavior();
-
-        }
-
-        if (component.value === 1) {
-            this._enableRotationBehavior();
-        }
-
-    }
 
     private positionBoundingBoxInFrontOfPlayer(): void {
         // Check if player state is valid before proceeding
-        this._app.menu.hide();
         const data = this._app._getPlayerState();
         if (!data || !data.direction || !data.position) {
             console.warn("Player state is incomplete or invalid.");
@@ -403,5 +444,31 @@ export class BoundingBox {
         }
     }
 
+    public dispose(): void {
+        XRControllerManager.Instance.removeButtonListener('left', 'x-button', this.xButtonListenerId);
+        XRControllerManager.Instance.removeButtonListener('right', 'b-button', this.bButtonListenerId);
+        XRControllerManager.Instance.removeButtonListener('right', 'xr-standard-squeeze', this.squeezeListenerId);
+
+        // Supprimer les comportements
+        if (this.boundingBox && this.boundingBox.behaviors) {
+            if (this.boundingBox.behaviors.includes(this.dragBehavior)) {
+                this.boundingBox.removeBehavior(this.dragBehavior);
+            }
+            if (this.boundingBox.behaviors.includes(this.rotationBehavior)) {
+                this.boundingBox.removeBehavior(this.rotationBehavior);
+            }
+        }
+
+
+        if (this.highlightLayer) {
+            this.highlightLayer.dispose();
+        }
+
+        if (this.boundingBox) {
+            this.boundingBox.dispose();
+        }
+
+        console.log(`BoundingBox ${this.id} disposed`);
+    }
 
 }

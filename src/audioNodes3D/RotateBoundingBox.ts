@@ -48,13 +48,27 @@ export class RotateBoundingBox implements B.Behavior<B.AbstractMesh> {
         if (!controller) {
             return;
         }
+        if (this._isSqueezePressed) {
+            return;
+        }
+
         this._isSqueezePressed = true;
         this._selectMeshUnderController(controller);
     }
 
     public onSqueezeReleased(): void {
+        if (!this._isSqueezePressed) {
+            return;
+        }
+
         this._isSqueezePressed = false;
-        this._selectedMesh = null;
+        this.logRed("Squeeze released - ending rotation mode");
+
+        // Réinitialiser la visibilité
+        if (this._selectedMesh) {
+            this._selectedMesh.visibility = 0;
+            this._selectedMesh = null;
+        }
 
         if (this._observer) {
             this.app.scene.onBeforeRenderObservable.remove(this._observer);
