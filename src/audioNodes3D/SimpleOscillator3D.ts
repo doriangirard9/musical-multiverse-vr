@@ -21,7 +21,6 @@ export class SimpleOscillator3D extends AudioNode3D {
     }
 
     public instantiate(): void {
-        this._app.menu.hide();
         if (!this._config.parametersInfo) throw new Error("Missing parametersInfo in config");
 
         this._parametersInfo = this._config.parametersInfo;
@@ -162,6 +161,7 @@ export class SimpleOscillator3D extends AudioNode3D {
             position: { x: this.boundingBox.position.x, y: this.boundingBox.position.y, z: this.boundingBox.position.z },
             rotation: { x: this.boundingBox.rotation.x, y: this.boundingBox.rotation.y, z: this.boundingBox.rotation.z },
             inputNodes: inputNodes,
+            inputNodesMidi: [],
             parameters: params
         };
     }
