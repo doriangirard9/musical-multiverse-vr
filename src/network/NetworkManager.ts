@@ -11,7 +11,7 @@ import { Wam3D } from "../audioNodes3D/Wam3D";
 import {WamSampler3D} from "../audioNodes3D/WamSampler/WamSampler3D.ts";
 
 
-const SIGNALING_SERVER = 'ws://localhost:443';//'wss://musical-multiverse-vr.onrender.com';
+const SIGNALING_SERVER = 'ws://localhost:3001';//'wss://musical-multiverse-vr.onrender.com';
 
 interface PendingConnection {
     sourceId: string;
