@@ -4,7 +4,6 @@ import {IAudioNodeConfig, IWamConfig} from "./types.ts";
 import {SimpleOscillator3D} from "./SimpleOscillator3D.ts";
 import {AudioOutput3D} from "./AudioOutput3D.ts";
 import {Wam3D} from "./Wam3D.ts";
-import {StepSequencer3D} from "./StepSequencer3D.ts";
 import {RandomNote3D} from "./RandomNote3D.ts";
 import {Instrument3D} from "./Instrument3D.ts";
 import {WamSampler3D} from "./WamSampler/WamSampler3D.ts";
@@ -25,9 +24,12 @@ export class AudioNode3DBuilder {
             const config: IAudioNodeConfig = JSON.parse(configString);
             return new SimpleOscillator3D(this._scene, this._audioCtx, id, config);
         }
+        /* utilise ToneJS donc ne fonctionne plus, doit être remplacer par le PianoRoll de Ayoub
         else if (name === "stepSequencer") {
             return new StepSequencer3D(this._scene, this._audioCtx, id);
         }
+
+         */
         else if (name === "audioOutput") {
             return new AudioOutput3D(this._scene, this._audioCtx, id);
         }

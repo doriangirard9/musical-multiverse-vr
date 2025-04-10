@@ -87,10 +87,13 @@ export class Menu {
         this._menu.addButton(simpleOscillatorButton);
 
         // step sequencer
+        /* Utiliser PianoRoll de Ayoub
         const stepSequencerButton = new GUI.TouchHolographicButton("stepSequencer");
         stepSequencerButton.text = "Step Sequencer";
         stepSequencerButton.onPointerUpObservable.add((): Promise<void> => this._app.createAudioNode3D("stepSequencer", uuid()));
         this._menu.addButton(stepSequencerButton);
+
+         */
     }
 
     private _createPluginsMenu(categoryIndex: number): void {
