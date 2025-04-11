@@ -149,12 +149,11 @@ export class Sphere implements IParameter {
 
     }
 
-    setDirectValue(value: number): void {
+    public setDirectValue(value: number): void {
         this.setParamValue(value);
     }
 
-    addModulation(moduleName: string): void {
-    }
+
 
 
 }

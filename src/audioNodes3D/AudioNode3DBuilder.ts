@@ -8,6 +8,7 @@ import {StepSequencer3D} from "./StepSequencer3D.ts";
 import {RandomNote3D} from "./RandomNote3D.ts";
 import {Instrument3D} from "./Instrument3D.ts";
 import { PianoRoll } from "./PianoRoll3D.ts";
+import {Modulation} from "./Modulation.ts";
 
 // const WAM_CONFIGS_URL: string = "https://wam-configs.onrender.com";
 const WAM_CONFIGS_URL: string = "http://localhost:3000";
@@ -15,7 +16,7 @@ const WAM_CONFIGS_URL: string = "http://localhost:3000";
 export class AudioNode3DBuilder {
     constructor(private readonly _scene: B.Scene, private readonly _audioCtx: AudioContext) {}
 
-    public async create(name: string, id: string, configFile?: IAudioNodeConfig): Promise<AudioNode3D> {
+    public async create(name: string, id: string, configFile?: IAudioNodeConfig, parent?: Instrument3D, paramModul?:number): Promise<AudioNode3D> {
         if (name === "simpleOscillator") {
             const response: Response = await fetch(`${WAM_CONFIGS_URL}/coreConfig/simpleOscillatorConfig`, {
                 method: "get",
@@ -46,8 +47,17 @@ export class AudioNode3DBuilder {
             // const configString: string = await response.json();
             return new PianoRoll(this._scene, this._audioCtx, id, config, configFile!);
         }
+        else if (name==="modulation"){
+            const config: IWamConfig = await import(/* @vite-ignore */`../coreConfig/PianoRollConfig.json`);
+            // const configString: string = await response.json();
+            let tmp= new Modulation(this._scene, this._audioCtx, id, config, configFile!,name,parent,paramModul);
+            //await tmp.instantiate();
+            //tmp.addUpdateTuyau();
+            return tmp;
+        }
         // WAMs
         else {
+            console.log(name);
             const response: Response = await fetch(`${WAM_CONFIGS_URL}/wamsConfig/${configFile}`, {
                 method: "get",
                 headers: {"Content-Type": "application/json"}
@@ -59,4 +69,6 @@ export class AudioNode3DBuilder {
             return new Wam3D(this._scene, this._audioCtx, id, config, configFile!);
         }
     }
+
+
 }

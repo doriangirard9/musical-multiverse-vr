@@ -131,6 +131,7 @@ export class Wam3D extends AudioNode3D {
         this._wamInstance.audioNode.connect(destination);
     }
 
+
     public disconnect(destination: AudioNode): void {
         // @ts-ignore
         this._wamInstance.audioNode.disconnect(destination);

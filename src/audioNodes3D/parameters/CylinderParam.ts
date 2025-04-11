@@ -11,7 +11,7 @@ export class CylinderParam implements IParameter {
     protected _currentValue: number;
     protected _currentCylinder!: B.Mesh;
     private _cylinder!: B.Mesh;
-    private _cylinderMaterial!: B.StandardMaterial;
+    protected _cylinderMaterial!: B.StandardMaterial;
     protected _textValueBlock!: GUI.TextBlock;
     private _valueAdvancedTexture!: GUI.AdvancedDynamicTexture;
 

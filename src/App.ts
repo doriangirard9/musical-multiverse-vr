@@ -184,12 +184,12 @@ export class App {
         window.WAMExtensions.patterns = new PatternExtension();
     }
 
-    public async createAudioNode3D(name: string, id: string, configFile?: IAudioNodeConfig): Promise<void> {
+    public async createAudioNode3D(name: string, id: string, configFile?: IAudioNodeConfig, parent?: AudioNode3D, paramModul?:number): Promise<void> {
         this.menu.hide()
         this.messageManager.showMessage("Loading...",0);
         try{
 
-            const audioNode3D: AudioNode3D = await this._audioNode3DBuilder.create(name, id, configFile);
+            const audioNode3D: AudioNode3D = await this._audioNode3DBuilder.create(name, id, configFile, parent, paramModul);
             await audioNode3D.instantiate();
             // await a certain delay before adding listeners
 
@@ -208,6 +208,7 @@ export class App {
             this.messageManager.hideMessage()
         }
     }
+
 
     private async _onRemoteAudioNodeChange(change: { action: 'add' | 'delete', state: AudioNodeState }): Promise<void> {
         console.log('Remote audio node change detected:', change);

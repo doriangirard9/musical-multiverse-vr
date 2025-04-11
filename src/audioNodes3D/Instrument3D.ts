@@ -6,6 +6,8 @@ import {WamParameterData, WamParameterDataMap} from "@webaudiomodules/api";
 import {ParamBuilder} from "./parameters/ParamBuilder.ts";
 import {BoundingBox} from "./BoundingBox.ts";
 import {ModuleMenu} from "./parameters/ModuleMenu.ts";
+import {v4 as uuid} from "uuid";
+import {Mesh} from "@babylonjs/core";
 
 export class Instrument3D extends Wam3D {
 
@@ -26,7 +28,7 @@ export class Instrument3D extends Wam3D {
         this._wamInstance = await this._initWamInstance(this._config.url);
         this._parametersInfo = await this._wamInstance.audioNode.getParameterInfo();
         this._paramBuilder = new ParamBuilder(this._scene, this._config);
-
+        console.log(this._parametersInfo);
 
         this._createBaseMesh();
         for (let i: number = 0; i < this._usedParameters.length; i++) {
@@ -93,7 +95,7 @@ export class Instrument3D extends Wam3D {
                 parameter3D = this._paramBuilder.createSphere(param, parameterStand, this._parametersInfo[fullParamName], defaultValue);
                 break;
             case 'sphereCylinder':
-                parameter3D = this._paramBuilder.createCage(param, parameterStand, this._parametersInfo[fullParamName], defaultValue, this._audioCtx);
+                parameter3D = this._paramBuilder.createCylinder(param, parameterStand, this._parametersInfo[fullParamName], defaultValue, this._audioCtx);
                 break
             case 'button':
                 parameter3D = await this._paramBuilder.createButton(param, parameterStand, this._parametersInfo[fullParamName]);
@@ -215,7 +217,6 @@ export class Instrument3D extends Wam3D {
         this._wamInstance.audioNode.disconnectEvents(destination);
     }
 
-
     private _createModulationButton(): void {
         const buttonMesh = B.MeshBuilder.CreateBox('modulationButton', { width: 0.8, height: 0.2, depth: 0.8 }, this._scene);
         buttonMesh.position.set(0,0.5, this.baseMesh.position.z+0.8);
@@ -249,9 +250,38 @@ export class Instrument3D extends Wam3D {
         console.log('Creating module:', module);
         console.log('Category:', category);
         console.log('Index:', index);
-        const param = this._parameter3D[category];
-        this._addModulation(param, module, index,category);
+       // const param = this._parameter3D[category];
+        if (!this._parameterAsModulation[index]) {
+            this._createInputModulation(new B.Vector3(index - (this._usedParameters.length - 1) / 2, this.baseMesh.position.y, this.baseMesh.position.z - 1));
+
+            this._parameterAsModulation[index] = true;
+        }
+
+
+        await this._app.createAudioNode3D("modulation", uuid(),undefined,this,index);
+        this._modulationMenu.hide();
+
+        //await this._addModulation(param, module, index,);
     }
+
+    public getParamModulMesh(paramModul: number) {
+
+        let sphereModule : Mesh = B.MeshBuilder.CreateSphere('inputSphereMidi', { diameter: 0.5 }, this._scene);
+        let sphereModuleBig = B.MeshBuilder.CreateSphere('inputBigSphereMidi', { diameter: 1 }, this._scene);
+        sphereModuleBig.parent = sphereModule;
+        sphereModuleBig.visibility = 0;
+        sphereModule.parent = this.baseMesh;
+        sphereModule.position =  new B.Vector3(paramModul - (this._usedParameters.length - 1) / 2, 0.1, this.baseMesh.position.z);
+
+        const inputSphereMaterial = new B.StandardMaterial('material', this._scene);
+        inputSphereMaterial.diffuseColor = new B.Color3(0, 0, 1);
+        sphereModule.material = inputSphereMaterial;
+
+
+
+        return sphereModule;
+    }
+
 /*
     private createModulation() {
         const parameterStand: B.Mesh = this._createParameterStand(
@@ -274,15 +304,6 @@ export class Instrument3D extends Wam3D {
         //parameter3D.onValueChangedObservable.notifyObservers(defaultValue);
 
     }*/
-    private _addModulation(param: IParameter, module: string, index: number, category: string) {
-        if (!this._parameterAsModulation[index]) {
-            this._createInputModulation(new B.Vector3(index - (this._usedParameters.length - 1) / 2, this.baseMesh.position.y, this.baseMesh.position.z - 1));
-            this._parameterAsModulation[index] = true;
-        }
-
-
-
-    }
 
     private _createInputModulation(position: B.Vector3) {
         this.inputMeshMidi = B.MeshBuilder.CreateSphere('inputSphereModulation', { diameter: 0.5 }, this._scene);
@@ -299,5 +320,9 @@ export class Instrument3D extends Wam3D {
        // this.inputMeshMidi.actionManager = new B.ActionManager(this._scene);
         //this.inputMeshBigMidi.actionManager = new B.ActionManager(this._scene);
 
+    }
+
+    public AudioNode(): AudioNode {
+        return this._audioNode;
     }
 }
