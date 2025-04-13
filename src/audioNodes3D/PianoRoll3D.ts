@@ -37,8 +37,8 @@ export class PianoRoll extends Wam3D {
   private _startRowIndex: number = 0; // Index of the first visible row
   private _visibleRowCount: number = 7; // Number of rows visible at one time
   private _totalRows: number = 14; // Total number of rows (total notes)
-  private _btnScrollUp: B.Mesh;
-  private _btnScrollDown: B.Mesh;
+  private _btnScrollUp!: B.Mesh;
+  private _btnScrollDown!: B.Mesh;
   private _noteLabels: B.Mesh[] = [];
 
   constructor(
@@ -112,14 +112,23 @@ export class PianoRoll extends Wam3D {
 
     // add click action to start stop button
     this.btnStartStop.actionManager = new B.ActionManager(this._scene);
-    // write on the face of the button start
-    // const advancedTexture = GUI.AdvancedDynamicTexture.CreateForMesh(this.btnStartStop);
-    // const text1 = new GUI.TextBlock();
+    
+    // // Add text to the start/stop button
+    // const advancedTexture = GUI.AdvancedDynamicTexture.CreateForMesh(this.btnStartStop, 512, 256);
+    // const textBlock = new GUI.TextBlock();
+    // textBlock.text = "Start";
+    // textBlock.color = "white";
+    // textBlock.fontSize = 100;
+    // textBlock.outlineWidth = 2;
+    // textBlock.outlineColor = "black";
+    // textBlock.textHorizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_CENTER;
+    // textBlock.textVerticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_CENTER;
+    // advancedTexture.addControl(textBlock);
+    
     // toggle start stop
     this.btnStartStop.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickTrigger, () => {
 
       // check if color is green
-
       if (this.isBtnStartStop) {
         this._wamInstance.audioNode.scheduleEvents({
           type: "wam-transport",
@@ -134,9 +143,7 @@ export class PianoRoll extends Wam3D {
         });
         this.isBtnStartStop = false;
         material.diffuseColor = B.Color3.Red();
-
-        // text1.text = "Start";
-        // advancedTexture.addControl(text1);
+        // textBlock.text = "Stop";
 
         } else {
           this._wamInstance.audioNode.scheduleEvents({
@@ -152,11 +159,9 @@ export class PianoRoll extends Wam3D {
           });
           this.isBtnStartStop = true;
           material.diffuseColor = B.Color3.Green();
-          // write on the face of the button stop
-
-          }
+          // textBlock.text = "Start";
+        }
     }));
-
   }
 
   protected _createBaseMesh(): void {
@@ -226,6 +231,10 @@ export class PianoRoll extends Wam3D {
       textBlock.text = this._notes[row];
       textBlock.color = "white";
       textBlock.fontSize = 16;
+      textBlock.outlineWidth = 1;
+      textBlock.outlineColor = "black";
+      textBlock.textHorizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_CENTER;
+      textBlock.textVerticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_CENTER;
       advancedTexture.addControl(textBlock);
       
       // Store reference
@@ -262,9 +271,9 @@ export class PianoRoll extends Wam3D {
     this._btnScrollDown.position.y = 0.3;
     this._btnScrollDown.position.z = 3.8; // Position below the bottom visible row (centered at +3)
     
-    // Add text to the buttons (optional if you want to label them)
-    this._addTextToButton(this._btnScrollUp, "azimuth");
-    this._addTextToButton(this._btnScrollDown, "sf");
+    // Add text to the buttons
+    this._addScrollButtonLabel(this._btnScrollUp, "up");
+    this._addScrollButtonLabel(this._btnScrollDown, "down");
     
     // Add click actions to the buttons
     if (!this._btnScrollUp.actionManager) {
@@ -290,29 +299,44 @@ export class PianoRoll extends Wam3D {
     );
   }
 
-  private _addTextToButton(mesh: B.Mesh, text: string): void {
-    // Create a larger, more visible advanced texture for the mesh
-    const advancedTexture = GUI.AdvancedDynamicTexture.CreateForMesh(mesh, 512, 256);
+  // New method specifically for scroll button labels
+  private _addScrollButtonLabel(mesh: B.Mesh, text: string): void {
+    // Create a plane slightly above the button
+    const textPlane = B.MeshBuilder.CreatePlane(
+      `${mesh.name}_textPlane`,
+      { width: 2, height: 0.8 }, 
+      this._scene
+    );
     
-    // Create a text block with improved visibility
-    const textBlock = new GUI.TextBlock();
-    textBlock.text = text;
-    textBlock.color = "white";
-    textBlock.fontSize = 120; // Much larger font size
-    textBlock.outlineWidth = 4; // Add a substantial outline
-    textBlock.outlineColor = "black";
-    textBlock.shadowColor = "black";
-    textBlock.shadowBlur = 2;
-    textBlock.shadowOffsetX = 2;
-    textBlock.shadowOffsetY = 2;
+    textPlane.parent = mesh;
+    textPlane.position.y = 0.1; // Slightly above the button
+    textPlane.rotation.x = Math.PI / 2; // Face upward
     
-    // Position the text properly on the button face
-    textBlock.textHorizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_CENTER;
-    textBlock.textVerticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_CENTER;
+    // Create a standard material with texture
+    const textMaterial = new B.StandardMaterial(`${mesh.name}_textMaterial`, this._scene);
+    textMaterial.diffuseColor = new B.Color3(1, 1, 1);
+    textMaterial.specularColor = new B.Color3(0, 0, 0);
+    textMaterial.emissiveColor = new B.Color3(1, 1, 1);
+    textPlane.material = textMaterial;
     
-    // Add text to the texture
-    advancedTexture.addControl(textBlock);
+    // Create dynamic texture
+    const textTexture = new B.DynamicTexture(`${mesh.name}_texture`, {width: 256, height: 128}, this._scene, true);
+    textMaterial.diffuseTexture = textTexture;
+    textMaterial.useAlphaFromDiffuseTexture = true;
+    
+    // Draw text on texture
+    const ctx = textTexture.getContext();
+    ctx.clearRect(0, 0, 256, 128);
+    ctx.font = "bold 80px Arial";
+    ctx.fillStyle = "white";
+    // ctx.textAlign = "center";
+    // ctx.textBaseline = "middle";
+    ctx.fillText(text, 128, 64);
+    
+    // Update texture
+    textTexture.update();
   }
+
   private _scrollUp(): void {
     // Scroll up if we're not already at the top
     if (this._startRowIndex > 0) {
@@ -426,6 +450,11 @@ export class PianoRoll extends Wam3D {
     
     buttonMesh.material = buttonMaterial;
 
+    // Add note label to the first column buttons
+    if (column === 0) {
+      this._addNoteLabelToButton(buttonMesh, this._notes[row]);
+    }
+
     this._grid[row].push({ mesh: buttonMesh, isActivated: false });
 
     // Attach an action to handle note activation
@@ -438,6 +467,47 @@ export class PianoRoll extends Wam3D {
         this._toggleNoteState(row, column);
       })
     );
+  }
+
+  // Add note labels directly to buttons in the first column
+  private _addNoteLabelToButton(buttonMesh: B.Mesh, noteName: string): void {
+    // Create a plane on top of the button
+    const textPlane = B.MeshBuilder.CreatePlane(
+      `${buttonMesh.name}_textPlane`,
+      { width: 0.5, height: 0.5 },
+      this._scene
+    );
+    
+    textPlane.parent = buttonMesh;
+    textPlane.position.y = 0.101; // Just above the button
+    textPlane.rotation.x = Math.PI / 2; // Face upward
+    textPlane.isPickable = false; // Don't interfere with button clicks
+    
+    // Create material with texture for the text
+    const textMaterial = new B.StandardMaterial(`${buttonMesh.name}_textMaterial`, this._scene);
+    textMaterial.specularColor = new B.Color3(0, 0, 0); // No specular
+    textMaterial.emissiveColor = new B.Color3(1, 1, 1); // Make it bright
+    textPlane.material = textMaterial;
+    
+    // Create a dynamic texture to render the text
+    const textTexture = new B.DynamicTexture(`${buttonMesh.name}_texture`, 
+      {width: 128, height: 128}, this._scene, true);
+    textMaterial.diffuseTexture = textTexture;
+    textMaterial.useAlphaFromDiffuseTexture = true;
+    
+    // Draw the note name on the texture
+    const ctx = textTexture.getContext();
+    ctx.clearRect(0, 0, 128, 128);
+    ctx.font = "bold 48px Arial";
+    //@ts-ignore
+    ctx.textAlign = "center";
+    //@ts-ignore
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = "white";
+    ctx.fillText(noteName, 64, 64);
+    
+    // Update the texture
+    textTexture.update();
   }
 
   private _toggleNoteState(row: number, column: number): void {
