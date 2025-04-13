@@ -32,6 +32,15 @@ export class PianoRoll extends Wam3D {
   private btnStartStop: B.Mesh;
   private isBtnStartStop: boolean = true;
   startTime: number = 0;
+
+  // New properties for row navigation
+  private _startRowIndex: number = 0; // Index of the first visible row
+  private _visibleRowCount: number = 7; // Number of rows visible at one time
+  private _totalRows: number = 14; // Total number of rows (total notes)
+  private _btnScrollUp: B.Mesh;
+  private _btnScrollDown: B.Mesh;
+  private _noteLabels: B.Mesh[] = [];
+
   constructor(
     scene: B.Scene,
     audioCtx: AudioContext,
@@ -163,12 +172,218 @@ export class PianoRoll extends Wam3D {
 
   private _createGrid(): void {
     const numberOfColumns = this._pattern.length / 4; // example 16 columns for 64 ticks
+    
+    // Create labels for notes first
+    this._createNoteLabels();
+    
+    // Initialize the entire grid structure first
     for (let row = 0; row < this._notes.length; row++) {
       this._grid.push([]);
       for (let col = 0; col < numberOfColumns; col++) {
+        // We'll create the buttons, but control visibility later
         this._createNoteButton(row, col);
       }
     }
+    
+    // Create navigation buttons
+    this._createScrollButtons();
+    
+    // Initially update visibility to show only the visible rows
+    this._updateRowVisibility();
+  }
+
+  private _createNoteLabels(): void {
+    for (let row = 0; row < this._notes.length; row++) {
+      // Create a simple box for each note label
+      const labelMesh = B.MeshBuilder.CreateBox(
+        `noteLabel_${row}`,
+        { width: 1.2, height: 0.4, depth: 0.6 },
+        this._scene
+      );
+      
+      // Position to the left of the grid
+      labelMesh.position.x = -12;
+      labelMesh.position.y = 0.25; 
+      
+      // Use the same position as the buttons initially
+      const fixedRowPosition = row - 6.5;
+      labelMesh.position.z = fixedRowPosition;
+      
+      labelMesh.parent = this.baseMesh;
+      
+      // Set initial visibility
+      labelMesh.isVisible = row >= this._startRowIndex && 
+                           row < this._startRowIndex + this._visibleRowCount;
+      
+      // Create material
+      const labelMaterial = new B.StandardMaterial(`noteLabelMaterial_${row}`, this._scene);
+      labelMaterial.diffuseColor = new B.Color3(0.2, 0.2, 0.4); // Dark blue
+      labelMesh.material = labelMaterial;
+      
+      // Add note name text
+      const advancedTexture = GUI.AdvancedDynamicTexture.CreateForMesh(labelMesh);
+      const textBlock = new GUI.TextBlock();
+      textBlock.text = this._notes[row];
+      textBlock.color = "white";
+      textBlock.fontSize = 16;
+      advancedTexture.addControl(textBlock);
+      
+      // Store reference
+      this._noteLabels.push(labelMesh);
+    }
+  }
+
+  private _createScrollButtons(): void {
+    // Create "scroll up" button at the top
+    this._btnScrollUp = B.MeshBuilder.CreateBox(
+      "btnScrollUp",
+      { width: 25, height: 0.5, depth: 0.8 },
+      this._scene
+    );
+    
+    const materialUp = new B.StandardMaterial("materialScrollUp", this._scene);
+    materialUp.diffuseColor = new B.Color3(0.2, 0.6, 0.8);
+    this._btnScrollUp.material = materialUp;
+    this._btnScrollUp.parent = this.baseMesh;
+    this._btnScrollUp.position.y = 0.3;
+    this._btnScrollUp.position.z = -3.8; // Position above the top visible row (centered at -3)
+    
+    // Create "scroll down" button at the bottom
+    this._btnScrollDown = B.MeshBuilder.CreateBox(
+      "btnScrollDown",
+      { width: 25, height: 0.5, depth: 0.8 },
+      this._scene
+    );
+    
+    const materialDown = new B.StandardMaterial("materialScrollDown", this._scene);
+    materialDown.diffuseColor = new B.Color3(0.2, 0.6, 0.8);
+    this._btnScrollDown.material = materialDown;
+    this._btnScrollDown.parent = this.baseMesh;
+    this._btnScrollDown.position.y = 0.3;
+    this._btnScrollDown.position.z = 3.8; // Position below the bottom visible row (centered at +3)
+    
+    // Add text to the buttons (optional if you want to label them)
+    this._addTextToButton(this._btnScrollUp, "azimuth");
+    this._addTextToButton(this._btnScrollDown, "sf");
+    
+    // Add click actions to the buttons
+    if (!this._btnScrollUp.actionManager) {
+      this._btnScrollUp.actionManager = new B.ActionManager(this._scene);
+    }
+    
+    if (!this._btnScrollDown.actionManager) {
+      this._btnScrollDown.actionManager = new B.ActionManager(this._scene);
+    }
+    
+    // Scroll up action
+    this._btnScrollUp.actionManager.registerAction(
+      new B.ExecuteCodeAction(B.ActionManager.OnPickTrigger, () => {
+        this._scrollUp();
+      })
+    );
+    
+    // Scroll down action
+    this._btnScrollDown.actionManager.registerAction(
+      new B.ExecuteCodeAction(B.ActionManager.OnPickTrigger, () => {
+        this._scrollDown();
+      })
+    );
+  }
+
+  private _addTextToButton(mesh: B.Mesh, text: string): void {
+    // Create a larger, more visible advanced texture for the mesh
+    const advancedTexture = GUI.AdvancedDynamicTexture.CreateForMesh(mesh, 512, 256);
+    
+    // Create a text block with improved visibility
+    const textBlock = new GUI.TextBlock();
+    textBlock.text = text;
+    textBlock.color = "white";
+    textBlock.fontSize = 120; // Much larger font size
+    textBlock.outlineWidth = 4; // Add a substantial outline
+    textBlock.outlineColor = "black";
+    textBlock.shadowColor = "black";
+    textBlock.shadowBlur = 2;
+    textBlock.shadowOffsetX = 2;
+    textBlock.shadowOffsetY = 2;
+    
+    // Position the text properly on the button face
+    textBlock.textHorizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_CENTER;
+    textBlock.textVerticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_CENTER;
+    
+    // Add text to the texture
+    advancedTexture.addControl(textBlock);
+  }
+  private _scrollUp(): void {
+    // Scroll up if we're not already at the top
+    if (this._startRowIndex > 0) {
+      this._startRowIndex--;
+      this._updateRowVisibility();
+    }
+  }
+
+  private _scrollDown(): void {
+    // Scroll down if we're not already at the bottom
+    if (this._startRowIndex + this._visibleRowCount < this._totalRows) {
+      this._startRowIndex++;
+      this._updateRowVisibility();
+    }
+  }
+
+  private _updateRowVisibility(): void {
+    // Calculate the end row index
+    const endRowIndex = Math.min(
+      this._startRowIndex + this._visibleRowCount,
+      this._totalRows
+    );
+    
+    // Update visibility for all rows
+    for (let row = 0; row < this._totalRows; row++) {
+      const isVisible = row >= this._startRowIndex && row < endRowIndex;
+      
+      // For visible rows, we need to adjust their position to center them
+      if (isVisible) {
+        // Calculate the visual row index (0-6) for display
+        const visualRowIndex = row - this._startRowIndex;
+        
+        // Position in a centered grid that spans from -3 to +3 on z-axis
+        // This places 7 rows evenly distributed and centered on the base mesh
+        const centeredPosition = visualRowIndex - 3;
+        
+        // Update all buttons in this row
+        for (let col = 0; col < this._grid[row].length; col++) {
+          this._grid[row][col].mesh.position.z = centeredPosition;
+          this._grid[row][col].mesh.isVisible = true;
+        }
+        
+        // Update the note label position and visibility
+        if (this._noteLabels[row]) {
+          this._noteLabels[row].position.z = centeredPosition;
+          this._noteLabels[row].isVisible = true;
+        }
+      } else {
+        // Simply hide buttons for non-visible rows
+        for (let col = 0; col < this._grid[row].length; col++) {
+          this._grid[row][col].mesh.isVisible = false;
+        }
+        
+        // Hide the note label for this row
+        if (this._noteLabels[row]) {
+          this._noteLabels[row].isVisible = false;
+        }
+      }
+    }
+    
+    // Disable the scroll up button if at the top
+    const materialUp = this._btnScrollUp.material as B.StandardMaterial;
+    materialUp.diffuseColor = this._startRowIndex > 0 
+      ? new B.Color3(0.2, 0.6, 0.8) // Active
+      : new B.Color3(0.2, 0.2, 0.2); // Inactive
+    
+    // Disable the scroll down button if at the bottom
+    const materialDown = this._btnScrollDown.material as B.StandardMaterial;
+    materialDown.diffuseColor = this._startRowIndex + this._visibleRowCount < this._totalRows 
+      ? new B.Color3(0.2, 0.6, 0.8) // Active
+      : new B.Color3(0.2, 0.2, 0.2); // Inactive
   }
 
   public connect(destination: AudioNode): void {
@@ -183,14 +398,32 @@ export class PianoRoll extends Wam3D {
       this._scene
     );
 
+    // Calculate position but keep z-offset for rows the same
+    // This ensures that we'll just change visibility instead of moving buttons
     buttonMesh.position.x = column - 10.5;
     buttonMesh.position.y = 0.2;
-    buttonMesh.position.z = row - 3.5;
+    
+    // Position in a fixed grid centered at 0 on the z-axis
+    // Since we have 14 total rows, this ranges from -6.5 to +6.5
+    // We'll offset it in _updateRowVisibility when showing/hiding rows
+    const fixedRowPosition = row - 6.5;
+    buttonMesh.position.z = fixedRowPosition;
     buttonMesh.parent = this.baseMesh;
+    
+    // Set initial visibility
+    buttonMesh.isVisible = row >= this._startRowIndex && 
+                          row < this._startRowIndex + this._visibleRowCount;
 
-    // Set the initial color
-    const buttonMaterial = new B.StandardMaterial("noteMaterial", this._scene);
-    buttonMaterial.diffuseColor = new B.Color3(0, 0, 1);
+    // Set the initial color - alternating between blue and sky blue based on row
+    const buttonMaterial = new B.StandardMaterial(`noteMaterial_${row}_${column}`, this._scene);
+    
+    // Determine base color based on row parity
+    if (row % 2 === 0) {
+        buttonMaterial.diffuseColor = new B.Color3(0, 0, 0.8); // Dark blue
+    } else {
+        buttonMaterial.diffuseColor = new B.Color3(0.3, 0.7, 1); // Sky blue
+    }
+    
     buttonMesh.material = buttonMaterial;
 
     this._grid[row].push({ mesh: buttonMesh, isActivated: false });
@@ -208,6 +441,11 @@ export class PianoRoll extends Wam3D {
   }
 
   private _toggleNoteState(row: number, column: number): void {
+    // Skip if the row is not visible
+    if (row < this._startRowIndex || row >= this._startRowIndex + this._visibleRowCount) {
+      return;
+    }
+    
     const noteValue = this._convertNoteToMidi(this._notes[row]);
     const tick = column * 4;
 
@@ -262,9 +500,17 @@ export class PianoRoll extends Wam3D {
   private _updateNoteColor(row: number, column: number): void {
     const button = this._grid[row][column];
     const material = button.mesh.material as B.StandardMaterial;
-    material.diffuseColor = button.isActivated
-      ? new B.Color3(1, 0, 0) // Red if active
-      : new B.Color3(0, 0, 1); // Blue if inactive
+    
+    if (button.isActivated) {
+      material.diffuseColor = new B.Color3(1, 0, 0); // Red if active
+    } else {
+      // Return to the original alternating colors
+      if (row % 2 === 0) {
+        material.diffuseColor = new B.Color3(0, 0, 0.8); // Dark blue
+      } else {
+        material.diffuseColor = new B.Color3(0.3, 0.7, 1); // Sky blue
+      }
+    }
   }
 
   private timer(): void {
@@ -333,15 +579,21 @@ export class PianoRoll extends Wam3D {
     update();
   }
   
-  // In _onPlayButtonAnimation, add the note to _activeNotes:
   private _onPlayButtonAnimation(noteNumber: number, tick: number, scheduledTime: number): void {
     const row = this._notes.findIndex(n => this._convertNoteToMidi(n) === noteNumber);
     const column = tick / 4;
-    if (row === -1 || column < 0 || column >= this._grid[0].length) return;
+    
+    // Skip if the row is not visible or if the coordinates are invalid
+    if (row === -1 || 
+        column < 0 || 
+        column >= this._grid[0].length ||
+        row < this._startRowIndex || 
+        row >= this._startRowIndex + this._visibleRowCount) {
+      return;
+    }
     
     const button = this._grid[row][column];
     const material = button.mesh.material as B.StandardMaterial;
-    
     
     // Use a visual offset here as well if needed.
     const visualOffset = 0.3;
@@ -356,12 +608,7 @@ export class PianoRoll extends Wam3D {
         offTime: scheduledTime + this._tickDuration - visualOffset
       });
     }, delay);
-
-
-
   }
-  
-  
   
   private _sendPatternToPianoRoll(): void {
     if (!(window.WAMExtensions && window.WAMExtensions.patterns)) {
@@ -377,42 +624,42 @@ export class PianoRoll extends Wam3D {
     delegatePianoRoll!.setPatternState("default", this._pattern);
   }
 
-      protected _createOutputMidi(position: B.Vector3): void {
-          this.outputMeshMidi = B.MeshBuilder.CreateSphere('outputSphereMidi', { diameter: 0.5 }, this._scene);
-          this.outputMeshBigMidi = B.MeshBuilder.CreateSphere('outputBigSphereMidi', { diameter: 1 }, this._scene);
-          this.outputMeshBigMidi.parent = this.outputMeshMidi;
-          this.outputMeshBigMidi.visibility = 0;
-          this.outputMeshMidi.parent = this.baseMesh;
-          position.x = position.x + this.outputMeshMidi.getBoundingInfo().boundingBox.extendSize.x;
-          this.outputMeshMidi.position = position;
-  
-          // color
-          const inputSphereMaterial = new B.StandardMaterial('material', this._scene);
-          inputSphereMaterial.diffuseColor = new B.Color3(0, 0, 1);
-          this.outputMeshMidi.material = inputSphereMaterial;
-  
-          this.outputMeshMidi.actionManager = new B.ActionManager(this._scene);
-          this.outputMeshBigMidi.actionManager = new B.ActionManager(this._scene);
-  
-          const highlightLayer = new B.HighlightLayer(`hl-outputMidi-${this.id}`, this._scene);
-  
-          this.outputMeshBigMidi.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPointerOverTrigger, (): void => {
-              highlightLayer.addMesh(this.outputMeshMidi as B.Mesh, B.Color3.Blue());
-          }));
-  
-          this.outputMeshBigMidi.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPointerOutTrigger, (): void => {
-              highlightLayer.removeMesh(this.outputMeshMidi as B.Mesh);
-          }));
-  
-          // action manager
-          this.outputMeshBigMidi.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnLeftPickTrigger, (): void => {
-              this.ioObservable.notifyObservers({ type: 'outputMidi', pickType: 'down', node: this });
-          }));
-          this.outputMeshBigMidi.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickUpTrigger, (): void => {
-              this.ioObservable.notifyObservers({ type: 'outputMidi', pickType: 'up', node: this });
-          }));
-          this.outputMeshBigMidi.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickOutTrigger, (): void => {
-              this.ioObservable.notifyObservers({ type: 'outputMidi', pickType: 'out', node: this });
-          }));
-      }
+  protected _createOutputMidi(position: B.Vector3): void {
+      this.outputMeshMidi = B.MeshBuilder.CreateSphere('outputSphereMidi', { diameter: 0.5 }, this._scene);
+      this.outputMeshBigMidi = B.MeshBuilder.CreateSphere('outputBigSphereMidi', { diameter: 1 }, this._scene);
+      this.outputMeshBigMidi.parent = this.outputMeshMidi;
+      this.outputMeshBigMidi.visibility = 0;
+      this.outputMeshMidi.parent = this.baseMesh;
+      position.x = position.x + this.outputMeshMidi.getBoundingInfo().boundingBox.extendSize.x;
+      this.outputMeshMidi.position = position;
+
+      // color
+      const inputSphereMaterial = new B.StandardMaterial('material', this._scene);
+      inputSphereMaterial.diffuseColor = new B.Color3(0, 0, 1);
+      this.outputMeshMidi.material = inputSphereMaterial;
+
+      this.outputMeshMidi.actionManager = new B.ActionManager(this._scene);
+      this.outputMeshBigMidi.actionManager = new B.ActionManager(this._scene);
+
+      const highlightLayer = new B.HighlightLayer(`hl-outputMidi-${this.id}`, this._scene);
+
+      this.outputMeshBigMidi.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPointerOverTrigger, (): void => {
+          highlightLayer.addMesh(this.outputMeshMidi as B.Mesh, B.Color3.Blue());
+      }));
+
+      this.outputMeshBigMidi.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPointerOutTrigger, (): void => {
+          highlightLayer.removeMesh(this.outputMeshMidi as B.Mesh);
+      }));
+
+      // action manager
+      this.outputMeshBigMidi.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnLeftPickTrigger, (): void => {
+          this.ioObservable.notifyObservers({ type: 'outputMidi', pickType: 'down', node: this });
+      }));
+      this.outputMeshBigMidi.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickUpTrigger, (): void => {
+          this.ioObservable.notifyObservers({ type: 'outputMidi', pickType: 'up', node: this });
+      }));
+      this.outputMeshBigMidi.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickOutTrigger, (): void => {
+          this.ioObservable.notifyObservers({ type: 'outputMidi', pickType: 'out', node: this });
+      }));
+  }
 }
