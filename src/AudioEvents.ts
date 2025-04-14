@@ -18,6 +18,11 @@ export type AudioEventType = {
     WAM_SAMPLER_NOTE_PLAY: 'WAM_SAMPLER_NOTE_PLAY';
     WAM_SAMPLER_NOTE_TRIGGER: 'WAM_SAMPLER_NOTE_TRIGGER';
 
+
+    // -  Interaction hors WAM
+    MAIN_MENU_DISABLE: 'MAIN_MENU_DISABLE';
+    MAIN_MENU_ENABLE: 'MAIN_MENU_ENABLE';
+
 };
 
 export type AudioEventPayload = {
@@ -94,6 +99,14 @@ export type AudioEventPayload = {
         nodeId: string;
         midiNote: number;
         velocity: number;
+    };
+
+    // -  Interaction hors WAM
+    MAIN_MENU_DISABLE: {
+        disable : boolean
+    };
+    MAIN_MENU_ENABLE: {
+        enable : boolean
     };
 
 };

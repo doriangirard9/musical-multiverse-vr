@@ -170,6 +170,7 @@ export class App {
     }
 
     public async createAudioNode3D(name: string, id: string, configFile?: IAudioNodeConfig): Promise<void> {
+        this.eventBus.emit('MAIN_MENU_DISABLE', {disable: true});
         this.messageManager.showMessage("Loading...",0);
         try{
 

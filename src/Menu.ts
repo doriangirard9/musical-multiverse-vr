@@ -3,6 +3,7 @@ import * as GUI from "@babylonjs/gui";
 import {MenuConfig} from "./types.ts";
 import {App} from "./App.ts";
 import { v4 as uuid } from 'uuid';
+import {AudioEventBus} from "./AudioEvents.ts";
 
 export class Menu {
     private readonly _app: App = App.getInstance();
@@ -11,6 +12,8 @@ export class Menu {
     private _manager: GUI.GUI3DManager;
     private _menu!: GUI.NearMenu;
     public isMenuOpen: boolean = false;
+
+    private readonly eventBus: AudioEventBus = AudioEventBus.getInstance();
 
     constructor(menuJson: MenuConfig) {
         this._menuJson = menuJson;
@@ -30,6 +33,8 @@ export class Menu {
         follower.maximumDistance = 3.5;
 
         this._createCategories();
+
+        this.onEvent()
     }
 
     private _createCategories(): void {
@@ -145,4 +150,18 @@ export class Menu {
         this.isMenuOpen = false;
         this._menu.dispose();
     }
+
+    private onEvent(): void {
+        this.eventBus.on('MAIN_MENU_DISABLE', (event): void => {
+            if (event.disable) {
+                this.hide();
+            }
+        })
+        this.eventBus.on('MAIN_MENU_ENABLE', (event): void => {
+            if (event.enable) {
+                this.show();
+            }
+        })
+    }
+
 }
