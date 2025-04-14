@@ -34,25 +34,25 @@ export class Wam3DNode extends AudioNode3D {
 
         const highlightLayer = new B.HighlightLayer(`hl-connectors-${node3d.id}`, node3d._scene)
 
-        function initConnector(color: B.Color3, mesh: B.AbstractMesh, type: IOEvent['type']){
-            mesh.actionManager = new B.ActionManager(node3d._scene);
+        function initConnector(color: B.Color3, target: B.AbstractMesh, type: IOEvent['type']){
+            target.actionManager = new B.ActionManager(node3d._scene);
 
-            mesh.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPointerOverTrigger, () => {
+            target.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPointerOverTrigger, () => {
                 for(let m of target.getChildMeshes(false)) if(m instanceof B.Mesh) highlightLayer.addMesh(m, color)
                 if(target instanceof B.Mesh) highlightLayer.addMesh(target, color)
             }))
-            mesh.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPointerOutTrigger, () => {
+            target.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPointerOutTrigger, () => {
                 for(let m of target.getChildMeshes(false)) if(m instanceof B.Mesh) highlightLayer.removeMesh(m)
                 if(target instanceof B.Mesh) highlightLayer.removeMesh(target)
             }))
         
-            mesh.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnLeftPickTrigger, () => {
+            target.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnLeftPickTrigger, () => {
                 node3d.ioObservable.notifyObservers({ type, pickType: 'down', node: node3d });
             }))
-            mesh.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickUpTrigger, () => {
+            target.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickUpTrigger, () => {
                 node3d.ioObservable.notifyObservers({ type, pickType: 'up', node: node3d });
             }))
-            mesh.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickOutTrigger, () => {
+            target.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickOutTrigger, () => {
                 node3d.ioObservable.notifyObservers({ type, pickType: 'out', node: node3d });
             }))
         }
