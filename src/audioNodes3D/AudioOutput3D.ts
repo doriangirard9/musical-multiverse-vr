@@ -35,7 +35,6 @@ export class AudioOutput3D extends AudioNode3D {
     private _updateAudioPositionBound: () => void;
 
     public async instantiate(): Promise<void> {
-        this._app.menu.hide();
         await this._createBaseMesh();
 
         // gizmo

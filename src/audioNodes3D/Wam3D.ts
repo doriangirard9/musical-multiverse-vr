@@ -43,7 +43,6 @@ export class Wam3D extends AudioNode3D {
 
     public async instantiate(): Promise<void> {
         console.log('[Wam3D] Starting instantiation:', this.id);
-        this._app.menu.hide();
         this._wamInstance = await this._initWamInstance(this._config.url);
         console.log('[Wam3D] WAM instance created:', this.id);
         this._parametersInfo = await this._wamInstance.audioNode.getParameterInfo();

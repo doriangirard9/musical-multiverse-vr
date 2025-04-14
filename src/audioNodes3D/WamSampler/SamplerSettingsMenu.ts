@@ -51,10 +51,9 @@ export class SamplerSettingsMenu {
     private _showMainView(): void {
         this._clearMenu();
         if (!this._menu) return;
-
         this._menu.rows = 1;
         this._menu.columns = 4;
-
+        this._menu.scaling = new B.Vector3(0.7, 0.7, 0.7);
         const drumsButton = new GUI.TouchHolographicButton("drums");
         drumsButton.text = "DRUMS";
         drumsButton.onPointerUpObservable.add(() => this._showDrumsView());
@@ -100,7 +99,11 @@ export class SamplerSettingsMenu {
         drumPresets.forEach((preset) => {
             const presetButton = new GUI.TouchHolographicButton(preset);
             presetButton.text = preset;
-            presetButton.onPointerUpObservable.add(() => this._parent.loadPreset(preset,true));
+            presetButton.onPointerUpObservable.add(() => {
+                    this._parent.loadPreset(preset, true);
+                    this.hide();
+                }
+            );
             this._menu!.addButton(presetButton);
         });
 
@@ -123,7 +126,10 @@ export class SamplerSettingsMenu {
         instrumentPresets.forEach((preset) => {
             const presetButton = new GUI.TouchHolographicButton(preset);
             presetButton.text = preset;
-            presetButton.onPointerUpObservable.add(() => this._parent.loadPreset(preset,true));
+            presetButton.onPointerUpObservable.add(() => {
+                this._parent.loadPreset(preset, true);
+                this.hide();
+            });
             this._menu!.addButton(presetButton);
         });
 

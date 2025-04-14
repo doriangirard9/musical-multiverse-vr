@@ -14,7 +14,6 @@ export class RandomNote3D extends Wam3D {
 
     public async instantiate(): Promise<void> {
         console.error("-------------RANDOMNOTE INSTANTIATE-----------------");
-        this._app.menu.hide();
         this._wamInstance = await this._initWamInstance(this._config.url);
         this._parametersInfo = await this._wamInstance.audioNode.getParameterInfo();
         this._paramBuilder = new ParamBuilder(this._scene, this._config);

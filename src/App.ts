@@ -5,8 +5,6 @@ import {Inspector} from '@babylonjs/inspector';
 import '@babylonjs/loaders/glTF';
 import '@babylonjs/core/Materials/Node/Blocks';
 import {Menu} from "./Menu.ts";
-import menuJson from "./menuConfig.json";
-import {MenuConfig} from "./types.ts";
 import {IOManager} from "./IOManager.ts";
 import {XRManager} from "./xr/XRManager.ts";
 import {NetworkManager} from "./network/NetworkManager.ts";
@@ -49,6 +47,7 @@ export class App {
     private static hostGroupId: [string, string];
     private eventBus = AudioEventBus.getInstance();
     private hostGroupIdPromise: Promise<[string, string]> | null = null;
+
     private constructor(audioCtx: AudioContext) {
         this.canvas = document.querySelector('#renderCanvas') as HTMLCanvasElement;
         this.engine = new B.Engine(this.canvas, true);
@@ -153,9 +152,6 @@ export class App {
         // ground.receiveShadows = true;
         this._createGround()
 
-        this.menu = new Menu(menuJson as MenuConfig);
-
-        this.xrManager.xrInputManager.controllerBehaviorManager?.setMenu(this.menu);
 
 
         // display inspector on U key press
@@ -187,8 +183,8 @@ export class App {
     }
 
     public async createAudioNode3D(name: string, id: string, configFile?: IAudioNodeConfig): Promise<void> {
-        this.menu.hide()
-        this.messageManager.showMessage("Loading...",0)
+        this.eventBus.emit('MAIN_MENU_DISABLE', {disable: true});
+        this.messageManager.showMessage("Loading...",0);
         try{
             const audioNode3D: AudioNode3D = await this._audioNode3DBuilder.create(name, id, configFile);
             await audioNode3D.instantiate();
@@ -360,7 +356,6 @@ export class App {
         const xrCameraPosition: B.Vector3 = this.xrManager.xrHelper.baseExperience.camera.position;
         const xrCameraDirection: B.Vector3 = this.xrManager.xrHelper.baseExperience.camera.getDirection(B.Axis.Z);
 
-        console.log("camera", xrCameraDirection.asArray())
         if (!this.xrManager.xrInputManager.leftController || !this.xrManager.xrInputManager.rightController) {
             return;
         }

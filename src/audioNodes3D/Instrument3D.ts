@@ -14,8 +14,7 @@ export class Instrument3D extends Wam3D {
     }
 
     protected async instantiate(): Promise<void> {
-        console.error("-------------INSTRUMENT3D INSTANTIATE-----------------");
-        this._app.menu.hide();
+        console.warn("-------------INSTRUMENT3D INSTANTIATE-----------------");
         this._wamInstance = await this._initWamInstance(this._config.url);
         this._parametersInfo = await this._wamInstance.audioNode.getParameterInfo();
         this._paramBuilder = new ParamBuilder(this._scene, this._config);
