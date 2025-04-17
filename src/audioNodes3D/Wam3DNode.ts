@@ -30,8 +30,6 @@ export class Wam3DNode extends AudioNode3D {
         const transform = new B.TransformNode("root", this._scene)
         transform.parent = super_transform
 
-        this._app.menu.hide()
-
         const highlightLayer = new B.HighlightLayer(`hl-connectors-${node3d.id}`, node3d._scene)
 
         function initConnector(color: B.Color3, target: B.AbstractMesh, type: IOEvent['type']){
