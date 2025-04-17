@@ -7,7 +7,7 @@ import {Wam3D} from "./Wam3D.ts";
 import {RandomNote3D} from "./RandomNote3D.ts";
 import {Instrument3D} from "./Instrument3D.ts";
 import {WamSampler3D} from "./WamSampler/WamSampler3D.ts";
-import { Wam3DNode } from "./Wam3DNode.ts";
+import { Wam3DEditorNode } from "./Wam3DNode.ts";
 
 // const WAM_CONFIGS_URL: string = "https://wam-configs.onrender.com";
 const WAM_CONFIGS_URL: string = "http://localhost:3000";
@@ -62,7 +62,7 @@ export class AudioNode3DBuilder {
             const config = JSON.parse(configString);
             // WAMGUI3D Editor WAMS
             if("wam3d" in config){
-                return new Wam3DNode(this._scene, this._audioCtx, id, config.wam3d);
+                return new Wam3DEditorNode(this._scene, this._audioCtx, id, config.wam3d);
             }
             // Legacy WAMs
             else{
