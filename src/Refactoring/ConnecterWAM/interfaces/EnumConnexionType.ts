@@ -1,0 +1,8 @@
+enum PortType {
+    AUDIO_INPUT,
+    AUDIO_OUTPUT,
+    MIDI_INPUT,
+    MIDI_OUTPUT,
+    MODULATION_INPUT,
+    MODULATION_OUTPUT,
+}
