@@ -2,7 +2,6 @@ import {AudioEventBus,AudioEventPayload} from "../eventBus/AudioEventBus.ts"
 import {Scene} from "@babylonjs/core";
 import {AudioNode3DBuilder} from "./AudioNode3DBuilder.ts";
 import {Wam3D} from "../ConnecterWAM/Wam3D.ts";
-import {IAudioNodeConfig} from "../shared/SharedTypes.ts";
 
 export class AudioManager {
     private static _instance: AudioManager | null = null;
@@ -37,7 +36,7 @@ export class AudioManager {
         this.audioEventBus.on("REMOTE_AUDIO_NODE_DELETED", this.onRemoteAudioNodeDeleted.bind(this));
     }
 
-    public async createAudioNode3D(name: string, id: string, configFile?: IAudioNodeConfig): Promise<Wam3D> {
+    public async createAudioNode3D(name: string, id: string, configFile?: string): Promise<Wam3D> {
         const node: Wam3D = await this.audioNode3DBuilder.create(name, id, configFile);
         this.audioEventBus.emit("WAM_CREATED", { nodeId: id, name, configFile });
         await node.instantiate();

@@ -1,6 +1,6 @@
 import {WamConnectionPort} from "./WamConnectionPort.ts";
 import {WamNode} from "@webaudiomodules/api";
-
+import {PortType} from "./interfaces/EnumConnexionType.ts";
 class AudioInputPort extends WamConnectionPort {
     constructor(id: string, node: WamNode) {
         super(PortType.AUDIO_INPUT, id, node);

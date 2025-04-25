@@ -98,6 +98,7 @@ export class MainMenu extends AbstractMenu {
             button.text = plugin.name;
             button.onPointerUpObservable.add(()=> {
                 this.menuEventBus.emit("CREATE_AUDIO_NODE", {name : plugin.name, nodeId : uuid(), configFile : plugin.configFile});
+                this.hide()
             });
             this._menu.addButton(button);
         });
@@ -108,17 +109,4 @@ export class MainMenu extends AbstractMenu {
         this._createCategories();
     }
 
-    protected _initializeEvents(): void {
-        this.menuEventBus.on('MAIN_MENU_DISABLE', (event): void => {
-            if (event.disable) {
-                this.hide();
-            }
-        });
-
-        this.menuEventBus.on('MAIN_MENU_ENABLE', (event): void => {
-            if (event.enable) {
-                this.show();
-            }
-        });
-    }
 }

@@ -1,6 +1,7 @@
 import {IWamConnectionStrategy} from "./interfaces/IWamConnectionStrategy.ts";
 import {AudioConnectionStrategy} from "./AudioConnectionStrategy.ts";
 import {MidiConnectionStrategy} from "./MidiConnectionStrategy.ts";
+import {PortType} from "./interfaces/EnumConnexionType.ts";
 
 export class WamConnectionRegistry {
 

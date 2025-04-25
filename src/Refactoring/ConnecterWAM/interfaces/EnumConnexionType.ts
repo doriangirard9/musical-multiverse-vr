@@ -1,4 +1,4 @@
-enum PortType {
+export enum PortType {
     AUDIO_INPUT,
     AUDIO_OUTPUT,
     MIDI_INPUT,

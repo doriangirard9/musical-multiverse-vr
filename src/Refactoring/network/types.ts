@@ -1,5 +1,4 @@
 import {WamParameterDataMap} from "@webaudiomodules/api";
-import {IAudioNodeConfig} from "../shared/SharedTypes.ts";
 
 
 export interface INetworkObject<T> {
@@ -10,7 +9,7 @@ export interface INetworkObject<T> {
 export type AudioNodeState = {
     id: string;
     name: string;
-    configFile: IAudioNodeConfig;
+    configFile: string;
     position: { x: number, y: number, z: number };
     rotation: { x: number, y: number, z: number };
     inputNodes: string[];

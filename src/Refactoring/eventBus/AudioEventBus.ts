@@ -1,6 +1,6 @@
 import { WebAudioModule } from "@webaudiomodules/sdk";
 import {BaseEventBus} from "./BaseEventBus.ts";
-import {IAudioNodeConfig, Position3D} from "../shared/SharedTypes.ts";
+import {Position3D} from "../shared/SharedTypes.ts";
 
 export type AudioEventType = {
     PARAM_CHANGE: "PARAM_CHANGE";
@@ -40,7 +40,7 @@ export type AudioEventPayload = {
     WAM_CREATED: {
         nodeId: string;
         name: string;
-        configFile?: IAudioNodeConfig;
+        configFile?: string;
     };
     WAM_LOADED: {
         nodeId: string;

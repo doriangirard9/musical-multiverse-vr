@@ -1,5 +1,6 @@
 import {IWamConnectionStrategy} from "./interfaces/IWamConnectionStrategy.ts";
 import {WamNode} from "@webaudiomodules/api";
+import {PortType} from "./interfaces/EnumConnexionType.ts";
 
 export class MidiConnectionStrategy implements IWamConnectionStrategy {
     connect(src: WamNode, dst: WamNode): void {

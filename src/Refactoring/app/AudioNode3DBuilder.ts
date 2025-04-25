@@ -1,7 +1,7 @@
 import * as B from "@babylonjs/core";
 
 import {Wam3D} from "../ConnecterWAM/Wam3D.ts";
-import {IAudioNodeConfig, IWamConfig} from "../shared/SharedTypes.ts";
+import {IWamConfig} from "../shared/SharedTypes.ts";
 import {AudioOutput3D} from "./AudioOutput3D.ts";
 
 
@@ -11,13 +11,14 @@ const WAM_CONFIGS_URL: string = "http://localhost:3000";
 export class AudioNode3DBuilder {
     constructor(private readonly _scene: B.Scene, private readonly _audioCtx: AudioContext) {}
 
-    public async create(name: string, id: string, configFile?: IAudioNodeConfig): Promise<Wam3D> {
+    public async create(name: string, id: string, configFile?: string): Promise<Wam3D> {
 
         if (name === "audioOutput") {
             return new AudioOutput3D(this._scene, this._audioCtx, id);
         }
         // WAMs
         else {
+            console.log("CONFIG FILE NEW : " + configFile)
             const response: Response = await fetch(`${WAM_CONFIGS_URL}/wamsConfig/${configFile}`, {
                 method: "get",
                 headers: {"Content-Type": "application/json"}

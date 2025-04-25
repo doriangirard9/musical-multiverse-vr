@@ -1,6 +1,7 @@
 import {IWamPort} from "./interfaces/IWamPort.ts";
 import {WamConnectionRegistry} from "./WamConnectionRegistry.ts";
 import {WamNode} from "@webaudiomodules/api";
+import {PortType} from "./interfaces/EnumConnexionType.ts";
 
 export class WamConnectionPort implements IWamPort {
     id: string;

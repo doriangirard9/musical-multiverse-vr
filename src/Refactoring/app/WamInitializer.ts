@@ -3,16 +3,16 @@ import {NoteExtension} from "../wamExtensions/notes/NoteExtension.ts";
 import {PatternExtension} from "../wamExtensions/patterns/PatternExtension.ts";
 
 export class WamInitializer {
-    private hostGroupId: [string, string] | null = null;
-    private hostGroupIdPromise: Promise<[string, string]> | null = null;
+    private static hostGroupId: [string, string] | null = null;
+    private static hostGroupIdPromise: Promise<[string, string]> | null = null;
     private readonly _audioCtx: AudioContext;
     private static instance: WamInitializer | null = null;
-
     private constructor(audioCtx: AudioContext) {
         this._audioCtx = audioCtx;
         this.initializeHostGroupId().catch((error) => {
             console.error('Failed to initialize WAM host group ID:', error);
         });
+        console.log("[*] WamInitializer Initialized");
         this._wamExtensionSetup();
     }
     public static getInstance(audioCtx: AudioContext): WamInitializer {
@@ -23,30 +23,31 @@ export class WamInitializer {
     }
 
     public async getHostGroupId(): Promise<[string, string]> {
-        if (!this.hostGroupId) {
-            if (!this.hostGroupIdPromise) {
-                this.hostGroupIdPromise = this.createHostGroupId();
+        if (!WamInitializer.hostGroupId) {
+            if (!WamInitializer.hostGroupIdPromise) {
+                WamInitializer.hostGroupIdPromise = this.createHostGroupId();
             }
-            return this.hostGroupIdPromise;
+            return WamInitializer.hostGroupIdPromise;
         }
-        return this.hostGroupId;
+        return WamInitializer.hostGroupId;
     }
 
     private async initializeHostGroupId(): Promise<void> {
-        if (!this.hostGroupIdPromise) {
-            this.hostGroupIdPromise = this.createHostGroupId();
+        if (!WamInitializer.hostGroupIdPromise) {
+            WamInitializer.hostGroupIdPromise = this.createHostGroupId();
             try {
-                this.hostGroupId = await this.hostGroupIdPromise;
-                console.log('Host group ID initialized:', this.hostGroupId);
+                WamInitializer.hostGroupId = await WamInitializer.hostGroupIdPromise;
+                console.log('Host group ID initialized:', WamInitializer.hostGroupId);
             } catch (error) {
                 console.error('Failed to initialize host group ID:', error);
-                this.hostGroupIdPromise = null;
+                WamInitializer.hostGroupIdPromise = null;
             }
         }
     }
     public async initWamInstance(wamUrl: string): Promise<WebAudioModule> {
         const {default: WAM} = await import(/* @vite-ignore */ wamUrl);
-        return await WAM.createInstance(this.hostGroupId, this._audioCtx);
+        const [hostGroupId] = await this.getHostGroupId();
+        return await WAM.createInstance(hostGroupId, this._audioCtx);
     }
     private async createHostGroupId(): Promise<[string, string]> {
         const scriptUrl: string = 'https://mainline.i3s.unice.fr/wam2/packages/sdk/src/initializeWamHost.js';
@@ -58,5 +59,7 @@ export class WamInitializer {
         window.WAMExtensions = window.WAMExtensions || {};
         window.WAMExtensions.notes = new NoteExtension();
         window.WAMExtensions.patterns = new PatternExtension();
+
+        console.log("[*] WamExtension setup done");
     }
 }

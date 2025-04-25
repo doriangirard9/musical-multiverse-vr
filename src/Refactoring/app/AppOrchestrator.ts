@@ -53,8 +53,6 @@ export class AppOrchestrator{
     }
 
     private onUIEvent(): void {
-        this.UIEventBus?.on('MAIN_MENU_ENABLE', () => {});
-        this.UIEventBus?.on('MAIN_MENU_DISABLE', () => {});
     }
 
     private onMenuEvent(): void {
@@ -64,9 +62,17 @@ export class AppOrchestrator{
         this.MenuEventBus?.on('CLOSE_MENU', (payload) => {
             console.log(`Menu closed: ${payload.menuId}`);
         });
+
+        this.MenuEventBus?.on('MAIN_MENU_ENABLE', (payload) => {
+            console.log(`Main menu enabled ? : ${payload.enable}`);
+        });
+        this.MenuEventBus?.on('MAIN_MENU_DISABLE', (payload) => {
+            console.log(`Main menu disabled ? : ${payload.disable}`);
+        });
+
         this.MenuEventBus?.on('CREATE_AUDIO_NODE', async (payload) => {
             console.log(`Audio node created: ${payload.name}`);
-            const node = await this.AudioManager?.createAudioNode3D(payload.name, payload.nodeId, payload.configFile);
+            await this.AudioManager?.createAudioNode3D(payload.name, payload.nodeId, payload.configFile);
 
         });
     }
