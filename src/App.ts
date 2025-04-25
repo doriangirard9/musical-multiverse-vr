@@ -194,7 +194,9 @@ export class App {
             // await a certain delay before adding listeners
 
             audioNode3D.ioObservable.add(this.ioManager.onIOEvent.bind(this.ioManager));
-            await this.networkManager.createNetworkAudioNode3D(audioNode3D);
+            if (name !== "modulation"){
+                await this.networkManager.createNetworkAudioNode3D(audioNode3D);
+            }
             console.log('Audio node added successfully.');
             console.log('end of init')
 

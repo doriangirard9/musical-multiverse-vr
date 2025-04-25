@@ -1,6 +1,6 @@
 import * as B from "@babylonjs/core";
 import {IParameter, ParameterInfo} from "../types.ts";
-import {Color3, MeshBuilder, StandardMaterial, Vector3} from "@babylonjs/core";
+import {Color3, float, MeshBuilder, StandardMaterial, Vector3} from "@babylonjs/core";
 
 export class Sphere2 implements IParameter {
     private readonly _scene: B.Scene;
@@ -18,6 +18,8 @@ export class Sphere2 implements IParameter {
     private radius : number = 3;
     private angle : number = 0;
     private _parentMesh !: B.Mesh;
+    private start: boolean = false;
+    private val : number = 0;
 
     constructor(scene: B.Scene, parentMesh: B.Mesh, parameterInfo: ParameterInfo, defaultValue: number) {
         this._scene = scene;
@@ -50,12 +52,19 @@ export class Sphere2 implements IParameter {
 
     private _initActionManagerSphere(): void {
         this._sphere.actionManager = new B.ActionManager(this._scene);
-        /*
+
         this._scene.onBeforeRenderObservable.add(() => {
             if (this.start) {
-                this.updateSpherePosition(angle);
+                this.updateSpherePosition(this.val);
             }
-        });*/
+        });
+    }
+
+    public updateValeValue(value: number): number {
+      //  console.log("Valeur de la sphere : " + value);
+        this.val = value;
+        this.updateSpherePosition(this.val);
+        return this._currentValue;
     }
 
 

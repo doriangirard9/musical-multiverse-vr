@@ -95,7 +95,10 @@ export class Instrument3D extends Wam3D {
                 parameter3D = this._paramBuilder.createSphere(param, parameterStand, this._parametersInfo[fullParamName], defaultValue);
                 break;
             case 'sphereCylinder':
-                parameter3D = this._paramBuilder.createCylinder(param, parameterStand, this._parametersInfo[fullParamName], defaultValue, this._audioCtx);
+                parameter3D = this._paramBuilder.createCylinder(param, parameterStand, this._parametersInfo[fullParamName], defaultValue);
+                break
+            case 'CylinderParamModulation':
+                parameter3D = this._paramBuilder.createCylinderModulation(param, parameterStand, this._parametersInfo[fullParamName], defaultValue);
                 break
             case 'button':
                 parameter3D = await this._paramBuilder.createButton(param, parameterStand, this._parametersInfo[fullParamName]);
@@ -314,7 +317,7 @@ export class Instrument3D extends Wam3D {
         this.inputMeshMidi.position = position;
 
         const inputSphereMaterial = new B.StandardMaterial('material', this._scene);
-        inputSphereMaterial.diffuseColor = new B.Color3(0.66, 0.66, 0.66);
+        inputSphereMaterial.diffuseColor = new B.Color3(1, 0.66, 0.66);
         this.inputMeshMidi.material = inputSphereMaterial;
 
        // this.inputMeshMidi.actionManager = new B.ActionManager(this._scene);

@@ -98,6 +98,9 @@ export class Wam3D extends AudioNode3D {
             case 'button':
                 parameter3D = await this._paramBuilder.createButton(param, parameterStand, this._parametersInfo[fullParamName]);
                 break;
+            case 'CylinderParamModulation':
+                parameter3D = this._paramBuilder.createCylinderModulation(param, parameterStand, this._parametersInfo[fullParamName], defaultValue);
+                break
             default:
                 parameter3D = this._paramBuilder.createCylinder(param, parameterStand, this._parametersInfo[fullParamName], defaultValue);
                 break;

@@ -6,6 +6,7 @@ import {MenuParam} from "./MenuParam.ts";
 import {Sphere} from "../Modulation/Sphere.ts";
 import {SphereCylinderParam} from "./SphereCylinderParam.ts";
 import {Cage} from "../Modulation/Cage.ts";
+import {CylinderParamModulation} from "./CylinderParamModulation.ts";
 
 export class ParamBuilder {
     private readonly _scene: B.Scene;
@@ -24,6 +25,10 @@ export class ParamBuilder {
 
     public createCylinder(param: CustomParameter, parentMesh: B.Mesh, parameterInfo: ParameterInfo, defaultValue: number): CylinderParam {
         return new CylinderParam(this._scene, parentMesh, parameterInfo, defaultValue, this._getColor(param));
+    }
+
+    public createCylinderModulation(param: CustomParameter, parentMesh: B.Mesh, parameterInfo: ParameterInfo, defaultValue: number): CylinderParamModulation {
+        return new CylinderParamModulation(this._scene, parentMesh, parameterInfo, defaultValue, this._getColor(param));
     }
 
     public createSphereCylinder(param: CustomParameter, parentMesh: B.Mesh, parameterInfo: ParameterInfo, defaultValue: number): CylinderParam {
