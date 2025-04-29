@@ -6,6 +6,7 @@ import {XRManager} from "../xr/XRManager.ts";
 import {BoundingBox} from "../boundingBox/BoundingBox.ts";
 import {IAudioNodeConfig} from "../shared/SharedTypes.ts";
 import {AudioNode3D} from "../ConnecterWAM/AudioNode3D.ts";
+import {SceneManager} from "./SceneManager.ts";
 
 export class AudioOutput3D extends AudioNode3D {
     private readonly _pannerNode: PannerNode;
@@ -14,7 +15,8 @@ export class AudioOutput3D extends AudioNode3D {
         super(audioCtx, id);
 
         // Créer le PannerNode pour la spatialisation
-/*        this._pannerNode = this._audioCtx.createPanner();
+        console.log("is audiocontext set ? ", audioCtx);
+      this._pannerNode = this._audioCtx.createPanner();
 
         // Configuration du PannerNode pour une spatialisation correcte en VR
         this._pannerNode.panningModel = 'HRTF';
@@ -24,15 +26,15 @@ export class AudioOutput3D extends AudioNode3D {
         this._pannerNode.rolloffFactor = 0.5; // Vitesse de décroissance du volume en fonction de la distance
 
         // Connecter le PannerNode à la sortie
-        this._pannerNode.connect(this._audioCtx.destination);*/
+        this._pannerNode.connect(this._audioCtx.destination);
 
         // Enregistrer la fonction de mise à jour à chaque frame
-        //this._updateAudioPositionBound = this._updateAudioPosition.bind(this);
-        //SceneManager.getInstance().getScene().registerBeforeRender(this._updateAudioPositionBound);
+        this._updateAudioPositionBound = this._updateAudioPosition.bind(this);
+        SceneManager.getInstance().getScene().registerBeforeRender(this._updateAudioPositionBound);
     }
 
     // Référence à la fonction liée pour le nettoyage
-    private _updateAudioPositionBound: () => void;
+    private readonly _updateAudioPositionBound: () => void;
 
     public async instantiate(): Promise<void> {
         await this._createBaseMesh();
@@ -49,7 +51,7 @@ export class AudioOutput3D extends AudioNode3D {
         this.boundingBox = bo.boundingBox;
 
         // Initialiser la position audio
-        //this._updateAudioPosition();
+        this._updateAudioPosition();
     }
 
     /**
