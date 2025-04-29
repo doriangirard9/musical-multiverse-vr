@@ -151,12 +151,16 @@ export abstract class AudioNode3D implements INetworkObject<AudioNodeState> {
     // action manager
     this.inputMeshBig.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnLeftPickTrigger, (): void => {
         //this.ioObservable.notifyObservers({ type: 'input', pickType: 'down', node: this });
+        console.log("pick down - on clique sur l'entrée pour créer un tube");
+
     }));
     this.inputMeshBig.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickUpTrigger, (): void => {
         //this.ioObservable.notifyObservers({ type: 'input', pickType: 'up', node: this });
+        console.log("pick up - on relache le bouton sur une entrée");
     }));
     this.inputMeshBig.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickOutTrigger, (): void => {
         //this.ioObservable.notifyObservers({ type: 'input', pickType: 'out', node: this });
+        console.log("pick out - on relache sur une sortie ou dans le vide");
     }));
 }
 
@@ -192,15 +196,15 @@ export abstract class AudioNode3D implements INetworkObject<AudioNodeState> {
 
         this.outputMeshBig.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnLeftPickTrigger, (): void => {
             //this.ioObservable.notifyObservers({type: 'output', pickType: 'down', node: this});
-            console.log("pick down");
+            console.log("pick down - on clique sur la sortie pour créer un tube");
         }));
         this.outputMeshBig.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickUpTrigger, (): void => {
             //this.ioObservable.notifyObservers({type: 'output', pickType: 'up', node: this});
-            console.log("pick up");
+            console.log("pick up - on relache le bouton sur une sortie");
         }));
         this.outputMeshBig.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickOutTrigger, (): void => {
             //this.ioObservable.notifyObservers({type: 'output', pickType: 'out', node: this});
-            console.log("pick out");
+            console.log("pick out - on relache sur une entrée ou dans le vide");
         }));
     }
 

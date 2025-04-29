@@ -7,6 +7,8 @@ import {UIManager} from "./UIManager.ts";
 import {SceneManager} from "./SceneManager.ts";
 import {PlayerManager} from "./PlayerManager.ts";
 import {AudioEventBus} from "../eventBus/AudioEventBus.ts";
+import {IOManager} from "../iomanager/IOManager.ts";
+import {IOEventBus} from "../eventBus/IOEventBus.ts";
 
 
 export class AppOrchestrator{
@@ -15,8 +17,10 @@ export class AppOrchestrator{
     private audioEventBus : AudioEventBus | null = null;
     private NetworkEventBus : NetworkEventBus | null = null;
     private UIEventBus : UIEventBus | null = null;
+    private IOEventBus : IOEventBus | null = null;
     private MenuEventBus : MenuEventBus | null = null;
     private AudioManager : AudioManager | null = null;
+    private iOManager : IOManager | null = null;
     private UIManager : UIManager | null = null;
     private SceneManager : SceneManager | null = null;
     private PlayerManager : PlayerManager | null = null;
@@ -44,12 +48,14 @@ export class AppOrchestrator{
         this.NetworkEventBus = NetworkEventBus.getInstance();
         this.UIEventBus = UIEventBus.getInstance();
         this.MenuEventBus = MenuEventBus.getInstance();
+        this.IOEventBus = IOEventBus.getInstance();
 
         // ---------------MANAGERS-------------------
         this.AudioManager = AudioManager.getInstance();
         this.UIManager = UIManager.getInstance();
         this.SceneManager = SceneManager.getInstance();
         this.PlayerManager = PlayerManager.getInstance();
+        this.iOManager = IOManager.getInstance();
     }
 
     private onUIEvent(): void {
@@ -73,8 +79,11 @@ export class AppOrchestrator{
         this.MenuEventBus?.on('CREATE_AUDIO_NODE', async (payload) => {
             console.log(`Audio node created: ${payload.name}`);
             await this.AudioManager?.createAudioNode3D(payload.name, payload.nodeId, payload.configFile);
-
         });
+        this.MenuEventBus?.on('CREATE_AUDIO_OUTPUT', async (payload) => {
+            console.log(`Audio output created: ${payload.name}`);
+            await this.AudioManager?.createAudioOutput3D(payload.nodeId)
+        })
     }
 
     private onAudioEvent(): void {

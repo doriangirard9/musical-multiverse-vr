@@ -1,63 +1,86 @@
-import {Mesh, Nullable, Scene} from "@babylonjs/core";
-import {MessageManager} from "../../MessageManager.ts";
-import {SceneManager} from "../app/SceneManager.ts";
-import {XRManager} from "../../xr/XRManager.ts";
+import {Nullable} from "@babylonjs/core";
 import {IOEvent} from "./IOEvent.ts";
 import {Wam3D} from "../ConnecterWAM/Wam3D.ts";
+import {MessageManager} from "../app/MessageManager.ts";
+import {IOEventBus, IOEventPayload} from "../eventBus/IOEventBus.ts";
 
 export class IOManager {
-    private readonly _scene: Scene;
     private _messageManager: MessageManager;
 
     private _inputNode: Nullable<Wam3D> = null;
     private _outputNode: Nullable<Wam3D> = null;
-    private _currentPortId: 'audioIn' | 'audioOut' | 'midiIn' | 'midiOut';
+    private _currentPortId: 'audioIn' | 'audioOut' | 'midiIn' | 'midiOut' | null = null;
+    private static instance: IOManager;
 
-    constructor() {
-        this._scene = SceneManager.getInstance().getScene();
-        this._messageManager = new MessageManager(this._scene,XRManager.getInstance());
+    private ioEventBus: IOEventBus = IOEventBus.getInstance();
 
+    private constructor() {
+        this._messageManager = new MessageManager();
+
+
+        this.onIOEvent()
     }
 
-    public onIOEvent(event: IOEvent): void {
-        switch (event.pickType) {
+    public static getInstance(): IOManager {
+        if (!IOManager.instance) {
+            IOManager.instance = new IOManager();
+        }
+        return IOManager.instance;
+    }
+
+    public onIOEvent(): void {
+        this.ioEventBus.on('IO_CONNECT',payload => {
+            this.handler(payload)
+        });
+    }
+
+    private handler(data: IOEventPayload['IO_CONNECT']) {
+        console.log("IOManager: ", data);
+
+        switch (data.pickType) {
             case "down":
-                this._currentPortId = event.portId;
-                this._handleConnectionStart(event);
-                // down = créé le tube
+                this._currentPortId = data.portId;
+
+                if (data.isInput) {
+                    this._inputNode = data.node;
+
+                } else {
+                    this._outputNode = data.node;
+
+                }
                 break;
+
             case "up":
-                this._handleConnectionEnd(event);
-                // up = vérifier si on peut connecter puis connecter
+                if (data.isInput) {
+                    if (this._outputNode) {
+                        if (data.node.id === this._outputNode.id) {
+                            this._messageManager.showMessage("Can't connect a node to itself", 3000);
+                        } else {
+                            this._outputNode.connectPorts(this._currentPortId!, data.node, data.portId);
+                        }
+                        this._resetConnectionState();
+                    }
+                } else {
+                    if (this._inputNode) {
+                        if (data.node.id === this._inputNode.id) {
+                            this._messageManager.showMessage("Can't connect a node to itself", 3000);
+                        } else {
+                            this._outputNode?.connectPorts(this._currentPortId!, data.node, data.portId);
+                        }
+                        this._resetConnectionState();
+                    }
+                }
                 break;
-            default:
+
+            case "out":
                 this._resetConnectionState();
                 break;
         }
     }
 
 
-    private _handleConnectionStart(event: IOEvent) {
-        const node = event.node;
-        const type = event.type;
-
-        switch (type) {
-            case 'input':
-                console.log("input node");
-                if (node.inputMesh) {
-                    this.createVirtualDragPoint(node.inputMesh);
-                    this._inputNode = node;
-                }
-                break;
-
-            case 'output':
-                this._outputNode = node;
-                if (node.outputMesh) {
-                    this.createVirtualDragPoint(node.outputMesh);
-                    this._inputNode = node;
-                }
-                break;
-        }
+    private _handleConnectionStart() {
+        console.log("Tried to connect : " + this._inputNode?.id + " to " + this._outputNode?.id + " Using port : " + this._currentPortId);
     }
 
     private _handleConnectionEnd(event: IOEvent) {
@@ -77,14 +100,9 @@ export class IOManager {
     }
 
     private _resetConnectionState() {
-
+        this._inputNode = null;
+        this._outputNode = null;
+        this._currentPortId = null;
     }
 
-
-    private createVirtualDragPoint(nodeMesh: Mesh) {
-        console.log("todo",nodeMesh)
-    }
-    private deleteVirtualTube() {
-        console.log("todo")
-    }
 }

@@ -14,10 +14,11 @@ import {AudioEventBus} from "../eventBus/AudioEventBus.ts";
 import {CustomParameter, IParameter, IWamConfig} from "../shared/SharedTypes.ts";
 import {ParamBuilder} from "../parameters/ParamBuilder.ts";
 import {AudioNodeState} from "../network/types.ts";
+import {Wam3DGUI} from "./Wam3DGUI.ts";
 
-export class Wam3D extends AudioNode3D {
+export class Wam3D extends AudioNode3D{
     protected readonly _config: IWamConfig;
-    protected _usedParameters!: CustomParameter[];
+    public _usedParameters!: CustomParameter[];
     protected _wamInstance!: WebAudioModule;
     protected _parametersInfo!: WamParameterInfoMap;
     protected _parameter3D: { [name: string]: IParameter } = {};
@@ -26,8 +27,9 @@ export class Wam3D extends AudioNode3D {
     // public drag = new Drag(this._app)
 
     protected eventBus = AudioEventBus.getInstance();
-
     private wamInitializer: WamInitializer;
+    //@ts-ignore
+    private wam3DGUI: Wam3DGUI;
     constructor(audioCtx: AudioContext, id: string, config: IWamConfig, configFile: string) {
         super(audioCtx, id);
         this._config = config;
@@ -46,20 +48,24 @@ export class Wam3D extends AudioNode3D {
         this._parametersInfo = await this._wamInstance.audioNode.getParameterInfo();
         this._paramBuilder = new ParamBuilder(this._scene, this._config);
         this._usedParameters = this._config.customParameters.filter((param: CustomParameter): boolean => param.used);
-
         this.initializePorts();
+
+
         this._createBaseMesh();
         for (let i: number = 0; i < this._usedParameters.length; i++) {
             await this._createParameter(this._usedParameters[i], i);
         }
+
+        this.wam3DGUI = new Wam3DGUI(this);
+        this.wam3DGUI.initialize()
 
         // gizmo
         this._utilityLayer = new B.UtilityLayerRenderer(this._scene);
         this._rotationGizmo = new B.RotationGizmo(this._utilityLayer);
 
         this._initActionManager();
-        this._createInput(new B.Vector3(-(this._usedParameters.length / 2 + 0.2), this.baseMesh.position.y, this.baseMesh.position.z));
-        this._createOutput(new B.Vector3(this._usedParameters.length / 2 + 0.2, this.baseMesh.position.y, this.baseMesh.position.z));
+        //this._createInput(new B.Vector3(-(this._usedParameters.length / 2 + 0.2), this.baseMesh.position.y, this.baseMesh.position.z));
+        //this._createOutput(new B.Vector3(this._usedParameters.length / 2 + 0.2, this.baseMesh.position.y, this.baseMesh.position.z));
 
         // shadow
         // this._app.shadowGenerator.addShadowCaster(this.baseMesh);
@@ -99,6 +105,9 @@ export class Wam3D extends AudioNode3D {
     }
     private getPort(id: string): IWamPort | undefined {
         return this.ports.get(id);
+    }
+    public getPorts(): Map<string, IWamPort> {
+        return this.ports;
     }
 
     public connectPorts(outputPortId: string, targetNode: Wam3D, inputPortId: string): boolean {
@@ -271,6 +280,11 @@ export class Wam3D extends AudioNode3D {
         } catch (error) {
             console.error('Error updating parameter:', error);
         }
+    }
+
+
+
+    dispose(): void {
     }
 
 }

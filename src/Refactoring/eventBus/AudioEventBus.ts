@@ -14,6 +14,7 @@ export type AudioEventType = {
 
     REMOTE_AUDIO_NODE_ADDED: "REMOTE_AUDIO_NODE_ADDED";
     REMOTE_AUDIO_NODE_DELETED: "REMOTE_AUDIO_NODE_DELETED";
+    AUDIO_OUTPUT_ADDED : "AUDIO_OUTPUT_ADDED";
 
     WAM_SAMPLER_PRESET_CHANGE: "WAM_SAMPLER_PRESET_CHANGE";
     WAM_SAMPLER_PLAY: "WAM_SAMPLER_PLAY";
@@ -102,6 +103,10 @@ export type AudioEventPayload = {
     REMOTE_AUDIO_NODE_DELETED: {
 
     };
+    AUDIO_OUTPUT_ADDED: {
+        nodeId: string;
+        name: string;
+    }
 };
 
 export class AudioEventBus extends BaseEventBus<AudioEventPayload> {

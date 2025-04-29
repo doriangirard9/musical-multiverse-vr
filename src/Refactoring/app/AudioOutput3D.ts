@@ -3,18 +3,18 @@ import {AudioNodeState} from "../network/types.ts";
 import {WamParameterDataMap} from "@webaudiomodules/api";
 
 import {XRManager} from "../xr/XRManager.ts";
-import {Wam3D} from "../ConnecterWAM/Wam3D.ts";
 import {BoundingBox} from "../boundingBox/BoundingBox.ts";
 import {IAudioNodeConfig} from "../shared/SharedTypes.ts";
+import {AudioNode3D} from "../ConnecterWAM/AudioNode3D.ts";
 
-export class AudioOutput3D extends Wam3D {
+export class AudioOutput3D extends AudioNode3D {
     private readonly _pannerNode: PannerNode;
 
-    constructor(scene: B.Scene, audioCtx: AudioContext, id: string) {
-        super(audioCtx, id,null,null);
+    constructor(audioCtx: AudioContext, id: string) {
+        super(audioCtx, id);
 
         // Créer le PannerNode pour la spatialisation
-        this._pannerNode = this._audioCtx.createPanner();
+/*        this._pannerNode = this._audioCtx.createPanner();
 
         // Configuration du PannerNode pour une spatialisation correcte en VR
         this._pannerNode.panningModel = 'HRTF';
@@ -24,11 +24,11 @@ export class AudioOutput3D extends Wam3D {
         this._pannerNode.rolloffFactor = 0.5; // Vitesse de décroissance du volume en fonction de la distance
 
         // Connecter le PannerNode à la sortie
-        this._pannerNode.connect(this._audioCtx.destination);
+        this._pannerNode.connect(this._audioCtx.destination);*/
 
         // Enregistrer la fonction de mise à jour à chaque frame
-        this._updateAudioPositionBound = this._updateAudioPosition.bind(this);
-        scene.registerBeforeRender(this._updateAudioPositionBound);
+        //this._updateAudioPositionBound = this._updateAudioPosition.bind(this);
+        //SceneManager.getInstance().getScene().registerBeforeRender(this._updateAudioPositionBound);
     }
 
     // Référence à la fonction liée pour le nettoyage
@@ -49,7 +49,7 @@ export class AudioOutput3D extends Wam3D {
         this.boundingBox = bo.boundingBox;
 
         // Initialiser la position audio
-        this._updateAudioPosition();
+        //this._updateAudioPosition();
     }
 
     /**
@@ -62,7 +62,6 @@ export class AudioOutput3D extends Wam3D {
         this._pannerNode.positionX.value = meshWorldPosition.x;
         this._pannerNode.positionY.value = meshWorldPosition.y;
         this._pannerNode.positionZ.value = -meshWorldPosition.z;
-
 
         const meshForward = this.baseMesh.forward;
         this._pannerNode.orientationX.value = meshForward.x;

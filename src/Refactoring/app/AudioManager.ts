@@ -2,6 +2,7 @@ import {AudioEventBus,AudioEventPayload} from "../eventBus/AudioEventBus.ts"
 import {Scene} from "@babylonjs/core";
 import {AudioNode3DBuilder} from "./AudioNode3DBuilder.ts";
 import {Wam3D} from "../ConnecterWAM/Wam3D.ts";
+import {AudioOutput3D} from "./AudioOutput3D.ts";
 
 export class AudioManager {
     private static _instance: AudioManager | null = null;
@@ -14,7 +15,7 @@ export class AudioManager {
     private constructor(scene: Scene, audioCtx: AudioContext) {
         this.scene = scene;
         this.audioCtx = audioCtx;
-        this.audioNode3DBuilder = new AudioNode3DBuilder(this.scene, this.audioCtx);
+        this.audioNode3DBuilder = new AudioNode3DBuilder(this.audioCtx);
         this.audioEventBus = AudioEventBus.getInstance();
         this.setupEventListeners();
     }
@@ -37,8 +38,15 @@ export class AudioManager {
     }
 
     public async createAudioNode3D(name: string, id: string, configFile?: string): Promise<Wam3D> {
-        const node: Wam3D = await this.audioNode3DBuilder.create(name, id, configFile);
+        const node: Wam3D = await this.audioNode3DBuilder.create(id, configFile);
         this.audioEventBus.emit("WAM_CREATED", { nodeId: id, name, configFile });
+        await node.instantiate();
+        return node;
+    }
+
+    public async createAudioOutput3D(id: string): Promise<AudioOutput3D> {
+        const node: AudioOutput3D = await this.audioNode3DBuilder.createAudioOutput(id);
+        this.audioEventBus.emit("AUDIO_OUTPUT_ADDED", { nodeId: id, name: id });
         await node.instantiate();
         return node;
     }
