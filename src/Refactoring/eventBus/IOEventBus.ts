@@ -1,9 +1,11 @@
 import {BaseEventBus} from "./BaseEventBus.ts";
 import {PortType} from "../ConnecterWAM/interfaces/EnumConnexionType.ts";
 import {Wam3D} from "../ConnecterWAM/Wam3D.ts";
+import {AudioOutput3D} from "../app/AudioOutput3D.ts";
 
 export type IOEventType = {
     IO_CONNECT: "IO_CONNECT";
+    IO_CONNECT_AUDIO_OUTPUT: "IO_CONNECT_AUDIO_OUTPUT";
 }
 
 export type IOEventPayload = {
@@ -14,6 +16,12 @@ export type IOEventPayload = {
         portId: 'audioIn' | 'audioOut' | 'midiIn' | 'midiOut',
         isInput: boolean
     };
+
+    'IO_CONNECT_AUDIO_OUTPUT': {
+        pickType: 'down' | 'up' | 'out';
+        audioOutput: AudioOutput3D;
+        sourceNode?: Wam3D;
+    }
 };
 export class IOEventBus extends BaseEventBus<IOEventPayload> {
     private static instance: IOEventBus;

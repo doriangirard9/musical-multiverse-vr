@@ -1,8 +1,8 @@
 import {Nullable} from "@babylonjs/core";
-import {IOEvent} from "./IOEvent.ts";
 import {Wam3D} from "../ConnecterWAM/Wam3D.ts";
 import {MessageManager} from "../app/MessageManager.ts";
 import {IOEventBus, IOEventPayload} from "../eventBus/IOEventBus.ts";
+import {AudioOutput3D} from "../app/AudioOutput3D.ts";
 
 export class IOManager {
     private _messageManager: MessageManager;
@@ -10,6 +10,9 @@ export class IOManager {
     private _inputNode: Nullable<Wam3D> = null;
     private _outputNode: Nullable<Wam3D> = null;
     private _currentPortId: 'audioIn' | 'audioOut' | 'midiIn' | 'midiOut' | null = null;
+    //@ts-ignore var jamais read
+    private _currentAudioOutput: Nullable<AudioOutput3D> = null;
+
     private static instance: IOManager;
 
     private ioEventBus: IOEventBus = IOEventBus.getInstance();
@@ -28,9 +31,12 @@ export class IOManager {
         return IOManager.instance;
     }
 
-    public onIOEvent(): void {
+    private onIOEvent(): void {
         this.ioEventBus.on('IO_CONNECT',payload => {
             this.handler(payload)
+        });
+        this.ioEventBus.on('IO_CONNECT_AUDIO_OUTPUT', payload => {
+           this.audioOutputHandler(payload)
         });
     }
 
@@ -77,25 +83,31 @@ export class IOManager {
                 break;
         }
     }
+    private audioOutputHandler(data: IOEventPayload['IO_CONNECT_AUDIO_OUTPUT']) {
+        const audioOutput = data.audioOutput;
 
+        switch (data.pickType) {
+            case "down":
 
-    private _handleConnectionStart() {
-        console.log("Tried to connect : " + this._inputNode?.id + " to " + this._outputNode?.id + " Using port : " + this._currentPortId);
-    }
+                this._currentAudioOutput = audioOutput;
+                break;
 
-    private _handleConnectionEnd(event: IOEvent) {
-        if (this._outputNode) {
-            if (this._outputNode.id === event.node.id) {
-                this._messageManager.showMessage("Can't connect a node to itself", 2000);
+            case "up":
+                if (this._outputNode) {
+                    if (this._outputNode.id !== audioOutput.id) {
+                        const sourceNode = this._outputNode.getAudioNode();
+                        sourceNode.connect(audioOutput.getAudioNode());
+                        console.log("Tried to connect ", this._outputNode.id, " to ", audioOutput.id);
+                    } else {
+                        this._messageManager.showMessage("Can't connect a node to itself", 2000);
+                    }
+                    this._resetConnectionState();
+                }
+                break;
+
+            case "out":
                 this._resetConnectionState();
-            }
-            else {
-
-                const sourcePortId = this._currentPortId;
-                const targetPortId = event.portId;
-
-                this._outputNode.connectPorts(sourcePortId, event.node, targetPortId);
-            }
+                break;
         }
     }
 
@@ -103,6 +115,7 @@ export class IOManager {
         this._inputNode = null;
         this._outputNode = null;
         this._currentPortId = null;
+        this._currentAudioOutput = null;
     }
 
 }
