@@ -22,6 +22,10 @@
         {
           "name": "Flute",
           "configFile": "fluteConfig"
+        },
+        {
+          "name": "Guitar",
+          "configFile": "guitarConfig"
         }
       ]
     },

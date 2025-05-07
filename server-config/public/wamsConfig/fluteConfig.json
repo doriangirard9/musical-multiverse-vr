@@ -1,145 +1,97 @@
 {
   "name": "Flute",
   "wam3d": {
-    "aspect_ratio": 1,
-    "size": 0.6,
-    "bottom_color": "#fcfcfc",
-    "top_color": "#ffffff",
-    "face": "https://mainline.i3s.unice.fr/wam2/packages/faustFlute/screenshot.png",
+    "aspect_ratio": 1.6,
+    "size": 0.8,
+    "bottom_color": "#927354",
+    "top_color": "#a48e68",
+    "face": "wood",
+    "face_color": "#6d4a41",
+    "outline_color": "#593e2f",
+    "outline_width": 0.07,
+    "shape": "rectangle",
+    "modifier": "normal",
+    "modifier_strength": 0.5,
     "controls": [
       {
-        "x": 0.24375031119999085,
-        "y": 0.34063704083559604,
-        "width": 0.1,
-        "height": 0.1,
+        "x": 0.12405337113500933,
+        "y": 0.27960315693071475,
+        "width": 0.12271403449463643,
+        "height": 0.19085616220140378,
         "values": {
-          "Base Color": "#222222",
-          "Cursor Color": "#f79d09",
-          "Target": "/flute/midi/freq"
-        },
-        "control": "cursor_control"
-      },
-      {
-        "x": 0.3481253111999909,
-        "y": 0.33563704083559603,
-        "width": 0.1,
-        "height": 0.1,
-        "values": {
-          "Base Color": "#222222",
-          "Cursor Color": "#f79d09",
-          "Target": "/flute/midi/bend"
-        },
-        "control": "cursor_control"
-      },
-      {
-        "x": 0.45437531119999097,
-        "y": 0.33251204083559605,
-        "width": 0.1,
-        "height": 0.1,
-        "values": {
-          "Base Color": "#222222",
-          "Cursor Color": "#f79d09",
-          "Target": "/flute/midi/gain"
-        },
-        "control": "cursor_control"
-      },
-      {
-        "x": 0.566875311199991,
-        "y": 0.33563704083559603,
-        "width": 0.1,
-        "height": 0.1,
-        "values": {
-          "Base Color": "#222222",
-          "Cursor Color": "#f79d09",
-          "Target": "/flute/midi/envAttack"
-        },
-        "control": "cursor_control"
-      },
-      {
-        "x": 0.666875311199991,
-        "y": 0.33251204083559605,
-        "width": 0.1,
-        "height": 0.1,
-        "values": {
-          "Base Color": "#222222",
-          "Cursor Color": "#f79d09",
-          "Target": "/flute/midi/sustain"
-        },
-        "control": "cursor_control"
-      },
-      {
-        "x": 0.29187500000000005,
-        "y": 0.5325000000000001,
-        "width": 0.1,
-        "height": 0.1,
-        "values": {
-          "Base Color": "#222222",
-          "Cursor Color": "#f79d09",
+          "Color": "#619e68",
+          "Base Color": "#613636",
           "Target": "/flute/otherParams/mouthPosition"
         },
-        "control": "cursor_control"
+        "control": "grow_control"
       },
       {
-        "x": 0.6168750000000002,
-        "y": 0.5325000000000001,
-        "width": 0.1,
-        "height": 0.1,
+        "x": 0.7567266574673653,
+        "y": 0.27960315693071475,
+        "width": 0.12271403449463639,
+        "height": 0.19085616220140378,
         "values": {
-          "Base Color": "#222222",
-          "Cursor Color": "#f79d09",
+          "Color": "#619e68",
+          "Base Color": "#613636",
           "Target": "/flute/otherParams/outGain"
         },
-        "control": "cursor_control"
+        "control": "grow_control"
       },
       {
-        "x": 0.4012500000000001,
-        "y": 0.535625,
-        "width": 0.1,
-        "height": 0.1,
+        "x": 0.3314504034821169,
+        "y": 0.27960315693071475,
+        "width": 0.12271403449463644,
+        "height": 0.19085616220140378,
         "values": {
-          "Base Color": "#222222",
-          "Cursor Color": "#f79d09",
+          "Color": "#619e68",
+          "Base Color": "#613636",
           "Target": "/flute/otherParams/vibratoFreq"
         },
-        "control": "cursor_control"
+        "control": "grow_control"
       },
       {
-        "x": 0.5106250000000001,
-        "y": 0.535625,
-        "width": 0.1,
-        "height": 0.1,
+        "x": 0.5458355620232467,
+        "y": 0.27960315693071475,
+        "width": 0.12271403449463643,
+        "height": 0.19085616220140378,
         "values": {
-          "Base Color": "#222222",
-          "Cursor Color": "#f79d09",
+          "Color": "#619e68",
+          "Base Color": "#613636",
           "Target": "/flute/otherParams/vibratoGain"
         },
-        "control": "cursor_control"
+        "control": "grow_control"
       },
       {
-        "x": 0.41250000000000003,
-        "y": 0.20315690347396714,
-        "width": 0.171875,
-        "height": 0.15312500000000007,
-        "values": { "Text": "flute", "Color": "#e28903", "Font": "misto" },
+        "x": 0.4388486222596194,
+        "y": 0.5086094899884471,
+        "width": 0.12795573476262945,
+        "height": 0.13145020160795806,
+        "values": {
+          "Text": "FAUSTFlute",
+          "Color": "#4d9b53",
+          "Outline Color": "#684b42",
+          "Outline Width": 0.072,
+          "Font": "avara"
+        },
         "control": "text"
       },
       {
         "x": 0,
-        "y": 0.38431277228959126,
-        "width": 0.24687499999999996,
-        "height": 0.24062499999999998,
+        "y": 0.48048919123269324,
+        "width": 0.09999999999999998,
+        "height": 0.14937606427001285,
         "values": { "Color": "#33BB88" },
         "control": "midi_input_control"
       },
       {
-        "x": 0.75,
-        "y": 0.39999436947620876,
-        "width": 0.25,
-        "height": 0.2312499999999999,
+        "x": 0.9,
+        "y": 0.4704593191321185,
+        "width": 0.1,
+        "height": 0.15940593637058761,
         "values": { "Color": "#FF0000" },
         "control": "output_control"
       }
     ],
-    "wam_url": "https://mainline.i3s.unice.fr/wam2/packages/faustFlute/index.js"
+    "wam_url": "https://mainline.i3s.unice.fr/PedalEditor/Back-End/functional-pedals/published/fluteMIDI/indexGUIStandard.js"
   }
 }

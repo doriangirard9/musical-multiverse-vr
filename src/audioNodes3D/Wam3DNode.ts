@@ -65,7 +65,7 @@ export class Wam3DEditorNode extends AudioNode3D {
                         settings.target, highlightLayer, node3d
                     )
                     node3d._input_audio_node = settings.node
-                    node3d.inputMesh = settings.target as B.Mesh
+                    node3d.inputMeshMidi = settings.target as B.Mesh
                     node3d.disposables.push(connection)
                 },
                 defineAnEventOutput(settings) {
@@ -74,7 +74,7 @@ export class Wam3DEditorNode extends AudioNode3D {
                         settings.target, highlightLayer, node3d
                     )
                     node3d._output_audio_node = settings.node
-                    node3d.outputMesh = settings.target as B.Mesh
+                    node3d.outputMeshMidi = settings.target as B.Mesh
                     node3d.disposables.push(connection)
                 },
                 defineField(settings) {
@@ -96,12 +96,15 @@ export class Wam3DEditorNode extends AudioNode3D {
 
         const size_factor = .25/this._wam_generator.calculateAverageControlSize()
         transform!!.scaling.setAll(size_factor)
-        const boundinginfo = this._wam_generator.pad_mesh!!.getBoundingInfo().boundingBox.extendSize
+        console.log(this._wam_generator.pad_node)
+        
+        const boundingBox = this._wam_generator.pad_node!! .getHierarchyBoundingVectors()
         const boundingblock = B.MeshBuilder.CreateBox('box', {
-            width: 1 *size_factor *this._wam_generator.pad_mesh!!.scaling.x,
-            height: boundinginfo.y *size_factor *this._wam_generator.pad_mesh!!.scaling.y,
-            depth: 1 *size_factor *this._wam_generator.pad_mesh!!.scaling.z,
+            width: boundingBox.min.x - boundingBox.max.x,
+            height: boundingBox.min.y - boundingBox.max.y,
+            depth: boundingBox.min.z - boundingBox.max.z,
         }, this._scene)
+        boundingblock.isVisible = false
         super_transform.parent = boundingblock
         this.baseMesh = boundingblock
 
