@@ -7,7 +7,7 @@ import {Wam3D} from "./Wam3D.ts";
 import {StepSequencer3D} from "./StepSequencer3D.ts";
 import {RandomNote3D} from "./RandomNote3D.ts";
 import {Instrument3D} from "./Instrument3D.ts";
-import { PianoRoll } from "./PianoRoll3D.ts";
+import { PianoRoll3D } from "./PianoRoll3D.ts";
 
 // const WAM_CONFIGS_URL: string = "https://wam-configs.onrender.com";
 const WAM_CONFIGS_URL: string = "http://localhost:3000";
@@ -44,7 +44,7 @@ export class AudioNode3DBuilder {
         else if (name === "PianoRoll") {
             const config: IWamConfig = await import(/* @vite-ignore */`../coreConfig/PianoRollConfig.json`);
             // const configString: string = await response.json();
-            return new PianoRoll(this._scene, this._audioCtx, id, config, configFile!);
+            return new PianoRoll3D(this._scene, this._audioCtx, id, config, configFile!);
         }
         // WAMs
         else {
