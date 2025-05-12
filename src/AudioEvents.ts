@@ -11,6 +11,7 @@ export type AudioEventType = {
     CONNECT_NODES: 'CONNECT_NODES';
     DISCONNECT_NODES: 'DISCONNECT_NODES';
     APPLY_CONNECTION: 'APPLY_CONNECTION';
+    VISUAL_PARAM_UPDATE: 'VISUAL_PARAM_UPDATE';
 };
 
 export type AudioEventPayload = {
@@ -56,6 +57,12 @@ export type AudioEventPayload = {
         sourceId: string;
         targetId: string;
         isSrcMidi: boolean;
+    };
+    VISUAL_PARAM_UPDATE: {
+        nodeId: string;
+        paramId: string;
+        value: number;
+        isNormalized: boolean;
     };
 
 };

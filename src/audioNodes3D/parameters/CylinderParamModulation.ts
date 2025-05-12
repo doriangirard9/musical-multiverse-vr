@@ -33,7 +33,7 @@ export class CylinderParamModulation implements IParameter {
     private _createCylinder(parentMesh: B.Mesh): void {
         this._cylinder = B.MeshBuilder.CreateCylinder('cylinder', { diameterTop: 0.5, diameterBottom: 0.5, height:2 }, this._scene);
         this._cylinder.parent = parentMesh;
-        this._cylinder.rotate(B.Axis.X, -Math.PI / 2, B.Space.WORLD);
+    //    this._cylinder.rotate(B.Axis.X, -Math.PI / 2, B.Space.WORLD);
         this._cylinder.position.z = -0.75;
 
         // set color
@@ -129,7 +129,9 @@ export class CylinderParamModulation implements IParameter {
             this.onValueChangedObservable.notifyObservers(value);
         }
     }
-
+    public getCylinderMesh(): B.Mesh {
+        return this._cylinder;
+    }
     public setDirectValue(value: number): void {
         this._currentValue = value;
         this._textValueBlock.text = value.toFixed(1).toString();
@@ -145,6 +147,10 @@ export class CylinderParamModulation implements IParameter {
         // Pas d'émission d'événement
     }
 
+    public getValue(): number {
+        return this._currentValue;
+    }
+
     public getCurrentCylinder(){
         return this._currentCylinder;
     }
@@ -153,12 +159,5 @@ export class CylinderParamModulation implements IParameter {
 
         this._valueAdvancedTexture.dispose();
     }
-    addModulation(moduleName: string): void {
-        switch (moduleName) {
-            case "oscillator":
-                break;
-            default:
-                break;
-        }
-    }
+
 }

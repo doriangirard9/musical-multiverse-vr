@@ -68,15 +68,15 @@ export class ModuleMenu {
         if (!this._menu) return;
 
         //TODO : Automatiser la création les boutons de modulations
-        const oscillateurButton = new GUI.TouchHolographicButton("oscillateur");
+        const oscillateurButton = new GUI.TouchHolographicButton("Oscillateur");
         oscillateurButton.text = "Oscillateur";
-        oscillateurButton.onPointerUpObservable.add((): Promise<void> => this._parent.createModule(category, index, category));
+        oscillateurButton.onPointerUpObservable.add((): Promise<void> => this._parent.createModule(category, index, "Oscillateur"));
         this._menu.addButton(oscillateurButton);
 
-        const bouncingSphereButton = new GUI.TouchHolographicButton("bouncingSphere");
-        bouncingSphereButton.text = "Bouncing Sphere";
-        bouncingSphereButton.onPointerUpObservable.add((): Promise<void> => this._parent.createModule(category, index, category));
-        this._menu.addButton(bouncingSphereButton);
+        const stepSequencerButton = new GUI.TouchHolographicButton("Step Sequencer");
+        stepSequencerButton.text = "Step Sequencer";
+        stepSequencerButton.onPointerUpObservable.add((): Promise<void> => this._parent.createModule(category, index, "Step Sequencer"));
+        this._menu.addButton(stepSequencerButton);
 
 
         const backButton = new GUI.TouchHolographicButton("back");

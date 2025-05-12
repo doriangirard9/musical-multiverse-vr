@@ -7,8 +7,9 @@ import {Wam3D} from "./Wam3D.ts";
 import {StepSequencer3D} from "./StepSequencer3D.ts";
 import {RandomNote3D} from "./RandomNote3D.ts";
 import {Instrument3D} from "./Instrument3D.ts";
-import { PianoRoll } from "./PianoRoll3D.ts";
+import {PianoRoll} from "./PianoRoll3D.ts";
 import {Modulation} from "./Modulation.ts";
+import {Modulation2} from "./Modulation2.ts";
 
 // const WAM_CONFIGS_URL: string = "https://wam-configs.onrender.com";
 const WAM_CONFIGS_URL: string = "http://localhost:3000";
@@ -37,7 +38,7 @@ export class AudioNode3DBuilder {
             const config: IWamConfig = await import(/* @vite-ignore */`../wamsConfig/${configFile}.json`);
             return new RandomNote3D(this._scene, this._audioCtx, id, config, configFile!);
         }
-        else if (name === "Spectrum Modal") {
+        else if (name === "Spectrum Modal" || name === "Synth101") {
             console.log("Spectrum Modal");
             const config: IWamConfig = await import(/* @vite-ignore */`../wamsConfig/${configFile}.json`);
             return new Instrument3D(this._scene, this._audioCtx, id, config, configFile!);
@@ -47,13 +48,11 @@ export class AudioNode3DBuilder {
             // const configString: string = await response.json();
             return new PianoRoll(this._scene, this._audioCtx, id, config, configFile!);
         }
-        else if (name==="modulation"){
-            const config: IWamConfig = await import(/* @vite-ignore */`../coreConfig/PianoRollConfig.json`);
-            // const configString: string = await response.json();
-            let tmp= new Modulation(this._scene, this._audioCtx, id, config, configFile!,name,parent,paramModul);
-            //await tmp.instantiate();
-            //tmp.addUpdateTuyau();
-            return tmp;
+        else if (name==="Oscillateur"){
+            return new Modulation(this._scene, this._audioCtx, id, parent, paramModul);
+        }
+        else if (name==="Step Sequencer"){
+            return new Modulation2(this._scene, this._audioCtx, id, parent, paramModul);
         }
         // WAMs
         else {

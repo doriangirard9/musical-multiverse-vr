@@ -1,0 +1,46 @@
+{
+  "name": "Synth101",
+  "url": "https://www.webaudiomodules.com/community/plugins/burns-audio/synth101/index.js",
+  "root": "",
+  "customParameters": [
+    {
+      "name": "lfoRate",
+      "used": true,
+      "color": "#00ff00",
+      "type": "sphereCylinder"
+    },
+    {
+      "name": "lfoWaveform",
+      "used": true,
+      "type": "menu",
+      "color": "#222222"
+    },
+    {
+      "name": "oscMod",
+      "color": "#ff0000",
+      "used": true
+    },
+    {
+      "name": "oscRange",
+      "used": true,
+      "type": "menu",
+      "color": "#0000ff"
+    },
+    {
+      "name": "portamentoTime",
+      "color": "#ff0000",
+      "used": true
+    },
+    {
+      "name": "portamentoMode",
+      "used": true,
+      "type": "menu",
+      "color": "#0000ff"
+    }
+  ],
+  "defaultParameter": {
+    "type": "cylinder",
+    "color": "#f0f0f0"
+  }
+}
+

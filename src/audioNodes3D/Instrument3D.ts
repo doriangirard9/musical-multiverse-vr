@@ -7,12 +7,14 @@ import {ParamBuilder} from "./parameters/ParamBuilder.ts";
 import {BoundingBox} from "./BoundingBox.ts";
 import {ModuleMenu} from "./parameters/ModuleMenu.ts";
 import {v4 as uuid} from "uuid";
-import {Mesh} from "@babylonjs/core";
+import {AudioEventPayload} from "../AudioEvents.ts";
 
 export class Instrument3D extends Wam3D {
 
     private _modulationMenu : ModuleMenu;
     private _parameterAsModulation : boolean[] = [];
+    private listInuputModulation: B.Mesh[] =[];
+
     constructor(scene: B.Scene, audioCtx: AudioContext, id: string, config: IWamConfig, configFile: IAudioNodeConfig) {
         super(scene, audioCtx, id, config, configFile);
         this._usedParameters = this._config.customParameters.filter((param: CustomParameter): boolean => param.used);
@@ -20,18 +22,29 @@ export class Instrument3D extends Wam3D {
         for (let i = 0; i < this._usedParameters.length; i++) {
             this._parameterAsModulation.push(false);
         }
+        this.eventBus.on('VISUAL_PARAM_UPDATE', this._handleVisualParamUpdate);
+
     }
+
 
     public async instantiate(): Promise<void> {
         console.error("-------------INSTRUMENT3D INSTANTIATE-----------------");
         this._app.menu.hide();
         this._wamInstance = await this._initWamInstance(this._config.url);
+
         this._parametersInfo = await this._wamInstance.audioNode.getParameterInfo();
         this._paramBuilder = new ParamBuilder(this._scene, this._config);
         console.log(this._parametersInfo);
 
         this._createBaseMesh();
         for (let i: number = 0; i < this._usedParameters.length; i++) {
+            const paramConfig = this._usedParameters[i];
+            const fullParamId = `${this._config.root}${paramConfig.name}`;
+            const paramInfo = this._parametersInfo[fullParamId];
+            if (!paramInfo) {
+                console.error(`Parameter info not found for ${fullParamId} during instantiation.`);
+                continue;
+            }
             await this._createParameter(this._usedParameters[i], i);
         }
 
@@ -41,7 +54,7 @@ export class Instrument3D extends Wam3D {
         this._rotationGizmo = new B.RotationGizmo(this._utilityLayer);
 
         this._initActionManager();
-        this.configureSphers();
+        await this.configureSphers();
 
         const bo  = new BoundingBox(this,this._scene,this.id,this._app)
         this.boundingBox = bo.boundingBox;
@@ -112,7 +125,7 @@ export class Instrument3D extends Wam3D {
         }
 
         parameter3D.onValueChangedObservable.add((value: number): void => {
-            console.log(`Parametettetetetr ${fullParamName} value set to ${value}`);
+         //   console.log(`Parametettetetetr ${fullParamName} value set to ${value}`);
             let paramData: WamParameterData = {
                 id: fullParamName,
                 normalized: false,
@@ -253,79 +266,53 @@ export class Instrument3D extends Wam3D {
         console.log('Creating module:', module);
         console.log('Category:', category);
         console.log('Index:', index);
-       // const param = this._parameter3D[category];
-        if (!this._parameterAsModulation[index]) {
-            this._createInputModulation(new B.Vector3(index - (this._usedParameters.length - 1) / 2, this.baseMesh.position.y, this.baseMesh.position.z - 1));
+        const targetParamInfo = this._usedParameters[index];
+        const targetParamId = `${this._config.root}${targetParamInfo.name}`;
 
+
+
+        if (!this._parameterAsModulation[index]) {
+
+            const inputMeshModulation  = B.MeshBuilder.CreateSphere('inputSphereModulation', { diameter: 0.5 }, this._scene);
+           // inputMeshModulation = B.MeshBuilder.CreateSphere('inputBigSphereModulation', { diameter: 1 }, this._scene);
+            //inputMeshModulation.parent = this.inputMeshMidi;
+           // this.inputMeshBigMidi.visibility = 0;
+            inputMeshModulation.parent = this.baseMesh;
+            inputMeshModulation.position = new B.Vector3(index - (this._usedParameters.length - 1) / 2, this.baseMesh.position.y, this.baseMesh.position.z - 1);
+
+            const inputSphereMaterial = new B.StandardMaterial('material', this._scene);
+            inputSphereMaterial.diffuseColor = new B.Color3(1, 0.66, 0.66);
+            inputMeshModulation.material = inputSphereMaterial;
+            this.listInuputModulation[index]=inputMeshModulation;
+         //   this.listInuputModulation[index]= this._createInputModulation(new B.Vector3(index - (this._usedParameters.length - 1) / 2, this.baseMesh.position.y, this.baseMesh.position.z - 1));
             this._parameterAsModulation[index] = true;
         }
 
+        await this._app.createAudioNode3D(module, uuid(), undefined, this, targetParamId);
 
-        await this._app.createAudioNode3D("modulation", uuid(),undefined,this,index);
         this._modulationMenu.hide();
-
-        //await this._addModulation(param, module, index,);
     }
 
-    public getParamModulMesh(paramModul: number) {
-
-        let sphereModule : Mesh = B.MeshBuilder.CreateSphere('inputSphereMidi', { diameter: 0.5 }, this._scene);
-        let sphereModuleBig = B.MeshBuilder.CreateSphere('inputBigSphereMidi', { diameter: 1 }, this._scene);
-        sphereModuleBig.parent = sphereModule;
-        sphereModuleBig.visibility = 0;
-        sphereModule.parent = this.baseMesh;
-        sphereModule.position =  new B.Vector3(paramModul - (this._usedParameters.length - 1) / 2, 0.1, this.baseMesh.position.z);
-
-        const inputSphereMaterial = new B.StandardMaterial('material', this._scene);
-        inputSphereMaterial.diffuseColor = new B.Color3(0, 0, 1);
-        sphereModule.material = inputSphereMaterial;
-
-
-
-        return sphereModule;
+    public getParamModulMeshByParam(param: string): B.Mesh {
+        const usedParamIndex = this._usedParameters.findIndex(p => `${this._config.root}${p.name}` === param);
+        return this.listInuputModulation[usedParamIndex];
     }
 
-/*
-    private createModulation() {
-        const parameterStand: B.Mesh = this._createParameterStand(
-            new B.Vector3(1 / 2, 0.1, this.baseMesh.position.z),
-            "modulation"
-        );
+    private _handleVisualParamUpdate = (payload: AudioEventPayload['VISUAL_PARAM_UPDATE']): void => {
+        if (payload.nodeId === this.id) {
+            const { paramId, value, isNormalized } = payload;
+          //  console.log(`[Instrument3D ${this.id}] Received VISUAL_PARAM_UPDATE for ${paramId} = ${value.toFixed(3)} (Normalized: ${isNormalized})`);
 
-        const defaultValue: boolean = this.modulationMenuDisplay;
+            const paramControl = this._parameter3D[paramId];
+            if (paramControl) {
+                let valueToSet = value;
 
-        let parameter3D: IParameter;
-        parameter3D = this._paramBuilder.createButtonModulation("modulation", parameterStand, this.modulationMenuDisplay, defaultValue);
-        parameter3D.onValueChangedObservable.add((value: number): void => {
-            console.log(`Modulation value set to ${value}`);
-            if (value)
-                this._app.menu.show();
-            else
-                this._app.menu.hide();
-        });
+                // TODO normaliser
 
-        //parameter3D.onValueChangedObservable.notifyObservers(defaultValue);
-
-    }*/
-
-    private _createInputModulation(position: B.Vector3) {
-        this.inputMeshMidi = B.MeshBuilder.CreateSphere('inputSphereModulation', { diameter: 0.5 }, this._scene);
-        this.inputMeshBigMidi = B.MeshBuilder.CreateSphere('inputBigSphereModulation', { diameter: 1 }, this._scene);
-        this.inputMeshBigMidi.parent = this.inputMeshMidi;
-        this.inputMeshBigMidi.visibility = 0;
-        this.inputMeshMidi.parent = this.baseMesh;
-        this.inputMeshMidi.position = position;
-
-        const inputSphereMaterial = new B.StandardMaterial('material', this._scene);
-        inputSphereMaterial.diffuseColor = new B.Color3(1, 0.66, 0.66);
-        this.inputMeshMidi.material = inputSphereMaterial;
-
-       // this.inputMeshMidi.actionManager = new B.ActionManager(this._scene);
-        //this.inputMeshBigMidi.actionManager = new B.ActionManager(this._scene);
-
-    }
-
-    public AudioNode(): AudioNode {
-        return this._audioNode;
+                paramControl.setParamValue(valueToSet, true);
+            } else {
+                console.warn(`[Instrument3D ${this.id}] Visual control for ${paramId} not found.`);
+            }
+        }
     }
 }

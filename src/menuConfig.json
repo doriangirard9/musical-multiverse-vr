@@ -40,6 +40,10 @@
           {
             "name": "Random Note",
             "configFile": "randomNoteConfig"
+          },
+          {
+            "name": "Synth101",
+            "configFile": "synth101Config"
           }
         ]
     }
