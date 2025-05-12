@@ -15,6 +15,7 @@ export class SceneManager {
     //@ts-ignore
     private readonly ground: B.Mesh;
 
+
     private constructor(canvas: HTMLCanvasElement) {
         this.canvas = canvas;
         this.engine = new B.Engine(this.canvas, true);
@@ -37,6 +38,7 @@ export class SceneManager {
                 }
             }
         });
+
     }
 
     public static getInstance(canvas?: HTMLCanvasElement): SceneManager {

@@ -121,7 +121,8 @@ export class NetworkManager {
         // Node connections
         this.eventBus.on('CONNECT_NODES', (payload) => {
             if (payload.source === 'user' && !this.isProcessingYjsEvent) {
-                this.withLocalProcessing(() => this.handleNodeConnection(payload));
+                //this.withLocalProcessing(() => this.handleNodeConnection(payload));
+                console.log("[NetworkManager] Muted node connection event");
             }
         });
 

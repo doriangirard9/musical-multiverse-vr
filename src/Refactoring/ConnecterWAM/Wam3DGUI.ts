@@ -6,7 +6,7 @@ import {
     HighlightLayer,
     Mesh,
     MeshBuilder,
-    Nullable,
+    Nullable, PointerInfo,
     StandardMaterial,
     Vector3
 } from "@babylonjs/core";
@@ -20,8 +20,8 @@ export class Wam3DGUI {
     public inputArcs: TubeParams[];
     public outputArcs: TubeParams[];
 
-    public inputMeshs: Nullable<Mesh[]>;
-    public outputMeshs: Nullable<Mesh[]>;
+    public inputOutputMeshs: Nullable<Map<string, Mesh>>;
+
 
     public inputMeshHitBox: Nullable<Mesh[]>;
     public outputMeshHitBox: Nullable<Mesh[]>;
@@ -40,8 +40,7 @@ export class Wam3DGUI {
         this.inputArcs = [];
         this.outputArcs = [];
 
-        this.inputMeshs = null;
-        this.outputMeshs = null;
+        this.inputOutputMeshs = new Map<string, Mesh>();
         this.inputMeshHitBox = null;
         this.outputMeshHitBox = null;
 
@@ -114,7 +113,21 @@ export class Wam3DGUI {
 
             // Créer les meshes
             const portMesh = MeshBuilder.CreateSphere(meshName, {diameter: 0.5}, this.scene);
+            portMesh.isPickable = false;
             const hitBox = MeshBuilder.CreateSphere(hitBoxName, {diameter: 1}, this.scene);
+
+            if (port.id == "audioIn"){
+                this.inputOutputMeshs?.set(port.id, portMesh)
+            }
+            if (port.id == "audioOut"){
+                this.inputOutputMeshs?.set(port.id, portMesh)
+            }
+            if (port.id == "midiIn"){
+                this.inputOutputMeshs?.set(port.id, portMesh)
+            }
+            if (port.id == "midiOut"){
+                this.inputOutputMeshs?.set(port.id, portMesh)
+            }
 
             // Configuration du mesh
             hitBox.parent = portMesh;
@@ -149,35 +162,34 @@ export class Wam3DGUI {
                 highlightLayer.removeMesh(portMesh as Mesh);
             }));
 
-            hitBox.actionManager.registerAction(new ExecuteCodeAction(ActionManager.OnLeftPickTrigger, (): void => {
+            hitBox.actionManager.registerAction(new ExecuteCodeAction(ActionManager.OnPickDownTrigger, (event): void => {
                 console.log(`pick down - on clique sur ${isInput ? "l'entrée" : "la sortie"} pour créer un tube`);
                 this.ioEventBus.emit('IO_CONNECT', {
-                            type: port.type,
-                            pickType: 'down',
-                            node: this.parent,
-                            portId: port.id,
-                            isInput: isInput
-
+                    type: port.type,
+                    pickType: 'down',
+                    node: this.parent,
+                    portId: port.id,
+                    isInput: isInput,
                 });
             }));
             hitBox.actionManager.registerAction(new ExecuteCodeAction(ActionManager.OnPickUpTrigger, (): void => {
                 console.log(`pick up - on relache le bouton sur ${isInput ? "une entrée" : "une sortie"}`);
                 this.ioEventBus.emit('IO_CONNECT', {
-                            type: port.type, pickType:
-                                'up', node:
-                            this.parent, portId:
-                            port.id, isInput:
-                            isInput
+                    type: port.type,
+                    pickType: 'up',
+                    node: this.parent,
+                    portId: port.id,
+                    isInput: isInput,
                 });
             }));
             hitBox.actionManager.registerAction(new ExecuteCodeAction(ActionManager.OnPickOutTrigger, (): void => {
                 console.log(`pick out - on relache sur ${isInput ? "une sortie" : "une entrée"} ou dans le vide`);
                 this.ioEventBus.emit('IO_CONNECT', {
-                            type: port.type, pickType:
-                                'out', node:
-                            this.parent, portId:
-                            port.id, isInput:
-                            isInput
+                    type: port.type,
+                    pickType: 'out',
+                    node: this.parent,
+                    portId: port.id,
+                    isInput: isInput,
                 });
             }));
 

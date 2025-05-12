@@ -120,7 +120,9 @@ export class AudioOutput3D extends AudioNode3D {
     public getAudioNode(): AudioNode {
         return this._pannerNode;
     }
-
+    public getPortMesh(): Nullable<Mesh> {
+        return this.portMesh;
+    }
     protected async _createBaseMesh(): Promise<void> {
         this.baseMesh = MeshBuilder.CreateBox('box', {width: 1, height: 1}, this._scene);
         const material = new StandardMaterial('material', this._scene);
@@ -162,6 +164,7 @@ export class AudioOutput3D extends AudioNode3D {
         const highlightColor = Color3.Green();
 
         this.hitBox.actionManager = new ActionManager(this.scene);
+
         this.hitBox.actionManager.registerAction(new ExecuteCodeAction(ActionManager.OnPointerOverTrigger, (): void => {
             highlightLayer.addMesh(this.portMesh as Mesh, highlightColor);
         }));

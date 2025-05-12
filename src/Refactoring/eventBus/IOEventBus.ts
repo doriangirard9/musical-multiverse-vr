@@ -2,10 +2,12 @@ import {BaseEventBus} from "./BaseEventBus.ts";
 import {PortType} from "../ConnecterWAM/interfaces/EnumConnexionType.ts";
 import {Wam3D} from "../ConnecterWAM/Wam3D.ts";
 import {AudioOutput3D} from "../app/AudioOutput3D.ts";
+import {PointerInfo} from "@babylonjs/core";
 
 export type IOEventType = {
     IO_CONNECT: "IO_CONNECT";
     IO_CONNECT_AUDIO_OUTPUT: "IO_CONNECT_AUDIO_OUTPUT";
+
 }
 
 export type IOEventPayload = {
@@ -14,7 +16,7 @@ export type IOEventPayload = {
         pickType: 'up' | 'down' | 'out',
         node : Wam3D
         portId: 'audioIn' | 'audioOut' | 'midiIn' | 'midiOut',
-        isInput: boolean
+        isInput: boolean,
     };
 
     'IO_CONNECT_AUDIO_OUTPUT': {

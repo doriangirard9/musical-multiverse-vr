@@ -84,18 +84,22 @@ export class Wam3D extends AudioNode3D{
 
     public initializePorts(): void {
         if (this._wamInstance.descriptor.hasAudioInput) {
+            //@ts-ignore Type string is not assignable to type "audioIn" | "audioOut" | "midiIn" | "midiOut" pareil pour les 3 autres
             this.addPort(new AudioInputPort('audioIn', this._wamInstance.audioNode));
         }
 
         if (this._wamInstance.descriptor.hasAudioOutput) {
+            //@ts-ignore
             this.addPort(new AudioOutputPort('audioOut', this._wamInstance.audioNode));
         }
 
         if (this._wamInstance.descriptor.hasMidiInput) {
+            //@ts-ignore
             this.addPort(new MidiInputPort('midiIn', this._wamInstance.audioNode));
         }
 
         if (this._wamInstance.descriptor.hasMidiOutput) {
+            //@ts-ignore
             this.addPort(new MidiOutputPort('midiOut', this._wamInstance.audioNode));
         }
     }
@@ -108,6 +112,9 @@ export class Wam3D extends AudioNode3D{
     }
     public getPorts(): Map<string, IWamPort> {
         return this.ports;
+    }
+    public getPortMesh(portId: string): B.Mesh | undefined {
+        return this.wam3DGUI.inputOutputMeshs?.get(portId);
     }
 
     public connectPorts(outputPortId: string, targetNode: Wam3D, inputPortId: string): boolean {

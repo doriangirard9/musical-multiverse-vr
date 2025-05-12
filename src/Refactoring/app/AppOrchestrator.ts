@@ -9,6 +9,8 @@ import {PlayerManager} from "./PlayerManager.ts";
 import {AudioEventBus} from "../eventBus/AudioEventBus.ts";
 import {IOManager} from "../iomanager/IOManager.ts";
 import {IOEventBus} from "../eventBus/IOEventBus.ts";
+import {ConnectionManager} from "../iomanager/ConnectionManager.ts";
+import {NetworkManager} from "../network/NetworkManager.ts";
 
 
 export class AppOrchestrator{
@@ -24,14 +26,15 @@ export class AppOrchestrator{
     private UIManager : UIManager | null = null;
     private SceneManager : SceneManager | null = null;
     private PlayerManager : PlayerManager | null = null;
-
+    private ConnectionManager : ConnectionManager | null = null;
+    private NetworkManager : NetworkManager | null = null;
     private constructor() {
         this.initManagers()
 
         this.onUIEvent();
         this.onMenuEvent();
         this.onAudioEvent();
-
+        this.trucMocheAChanger();
         this.debugLogEvents()
     }
 
@@ -56,9 +59,20 @@ export class AppOrchestrator{
         this.SceneManager = SceneManager.getInstance();
         this.PlayerManager = PlayerManager.getInstance();
         this.iOManager = IOManager.getInstance();
+        this.ConnectionManager = ConnectionManager.getInstance();
+        this.NetworkManager = NetworkManager.getInstance();
     }
+    private trucMocheAChanger(){
+        this.audioEventBus?.on('POSITION_CHANGE', (payload) => {
+            this.UIEventBus?.emit("WAM_POSITION_CHANGE", payload);
+        });
 
+    }
     private onUIEvent(): void {
+        this.UIEventBus?.on('WAM_POSITION_CHANGE', (payload) => {
+            console.log(`WAM position changed: ${payload.nodeId}`);
+            this.ConnectionManager?.handleNodeUpdate(payload);
+        });
     }
 
     private onMenuEvent(): void {
