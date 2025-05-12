@@ -103,6 +103,11 @@ export class AppOrchestrator{
     private onAudioEvent(): void {
         this.audioEventBus?.on('WAM_CREATED', () => {});
         this.audioEventBus?.on('WAM_LOADED', () => {});
+
+        this.audioEventBus?.on('REMOTE_AUDIO_NODE_ADDED' , (payload) => {
+            console.log(`Remote audio node added: ${payload.state.name}`);
+            console.log("full state : ", payload.state);
+        })
     }
 
     private debugLogEvents(): void {

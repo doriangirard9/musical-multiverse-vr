@@ -4,6 +4,7 @@ import {GridMaterial} from "@babylonjs/materials";
 // // Enable GLTF/GLB loader for loading controller models from WebXR Input registry
 import '@babylonjs/loaders/glTF';
 import '@babylonjs/core/Materials/Node/Blocks';
+import {NetworkManager} from "../network/NetworkManager.ts";
 
 export class SceneManager {
     private static _instance: SceneManager | null = null;
@@ -54,6 +55,16 @@ export class SceneManager {
     public start(): void {
         this.engine.runRenderLoop(() => {
             this.scene.render();
+        });
+        let lastTime = performance.now();
+
+        this.scene.onBeforeRenderObservable.add(() => {
+            const currentTime = performance.now();
+            const deltaTime = (currentTime - lastTime) / 1000; // Convertir en secondes
+            lastTime = currentTime;
+
+            // Mettre à jour l'interpolation des joueurs
+            NetworkManager.getInstance().updatePlayers(deltaTime);
         });
     }
 

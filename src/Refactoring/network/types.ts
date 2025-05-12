@@ -12,8 +12,6 @@ export type AudioNodeState = {
     configFile: string;
     position: { x: number, y: number, z: number };
     rotation: { x: number, y: number, z: number };
-    inputNodes: string[];
-    inputNodesMidi : string[];
     parameters: WamParameterDataMap;
 }
 
