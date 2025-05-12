@@ -3,7 +3,7 @@ import { AudioNode3D } from "./AudioNode3D.ts";
 import { AudioNodeState } from "../network/types.ts";
 import { BoundingBox } from "./BoundingBox.ts";
 import { ControllerBehaviorManager } from "../xr/BehaviorControllerManager.ts";
-import { WamParameterDataMap } from "@webaudiomodules/api";
+import { WamParameterData, WamParameterDataMap } from "@webaudiomodules/api";
 import { Wam3D } from "./Wam3D.ts";
 import { CustomParameter, IAudioNodeConfig, IWamConfig } from "./types.ts";
 import { ParamBuilder } from "./parameters/ParamBuilder.ts";
@@ -59,13 +59,22 @@ export class PianoRoll3D extends Wam3D {
   private buttons: NoteButtonMesh[][] = [];
   private playhead!: B.Mesh;
   private buttonMaterial!: B.StandardMaterial;
-  private currentControlSequence: ControlSequence | null = null;
   private pattern: Pattern;
   private isAKeyPressed = false;
   private ticksPerColumn = 6;
 
     private btnStartStop: B.Mesh;
     private isBtnStartStop: boolean = true;
+
+  // scrolling 
+    private _btnScrollUp!: B.Mesh;
+    private _btnScrollDown!: B.Mesh;
+    // New properties for row navigation
+    private _startRowIndex: number = 0; // Index of the first visible row
+    private _visibleRowCount: number = 7; // Number of rows visible at one time
+    // private displayedRows: number = 14; // Total number of rows (total notes)
+    // private _noteLabels: B.Mesh[] = [];
+    
   constructor(
     scene: B.Scene,
     audioCtx: AudioContext,
@@ -74,14 +83,14 @@ export class PianoRoll3D extends Wam3D {
     s: IAudioNodeConfig
   ) {
     super(scene, audioCtx, id, config, s);
-    this.rows =7;
+    this.rows =16;
     this.cols = 16;
     this.tempo = 60;
     
     this.startX = -(this.cols - 1) / 2 * (this.buttonWidth + this.buttonSpacing);
     this.endX = (this.cols - 1) / 2 * (this.buttonWidth + this.buttonSpacing);
-    this.startZ = -(this.rows - 1) / 2 * (this.buttonDepth + this.buttonSpacing);
-    this.endZ = (this.rows - 1) / 2 * (this.buttonDepth + this.buttonSpacing);
+    this.startZ = -(this._visibleRowCount-1) / 2 * (this.buttonDepth + this.buttonSpacing);
+    this.endZ = (this._visibleRowCount - 1) / 2 * (this.buttonDepth + this.buttonSpacing);
     this.beatDuration = 60 / this.tempo;
     this.cellDuration = this.beatDuration / this.timeSignatureDenominator;
 
@@ -117,7 +126,8 @@ export class PianoRoll3D extends Wam3D {
         this.createPlayhead();
         this.initActions();
         this._initActionManager();
-
+        this._createScrollButtons();
+        this._updateRowVisibility();
         // output position
         const baseY = this.baseMesh.position.y;
         const baseZ = this.baseMesh.position.z;
@@ -151,8 +161,8 @@ export class PianoRoll3D extends Wam3D {
       const material = new B.StandardMaterial("material", this._scene);
       material.diffuseColor =  B.Color3.Green();
       this.btnStartStop.material = material;
-      this.btnStartStop.position.x = -10.5;
-      this.btnStartStop.position.y = 1;
+      this.btnStartStop.position.x = this.getStartX()// -10.5;
+      this.btnStartStop.position.y =  1;
       this.btnStartStop.position.z = 3.5;
   
       // add click action to start stop button
@@ -211,6 +221,124 @@ export class PianoRoll3D extends Wam3D {
         material.diffuseColor = new B.Color3(0.5, 0.2, 0.2);
         this.baseMesh.material = material;
     }
+  private _createScrollButtons(): void {
+    // Create "scroll up" button at the top
+    this._btnScrollUp = B.MeshBuilder.CreateBox(
+      "btnScrollUp",
+      { width: 25, height: 0.5, depth: 0.8 },
+      this._scene
+    );
+    
+    const materialUp = new B.StandardMaterial("materialScrollUp", this._scene);
+    materialUp.diffuseColor = new B.Color3(0.2, 0.6, 0.8);
+    this._btnScrollUp.material = materialUp;
+    this._btnScrollUp.parent = this.baseMesh;
+    this._btnScrollUp.position.y = 0.3;
+    this._btnScrollUp.position.z = -3.8; // Position above the top visible row (centered at -3)
+    
+    // Create "scroll down" button at the bottom
+    this._btnScrollDown = B.MeshBuilder.CreateBox(
+      "btnScrollDown",
+      { width: 25, height: 0.5, depth: 0.8 },
+      this._scene
+    );
+    
+    const materialDown = new B.StandardMaterial("materialScrollDown", this._scene);
+    materialDown.diffuseColor = new B.Color3(0.2, 0.6, 0.8);
+    this._btnScrollDown.material = materialDown;
+    this._btnScrollDown.parent = this.baseMesh;
+    this._btnScrollDown.position.y = 0.3;
+    this._btnScrollDown.position.z = 3.8; // Position below the bottom visible row (centered at +3)
+    
+    // // Add text to the buttons
+    // this._addScrollButtonLabel(this._btnScrollUp, "up");
+    // this._addScrollButtonLabel(this._btnScrollDown, "down");
+    
+    // Add click actions to the buttons
+    if (!this._btnScrollUp.actionManager) {
+      this._btnScrollUp.actionManager = new B.ActionManager(this._scene);
+    }
+    
+    if (!this._btnScrollDown.actionManager) {
+      this._btnScrollDown.actionManager = new B.ActionManager(this._scene);
+    }
+    
+    // Scroll up action
+    this._btnScrollUp.actionManager.registerAction(
+      new B.ExecuteCodeAction(B.ActionManager.OnPickTrigger, () => {
+        this._scrollUp();
+      })
+    );
+    
+    // Scroll down action
+    this._btnScrollDown.actionManager.registerAction(
+      new B.ExecuteCodeAction(B.ActionManager.OnPickTrigger, () => {
+        this._scrollDown();
+      })
+    );
+  }
+
+  private _scrollUp(): void {
+    // Scroll up if we're not already at the top
+    if (this._startRowIndex > 0) {
+      this._startRowIndex--;
+      this._updateRowVisibility();
+    }
+  }
+
+  private _scrollDown(): void {
+    // Scroll down if we're not already at the bottom
+    if (this._startRowIndex + this._visibleRowCount < this.rows) {
+      this._startRowIndex++;
+      this._updateRowVisibility();
+    }
+  }
+  private _updateRowVisibility(): void {
+    // Calculate the end row index
+    const endRowIndex = Math.min(
+        this._startRowIndex + this._visibleRowCount,
+        this.rows
+    );
+
+    // Compute the visual center for visible rows
+    const visibleRangeCenter = (this._visibleRowCount - 1) / 2;
+
+    for (let row = 0; row < this.rows; row++) {
+        const isVisible = row >= this._startRowIndex && row < endRowIndex;
+
+        for (let col = 0; col < this.buttons[row].length; col++) {
+            const button = this.buttons[row][col];
+
+            if (isVisible) {
+                // Calculate the visual row index relative to the visible window
+                const visualRowIndex = row - this._startRowIndex;
+
+                // Centering logic:
+                // We want the visible rows to be centered in the middle of the baseMesh
+                const centeredPosition = (visualRowIndex - visibleRangeCenter) * (this.buttonDepth + this.buttonSpacing);
+
+                // Apply the new position without modifying the original spacing
+                button.position.z = centeredPosition;
+                button.isVisible = true;
+            } else {
+                button.isVisible = false;
+            }
+        }
+    }
+
+    // Disable the scroll up button if at the top
+    const materialUp = this._btnScrollUp.material as B.StandardMaterial;
+    materialUp.diffuseColor = this._startRowIndex > 0 
+        ? new B.Color3(0.2, 0.6, 0.8) // Active
+        : new B.Color3(0.2, 0.2, 0.2); // Inactive
+
+    // Disable the scroll down button if at the bottom
+    const materialDown = this._btnScrollDown.material as B.StandardMaterial;
+    materialDown.diffuseColor = this._startRowIndex + this._visibleRowCount < this.rows
+        ? new B.Color3(0.2, 0.6, 0.8) // Active
+        : new B.Color3(0.2, 0.2, 0.2); // Inactive
+}
+
 
   convertNoteToMidi(note: string): number | null {
     const noteRegex = /^([A-G])(#?)(\d)$/;
