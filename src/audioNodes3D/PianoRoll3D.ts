@@ -64,7 +64,7 @@ export class PianoRoll3D extends Wam3D {
   private isAKeyPressed = false;
   private ticksPerColumn = 6;
 
-    private btnStartStop: B.Mesh;
+    private btnStartStop!: B.Mesh;
     private isBtnStartStop: boolean = true;
 
   // scrolling 
@@ -86,7 +86,7 @@ export class PianoRoll3D extends Wam3D {
     s: IAudioNodeConfig
   ) {
     super(scene, audioCtx, id, config, s);
-    this.rows =16;
+    this.rows =4;
     if(this.rows<this._visibleRowCount)
     this._visibleRowCount = this.rows
 
@@ -111,7 +111,6 @@ export class PianoRoll3D extends Wam3D {
       notes: []
   };
   
-  this.btnStartStop = B.MeshBuilder.CreateBox("startStopButton", { width: 2, height:1, depth: 0.6 }, this._scene);
   this._scene.registerBeforeRender(() => {
     this.update();
   });
@@ -163,14 +162,14 @@ export class PianoRoll3D extends Wam3D {
       }
     }
     public startStopButton(): void {
+      this.btnStartStop = B.MeshBuilder.CreateBox("startStopButton", { width: 2, height:0.6, depth: 0.4 }, this._scene);
       this.btnStartStop.parent = this.baseMesh;
       const material = new B.StandardMaterial("material", this._scene);
       material.diffuseColor =  B.Color3.Green();
       this.btnStartStop.material = material;
-      this.btnStartStop.position.x = this.getStartX()// -10.5;
-      this.btnStartStop.position.y =  1;
-      this.btnStartStop.position.z = 3.5;
-  
+      this.btnStartStop.position.x = this.startX -(this.buttonWidth + this.buttonSpacing);
+      this.btnStartStop.position.z = this.endZ+ (this.buttonDepth + this.buttonSpacing);
+      this.btnStartStop.position.y = 0.2;
       // add click action to start stop button
       this.btnStartStop.actionManager = new B.ActionManager(this._scene);
       
