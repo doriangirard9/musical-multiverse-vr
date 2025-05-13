@@ -86,6 +86,9 @@ export class PianoRoll3D extends Wam3D {
   ) {
     super(scene, audioCtx, id, config, s);
     this.rows =16;
+    if(this.rows<this._visibleRowCount)
+    this._visibleRowCount = this.rows
+
     this.cols = 16;
     this.tempo = 60;
     
@@ -216,7 +219,7 @@ export class PianoRoll3D extends Wam3D {
         this.baseMesh = B.MeshBuilder.CreateBox('box', {          
           width: this.endX - this.startX + this.buttonWidth * 2 + this.buttonSpacing,
           height: 0.2,
-          depth: this.endZ - this.startZ + this.buttonDepth+ this.buttonSpacing
+          depth: this.endZ - this.startZ + this.buttonDepth+ this.buttonSpacing + (this.buttonDepth+this.buttonSpacing) * 2 // for scrolling buttons
          }, this._scene);
 
         const material = new B.StandardMaterial('material', this._scene);
@@ -227,7 +230,7 @@ export class PianoRoll3D extends Wam3D {
     // Create "scroll up" button at the top
     this._btnScrollUp = B.MeshBuilder.CreateBox(
       "btnScrollUp",
-      { width: 25, height: 0.5, depth: 0.8 },
+      { width: 25, height: this.buttonHeight, depth: this.buttonDepth },
       this._scene
     );
     
@@ -235,13 +238,16 @@ export class PianoRoll3D extends Wam3D {
     materialUp.diffuseColor = new B.Color3(0.2, 0.6, 0.8);
     this._btnScrollUp.material = materialUp;
     this._btnScrollUp.parent = this.baseMesh;
-    this._btnScrollUp.position.y = 0.3;
-    this._btnScrollUp.position.z = -3.8; // Position above the top visible row (centered at -3)
+    this._btnScrollUp.position.y = 0.2;
+    // get depth of this.baseMesh
+    this._btnScrollUp.position.z = this.startZ - this.buttonSpacing -this._btnScrollUp.getBoundingInfo().boundingBox.extendSize.z*2
+    console.log("tictac",this._btnScrollUp.getBoundingInfo().boundingBox.extendSize.z*2 // Position above the top visible row (centered at -3)
+  )
     
     // Create "scroll down" button at the bottom
     this._btnScrollDown = B.MeshBuilder.CreateBox(
       "btnScrollDown",
-      { width: 25, height: 0.5, depth: 0.8 },
+      { width: 25, height: this.buttonHeight, depth: this.buttonDepth },
       this._scene
     );
     
@@ -249,8 +255,8 @@ export class PianoRoll3D extends Wam3D {
     materialDown.diffuseColor = new B.Color3(0.2, 0.6, 0.8);
     this._btnScrollDown.material = materialDown;
     this._btnScrollDown.parent = this.baseMesh;
-    this._btnScrollDown.position.y = 0.3;
-    this._btnScrollDown.position.z = 3.8; // Position below the bottom visible row (centered at +3)
+    this._btnScrollDown.position.y = 0.2;
+    this._btnScrollDown.position.z =  this.endZ + this.buttonSpacing + this._btnScrollUp.getBoundingInfo().boundingBox.extendSize.z*2;
     
     // // Add text to the buttons
     // this._addScrollButtonLabel(this._btnScrollUp, "up");
