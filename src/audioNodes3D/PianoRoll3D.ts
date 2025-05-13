@@ -10,6 +10,7 @@ import { ParamBuilder } from "./parameters/ParamBuilder.ts";
 import { Instrument3D } from "./Instrument3D.ts";
 import * as GUI from "@babylonjs/gui";
 import { log } from "tone/build/esm/core/util/Debug";
+import { start } from "tone";
 interface PatternNote {
   tick: number;
   number: number;
@@ -231,7 +232,9 @@ export class PianoRoll3D extends Wam3D {
     // Create "scroll up" button at the top
     this._btnScrollUp = B.MeshBuilder.CreateBox(
       "btnScrollUp",
-      { width: 25, height: this.buttonHeight, depth: this.buttonDepth },
+      { width: this.endX - this.startX, 
+        height: this.buttonHeight, 
+        depth: this.buttonDepth },
       this._scene
     );
     
@@ -248,7 +251,9 @@ export class PianoRoll3D extends Wam3D {
     // Create "scroll down" button at the bottom
     this._btnScrollDown = B.MeshBuilder.CreateBox(
       "btnScrollDown",
-      { width: 25, height: this.buttonHeight, depth: this.buttonDepth },
+      { width: this.endX-this.startX, 
+        height: this.buttonHeight, 
+        depth: this.buttonDepth },
       this._scene
     );
     
