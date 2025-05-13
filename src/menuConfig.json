@@ -1,32 +1,14 @@
 {
   "categories": [
     {
-      "name": "EDITOR",
+      "name": "Editor",
       "plugins": [
-        {
-          "name": "KVerb",
-          "configFile": "reverbConfig"
-        },
-        {
-          "name": "Disto Machine",
-          "configFile": "distoConfig"
-        },
-        {
-          "name": "Death Gate",
-          "configFile": "deathGateConfig"
-        },
-        {
-          "name": "Modal",
-          "configFile": "modalConfig"
-        },
-        {
-          "name": "Flute",
-          "configFile": "fluteConfig"
-        },
-        {
-          "name": "Guitar",
-          "configFile": "guitarConfig"
-        }
+        { "name": "VoxAmp 30", "configFile": "wam3d_voxamp" },
+        { "name": "Disto Machine", "configFile": "wam3d_disto" },
+        { "name": "KVerb", "configFile": "wam3d_reverb" },
+        { "name": "Modal", "configFile": "wam3d_modal" },
+        { "name": "Flute", "configFile": "wam3d_flute" },
+        { "name": "Guitar", "configFile": "wam3d_guitar" }
       ]
     },
     {
