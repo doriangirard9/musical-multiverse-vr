@@ -217,7 +217,8 @@ export class PianoRoll3D extends Wam3D {
 
     protected _createBaseMesh(): void {
         this.baseMesh = B.MeshBuilder.CreateBox('box', {          
-          width: this.endX - this.startX + this.buttonWidth * 2 + this.buttonSpacing,
+          //width: (diff between buttons) + (adjust for button)+ (keyboard size)
+          width: (this.endX - this.startX ) + (this.buttonWidth * 2 + this.buttonSpacing) + (this.buttonWidth + this.buttonSpacing*2) , 
           height: 0.2,
           depth: this.endZ - this.startZ + this.buttonDepth+ this.buttonSpacing + (this.buttonDepth+this.buttonSpacing) * 2 // for scrolling buttons
          }, this._scene);
@@ -471,9 +472,9 @@ createGrid(): void {
       }, this._scene);
 
       colorBox.parent  = this.baseMesh;
-      colorBox.position.x = this.startX - 2 * (this.buttonWidth + this.buttonSpacing);
+      colorBox.position.x = this.startX -(this.buttonWidth + this.buttonSpacing);
       colorBox.position.z = (i - (this.rows - 1) / 2) * (this.buttonDepth + this.buttonSpacing);
-      colorBox.position.y = this.buttonHeight / 2;
+      colorBox.position.y = this.buttonHeight / 2 ;
 
       const colorMaterial = new B.StandardMaterial(`colorBoxMaterial_${i}`, this._scene);
       colorMaterial.diffuseColor = isBlack ? new B.Color3(0.1, 0.1, 0.1) : new B.Color3(1, 1, 1);
