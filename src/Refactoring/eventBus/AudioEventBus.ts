@@ -13,6 +13,8 @@ export type AudioEventType = {
     DISCONNECT_NODES: "DISCONNECT_NODES";
     APPLY_CONNECTION: "APPLY_CONNECTION";
 
+    LOCAL_AUDIO_NODE_CREATED : "LOCAL_AUDIO_NODE_CREATED";
+
     REMOTE_AUDIO_NODE_ADDED: "REMOTE_AUDIO_NODE_ADDED";
     REMOTE_AUDIO_NODE_DELETED: "REMOTE_AUDIO_NODE_DELETED";
     AUDIO_OUTPUT_ADDED : "AUDIO_OUTPUT_ADDED";
@@ -100,6 +102,10 @@ export type AudioEventPayload = {
     };
 
     REMOTE_AUDIO_NODE_ADDED: {
+        state : AudioNodeState
+    };
+
+    LOCAL_AUDIO_NODE_CREATED: {
         state : AudioNodeState
     };
 

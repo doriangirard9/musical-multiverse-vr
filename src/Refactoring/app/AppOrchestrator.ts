@@ -95,7 +95,8 @@ export class AppOrchestrator{
             console.log(`Audio node created: ${payload.name}`);
             const node = await this.AudioManager?.createAudioNode3D(payload.name, payload.nodeId, payload.configFile);
             if (node) {
-                this.NetworkEventBus?.emit('SEND_NODE_TO_NETWORK', { state: state });
+                const state = await node.getState()
+                this.audioEventBus?.emit('LOCAL_AUDIO_NODE_CREATED', { state: state });
             }
         });
         this.MenuEventBus?.on('CREATE_AUDIO_OUTPUT', async (payload) => {
@@ -107,11 +108,6 @@ export class AppOrchestrator{
     private onAudioEvent(): void {
         this.audioEventBus?.on('WAM_CREATED', () => {});
         this.audioEventBus?.on('WAM_LOADED', () => {});
-
-        this.audioEventBus?.on('REMOTE_AUDIO_NODE_ADDED' , (payload) => {
-            console.log(`Remote audio node added: ${payload.state.name}`);
-            console.log("full state : ", payload.state);
-        })
     }
 
     private debugLogEvents(): void {

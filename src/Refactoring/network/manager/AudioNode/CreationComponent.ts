@@ -28,7 +28,7 @@ export class CreationComponent {
     }
 
     private setupEventListeners(): void {
-
+        this.audioEventBus.on('LOCAL_AUDIO_NODE_CREATED', this.handleLocalNodeCreated.bind(this));
     }
 
     private setupNetworkObservers(): void {
@@ -90,5 +90,18 @@ export class CreationComponent {
             this.localAudioNodes3D.delete(key);
 
         }
+    }
+
+    private handleLocalNodeCreated(payload: { state: AudioNodeState }): void {
+        // Ajouter le nœud à la map Y.js pour synchronisation
+        this.networkAudioNodes3D.set(payload.state.id, payload.state);
+
+        // Ajouter la position
+        this.networkPositions.set(payload.state.id, {
+            position: payload.state.position,
+            rotation: payload.state.rotation
+        });
+
+        console.log(`[AudioNodeComponent] Local node added to network: ${payload.state.id}`);
     }
 }

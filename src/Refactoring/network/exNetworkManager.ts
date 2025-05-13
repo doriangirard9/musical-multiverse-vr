@@ -10,9 +10,6 @@ import {AudioNodeState, PlayerState} from "./types.ts";
 import {NodeTransform, ParamUpdate} from "../shared/SharedTypes.ts";
 import {Player} from "../app/Player.ts";
 
-
-
-
 const SIGNALING_SERVER = 'ws://localhost:3001';//'wss://musical-multiverse-vr.onrender.com';
 
 interface PendingConnection {

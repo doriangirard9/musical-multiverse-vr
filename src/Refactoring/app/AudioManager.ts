@@ -52,7 +52,15 @@ export class AudioManager {
     }
 
     private async onRemoteAudioNodeAdded(payload: AudioEventPayload["REMOTE_AUDIO_NODE_ADDED"]): Promise<void> {
-        console.log('Remote audio node change detected:', payload);
+        console.log('Creating remote audio node:', payload.state);
+        
+        const node = await this.audioNode3DBuilder.create(payload.state.id, payload.state.configFile);
+        await node.instantiate();
+
+        // Appliquer l'état reçu
+        node.setState(payload.state);
+
+        console.log('Remote audio node created successfully:', payload.state.id);
     }
     private async onRemoteAudioNodeDeleted(payload: AudioEventPayload["REMOTE_AUDIO_NODE_DELETED"]): Promise<void> {
         console.log('Remote audio node change detected:', payload);

@@ -20,12 +20,16 @@ export class AudioNodeComponent {
 
     private audioNodes = new Map<string, Wam3D>();
 
-    private networkAudioNodes: Y.Map<AudioNodeState>;
-    private networkPositions: Y.Map<NodeTransform>;
+    private readonly networkAudioNodes: Y.Map<AudioNodeState>;
+    private readonly networkPositions: Y.Map<NodeTransform>;
 
     private positionComponent!: PositionComponent;
     private parameterComponent!: ParameterComponent;
     private creationComponent!: CreationComponent;
+
+    private isProcessingYjsEvent = false;
+    private isProcessingLocalEvent = false;
+
 
     constructor(doc: Y.Doc, localId: string) {
         this.doc = doc;
@@ -39,7 +43,6 @@ export class AudioNodeComponent {
         console.log(`[AudioNodeComponent] Initialized`);
     }
     public initialize(): void {
-
         // Initialisation des composants
         this.creationComponent = new CreationComponent(this);
         this.creationComponent.initialize();
@@ -62,8 +65,24 @@ export class AudioNodeComponent {
     public getNetworkAudioNodes(): Y.Map<AudioNodeState> {
         return this.networkAudioNodes
     }
-
     public getPositionMap(): Y.Map<NodeTransform> {
         return this.networkPositions;
+    }
+    public withLocalProcessing<T>(action: () => T): T {
+        this.isProcessingLocalEvent = true;
+        try {
+            return action();
+        } finally {
+            this.isProcessingLocalEvent = false;
+        }
+    }
+
+    public withNetworkProcessing<T>(action: () => T): T {
+        this.isProcessingYjsEvent = true;
+        try {
+            return action();
+        } finally {
+            this.isProcessingYjsEvent = false;
+        }
     }
 }
