@@ -24,12 +24,12 @@ export class DragParamNodeComp {
      */
     constructor(
         root: TransformNode,
-        draggable: AbstractMesh,
+        draggables: AbstractMesh[],
         highlightLayer: HighlightLayer,
         getName: () => string,
         getValue: () => number,
         setValue: (value: number) => void,
-        getStepSize: () => number,
+        getStepCount: () => number,
         stringify: (value: number) => string,
     ) {
 
@@ -69,9 +69,9 @@ export class DragParamNodeComp {
         /* Highlight visual */
         // Gère l'affichage de la surbrillance du paramètre
         const highlight = this.highlight = {
-            show(){ NodeCompUtils.highlight(highlightLayer, draggable, highlightColor) },
-            hide(){ NodeCompUtils.unhighlight(highlightLayer, draggable) },
-            dispose(){ NodeCompUtils.unhighlight(highlightLayer, draggable) },
+            show(){ for(const d of draggables) NodeCompUtils.highlight(highlightLayer, d, highlightColor) },
+            hide(){ for(const d of draggables) NodeCompUtils.unhighlight(highlightLayer, d) },
+            dispose(){ for(const d of draggables) NodeCompUtils.unhighlight(highlightLayer, d) },
         } 
         /* */
 
@@ -96,69 +96,76 @@ export class DragParamNodeComp {
 
         /* Shared functions */
         function updateText(){
-            const position = draggable.getAbsolutePosition().clone()
-            position.y += draggable.getBoundingInfo().boundingBox.extendSize.y*2
+            const position = draggables[0].getAbsolutePosition().clone()
+            position.y += draggables[0].getBoundingInfo().boundingBox.extendSize.y*2
             text.setPosition(position)
             text.set(getName() + "\n" + stringify(getValue()))
         }
         /* */
 
+        const disposables: (()=>void)[] = []
 
-        const action = draggable.actionManager ??= new ActionManager(root.getScene())
+        for(const draggable of draggables){
+            const action = draggable.actionManager ??= new ActionManager(root.getScene())
         
-        const onover = action.registerAction(new ExecuteCodeAction(ActionManager.OnPointerOverTrigger, () => {
-            updateText()
-            visual.offset(1)
-        }))!!
+            const _onover = action.registerAction(new ExecuteCodeAction(ActionManager.OnPointerOverTrigger, () => {
+                updateText()
+                visual.offset(1)
+            }))!!
 
-        const onout = action.registerAction(new ExecuteCodeAction(ActionManager.OnPointerOutTrigger, () => {
-            visual.offset(-1)
-        }))!!
+            const _onout = action.registerAction(new ExecuteCodeAction(ActionManager.OnPointerOutTrigger, () => {
+                visual.offset(-1)
+            }))!!
 
+            const drag = new SixDofDragBehavior()
+            drag.allowMultiPointer = false
+            drag.disableMovement = true
+            drag.rotateWithMotionController = false
+            drag.rotateDraggedObject = false
+            draggable.addBehavior(drag)
 
-        const drag = new SixDofDragBehavior()
-        drag.allowMultiPointer = false
-        drag.disableMovement = true
-        drag.rotateWithMotionController = false
-        drag.rotateDraggedObject = false
-        draggable.addBehavior(drag)
+    
+            let startingValue = 0
+            let stepSize = 0.01
+            let changeFactor = 0
+            drag.onDragStartObservable.add(() => {
+                visual.offset(1)
+                
+                startingValue = getValue()
+                const stepCount = getStepCount()
+                if(stepCount==0){
+                    stepSize = 0.001
+                    changeFactor = 0.2
+                }
+                else{
+                    stepSize = 1/stepCount
+                    changeFactor = stepSize*2
+                }
 
-   
-        let startingValue = 0
-        let stepSize = 0.01
-        let changeFactor = 0
-        drag.onDragStartObservable.add(() => {
-            visual.offset(1)
-            
-            startingValue = getValue()
-            stepSize = getStepSize()
-            if(stepSize==0){
-                stepSize = 0.001
-                changeFactor = 0.2
-            }
-            else{
-                changeFactor = stepSize*2
-            }
+            })
 
-        })
+            drag.onDragEndObservable.add(() => visual.offset(-1))
 
-        drag.onDragEndObservable.add(() => visual.offset(-1))
+            drag.onDragObservable.add((event: {delta: Vector3, position: Vector3, pickInfo: PickingInfo}): void => {
+                let newvalue = (startingValue + event.delta.y * changeFactor)
+                newvalue = newvalue - newvalue % stepSize
+                newvalue = Math.max(0, Math.min(1, newvalue))
+                setValue(newvalue)
+                draggable.rotationQuaternion = null
+                updateText()
+            })
 
-        drag.onDragObservable.add((event: {delta: Vector3, position: Vector3, pickInfo: PickingInfo}): void => {
-            let newvalue = (startingValue + event.delta.y * changeFactor)
-            newvalue = newvalue - newvalue % stepSize
-            newvalue = Math.max(0, Math.min(1, newvalue))
-            setValue(newvalue)
-            draggable.rotationQuaternion = null
-            updateText()
-        })
+            disposables.push(() => {
+                action.unregisterAction(_onover)
+                action.unregisterAction(_onout)
+                draggable.removeBehavior(drag)
+            })
+        }
 
         this.dispose = () => {
+            disposables.forEach(d => d())
             text.dispose()
             highlight.dispose()
-            draggable.removeBehavior(drag)
-            action.unregisterAction(onover)
-            action.unregisterAction(onout)
         }
     }
 

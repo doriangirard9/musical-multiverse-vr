@@ -19,37 +19,62 @@ export class ConnectionNodeComp {
     constructor(
         color: Color3,
         type: IOEvent['type'],
-        mesh: AbstractMesh,
+        meshes: AbstractMesh[],
         highlightLayer: HighlightLayer,
         node3d: AudioNode3D
     ) {
-        const action = mesh.actionManager ??= new ActionManager(mesh.getScene())
-        
-        const onover = action.registerAction(new ExecuteCodeAction(ActionManager.OnPointerOverTrigger, () => {
-            NodeCompUtils.highlight(highlightLayer, mesh, color)
-        }))!!
-        const onout = action.registerAction(new ExecuteCodeAction(ActionManager.OnPointerOutTrigger, () => {
-            NodeCompUtils.unhighlight(highlightLayer, mesh)
-        }))!!
-        
-        const onleftpick = action.registerAction(new ExecuteCodeAction(ActionManager.OnLeftPickTrigger, () => {
-            node3d.ioObservable.notifyObservers({ type, pickType: 'down', node: node3d });
-        }))!!
-        const onpickup = action.registerAction(new ExecuteCodeAction(ActionManager.OnPickUpTrigger, () => {
-            node3d.ioObservable.notifyObservers({ type, pickType: 'up', node: node3d });
-        }))!!
-        const onpickout = action.registerAction(new ExecuteCodeAction(ActionManager.OnPickOutTrigger, () => {
-            node3d.ioObservable.notifyObservers({ type, pickType: 'out', node: node3d });
-        }))!!
+        const disposes: (()=>void)[] = []
 
-        this.dispose = () => {
-            action.unregisterAction(onover)
-            action.unregisterAction(onout)
-            action.unregisterAction(onleftpick)
-            action.unregisterAction(onpickup)
-            action.unregisterAction(onpickout)
-            NodeCompUtils.unhighlight(highlightLayer, mesh)
+        let hovered = false
+
+        function hover(){
+            if(!hovered) {
+                hovered = true
+                for(const mesh of meshes) NodeCompUtils.highlight(highlightLayer, mesh, color)
+            }
         }
+
+        function unhover(){
+            if(hovered) {
+                hovered = false
+                for(const mesh of meshes) NodeCompUtils.unhighlight(highlightLayer, mesh)
+            }
+        }
+
+        function onleftpick(){
+            node3d.ioObservable.notifyObservers({ type, pickType: 'down', node: node3d });
+        }
+
+        function onpickup(){
+            node3d.ioObservable.notifyObservers({ type, pickType: 'up', node: node3d });
+        }
+
+        function onpickout(){
+            node3d.ioObservable.notifyObservers({ type, pickType: 'out', node: node3d });
+        }
+        
+
+        for(const mesh of meshes) {
+            const action = mesh.actionManager ??= new ActionManager(mesh.getScene())
+        
+            const _onover = action.registerAction(new ExecuteCodeAction(ActionManager.OnPointerOverTrigger, hover))!!
+            const _onout = action.registerAction(new ExecuteCodeAction(ActionManager.OnPointerOutTrigger, unhover))!!
+            
+            const _onleftpick = action.registerAction(new ExecuteCodeAction(ActionManager.OnLeftPickTrigger, onleftpick))!!
+            const _onpickup = action.registerAction(new ExecuteCodeAction(ActionManager.OnPickUpTrigger, onpickup))!!
+            const _onpickout = action.registerAction(new ExecuteCodeAction(ActionManager.OnPickOutTrigger, onpickout))!!
+
+            disposes.push(() => {
+                action.unregisterAction(_onover)
+                action.unregisterAction(_onout)
+                action.unregisterAction(_onleftpick)
+                action.unregisterAction(_onpickup)
+                action.unregisterAction(_onpickout)
+                unhover()
+            })
+        }
+
+        this.dispose = ()=> disposes.forEach(d => d())
     }
 
     declare dispose: () => void

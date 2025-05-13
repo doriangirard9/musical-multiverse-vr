@@ -41,62 +41,65 @@ export class Wam3DEditorNode extends AudioNode3D {
 
         this._wam_generator = await WamGUIGenerator.create_and_init(
             {
-                defineAnInput(settings) {
-                    const connection = new ConnectionNodeComp(
-                        B.Color3.Green(), 'input',
-                        settings.target, highlightLayer, node3d
-                    )
-                    node3d._input_audio_node = settings.node
-                    node3d.inputMesh = settings.target as B.Mesh
-                    node3d.disposables.push(connection)
-                },
-                defineAnOutput(settings) {
-                    const connection = new ConnectionNodeComp(
-                        B.Color3.Red(), 'output',
-                        settings.target, highlightLayer, node3d
-                    )
-                    node3d._output_audio_node = settings.node
-                    node3d.outputMesh = settings.target as B.Mesh
-                    node3d.disposables.push(connection)
-                },
-                defineAnEventInput(settings) {
-                    const connection = new ConnectionNodeComp(
-                        B.Color3.Green(), 'inputMidi',
-                        settings.target, highlightLayer, node3d
-                    )
-                    node3d._input_audio_node = settings.node
-                    node3d.inputMeshMidi = settings.target as B.Mesh
-                    node3d.disposables.push(connection)
-                },
-                defineAnEventOutput(settings) {
-                    const connection = new ConnectionNodeComp(
-                        B.Color3.Red(), 'outputMidi',
-                        settings.target, highlightLayer, node3d
-                    )
-                    node3d._output_audio_node = settings.node
-                    node3d.outputMeshMidi = settings.target as B.Mesh
-                    node3d.disposables.push(connection)
-                },
-                defineField(settings) {
-                    const parameter = new DragParamNodeComp(
-                        super_transform, settings.target, highlightLayer,
-                        settings.getName.bind(settings),
-                        settings.getValue.bind(settings),
-                        settings.setValue.bind(settings),
-                        settings.getStepSize.bind(settings),
-                        settings.stringify.bind(settings),
-                    )
-                    node3d.disposables.push(parameter)
+                babylonjs:{
+                    root: transform,
+                    defineAnInput(settings) {
+                        const connection = new ConnectionNodeComp(
+                            B.Color3.Green(), 'input',
+                            settings.target, highlightLayer, node3d
+                        )
+                        node3d._input_audio_node = settings.node
+                        node3d.inputMesh = settings.target[0] as B.Mesh
+                        node3d.disposables.push(connection)
+                    },
+                    defineAnOutput(settings) {
+                        const connection = new ConnectionNodeComp(
+                            B.Color3.Red(), 'output',
+                            settings.target, highlightLayer, node3d
+                        )
+                        node3d._output_audio_node = settings.node
+                        node3d.outputMesh = settings.target[0] as B.Mesh
+                        node3d.disposables.push(connection)
+                    },
+                    defineAnEventInput(settings) {
+                        const connection = new ConnectionNodeComp(
+                            B.Color3.Green(), 'inputMidi',
+                            settings.target, highlightLayer, node3d
+                        )
+                        node3d._input_audio_node = settings.node
+                        node3d.inputMeshMidi = settings.target[0] as B.Mesh
+                        node3d.disposables.push(connection)
+                    },
+                    defineAnEventOutput(settings) {
+                        const connection = new ConnectionNodeComp(
+                            B.Color3.Red(), 'outputMidi',
+                            settings.target, highlightLayer, node3d
+                        )
+                        node3d._output_audio_node = settings.node
+                        node3d.outputMeshMidi = settings.target[0] as B.Mesh
+                        node3d.disposables.push(connection)
+                    },
+                    defineField(settings) {
+                        const parameter = new DragParamNodeComp(
+                            super_transform, settings.target, highlightLayer,
+                            settings.getName.bind(settings),
+                            settings.getValue.bind(settings),
+                            settings.setValue.bind(settings),
+                            settings.getStepCount.bind(settings),
+                            settings.stringify.bind(settings),
+                        )
+                        node3d.disposables.push(parameter)
+                    },
+                    defineDraggableField(){}
                 }
             },
-            {babylonjs:transform as any},
             this.code, controls, this._audioCtx, hostGroupId
         )
         
 
         const size_factor = .25/this._wam_generator.calculateAverageControlSize()
+        console.log("size_factor", size_factor)
         transform!!.scaling.setAll(size_factor)
-        console.log(this._wam_generator.pad_node)
         
         const boundingBox = this._wam_generator.pad_node!! .getHierarchyBoundingVectors()
         const boundingblock = B.MeshBuilder.CreateBox('box', {
