@@ -72,6 +72,8 @@ export class PianoRoll3D extends Wam3D {
     // New properties for row navigation
     private _startRowIndex: number = 0; // Index of the first visible row
     private _visibleRowCount: number = 7; // Number of rows visible at one time
+    private colorBoxes: B.Mesh[] = [];
+
     // private displayedRows: number = 14; // Total number of rows (total notes)
     // private _noteLabels: B.Mesh[] = [];
     
@@ -306,18 +308,34 @@ export class PianoRoll3D extends Wam3D {
     for (let row = 0; row < this.rows; row++) {
         const isVisible = row >= this._startRowIndex && row < endRowIndex;
 
-        for (let col = 0; col < this.buttons[row].length; col++) {
-            const button = this.buttons[row][col];
+        // === Update the Keyboard (colorBox) as well ===
+        if (this.colorBoxes[row]) {
+            const colorBox = this.colorBoxes[row];
 
             if (isVisible) {
                 // Calculate the visual row index relative to the visible window
                 const visualRowIndex = row - this._startRowIndex;
 
-                // Centering logic:
-                // We want the visible rows to be centered in the middle of the baseMesh
+                // Centering logic for colorBox (the keyboard)
                 const centeredPosition = (visualRowIndex - visibleRangeCenter) * (this.buttonDepth + this.buttonSpacing);
 
                 // Apply the new position without modifying the original spacing
+                colorBox.position.z = centeredPosition;
+                colorBox.isVisible = true;
+            } else {
+                colorBox.isVisible = false;
+            }
+        }
+
+        // === Update the Main Grid Buttons ===
+        for (let col = 0; col < this.buttons[row].length; col++) {
+            const button = this.buttons[row][col];
+
+            if (isVisible) {
+                // Sync the button position with the visual index
+                const visualRowIndex = row - this._startRowIndex;
+                const centeredPosition = (visualRowIndex - visibleRangeCenter) * (this.buttonDepth + this.buttonSpacing);
+
                 button.position.z = centeredPosition;
                 button.isVisible = true;
             } else {
@@ -435,6 +453,7 @@ createGrid(): void {
   this.buttonMaterial = new B.StandardMaterial("buttonMaterial", this._scene);
   this.buttonMaterial.diffuseColor = new B.Color3(0.2, 0.6, 0.8);
   this.buttons = Array.from({ length: this.rows }, () => []);
+  this.colorBoxes = Array.from({ length: this.rows }, () => undefined as unknown as B.Mesh);
 
   for (let i = 0; i < this.rows; i++) {
       const isBlack = this.isBlackKeyFromNoteName(this.notes[i]);
@@ -453,6 +472,7 @@ createGrid(): void {
       const colorMaterial = new B.StandardMaterial(`colorBoxMaterial_${i}`, this._scene);
       colorMaterial.diffuseColor = isBlack ? new B.Color3(0.1, 0.1, 0.1) : new B.Color3(1, 1, 1);
       colorBox.material = colorMaterial;
+      this.colorBoxes[i] = colorBox;
 
       for (let j = 0; j < this.cols; j++) {
           const button = B.MeshBuilder.CreateBox(`button${i}_${j}`, {
