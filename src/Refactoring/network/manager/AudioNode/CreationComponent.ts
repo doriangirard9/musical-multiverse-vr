@@ -4,6 +4,7 @@ import {AudioNodeState} from "../../types.ts";
 import {Wam3D} from "../../../ConnecterWAM/Wam3D.ts";
 import {NodeTransform} from "../../../shared/SharedTypes.ts";
 import {AudioEventBus, AudioEventPayload} from "../../../eventBus/AudioEventBus.ts";
+import {MenuEventBus, MenuEventPayload} from "../../../eventBus/MenuEventBus.ts";
 
 export class CreationComponent {
     private readonly networkAudioNodes3D: Y.Map<AudioNodeState>;
@@ -12,6 +13,7 @@ export class CreationComponent {
     private readonly networkPositions: Y.Map<NodeTransform>;
 
     private audioEventBus = AudioEventBus.getInstance();
+    private menuEventBus = MenuEventBus.getInstance();
 
     constructor(parent: AudioNodeComponent) {
         this.networkAudioNodes3D = parent.getNetworkAudioNodes()

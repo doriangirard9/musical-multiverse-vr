@@ -11,6 +11,7 @@ import {IOManager} from "../iomanager/IOManager.ts";
 import {IOEventBus} from "../eventBus/IOEventBus.ts";
 import {ConnectionManager} from "../iomanager/ConnectionManager.ts";
 import {NetworkManager} from "../network/NetworkManager.ts";
+import {AudioNodeState} from "../network/types.ts";
 
 
 export class AppOrchestrator{
@@ -92,7 +93,10 @@ export class AppOrchestrator{
 
         this.MenuEventBus?.on('CREATE_AUDIO_NODE', async (payload) => {
             console.log(`Audio node created: ${payload.name}`);
-            await this.AudioManager?.createAudioNode3D(payload.name, payload.nodeId, payload.configFile);
+            const node = await this.AudioManager?.createAudioNode3D(payload.name, payload.nodeId, payload.configFile);
+            if (node) {
+                this.NetworkEventBus?.emit('SEND_NODE_TO_NETWORK', { state: state });
+            }
         });
         this.MenuEventBus?.on('CREATE_AUDIO_OUTPUT', async (payload) => {
             console.log(`Audio output created: ${payload.name}`);
