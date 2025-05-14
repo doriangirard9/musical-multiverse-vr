@@ -3,8 +3,7 @@ import {AudioNodeComponent} from "./AudioNodeComponent.ts";
 import {AudioNodeState} from "../../types.ts";
 import {Wam3D} from "../../../ConnecterWAM/Wam3D.ts";
 import {NodeTransform} from "../../../shared/SharedTypes.ts";
-import {AudioEventBus, AudioEventPayload} from "../../../eventBus/AudioEventBus.ts";
-import {MenuEventBus, MenuEventPayload} from "../../../eventBus/MenuEventBus.ts";
+import {AudioEventBus} from "../../../eventBus/AudioEventBus.ts";
 
 export class CreationComponent {
     private readonly networkAudioNodes3D: Y.Map<AudioNodeState>;
@@ -13,9 +12,10 @@ export class CreationComponent {
     private readonly networkPositions: Y.Map<NodeTransform>;
 
     private audioEventBus = AudioEventBus.getInstance();
-    private menuEventBus = MenuEventBus.getInstance();
+    private readonly parent: AudioNodeComponent;
 
     constructor(parent: AudioNodeComponent) {
+        this.parent = parent;
         this.networkAudioNodes3D = parent.getNetworkAudioNodes()
         this.localAudioNodes3D = parent.getAudioNodes();
         this.networkPositions = parent.getPositionMap();
@@ -33,6 +33,11 @@ export class CreationComponent {
 
     private setupNetworkObservers(): void {
         this.networkAudioNodes3D.observe((event) => {
+
+            if (this.parent.isProcessingLocalEvent) {
+                return;
+            }
+
             console.log(`[CreationComponent] AudioNode changes: ${JSON.stringify(event.changes.keys)}`);
             event.changes.keys.forEach((change, key) => {
                 this.handleAudioNodeChange(change, key);
@@ -65,6 +70,7 @@ export class CreationComponent {
                     state.position = position.position;
                     state.rotation = position.rotation;
                 }
+
                 this.audioEventBus.emit('REMOTE_AUDIO_NODE_ADDED',{state : state});
             }
         }
@@ -93,15 +99,16 @@ export class CreationComponent {
     }
 
     private handleLocalNodeCreated(payload: { state: AudioNodeState }): void {
-        // Ajouter le nœud à la map Y.js pour synchronisation
-        this.networkAudioNodes3D.set(payload.state.id, payload.state);
-
-        // Ajouter la position
-        this.networkPositions.set(payload.state.id, {
-            position: payload.state.position,
-            rotation: payload.state.rotation
+        // Utiliser withLocalProcessing pour éviter la boucle
+        this.parent.withLocalProcessing(() => {
+            this.networkAudioNodes3D.set(payload.state.id, payload.state);
+            this.networkPositions.set(payload.state.id, {
+                position: payload.state.position,
+                rotation: payload.state.rotation
+            });
         });
 
         console.log(`[AudioNodeComponent] Local node added to network: ${payload.state.id}`);
     }
+
 }

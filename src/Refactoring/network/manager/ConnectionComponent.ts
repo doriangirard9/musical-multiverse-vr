@@ -25,6 +25,7 @@ export class ConnectionComponent {
     private lastKnownPlayerIds = new Map<string, string>();
 
     // Maintenance de la connexion
+    //@ts-ignore
     private keepAliveInterval: NodeJS.Timeout | undefined;
     private readonly KEEP_ALIVE_INTERVAL = 15000; // 15 secondes
 

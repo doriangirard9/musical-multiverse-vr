@@ -89,6 +89,12 @@ export interface ParamUpdate {
     value: number;
 }
 
+export interface PortParam {
+    sourceId : string;
+    targetId : string;
+    portId : 'audioIn' | 'midiIn' | 'audioOut' | 'midiOut';
+}
+
 export type IParameter = {
     onValueChangedObservable: B.Observable<number>;
     setDirectValue(value: number): void;

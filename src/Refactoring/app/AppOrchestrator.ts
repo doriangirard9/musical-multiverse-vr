@@ -67,7 +67,6 @@ export class AppOrchestrator{
         this.audioEventBus?.on('POSITION_CHANGE', (payload) => {
             this.UIEventBus?.emit("WAM_POSITION_CHANGE", payload);
         });
-
     }
     private onUIEvent(): void {
         this.UIEventBus?.on('WAM_POSITION_CHANGE', (payload) => {
@@ -97,6 +96,7 @@ export class AppOrchestrator{
             if (node) {
                 const state = await node.getState()
                 this.audioEventBus?.emit('LOCAL_AUDIO_NODE_CREATED', { state: state });
+                this.NetworkManager!.getAudioNodeComponent().addAudioNode(node.id, node);
             }
         });
         this.MenuEventBus?.on('CREATE_AUDIO_OUTPUT', async (payload) => {

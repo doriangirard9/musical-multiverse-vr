@@ -30,7 +30,7 @@ export class NetworkManager {
 
         this.connectionManager = new ConnectionComponent(this._doc, this._id);
         this.playerManager = new PlayerComponent(this._doc, this._id);
-        this.audioNodeManager = new AudioNodeComponent(this._doc, this._id);
+        this.audioNodeManager = new AudioNodeComponent(this._doc);
 
         // Initialisation des composants
         this.audioNodeManager.initialize();
@@ -49,6 +49,10 @@ export class NetworkManager {
         if (this.playerManager) {
             this.playerManager.update(deltaTime);
         }
+    }
+
+    public getAudioNodeComponent(): AudioNodeComponent {
+        return this.audioNodeManager;
     }
 
 }
