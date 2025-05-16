@@ -7,7 +7,7 @@ import {Wam3D} from "./Wam3D.ts";
 import {StepSequencer3D} from "./StepSequencer3D.ts";
 import {RandomNote3D} from "./RandomNote3D.ts";
 import {Instrument3D} from "./Instrument3D.ts";
-import { PianoRoll3D } from "./PianoRoll3D.ts";
+import { PianoRoll3D } from "./PianoRoll/PianoRoll3D.ts";
 
 // const WAM_CONFIGS_URL: string = "https://wam-configs.onrender.com";
 const WAM_CONFIGS_URL: string = "http://localhost:3000";
