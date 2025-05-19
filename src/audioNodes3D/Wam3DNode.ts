@@ -98,7 +98,6 @@ export class Wam3DEditorNode extends AudioNode3D {
         
 
         const size_factor = .25/this._wam_generator.calculateAverageControlSize()
-        console.log("size_factor", size_factor)
         transform!!.scaling.setAll(size_factor)
         
         const boundingBox = this._wam_generator.pad_node!! .getHierarchyBoundingVectors()

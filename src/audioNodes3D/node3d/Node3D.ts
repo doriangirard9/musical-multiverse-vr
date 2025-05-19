@@ -1,5 +1,24 @@
+import { Node } from "@babylonjs/core"
+import { Node3DContext } from "./Node3DContext"
 
 
+
+/**
+ * Représente l'interface d'un Node3D.
+ */
+export interface Node3DGUI{
+    
+    root: Node
+
+    dispose(): Promise<void>
+
+}
+
+
+
+/**
+ * Représente un Node3D.
+ */
 export interface Node3D{
 
 
@@ -30,11 +49,35 @@ export interface Node3D{
      * Appelle cette fonction pour libérer les ressources utilisées par le Node3D.
      */
     dispose(): Promise<void>
+
+
+
+}
+
+
+
+/**
+ * Permet de créer un Node3D.
+ */
+export interface Node3DFactory<G extends Node3DGUI, T extends Node3D>{
+
+    /**
+     * Le nom du Node3D.
+     */
+    label: string
+
+    /**
+     * Crée l'interface graphique seule, peut être utilisée comme migniature d'un bouton.
+     */
+    createGUI(): Promise<G>
+
+    /**
+     * Crée le Node3D.
+     * @param context Le contexte du Node3D.
+     * @param gui L'interface graphique du Node3D.
+     */
+    create(context: Node3DContext, gui: G): Promise<T>
+
 }
 
 
-export interface Node3DFactory<T extends Node3D>{
-
-    create(): Promise<T>
-
-}

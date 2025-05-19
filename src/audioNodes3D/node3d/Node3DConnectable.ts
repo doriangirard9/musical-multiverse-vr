@@ -1,6 +1,7 @@
 import { AbstractMesh } from "@babylonjs/core"
 
 
+
 /**
  * Un objet connectable (entrée ou sortie) d'un Node3D, connectable à une sortie d'un autre Node3D.
  */
@@ -32,6 +33,11 @@ export interface Node3DConnectable{
      * On peut connecter uen entrée ou une sortie à un connectable bidirectionnel.
      */
     direction: 'input'|'output'|'bidirectional'
+
+    /**
+     * Le nom du connectable.
+     */
+    getLabel(): string
 
     /**
      * Appelé lorsque l'entrée est connectée à une sortie.

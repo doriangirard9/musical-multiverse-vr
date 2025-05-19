@@ -2,6 +2,8 @@ import * as BABYLON from "@babylonjs/core";
 import { Node3DParameter } from "./Node3DParameter";
 import { Node3DConnectable } from "./Node3DConnectable";
 
+
+
 /**
  * Représente le contexte d'un Node3D.
  * Implémenté par WAM Jam.
@@ -9,6 +11,8 @@ import { Node3DConnectable } from "./Node3DConnectable";
  */
 export interface Node3DContext{
 
+
+    
     //// Context ////
     /**
      * La bibliothèque BabylonJS.
@@ -89,7 +93,24 @@ export interface Node3DContext{
 
 
 
-    //// Menu ////
+    //// Menu et GUI ////
+    /**
+     * Ouvre un menu avec des boutons décorés d'un texte et d'une icône optionnelle.
+     * La fonction action est appelée lorsque le bouton est cliqué.
+     * La fonction action est appelée après que le menu soit fermé.
+     * @param choices Les choix du menu.
+     */
+    openMenu(choices: {label:string, icon?:BABYLON.Node, action:()=>void}[]): void
+
+    /**
+     * Ferme le menu ouvert actuellement. Si celui-ci a été ouvert par cette Node3D.
+     */
+    closeMenu(): void
+
+    /**
+     * Affiche un message dans textuelle à l'utilisateur.
+     */
+    showMessage(message: string): void
 
 
 
