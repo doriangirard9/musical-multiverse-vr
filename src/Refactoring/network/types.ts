@@ -1,4 +1,6 @@
 import {WamParameterDataMap} from "@webaudiomodules/api";
+import {Vector3} from "@babylonjs/core";
+import {Position3D} from "../shared/SharedTypes.ts";
 
 
 export interface INetworkObject<T> {
@@ -14,7 +16,11 @@ export type AudioNodeState = {
     rotation: { x: number, y: number, z: number };
     parameters: WamParameterDataMap;
 }
-
+export type AudioOutputState = {
+    id: string;
+    position: Position3D;
+    rotation: Position3D;
+}
 export type PlayerState = {
     id: string;
     position: { x: number, y: number, z: number };

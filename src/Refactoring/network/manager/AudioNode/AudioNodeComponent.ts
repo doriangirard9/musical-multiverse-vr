@@ -1,11 +1,13 @@
 import * as Y from 'yjs';
-import { AudioNodeState } from "../../types.ts";
+import {AudioNodeState, AudioOutputState} from "../../types.ts";
 import {NodeTransform, ParamUpdate, PortParam} from "../../../shared/SharedTypes.ts";
 import {PositionComponent} from "./PositionComponent.ts";
 import {Wam3D} from "../../../ConnecterWAM/Wam3D.ts";
 import {ParameterComponent} from "./ParameterComponent.ts";
 import {CreationComponent} from "./CreationComponent.ts";
 import {TubeComponent} from "./TubeComponent.ts";
+import {AudioOutputComponent} from "./AudioOutputComponent.ts";
+import {AudioOutput3D} from "../../../app/AudioOutput3D.ts";
 
 /**
  * Composant gérant les nœuds audio et leurs états.
@@ -19,10 +21,13 @@ export class AudioNodeComponent {
     private readonly networkPositions: Y.Map<NodeTransform>;
     private readonly networkParamUpdates: Y.Map<ParamUpdate>;
     private readonly networkConnections: Y.Map<PortParam>;
+    private readonly networkAudioOutputs: Y.Map<AudioOutputState>;
+
     private positionComponent!: PositionComponent;
     private parameterComponent!: ParameterComponent;
     private creationComponent!: CreationComponent;
     private tubeComponent!: TubeComponent;
+    private audioOutputComponent!: AudioOutputComponent;
 
     public isProcessingYjsEvent = false;
     public isProcessingLocalEvent = false;
@@ -36,6 +41,8 @@ export class AudioNodeComponent {
         this.networkPositions = doc.getMap('positions');
         this.networkParamUpdates = doc.getMap('paramUpdates');
         this.networkConnections = doc.getMap('connections');
+        this.networkAudioOutputs = doc.getMap('audioOutputs');
+
         this.setupEventListeners();
         console.log(`[AudioNodeComponent] Initialized`);
     }
@@ -52,6 +59,9 @@ export class AudioNodeComponent {
 
         this.tubeComponent = new TubeComponent(this);
         this.tubeComponent.initialize();
+
+        this.audioOutputComponent = new AudioOutputComponent(this);
+        this.audioOutputComponent.initialize();
 
 
     }
@@ -81,6 +91,12 @@ export class AudioNodeComponent {
     }
     public getNetworkParamUpdatesMap(): Y.Map<ParamUpdate> {
         return this.networkParamUpdates;
+    }
+    public getAudioOutputsMap(): Y.Map<AudioOutputState> {
+        return this.networkAudioOutputs;
+    }
+    public getAudioOutput(id: string): AudioOutput3D | undefined {
+        return this.audioOutputComponent.getAudioOutput(id);
     }
     public withLocalProcessing<T>(action: () => T): T {
         this.isProcessingLocalEvent = true;

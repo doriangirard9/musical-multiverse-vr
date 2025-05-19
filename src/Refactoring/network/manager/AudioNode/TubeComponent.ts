@@ -1,140 +1,85 @@
 import {AudioNodeComponent} from "./AudioNodeComponent.ts";
 import * as Y from "yjs";
 import {PortParam} from "../../../shared/SharedTypes.ts";
-import {AudioEventBus, AudioEventPayload} from "../../../eventBus/AudioEventBus.ts";
-import {AudioNodeState} from "../../types.ts";
+import {NetworkEventBus, NetworkEventPayload} from "../../../eventBus/NetworkEventBus.ts";
+import {IOEventBus} from "../../../eventBus/IOEventBus.ts";
 
 export class TubeComponent {
     private readonly parent: AudioNodeComponent;
     private readonly networkConnections: Y.Map<PortParam>;
-
-    private audioEventBus: AudioEventBus = AudioEventBus.getInstance();
+    private networkEventBus: NetworkEventBus = NetworkEventBus.getInstance();
+    private ioEventBus: IOEventBus = IOEventBus.getInstance();
 
     constructor(parent: AudioNodeComponent) {
         this.parent = parent;
+        this.networkConnections = parent.getNetworkConnections();
     }
 
     public initialize(): void {
-        this.networkConnections = this.parent.getNetworkConnections();
         this.setupEventListeners();
         this.setupNetworkObservers();
         console.log(`[TubeComponent] Initialized`);
     }
 
     private setupEventListeners(): void {
-        this.audioEventBus.on('CONNECT_NODES', (payload) => {
-            if (payload.source === 'user' && !this.parent.isProcessingYjsEvent) {
-                //this.withLocalProcessing(() => this.handleNodeConnection(payload));
-                console.log("[NetworkManager] Muted node connection event");
+        // Écouter les demandes de stockage de connexions
+        this.networkEventBus.on('STORE_CONNECTION_TUBE', (payload: NetworkEventPayload['STORE_CONNECTION_TUBE']) => {
+            if (!this.parent.isProcessingLocalEvent) {
+                this.parent.withLocalProcessing(() => this.storeConnection(payload));
             }
         });
-
-        this.audioEventBus.on('DISCONNECT_NODES', this.handleNodeDisconnection.bind(this));
     }
 
     private setupNetworkObservers(): void {
+        // Observer les changements dans la map Y.js
         this.networkConnections.observe((event) => {
             if (!this.parent.isProcessingLocalEvent) {
+                console.log("[TubeComponent] Network connection change detected");
                 this.parent.withNetworkProcessing(() => this.handleConnectionUpdates(event));
             }
         });
     }
 
-    private handleNodeConnection(payload: AudioEventPayload['CONNECT_NODES']): void {
-        // Check if the connection already exists in network storage
-        if (!this.isConnectionStoredInNetwork(payload.sourceId, payload.targetId, payload.isSrcMidi)) {
-            const connectionId = `${payload.sourceId}-${payload.targetId}-${Date.now()}`;
-            console.log('[NetworkManager] Storing new connection:', connectionId);
-            this._networkConnections.set(connectionId, {
-                sourceId: payload.sourceId,
-                targetId: payload.targetId,
-                isSrcMidi: payload.isSrcMidi
-            });
+    private storeConnection(payload: NetworkEventPayload['STORE_CONNECTION_TUBE']): void {
+        // Vérifier si la connexion existe déjà avant de la stocker
+        if (!this.isConnectionAlreadyStored(payload.portParam)) {
+            console.log('[TubeComponent] Storing connection:', payload.connectionId);
+            this.networkConnections.set(payload.connectionId, payload.portParam);
         } else {
-            console.log('[NetworkManager] Connection already stored in network:', {
-                sourceId: payload.sourceId,
-                targetId: payload.targetId,
-                isSrcMidi: payload.isSrcMidi
-            });
+            console.log('[TubeComponent] Connection already exists:', payload.connectionId);
         }
-
     }
 
-    private handleConnectionUpdates(event: Y.YMapEvent<{sourceId: string, targetId: string, isSrcMidi: boolean}>): void {
+    private handleConnectionUpdates(event: Y.YMapEvent<PortParam>): void {
+        // Notifier IOManager des changements depuis le réseau
         event.changes.keys.forEach((change, key) => {
             if (change.action === "add") {
-                const connection = this._networkConnections.get(key);
-                if (connection && !this.isConnectionExists(connection.sourceId, connection.targetId, connection.isSrcMidi)) {
-                    console.log('[NetworkManager] Processing new network connection:', connection);
-                    this.attemptConnection(connection);
-                } else if (connection) {
-                    console.log('[NetworkManager] Skipping existing connection:', connection);
+                const portParam = this.networkConnections.get(key);
+                if (portParam) {
+                    console.log('[TubeComponent] New connection from network:', key);
+                    this.ioEventBus.emit('NETWORK_CONNECTION_ADDED', {
+                        connectionId: key,
+                        portParam: portParam
+                    });
                 }
+            } else if (change.action === "delete") {
+                console.log('[TubeComponent] Connection removed from network:', key);
+                this.ioEventBus.emit('NETWORK_CONNECTION_REMOVED', {
+                    connectionId: key
+                });
             }
         });
     }
 
-    private async handleNodeDisconnection(payload: AudioEventPayload['DISCONNECT_NODES']): Promise<void> {
-        if (payload.source === 'network') return;
+    private isConnectionAlreadyStored(portParam: PortParam): boolean {
+        // Vérifier si une connexion similaire existe déjà
+        const connectionPrefix = `${portParam.sourceId}-${portParam.targetId}-${portParam.portId}`;
 
-        const sourceNode = this._audioNodes3D.get(payload.sourceId);
-        const targetNode = this._audioNodes3D.get(payload.targetId);
-
-        if (!sourceNode || !targetNode) return;
-
-        const sourceState = await sourceNode.getState();
-        const targetState = await targetNode.getState();
-        this.withLocalProcessing(() => {
-            this._networkAudioNodes3D.set(payload.sourceId, sourceState as AudioNodeState);
-            this._networkAudioNodes3D.set(payload.targetId, targetState as AudioNodeState);
-        });
-    }
-    private isConnectionExists(sourceId: string, targetId: string, isSrcMidi: boolean): boolean {
-        const sourceNode = this._audioNodes3D.get(sourceId);
-        const targetNode = this._audioNodes3D.get(targetId);
-
-        if (!sourceNode || !targetNode) {
-            return false;
-        }
-
-        // Check MIDI connections
-        if (isSrcMidi) {
-            return sourceNode.outputArcsMidi.some(arc =>
-                arc.inputNode.id === targetId && arc.outputNode.id === sourceId
-            ) || targetNode.inputArcsMidi.some(arc =>
-                arc.outputNode.id === sourceId && arc.inputNode.id === targetId
-            );
-        }
-
-        // Check audio connections
-        return sourceNode.outputArcs.some(arc =>
-            arc.inputNode.id === targetId && arc.outputNode.id === sourceId
-        ) || targetNode.inputArcs.some(arc =>
-            arc.outputNode.id === sourceId && arc.inputNode.id === targetId
-        );
-    }
-
-    private async attemptConnection(connection: {sourceId: string, targetId: string, isSrcMidi: boolean}, attempt = 0): Promise<void> {
-        const sourceNode = this._audioNodes3D.get(connection.sourceId);
-        const targetNode = this._audioNodes3D.get(connection.targetId);
-
-        if (sourceNode && targetNode) {
-            // Check if connection already exists before attempting to create it
-            if (!this.isConnectionExists(connection.sourceId, connection.targetId, connection.isSrcMidi)) {
-                this.eventBus.emit('APPLY_CONNECTION', connection);
-                return;
-            } else {
-                console.log(`Connection already exists between ${connection.sourceId} and ${connection.targetId}`);
-                return;
+        for (const [key, _] of this.networkConnections.entries()) {
+            if (key.startsWith(connectionPrefix)) {
+                return true;
             }
         }
-
-        if (attempt < NetworkManager.MAX_CONNECTION_ATTEMPTS) {
-            setTimeout(() => {
-                this.attemptConnection(connection, attempt + 1);
-            }, NetworkManager.CONNECTION_RETRY_DELAY);
-        } else {
-            console.warn('Failed to establish connection after max attempts:', connection);
-        }
+        return false;
     }
 }

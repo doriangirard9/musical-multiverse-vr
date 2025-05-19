@@ -1,6 +1,6 @@
 //ICI
 
-import {AudioNodeState} from "../network/types.ts";
+import {AudioNodeState, AudioOutputState} from "../network/types.ts";
 import {WamParameterDataMap} from "@webaudiomodules/api";
 
 import {XRManager} from "../xr/XRManager.ts";
@@ -19,6 +19,7 @@ import {
     Vector3
 } from "@babylonjs/core";
 import {IOEventBus} from "../eventBus/IOEventBus.ts";
+import {NetworkEventBus} from "../eventBus/NetworkEventBus.ts";
 
 export class AudioOutput3D extends AudioNode3D {
     private readonly _pannerNode: PannerNode;
@@ -71,6 +72,25 @@ export class AudioOutput3D extends AudioNode3D {
 
         // Initialiser la position audio
         this._updateAudioPosition();
+
+        const state: AudioOutputState = {
+            id: this.id,
+            position: {
+                x: this.boundingBox.position.x,
+                y: this.boundingBox.position.y,
+                z: this.boundingBox.position.z
+            },
+            rotation: {
+                x: this.boundingBox.rotation.x,
+                y: this.boundingBox.rotation.y,
+                z: this.boundingBox.rotation.z
+            }
+        };
+
+        NetworkEventBus.getInstance().emit('STORE_AUDIO_OUTPUT', {
+            audioOutputId: this.id,
+            state: state
+        });
     }
 
     /**
@@ -129,7 +149,20 @@ export class AudioOutput3D extends AudioNode3D {
         material.diffuseColor = new Color3(1, 0, 0);
         this.baseMesh.material = material;
     }
+    public setState(state: AudioOutputState): void {
+        this.boundingBox.position.x = state.position.x;
+        this.boundingBox.position.y = state.position.y;
+        this.boundingBox.position.z = state.position.z;
 
+        this.boundingBox.rotation.x = state.rotation.x;
+        this.boundingBox.rotation.y = state.rotation.y;
+        this.boundingBox.rotation.z = state.rotation.z;
+
+        this.baseMesh.position.copyFrom(this.boundingBox.position);
+        this.baseMesh.rotation.copyFrom(this.boundingBox.rotation);
+
+        this._updateAudioPosition();
+    }
     public getState(): Promise<AudioNodeState> {
         let parameters: WamParameterDataMap = {}
         let config: IAudioNodeConfig = {
