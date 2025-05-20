@@ -1,5 +1,3 @@
-//ICI
-
 import {AudioNodeState, AudioOutputState} from "../network/types.ts";
 import {WamParameterDataMap} from "@webaudiomodules/api";
 
@@ -20,6 +18,7 @@ import {
 } from "@babylonjs/core";
 import {IOEventBus} from "../eventBus/IOEventBus.ts";
 import {NetworkEventBus} from "../eventBus/NetworkEventBus.ts";
+import * as B from "@babylonjs/core";
 
 export class AudioOutput3D extends AudioNode3D {
     private readonly _pannerNode: PannerNode;
@@ -150,16 +149,16 @@ export class AudioOutput3D extends AudioNode3D {
         this.baseMesh.material = material;
     }
     public setState(state: AudioOutputState): void {
-        this.boundingBox.position.x = state.position.x;
-        this.boundingBox.position.y = state.position.y;
-        this.boundingBox.position.z = state.position.z;
-
-        this.boundingBox.rotation.x = state.rotation.x;
-        this.boundingBox.rotation.y = state.rotation.y;
-        this.boundingBox.rotation.z = state.rotation.z;
-
-        this.baseMesh.position.copyFrom(this.boundingBox.position);
-        this.baseMesh.rotation.copyFrom(this.boundingBox.rotation);
+        this.boundingBox.position = new B.Vector3(
+            state.position.x,
+            state.position.y,
+            state.position.z
+        );
+        this.boundingBox.rotation = new B.Vector3(
+            state.rotation.x,
+            state.rotation.y,
+            state.rotation.z
+        );
 
         this._updateAudioPosition();
     }

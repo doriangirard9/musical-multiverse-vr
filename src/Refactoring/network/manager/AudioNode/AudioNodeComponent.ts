@@ -8,6 +8,7 @@ import {CreationComponent} from "./CreationComponent.ts";
 import {TubeComponent} from "./TubeComponent.ts";
 import {AudioOutputComponent} from "./AudioOutputComponent.ts";
 import {AudioOutput3D} from "../../../app/AudioOutput3D.ts";
+import {AudioNode3D} from "../../../ConnecterWAM/AudioNode3D.ts";
 
 /**
  * Composant gérant les nœuds audio et leurs états.
@@ -97,6 +98,18 @@ export class AudioNodeComponent {
     }
     public getAudioOutput(id: string): AudioOutput3D | undefined {
         return this.audioOutputComponent.getAudioOutput(id);
+    }
+    public getNodeById(id: string): AudioNode3D | undefined {
+        // D'abord chercher dans les Wam3D
+        const wamNode = this.audioNodes.get(id);
+        if (wamNode) return wamNode;
+
+        // Puis chercher dans les AudioOutput3D
+        return this.audioOutputComponent.getAudioOutput(id);
+    }
+
+    public getAudioOutputComponent(){
+        return this.audioOutputComponent;
     }
     public withLocalProcessing<T>(action: () => T): T {
         this.isProcessingLocalEvent = true;

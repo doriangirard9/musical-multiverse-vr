@@ -201,32 +201,6 @@ export abstract class AudioNode3D implements INetworkObject<AudioNodeState> {
         this.boundingBox.rotation = new B.Vector3(state.rotation.x, state.rotation.y, state.rotation.z);
         // this.baseMesh.position = new B.Vector3(this.boundingBox.position.x, this.boundingBox.position.y, this.boundingBox.position.z);
         // this.baseMesh.rotation = new B.Vector3(this.boundingBox.rotation.x, this.boundingBox.rotation.y, this.boundingBox.rotation.z);
-        for (const id of state.inputNodes) {
-            const inputNode: AudioNode3D | undefined = NetworkManager.getInstance().getAudioNode3D(id);
-            if (!this.inputNodes.has(id) && inputNode) {
-                //this._app.ioManager.connectNodes(this, inputNode);
-                AudioEventBus.getInstance().emit('CONNECT_NODES', {
-                    sourceId: this.id,
-                    targetId: id,
-                    isSrcMidi: false,
-                    source: 'user'
-                })
-            }
-
-        }
-        for (const id of state.inputNodesMidi) {
-            const inputNodeMidi: AudioNode3D | undefined = NetworkManager.getInstance().getAudioNode3D(id);
-            if (!this.inputNodesMidi.has(id) && inputNodeMidi) {
-                //this._app.ioManager.connectNodesMidi(this, inputNodeMidi);
-                AudioEventBus.getInstance().emit('CONNECT_NODES', {
-                    sourceId: this.id,
-                    targetId: id,
-                    isSrcMidi: true,
-                    source: 'user'
-                })
-            }
-        }
-
     }
     public updatePosition(position: B.Vector3, rotation: B.Vector3): void {
         this.boundingBox.position = position;

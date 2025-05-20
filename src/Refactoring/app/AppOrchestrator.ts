@@ -100,8 +100,10 @@ export class AppOrchestrator{
             }
         });
         this.MenuEventBus?.on('CREATE_AUDIO_OUTPUT', async (payload) => {
-            console.log(`Audio output created: ${payload.name}`);
-            await this.AudioManager?.createAudioOutput3D(payload.nodeId)
+            const node = await this.AudioManager?.createAudioOutput3D(payload.nodeId);
+            if (node) {
+                this.NetworkManager?.getAudioNodeComponent().getAudioOutputComponent().addAudioOutput(node.id, node);
+            }
         })
     }
 

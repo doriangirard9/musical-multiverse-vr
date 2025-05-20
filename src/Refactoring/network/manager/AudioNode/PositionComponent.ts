@@ -109,7 +109,9 @@ export class PositionComponent {
                 const newValue = event.target.get(key);
 
                 if (newValue) {
-                    const node = this.parent.getAudioNode(key);
+                    // Utiliser la nouvelle méthode getNodeById
+                    const node = this.parent.getNodeById(key);
+
                     if (node) {
                         node.updatePosition(
                             new B.Vector3(

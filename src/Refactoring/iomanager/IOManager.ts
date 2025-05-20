@@ -6,6 +6,7 @@ import { ConnectionManager } from "./ConnectionManager.ts";
 import {NetworkEventBus} from "../eventBus/NetworkEventBus.ts";
 import {NetworkManager} from "../network/NetworkManager.ts";
 import {AudioManager} from "../app/AudioManager.ts";
+import {AudioOutput3D} from "../app/AudioOutput3D.ts";
 
 export class IOManager {
     private _messageManager: MessageManager;
@@ -61,10 +62,22 @@ export class IOManager {
 
     private async handleNetworkAudioOutputAdded(payload: IOEventPayload['NETWORK_AUDIO_OUTPUT_ADDED']): Promise<void> {
         const { audioOutputId, state } = payload;
-        console.log(`[IOManager] Adding network audio output: ${audioOutputId}`);
-        const node = await AudioManager.getInstance().createAudioOutput3D(audioOutputId)
-        await node.instantiate()
-        node.setState(state)
+
+        // Vérifier si l'AudioOutput3D existe déjà
+        const existingNode = NetworkManager.getInstance().getAudioNodeComponent().getNodeById(audioOutputId);
+
+        if (existingNode) {
+            // S'il existe déjà, mettre à jour son état
+            existingNode.setState(state)
+            return;
+        }
+
+        // Créer un nouvel AudioOutput3D
+        const node = await AudioManager.getInstance().createAudioOutput3D(audioOutputId);
+        node.setState(state);
+
+        // Enregistrer dans la collection d'AudioOutputComponent
+        NetworkManager.getInstance().getAudioNodeComponent().getAudioOutputComponent().addAudioOutput(audioOutputId, node);
     }
 
     /**
