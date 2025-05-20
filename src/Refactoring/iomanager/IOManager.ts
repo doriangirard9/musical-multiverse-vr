@@ -68,6 +68,7 @@ export class IOManager {
 
         if (existingNode) {
             // S'il existe déjà, mettre à jour son état
+            //@ts-ignore
             existingNode.setState(state)
             return;
         }
@@ -87,48 +88,74 @@ export class IOManager {
         const { connectionId, portParam } = payload;
         console.log(`[IOManager] Creating connection from network: ${connectionId}`);
 
-        // Retrouver les nœuds dans AudioNodeComponent
         const audioNodeComponent = NetworkManager.getInstance().getAudioNodeComponent();
-        const sourceNode = audioNodeComponent.getAudioNode(portParam.sourceId);
-        const targetNode = audioNodeComponent.getAudioNode(portParam.targetId);
 
-        if (!sourceNode || !targetNode) {
-            console.warn(`[IOManager] Nodes not found for connection:`, {
-                sourceId: portParam.sourceId,
-                targetId: portParam.targetId,
-                sourceFound: !!sourceNode,
-                targetFound: !!targetNode
-            });
+        const sourceNode = audioNodeComponent.getAudioNode(portParam.sourceId);
+        if (!sourceNode) {
+            console.warn(`[IOManager] Source node not found: ${portParam.sourceId}`);
             return;
         }
 
-        // Déterminer les ports d'entrée et de sortie
-        const outputPortId = portParam.portId;
-        const inputPortId = this.getCorrespondingInputPort(outputPortId);
+        const outputPortMesh = sourceNode.getPortMesh(portParam.portId);
+        if (!outputPortMesh) {
+            console.warn(`[IOManager] Output port mesh not found on source node`);
+            return;
+        }
 
-        // Obtenir les meshes des ports
-        const outputPortMesh = sourceNode.getPortMesh(outputPortId);
-        const inputPortMesh = targetNode.getPortMesh(inputPortId);
+        const targetWam = audioNodeComponent.getAudioNode(portParam.targetId);
+        const targetAudioOutput = targetWam ? null :
+            audioNodeComponent.getAudioOutputComponent().getAudioOutput(portParam.targetId);
 
-        if (outputPortMesh && inputPortMesh) {
-            // Créer la connexion visuelle
+        if (!targetWam && !targetAudioOutput) {
+            console.warn(`[IOManager] Target node not found: ${portParam.targetId}`);
+            return;
+        }
+
+        if (targetWam) {
+            const inputPortId = this.getCorrespondingInputPort(portParam.portId);
+            const inputPortMesh = targetWam.getPortMesh(inputPortId);
+
+            if (!inputPortMesh) {
+                console.warn(`[IOManager] Input port mesh not found on target WAM`);
+                return;
+            }
+
             this.connectionManager.createConnectionArc(
                 connectionId,
                 outputPortMesh,
                 sourceNode.id,
                 inputPortMesh,
-                targetNode.id
+                targetWam.id
             );
 
-            // Connecter les ports audio/MIDI
-            sourceNode.connectPorts(outputPortId, targetNode, inputPortId);
-
-            console.log(`[IOManager] Network connection created: ${connectionId}`);
+            sourceNode.connectPorts(portParam.portId, targetWam, inputPortId);
+            console.log(`[IOManager] WAM-to-WAM connection created: ${connectionId}`);
         } else {
-            console.error("[IOManager] Failed to get port meshes for network connection");
+
+            const audioOutputMesh = targetAudioOutput!.getPortMesh();
+
+            if (!audioOutputMesh) {
+                console.warn(`[IOManager] Audio output mesh not found`);
+                return;
+            }
+
+            this.connectionManager.createConnectionArc(
+                connectionId,
+                outputPortMesh,
+                sourceNode.id,
+                audioOutputMesh,
+                targetAudioOutput!.id
+            );
+
+            const sourceWamAudioNode = sourceNode.getAudioNode();
+            const targetAudioNode = targetAudioOutput!.getAudioNode();
+
+            if (sourceWamAudioNode && targetAudioNode) {
+                sourceWamAudioNode.connect(targetAudioNode);
+                console.log(`[IOManager] WAM-to-AudioOutput connection created: ${connectionId}`);
+            }
         }
     }
-
     /**
      * Gère la suppression d'une connexion depuis le réseau
      */
@@ -271,8 +298,6 @@ export class IOManager {
                         const targetAudioOutputNode = audioOutput.getAudioNode();
 
                         if (sourceWamAudioNode && targetAudioOutputNode) {
-                            sourceWamAudioNode.connect(targetAudioOutputNode);
-
                             const outputPortMesh = this._outputNode.getPortMesh(this._outputPortId);
                             const audioOutputMesh = audioOutput.getPortMesh();
                             if (outputPortMesh && audioOutputMesh) {
@@ -284,6 +309,15 @@ export class IOManager {
                                     audioOutputMesh,
                                     audioOutput.id
                                 );
+                                sourceWamAudioNode.connect(targetAudioOutputNode);
+                                this.networkEventBus.emit('STORE_CONNECTION_TUBE',{
+                                    connectionId: connectionId,
+                                    portParam: {
+                                        sourceId: this._outputNode.id,
+                                        targetId: audioOutput.id,
+                                        portId: this._outputPortId,
+                                    }
+                                })
                             }
                             console.log("[IOManager] Connected", this._outputNode.id, "to audio output", audioOutput.id);
                         } else {
