@@ -249,8 +249,6 @@ export class Wam3D extends AudioNode3D{
             name: this._config.name,
             position: {x: this.boundingBox.position.x, y: this.boundingBox.position.y, z: this.boundingBox.position.z},
             rotation: {x: this.boundingBox.rotation.x, y: this.boundingBox.rotation.y, z: this.boundingBox.rotation.z},
-            inputNodes: inputNodes,
-            inputNodesMidi:inputNodesMidi,
             parameters: params
         };
     }
@@ -266,6 +264,16 @@ export class Wam3D extends AudioNode3D{
             state.rotation.y,
             state.rotation.z
         );
+
+        if (state.parameters) {
+            console.log(`[Wam3D] Applying parameters to node ${this.id}:`, state.parameters);
+
+            // Appliquer chaque paramètre individuellement
+            for (const paramId in state.parameters) {
+                const param = state.parameters[paramId];
+                this.updateSingleParameter(paramId, param.value);
+            }
+        }
     }
 
     public async updateSingleParameter(paramId: string, value: number): Promise<void> {

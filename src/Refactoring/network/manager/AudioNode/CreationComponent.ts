@@ -65,13 +65,31 @@ export class CreationComponent {
             const state = this.networkAudioNodes3D.get(key);
             if (state) {
                 console.log(`[CreationComponent] AudioNode state: ${JSON.stringify(state)}`);
+
+                // Récupérer la position depuis networkPositions si disponible
                 const position = this.networkPositions.get(key);
                 if (position) {
                     state.position = position.position;
                     state.rotation = position.rotation;
                 }
 
-                this.audioEventBus.emit('REMOTE_AUDIO_NODE_ADDED',{state : state});
+                // S'assurer que les paramètres sont inclus dans l'événement
+                // C'est crucial pour que les nouveaux clients reçoivent les bons paramètres
+                this.audioEventBus.emit('REMOTE_AUDIO_NODE_ADDED', { state: state });
+
+                // Après la création du nœud, vérifier s'il a été correctement ajouté et appliquer les paramètres
+                setTimeout(() => {
+                    const node = this.localAudioNodes3D.get(key);
+                    if (node && state.parameters) {
+                        console.log(`[CreationComponent] Applying parameters to newly created node ${key}:`, state.parameters);
+
+                        // Appliquer chaque paramètre individuellement
+                        for (const paramId in state.parameters) {
+                            const param = state.parameters[paramId];
+                            node.updateSingleParameter(paramId, param.value);
+                        }
+                    }
+                }, 100); // Petit délai pour s'assurer que le nœud est bien initialisé
             }
         }
     }

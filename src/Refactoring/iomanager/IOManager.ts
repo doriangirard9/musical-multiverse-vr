@@ -6,7 +6,6 @@ import { ConnectionManager } from "./ConnectionManager.ts";
 import {NetworkEventBus} from "../eventBus/NetworkEventBus.ts";
 import {NetworkManager} from "../network/NetworkManager.ts";
 import {AudioManager} from "../app/AudioManager.ts";
-import {AudioOutput3D} from "../app/AudioOutput3D.ts";
 
 export class IOManager {
     private _messageManager: MessageManager;
@@ -62,22 +61,16 @@ export class IOManager {
 
     private async handleNetworkAudioOutputAdded(payload: IOEventPayload['NETWORK_AUDIO_OUTPUT_ADDED']): Promise<void> {
         const { audioOutputId, state } = payload;
-
-        // Vérifier si l'AudioOutput3D existe déjà
         const existingNode = NetworkManager.getInstance().getAudioNodeComponent().getNodeById(audioOutputId);
 
         if (existingNode) {
-            // S'il existe déjà, mettre à jour son état
             //@ts-ignore
             existingNode.setState(state)
             return;
         }
 
-        // Créer un nouvel AudioOutput3D
         const node = await AudioManager.getInstance().createAudioOutput3D(audioOutputId);
         node.setState(state);
-
-        // Enregistrer dans la collection d'AudioOutputComponent
         NetworkManager.getInstance().getAudioNodeComponent().getAudioOutputComponent().addAudioOutput(audioOutputId, node);
     }
 
@@ -208,7 +201,6 @@ export class IOManager {
                     this._outputNode = data.node;
                     this._outputPortId = data.portId;
                 }
-                // Start preview for the port
                 this.connectionManager.startConnectionPreview(data.node, data.portId);
                 break;
 
@@ -253,7 +245,6 @@ export class IOManager {
                                 actualInputNode.id
                             );
 
-                            // Stocker dans le réseau (Y.js)
                             this.networkEventBus.emit('STORE_CONNECTION_TUBE', {
                                 connectionId: connectionId,
                                 portParam: {
