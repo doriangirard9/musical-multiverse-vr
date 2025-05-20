@@ -10,7 +10,6 @@ import {AudioOutputComponent} from "./AudioOutputComponent.ts";
 import {AudioOutput3D} from "../../../app/AudioOutput3D.ts";
 import {AudioNode3D} from "../../../ConnecterWAM/AudioNode3D.ts";
 import {ConnectionQueueManager} from "../ConnectionQueueManager.ts";
-import {WamParameterDataMap} from "@webaudiomodules/api";
 
 /**
  * Composant gérant les nœuds audio et leurs états.
@@ -23,7 +22,6 @@ export class AudioNodeComponent {
     private readonly networkAudioNodes: Y.Map<AudioNodeState>;
     private readonly networkPositions: Y.Map<NodeTransform>;
     private readonly networkParamUpdates: Y.Map<ParamUpdate>;
-    private readonly nodeParameterStates: Y.Map<WamParameterDataMap>;
     private readonly networkConnections: Y.Map<PortParam>;
     private readonly networkAudioOutputs: Y.Map<AudioOutputState>;
 
@@ -45,7 +43,6 @@ export class AudioNodeComponent {
         this.networkAudioNodes = doc.getMap('audioNodes');
         this.networkPositions = doc.getMap('positions');
         this.networkParamUpdates = doc.getMap('paramUpdates');
-        this.nodeParameterStates = doc.getMap('nodeParameterStates');
         this.networkConnections = doc.getMap('connections');
         this.networkAudioOutputs = doc.getMap('audioOutputs');
 

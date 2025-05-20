@@ -41,6 +41,21 @@ export class ParameterComponent {
 
     private handleParamChange(payload: AudioEventPayload['PARAM_CHANGE']): void {
         const {nodeId, paramId, value} = payload;
+
+        const nodeState = this.parent.getNetworkAudioNodes().get(nodeId);
+        if (nodeState && nodeState.parameters) {
+            if (!nodeState.parameters[paramId]) {
+                nodeState.parameters[paramId] = {
+                    id: paramId,
+                    value: value,
+                    normalized: false
+                };
+            } else {
+                nodeState.parameters[paramId].value = value;
+            }
+            this.parent.getNetworkAudioNodes().set(nodeId, nodeState);
+        }
+
         const update: ParamUpdate = {nodeId, paramId, value: value};
         const key = `${nodeId}-${paramId}-${Date.now()}`;
         console.log("Sending param update:", update);
