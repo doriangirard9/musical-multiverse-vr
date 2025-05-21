@@ -1,10 +1,14 @@
-import {App} from "./App.ts";
+import {NewApp} from "./Refactoring/app/NewApp.ts";
 
 const audioCtx: AudioContext = new AudioContext();
 
 let onload = (): void => {
-    const app: App = App.getInstance(audioCtx);
-    app.startScene();
+    const newApp: NewApp = NewApp.getInstance(audioCtx);
+    newApp.start().then(() => {
+        console.log("NewApp started");
+    }).catch((error) => {
+        console.error("Error starting NewApp:", error);
+    });
 }
 
 if(document.readyState === "complete") onload()
