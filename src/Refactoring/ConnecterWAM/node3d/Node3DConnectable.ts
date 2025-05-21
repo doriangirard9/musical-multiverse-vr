@@ -1,4 +1,4 @@
-import { AbstractMesh } from "@babylonjs/core"
+import { AbstractMesh, Color3 } from "@babylonjs/core"
 
 
 
@@ -17,7 +17,7 @@ export interface Node3DConnectable{
      * On clique dessus et le drag pour le connecter à une sortie si c'est une entrée.
      * On peut aussi draguer vers lui poyr y connecter une entrée si c'est une sortie.
      */
-    mesh: AbstractMesh[]
+    meshes: AbstractMesh[]
 
     /**
      * Un identifiant qui indique le type de connexion.
@@ -30,6 +30,13 @@ export interface Node3DConnectable{
      * Si il n'est pas défini, il n'y a pas de limite.
      */
     max_connections?: number
+
+    /**
+     * La couleur de la connexion.
+     * Pour un type de connexion particulier, une seule couleur est choisie donc
+     * cette couleur peut être ignorée.
+     */
+    color: Color3
     
     /**
      * Si le connectable est une entrée ou une sortie.

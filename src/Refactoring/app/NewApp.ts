@@ -3,7 +3,7 @@ import {WamInitializer} from "./WamInitializer.ts";
 import {AppOrchestrator} from "./AppOrchestrator.ts";
 import {XRManager} from "../xr/XRManager.ts";
 import {AudioManager} from "./AudioManager.ts";
-import { Node3DInstance } from "../ConnecterWAM/node3d/Node3DInstance.ts";
+import { Node3DInstance } from "../ConnecterWAM/node3d/instance/Node3DInstance.ts";
 import { TestN3DFactory } from "../ConnecterWAM/node3d/subs/TestN3D.ts";
 import { UIManager } from "./UIManager.ts";
 

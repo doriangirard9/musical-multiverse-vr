@@ -1,10 +1,15 @@
-import { AbstractMesh, ActionManager, Color3, ExecuteCodeAction, HighlightLayer } from "@babylonjs/core";
-import { NodeCompUtils } from "./NodeCompUtils";
+import { ActionManager, ExecuteCodeAction, HighlightLayer } from "@babylonjs/core";
+import { NodeCompUtils } from "../../components/NodeCompUtils";
+import { Node3DConnectable } from "../Node3DConnectable";
+import { Node3DInstance } from "./Node3DInstance";
+import { IOEventBus } from "../../../eventBus/IOEventBus";
 
 /**
  * A simple connection node that is used to connect to other nodes.
  */
-export class WamPortNodeComp {
+export class Node3DConnectableInstance {
+
+    public connectionCount = 0
 
     /**
      * 
@@ -15,15 +20,16 @@ export class WamPortNodeComp {
      * @param node3d The AudioNode3D that this connection node belongs to.
      */
     constructor(
-        color: Color3,
-        type: IOEvent['type'],
-        meshes: AbstractMesh[],
+        readonly instance: Node3DInstance,
+        readonly config: Node3DConnectable,
         highlightLayer: HighlightLayer,
-        node3d: AudioNode3D
+        ioEventBus: IOEventBus,
     ) {
         const disposes: (()=>void)[] = []
 
         let hovered = false
+
+        const {color, meshes} = config
 
         function hover(){
             if(!hovered) {
@@ -40,17 +46,16 @@ export class WamPortNodeComp {
         }
 
         function onleftpick(){
-            node3d.ioObservable.notifyObservers({ type, pickType: 'down', node: node3d });
+            ioEventBus.emit('IO_CONNECT_NODE3D', { pickType : "down", connectable: config, instance })
         }
 
         function onpickup(){
-            node3d.ioObservable.notifyObservers({ type, pickType: 'up', node: node3d });
+            ioEventBus.emit('IO_CONNECT_NODE3D', { pickType : "up", connectable: config, instance })
         }
 
         function onpickout(){
-            node3d.ioObservable.notifyObservers({ type, pickType: 'out', node: node3d });
+            ioEventBus.emit('IO_CONNECT_NODE3D', { pickType : "out", connectable: config, instance })
         }
-        
 
         for(const mesh of meshes) {
             const action = mesh.actionManager ??= new ActionManager(mesh.getScene())

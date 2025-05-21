@@ -1,6 +1,6 @@
 import { AbstractMesh, ActionManager, Axis, Color3, ExecuteCodeAction, HighlightLayer, MeshBuilder, PickingInfo, SixDofDragBehavior, Space, TransformNode, Vector3 } from "@babylonjs/core"
 import { AdvancedDynamicTexture, TextBlock } from "@babylonjs/gui"
-import { NodeCompUtils } from "./NodeCompUtils"
+import { NodeCompUtils } from "../../components/NodeCompUtils"
 
 const highlightColor = Color3.Blue()
 
@@ -9,7 +9,7 @@ const highlightColor = Color3.Blue()
 /**
  * A simple parameter whose value is changed by dragging it.
  */
-export class DragParamNodeComp {
+export class Node3DParameterInstance {
 
     /**
      * 

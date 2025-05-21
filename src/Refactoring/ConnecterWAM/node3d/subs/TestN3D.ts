@@ -39,7 +39,7 @@ export class TestN3D implements Node3D{
 
         context.createParameter({
             id: "testValue",
-            mesh:[gui.sphere],
+            meshes:[gui.sphere],
             getLabel(){ return "Testing Value" },
             getStepCount(){ return 4 },
             getValue(){ return node.testValue },

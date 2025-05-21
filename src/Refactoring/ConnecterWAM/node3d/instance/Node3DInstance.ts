@@ -1,13 +1,13 @@
 import { Scene, TransformNode, AbstractMesh, Mesh, MeshBuilder, HighlightLayer } from "@babylonjs/core";
-import { Node3DConnectable } from "./Node3DConnectable";
-import { Node3DParameter } from "./Node3DParameter";
-import { Node3D, Node3DFactory, Node3DGUI } from "./Node3D";
-import { AudioNode3D } from "../AudioNode3D";
-import { AudioNodeState } from "../../network/types";
-import { BoundingBox } from "../../boundingBox/BoundingBox";
-import { DragParamNodeComp } from "../components/DragParamNodeComp";
-import { UIManager } from "../../app/UIManager";
-import { SimpleMenu } from "../../menus/SimpleMenu";
+import { Node3DConnectable } from "../Node3DConnectable";
+import { Node3DParameter } from "../Node3DParameter";
+import { Node3D, Node3DFactory, Node3DGUI } from "../Node3D";
+import { AudioNode3D } from "../../AudioNode3D";
+import { AudioNodeState } from "../../../network/types";
+import { BoundingBox } from "../../../boundingBox/BoundingBox";
+import { UIManager } from "../../../app/UIManager";
+import { SimpleMenu } from "../../../menus/SimpleMenu";
+import { Node3DParameterInstance } from "./Node3DParameterInstance";
 
 export class Node3DInstance extends AudioNode3D{
 
@@ -24,7 +24,7 @@ export class Node3DInstance extends AudioNode3D{
 
     private declare gui: Node3DGUI
     private declare node: Node3D
-    private parameter_map = new Map<string, DragParamNodeComp>()
+    private parameter_map = new Map<string, Node3DParameterInstance>()
     private declare root_transform: TransformNode
     private menu = null as null|SimpleMenu
 
@@ -54,9 +54,9 @@ export class Node3DInstance extends AudioNode3D{
 
             // Les paramètres draggables
             createParameter(info: Node3DParameter){
-                const param = new DragParamNodeComp(
+                const param = new Node3DParameterInstance(
                     instance.root_transform,
-                    info.mesh,
+                    info.meshes,
                     highlightLayer,
                     info.getLabel.bind(info),
                     info.getValue.bind(info),

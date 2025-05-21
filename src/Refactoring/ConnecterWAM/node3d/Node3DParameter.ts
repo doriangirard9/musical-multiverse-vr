@@ -14,7 +14,7 @@ export interface Node3DParameter{
      * Représente le paramètre dans la scène 3D.
      * Il est draggable.
      */
-    mesh: AbstractMesh[]
+    meshes: AbstractMesh[]
 
     /**
      * Change la valeur du paramètre. Entre 0 et 1.
