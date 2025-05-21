@@ -12,6 +12,7 @@ import * as GUI from "@babylonjs/gui";
 import { log } from "tone/build/esm/core/util/Debug";
 import { start } from "tone";
 import { PianoRollSettingsMenu } from "./PianoRollSettingsMenu.ts";
+import { CommonShadowLightPropertyGridComponent } from "@babylonjs/inspector/components/actionTabs/tabs/propertyGrids/lights/commonShadowLightPropertyGridComponent";
 interface PatternNote {
   tick: number;
   number: number;
@@ -301,8 +302,40 @@ export class PianoRoll3D extends Wam3D {
       this.createGrid();
       this._updateRowVisibility();
       console.log(`Grid updated with ${newRowCount} rows.`);
-  }
-  
+      this.initActions()  
+    }
+
+  public setColumns(newColumnCount: number): void {
+    // Clear existing buttons from the scene
+    this.buttons.forEach(row => {
+        row.forEach(button => button.dispose());
+    });
+
+    // Clear existing colorBoxes
+      this.colorBoxes.forEach(colorBox => {
+        colorBox.dispose();
+    });
+
+    // Update the column count
+    this.cols = newColumnCount;
+
+    // Recalculate grid boundaries
+    this.startX = -(this.cols - 1) / 2 * (this.buttonWidth + this.buttonSpacing);
+    this.endX = (this.cols - 1) / 2 * (this.buttonWidth + this.buttonSpacing);
+
+    // change width this.mesh without scaling
+    this.baseMesh.scaling.x = (this.endX - this.startX) / this.baseMesh.getBoundingInfo().boundingBox.extendSize.x;
+    // Recreate the grid with the new number of columns
+    this.createGrid();
+    this._updateRowVisibility();
+    console.log(`Grid updated with ${newColumnCount} columns.`);
+
+    // Update the playhead to span the new grid
+    if (this.playhead) {
+        this.playhead.position.x = this.getStartX();
+    }
+this.initActions()}
+
 
     protected _createBaseMesh(): void {
         this.baseMesh = B.MeshBuilder.CreateBox('box', {          

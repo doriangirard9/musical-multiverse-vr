@@ -1,10 +1,11 @@
 import * as B from "@babylonjs/core";
 import * as GUI from "@babylonjs/gui";
+import { PianoRoll3D } from "./PianoRoll3D";
 
 export class PianoRollSettingsMenu {
     private readonly _manager: GUI.GUI3DManager;
     private _menu: GUI.NearMenu | null = null;
-    private readonly _parent: any;
+    private readonly _parent: PianoRoll3D;
 
     constructor(scene: B.Scene, parent: any) {
         this._manager = new GUI.GUI3DManager(scene);
@@ -42,8 +43,8 @@ export class PianoRollSettingsMenu {
     private _showMainView(): void {
         this._clearMenu();
         if (!this._menu) return;
-        this._menu.rows = 2;
-        this._menu.columns = 2;
+        this._menu.rows = 1;
+        this._menu.columns = 3;
         this._menu.scaling = new B.Vector3(0.7, 0.7, 0.7);
 
         const bpmButton = new GUI.TouchHolographicButton("bpm");
@@ -56,6 +57,11 @@ export class PianoRollSettingsMenu {
         rowsButton.onPointerUpObservable.add(() => this._showRowsOptions());
         this._menu.addButton(rowsButton);
 
+        const columnsButton = new GUI.TouchHolographicButton("columns");
+        columnsButton.text = "COLUMNS";
+        columnsButton.onPointerUpObservable.add(() => this._showColumnsOptions());
+        this._menu.addButton(columnsButton);
+        
         const closeButton = new GUI.TouchHolographicButton("close");
         closeButton.text = "Close";
         closeButton.onPointerUpObservable.add(() => this.hide());
@@ -87,6 +93,31 @@ export class PianoRollSettingsMenu {
         this._menu.addButton(backButton);
     }
 
+    private _showColumnsOptions(): void {
+        this._clearMenu();
+        if (!this._menu) return;
+        this._menu.rows = 1;
+        this._menu.columns = 4;
+    
+        const columnOptions = [4, 8, 16, 32];
+    
+        columnOptions.forEach((cols) => {
+            const button = new GUI.TouchHolographicButton(`cols_${cols}`);
+            button.text = `${cols} Columns`;
+            button.onPointerUpObservable.add(() => {
+                this._parent.setColumns(cols);
+                console.log(`Columns set to ${cols}`);
+                this.hide();
+            });
+            this._menu!.addButton(button);
+        });
+    
+        const backButton = new GUI.TouchHolographicButton("back");
+        backButton.text = "Back";
+        backButton.onPointerUpObservable.add(() => this._showMainView());
+        this._menu.addButton(backButton);
+    }
+    
     private _showRowsOptions(): void {
         this._clearMenu();
         if (!this._menu) return;
