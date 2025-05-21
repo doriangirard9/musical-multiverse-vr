@@ -1,6 +1,7 @@
 import { WebAudioModule } from "@webaudiomodules/sdk";
 import {BaseEventBus} from "./BaseEventBus.ts";
 import {Position3D} from "../shared/SharedTypes.ts";
+import {AudioNodeState} from "../network/types.ts";
 
 export type AudioEventType = {
     PARAM_CHANGE: "PARAM_CHANGE";
@@ -11,6 +12,8 @@ export type AudioEventType = {
     CONNECT_NODES: "CONNECT_NODES";
     DISCONNECT_NODES: "DISCONNECT_NODES";
     APPLY_CONNECTION: "APPLY_CONNECTION";
+
+    LOCAL_AUDIO_NODE_CREATED : "LOCAL_AUDIO_NODE_CREATED";
 
     REMOTE_AUDIO_NODE_ADDED: "REMOTE_AUDIO_NODE_ADDED";
     REMOTE_AUDIO_NODE_DELETED: "REMOTE_AUDIO_NODE_DELETED";
@@ -99,9 +102,15 @@ export type AudioEventPayload = {
     };
 
     REMOTE_AUDIO_NODE_ADDED: {
+        state : AudioNodeState
     };
-    REMOTE_AUDIO_NODE_DELETED: {
 
+    LOCAL_AUDIO_NODE_CREATED: {
+        state : AudioNodeState
+    };
+
+    REMOTE_AUDIO_NODE_DELETED: {
+        nodeId : string
     };
     AUDIO_OUTPUT_ADDED: {
         nodeId: string;

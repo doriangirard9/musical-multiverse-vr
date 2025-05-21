@@ -9,6 +9,9 @@ import {PlayerManager} from "./PlayerManager.ts";
 import {AudioEventBus} from "../eventBus/AudioEventBus.ts";
 import {IOManager} from "../iomanager/IOManager.ts";
 import {IOEventBus} from "../eventBus/IOEventBus.ts";
+import {ConnectionManager} from "../iomanager/ConnectionManager.ts";
+import {NetworkManager} from "../network/NetworkManager.ts";
+import {AudioNodeState} from "../network/types.ts";
 
 
 export class AppOrchestrator{
@@ -24,14 +27,15 @@ export class AppOrchestrator{
     private UIManager : UIManager | null = null;
     private SceneManager : SceneManager | null = null;
     private PlayerManager : PlayerManager | null = null;
-
+    private ConnectionManager : ConnectionManager | null = null;
+    private NetworkManager : NetworkManager | null = null;
     private constructor() {
         this.initManagers()
 
         this.onUIEvent();
         this.onMenuEvent();
         this.onAudioEvent();
-
+        this.trucMocheAChanger();
         this.debugLogEvents()
     }
 
@@ -56,9 +60,19 @@ export class AppOrchestrator{
         this.SceneManager = SceneManager.getInstance();
         this.PlayerManager = PlayerManager.getInstance();
         this.iOManager = IOManager.getInstance();
+        this.ConnectionManager = ConnectionManager.getInstance();
+        this.NetworkManager = NetworkManager.getInstance();
     }
-
+    private trucMocheAChanger(){
+        this.audioEventBus?.on('POSITION_CHANGE', (payload) => {
+            this.UIEventBus?.emit("WAM_POSITION_CHANGE", payload);
+        });
+    }
     private onUIEvent(): void {
+        this.UIEventBus?.on('WAM_POSITION_CHANGE', (payload) => {
+            console.log(`WAM position changed: ${payload.nodeId}`);
+            this.ConnectionManager?.handleNodeUpdate(payload);
+        });
     }
 
     private onMenuEvent(): void {
@@ -78,11 +92,18 @@ export class AppOrchestrator{
 
         this.MenuEventBus?.on('CREATE_AUDIO_NODE', async (payload) => {
             console.log(`Audio node created: ${payload.name}`);
-            await this.AudioManager?.createAudioNode3D(payload.name, payload.nodeId, payload.configFile);
+            const node = await this.AudioManager?.createAudioNode3D(payload.name, payload.nodeId, payload.configFile);
+            if (node) {
+                const state = await node.getState()
+                this.audioEventBus?.emit('LOCAL_AUDIO_NODE_CREATED', { state: state });
+                this.NetworkManager!.getAudioNodeComponent().addAudioNode(node.id, node);
+            }
         });
         this.MenuEventBus?.on('CREATE_AUDIO_OUTPUT', async (payload) => {
-            console.log(`Audio output created: ${payload.name}`);
-            await this.AudioManager?.createAudioOutput3D(payload.nodeId)
+            const node = await this.AudioManager?.createAudioOutput3D(payload.nodeId);
+            if (node) {
+                this.NetworkManager?.getAudioNodeComponent().getAudioOutputComponent().addAudioOutput(node.id, node);
+            }
         })
     }
 

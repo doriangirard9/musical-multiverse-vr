@@ -1,11 +1,17 @@
 import {BaseEventBus} from "./BaseEventBus.ts";
+import {Position3D} from "../shared/SharedTypes.ts";
 
 export type UIEventType = {
-
+    WAM_POSITION_CHANGE: "WAM_POSITION_CHANGE";
 };
 
 export type UIEventPayload = {
-
+    WAM_POSITION_CHANGE: {
+        nodeId: string;
+        position: Position3D;
+        rotation: Position3D;
+        source: "user" | "network";
+    };
 };
 
 export class UIEventBus extends BaseEventBus<UIEventPayload> {

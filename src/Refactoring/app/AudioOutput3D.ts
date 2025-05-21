@@ -1,6 +1,4 @@
-//ICI
-
-import {AudioNodeState} from "../network/types.ts";
+import {AudioNodeState, AudioOutputState} from "../network/types.ts";
 import {WamParameterDataMap} from "@webaudiomodules/api";
 
 import {XRManager} from "../xr/XRManager.ts";
@@ -19,6 +17,8 @@ import {
     Vector3
 } from "@babylonjs/core";
 import {IOEventBus} from "../eventBus/IOEventBus.ts";
+import {NetworkEventBus} from "../eventBus/NetworkEventBus.ts";
+import * as B from "@babylonjs/core";
 
 export class AudioOutput3D extends AudioNode3D {
     private readonly _pannerNode: PannerNode;
@@ -71,6 +71,25 @@ export class AudioOutput3D extends AudioNode3D {
 
         // Initialiser la position audio
         this._updateAudioPosition();
+
+        const state: AudioOutputState = {
+            id: this.id,
+            position: {
+                x: this.boundingBox.position.x,
+                y: this.boundingBox.position.y,
+                z: this.boundingBox.position.z
+            },
+            rotation: {
+                x: this.boundingBox.rotation.x,
+                y: this.boundingBox.rotation.y,
+                z: this.boundingBox.rotation.z
+            }
+        };
+
+        NetworkEventBus.getInstance().emit('STORE_AUDIO_OUTPUT', {
+            audioOutputId: this.id,
+            state: state
+        });
     }
 
     /**
@@ -114,14 +133,29 @@ export class AudioOutput3D extends AudioNode3D {
     public getAudioNode(): AudioNode {
         return this._pannerNode;
     }
-
+    public getPortMesh(): Nullable<Mesh> {
+        return this.portMesh;
+    }
     protected async _createBaseMesh(): Promise<void> {
         this.baseMesh = MeshBuilder.CreateBox('box', {width: 1, height: 1}, this._scene);
         const material = new StandardMaterial('material', this._scene);
         material.diffuseColor = new Color3(1, 0, 0);
         this.baseMesh.material = material;
     }
+    public setState(state: AudioOutputState): void {
+        this.boundingBox.position = new B.Vector3(
+            state.position.x,
+            state.position.y,
+            state.position.z
+        );
+        this.boundingBox.rotation = new B.Vector3(
+            state.rotation.x,
+            state.rotation.y,
+            state.rotation.z
+        );
 
+        this._updateAudioPosition();
+    }
     public getState(): Promise<AudioNodeState> {
         let parameters: WamParameterDataMap = {}
         let config: IAudioNodeConfig = {
@@ -156,6 +190,7 @@ export class AudioOutput3D extends AudioNode3D {
         const highlightColor = Color3.Green();
 
         this.hitBox.actionManager = new ActionManager(this.scene);
+
         this.hitBox.actionManager.registerAction(new ExecuteCodeAction(ActionManager.OnPointerOverTrigger, (): void => {
             highlightLayer.addMesh(this.portMesh as Mesh, highlightColor);
         }));

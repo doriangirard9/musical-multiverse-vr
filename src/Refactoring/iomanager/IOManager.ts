@@ -2,7 +2,10 @@ import {Color3, Nullable} from "@babylonjs/core";
 import {Wam3D} from "../ConnecterWAM/Wam3D.ts";
 import {MessageManager} from "../app/MessageManager.ts";
 import {IOEventBus, IOEventPayload} from "../eventBus/IOEventBus.ts";
-import {AudioOutput3D} from "../app/AudioOutput3D.ts";
+import { ConnectionManager } from "./ConnectionManager.ts";
+import {NetworkEventBus} from "../eventBus/NetworkEventBus.ts";
+import {NetworkManager} from "../network/NetworkManager.ts";
+import {AudioManager} from "../app/AudioManager.ts";
 import { Node3DInstance } from "../ConnecterWAM/node3d/instance/Node3DInstance.ts";
 import { Node3DConnectable } from "../ConnecterWAM/node3d/Node3DConnectable.ts";
 import { WamNode } from "@webaudiomodules/api";
@@ -12,19 +15,17 @@ export class IOManager {
 
     private _inputNode: Nullable<Wam3D> = null;
     private _outputNode: Nullable<Wam3D> = null;
-    private _currentPortId: 'audioIn' | 'audioOut' | 'midiIn' | 'midiOut' | null = null;
-    //@ts-ignore var jamais read
-    private _currentAudioOutput: Nullable<AudioOutput3D> = null;
+    private _inputPortId: string | null = null;
+    private _outputPortId: string | null = null;
 
     private static instance: IOManager;
-
+    private connectionManager: ConnectionManager = ConnectionManager.getInstance();
     private ioEventBus: IOEventBus = IOEventBus.getInstance();
+    private networkEventBus: NetworkEventBus = NetworkEventBus.getInstance();
 
     private constructor() {
         this._messageManager = new MessageManager();
-
-
-        this.onIOEvent()
+        this.onIOEvent();
     }
 
     public static getInstance(): IOManager {
@@ -35,83 +36,302 @@ export class IOManager {
     }
 
     private onIOEvent(): void {
-        this.ioEventBus.on('IO_CONNECT',payload => {
-            this.handler(payload)
+        this.ioEventBus.on('IO_CONNECT', payload => {
+            this.handler(payload);
         });
+
         this.ioEventBus.on('IO_CONNECT_AUDIO_OUTPUT', payload => {
-           this.audioOutputHandler(payload)
+            this.audioOutputHandler(payload);
         });
+
         this.ioEventBus.on('IO_CONNECT_NODE3D', payload => {
             this.node3dHandler(payload)
         });
+
+        // Écouter les événements de connexions depuis le réseau
+        this.ioEventBus.on('NETWORK_CONNECTION_ADDED', payload => {
+            this.handleNetworkConnectionAdded(payload);
+        });
+
+        this.ioEventBus.on('NETWORK_CONNECTION_REMOVED', payload => {
+            this.handleNetworkConnectionRemoved(payload);
+        });
+
+        this.ioEventBus.on('NETWORK_AUDIO_OUTPUT_ADDED', payload => {
+            this.handleNetworkAudioOutputAdded(payload);
+        });
+
+        this.ioEventBus.on('NETWORK_AUDIO_OUTPUT_REMOVED', _ => {
+            //todo
+        });
     }
 
+    private async handleNetworkAudioOutputAdded(payload: IOEventPayload['NETWORK_AUDIO_OUTPUT_ADDED']): Promise<void> {
+        const { audioOutputId, state } = payload;
+        const existingNode = NetworkManager.getInstance().getAudioNodeComponent().getNodeById(audioOutputId);
+
+        if (existingNode) {
+            //@ts-ignore
+            existingNode.setState(state)
+            return;
+        }
+
+        const node = await AudioManager.getInstance().createAudioOutput3D(audioOutputId);
+        node.setState(state);
+        NetworkManager.getInstance().getAudioNodeComponent().getAudioOutputComponent().addAudioOutput(audioOutputId, node);
+    }
+
+    /**
+     * Gère l'ajout d'une connexion depuis le réseau
+     */
+    private handleNetworkConnectionAdded(payload: IOEventPayload['NETWORK_CONNECTION_ADDED']): void {
+        const { connectionId, portParam } = payload;
+        console.log(`[IOManager] Creating connection from network: ${connectionId}`);
+
+        const audioNodeComponent = NetworkManager.getInstance().getAudioNodeComponent();
+
+        const sourceNode = audioNodeComponent.getAudioNode(portParam.sourceId);
+        if (!sourceNode) {
+            console.warn(`[IOManager] Source node not found: ${portParam.sourceId}`);
+            return;
+        }
+
+        const outputPortMesh = sourceNode.getPortMesh(portParam.portId);
+        if (!outputPortMesh) {
+            console.warn(`[IOManager] Output port mesh not found on source node`);
+            return;
+        }
+
+        const targetWam = audioNodeComponent.getAudioNode(portParam.targetId);
+        const targetAudioOutput = targetWam ? null :
+            audioNodeComponent.getAudioOutputComponent().getAudioOutput(portParam.targetId);
+
+        if (!targetWam && !targetAudioOutput) {
+            console.warn(`[IOManager] Target node not found: ${portParam.targetId}`);
+            return;
+        }
+
+        if (targetWam) {
+            const inputPortId = this.getCorrespondingInputPort(portParam.portId);
+            const inputPortMesh = targetWam.getPortMesh(inputPortId);
+
+            if (!inputPortMesh) {
+                console.warn(`[IOManager] Input port mesh not found on target WAM`);
+                return;
+            }
+
+            this.connectionManager.createConnectionArc(
+                connectionId,
+                outputPortMesh,
+                sourceNode.id,
+                inputPortMesh,
+                targetWam.id
+            );
+
+            sourceNode.connectPorts(portParam.portId, targetWam, inputPortId);
+            console.log(`[IOManager] WAM-to-WAM connection created: ${connectionId}`);
+        } else {
+
+            const audioOutputMesh = targetAudioOutput!.getPortMesh();
+
+            if (!audioOutputMesh) {
+                console.warn(`[IOManager] Audio output mesh not found`);
+                return;
+            }
+
+            this.connectionManager.createConnectionArc(
+                connectionId,
+                outputPortMesh,
+                sourceNode.id,
+                audioOutputMesh,
+                targetAudioOutput!.id
+            );
+
+            const sourceWamAudioNode = sourceNode.getAudioNode();
+            const targetAudioNode = targetAudioOutput!.getAudioNode();
+
+            if (sourceWamAudioNode && targetAudioNode) {
+                sourceWamAudioNode.connect(targetAudioNode);
+                console.log(`[IOManager] WAM-to-AudioOutput connection created: ${connectionId}`);
+            }
+        }
+    }
+    /**
+     * Gère la suppression d'une connexion depuis le réseau
+     */
+    private handleNetworkConnectionRemoved(payload: IOEventPayload['NETWORK_CONNECTION_REMOVED']): void {
+        const { connectionId } = payload;
+        console.log(`[IOManager] Removing connection from network: ${connectionId}`);
+
+        // Supprimer la connexion visuelle
+        this.connectionManager.deleteConnectionArcById(connectionId);
+
+        // TODO: Implémenter la déconnexion des ports audio/MIDI si nécessaire
+        // Pour cela, il faudrait parser le connectionId ou stocker plus d'infos
+    }
+
+    /**
+     * Détermine le port d'entrée correspondant au port de sortie
+     */
+    private getCorrespondingInputPort(outputPortId: string): string {
+        switch (outputPortId) {
+            case 'audioOut':
+                return 'audioIn';
+            case 'midiOut':
+                return 'midiIn';
+            default:
+                // Fallback - pourrait être amélioré selon votre logique
+                return outputPortId.includes('audio') ? 'audioIn' : 'midiIn';
+        }
+    }
+
+    /**
+     * Réinitialise l'état de la connexion en cours et annule l'aperçu.
+     */
+    private _cancelAndResetConnection(): void {
+        this.connectionManager.cancelConnectionPreview();
+        this._resetConnectionState();
+    }
+
+    /**
+     * Handle IO connection events between nodes
+     */
     private handler(data: IOEventPayload['IO_CONNECT']) {
-        console.log("IOManager: ", data);
+        console.log(`Événement : ${data.pickType}, nœud ${data.node.id}, port ${data.portId}`);
 
         switch (data.pickType) {
             case "down":
-                this._currentPortId = data.portId;
-
                 if (data.isInput) {
                     this._inputNode = data.node;
-
+                    this._inputPortId = data.portId;
                 } else {
                     this._outputNode = data.node;
-
+                    this._outputPortId = data.portId;
                 }
+                this.connectionManager.startConnectionPreview(data.node, data.portId);
                 break;
 
             case "up":
-                if (data.isInput) {
-                    if (this._outputNode) {
-                        if (data.node.id === this._outputNode.id) {
-                            this._messageManager.showMessage("Can't connect a node to itself", 3000);
+                let actualOutputNode: Nullable<Wam3D> = null;
+                let actualOutputPortId: Nullable<string> = null;
+                let actualInputNode: Nullable<Wam3D> = null;
+                let actualInputPortId: Nullable<string> = null;
+
+                if (data.isInput && this._outputNode && this._outputPortId) {
+                    actualOutputNode = this._outputNode;
+                    actualOutputPortId = this._outputPortId;
+                    actualInputNode = data.node;
+                    actualInputPortId = data.portId;
+                } else if (!data.isInput && this._inputNode && this._inputPortId) {
+                    actualOutputNode = data.node;
+                    actualOutputPortId = data.portId;
+                    actualInputNode = this._inputNode;
+                    actualInputPortId = this._inputPortId;
+                }
+
+                if (actualOutputNode && actualInputNode && actualOutputPortId && actualInputPortId) {
+                    if (actualOutputNode.id === actualInputNode.id) {
+                        this._messageManager.showMessage("Can't connect a node to itself", 3000);
+                    } else {
+                        const outputPortMesh = actualOutputNode.getPortMesh(actualOutputPortId);
+                        const inputPortMesh = actualInputNode.getPortMesh(actualInputPortId);
+
+                        if (outputPortMesh && inputPortMesh) {
+                            const connectionId = `${actualOutputNode.id}_${actualOutputPortId}_to_${actualInputNode.id}_${actualInputPortId}`;
+                            console.log("[IOManager] Creating connection:", connectionId);
+
+                            // Connecter les ports (audio/MIDI)
+                            actualOutputNode.connectPorts(actualOutputPortId, actualInputNode, actualInputPortId);
+
+                            // Créer la connexion visuelle
+                            this.connectionManager.createConnectionArc(
+                                connectionId,
+                                outputPortMesh,
+                                actualOutputNode.id,
+                                inputPortMesh,
+                                actualInputNode.id
+                            );
+
+                            this.networkEventBus.emit('STORE_CONNECTION_TUBE', {
+                                connectionId: connectionId,
+                                portParam: {
+                                    sourceId: actualOutputNode.id,
+                                    targetId: actualInputNode.id,
+                                    portId: actualOutputPortId,
+                                }
+                            });
                         } else {
-                            this._outputNode.connectPorts(this._currentPortId!, data.node, data.portId);
+                            console.error("[IOManager] Failed to get port meshes for visual connection");
                         }
-                        this._resetConnectionState();
                     }
                 } else {
-                    if (this._inputNode) {
-                        if (data.node.id === this._inputNode.id) {
-                            this._messageManager.showMessage("Can't connect a node to itself", 3000);
-                        } else {
-                            this._outputNode?.connectPorts(this._currentPortId!, data.node, data.portId);
-                        }
-                        this._resetConnectionState();
-                    }
+                    console.log("[IOManager] Released with incomplete connection state - canceling");
                 }
+                this._cancelAndResetConnection();
                 break;
 
             case "out":
-                this._resetConnectionState();
+                console.log("[IOManager] Pointer out - canceling preview");
+                this._cancelAndResetConnection();
                 break;
         }
     }
+
+    /**
+     * Handle connections to AudioOutput3D
+     */
     private audioOutputHandler(data: IOEventPayload['IO_CONNECT_AUDIO_OUTPUT']) {
         const audioOutput = data.audioOutput;
 
         switch (data.pickType) {
             case "down":
-                this._currentAudioOutput = audioOutput;
+                // AudioOutput ne peut pas initier une connexion
                 break;
 
             case "up":
-                if (this._outputNode) {
+                // Connecter un nœud WAM à l'AudioOutput
+                if (this._outputNode && this._outputPortId) {
                     if (this._outputNode.id !== audioOutput.id) {
-                        const sourceNode = this._outputNode.getAudioNode();
-                        sourceNode.connect(audioOutput.getAudioNode());
-                        console.log("Tried to connect ", this._outputNode.id, " to ", audioOutput.id);
+                        const sourceWamAudioNode = this._outputNode.getAudioNode();
+                        const targetAudioOutputNode = audioOutput.getAudioNode();
+
+                        if (sourceWamAudioNode && targetAudioOutputNode) {
+                            const outputPortMesh = this._outputNode.getPortMesh(this._outputPortId);
+                            const audioOutputMesh = audioOutput.getPortMesh();
+                            if (outputPortMesh && audioOutputMesh) {
+                                const connectionId = `${this._outputNode.id}_${this._outputPortId}_to_audioOutput_${audioOutput.id}`;
+                                this.connectionManager.createConnectionArc(
+                                    connectionId,
+                                    outputPortMesh,
+                                    this._outputNode.id,
+                                    audioOutputMesh,
+                                    audioOutput.id
+                                );
+                                sourceWamAudioNode.connect(targetAudioOutputNode);
+                                this.networkEventBus.emit('STORE_CONNECTION_TUBE',{
+                                    connectionId: connectionId,
+                                    portParam: {
+                                        sourceId: this._outputNode.id,
+                                        targetId: audioOutput.id,
+                                        portId: this._outputPortId,
+                                    }
+                                })
+                            }
+                            console.log("[IOManager] Connected", this._outputNode.id, "to audio output", audioOutput.id);
+                        } else {
+                            console.error("[IOManager] Failed to get audio nodes for connection to AudioOutput");
+                        }
                     } else {
                         this._messageManager.showMessage("Can't connect a node to itself", 2000);
                     }
-                    this._resetConnectionState();
+                } else {
+                    console.log("[IOManager] Released on AudioOutput but no WAM output was being dragged.");
                 }
+                this._cancelAndResetConnection();
                 break;
 
             case "out":
-                this._resetConnectionState();
+                this._cancelAndResetConnection();
                 break;
         }
     }
@@ -259,12 +479,30 @@ export class IOManager {
         }
     }
 
+    public disconnectNodes(sourceNodeId: string, portId: string, targetNodeId: string, targetPortId: string): void {
+        const connectionId = `${sourceNodeId}_${portId}_to_${targetNodeId}_${targetPortId}`;
+
+        console.log(`[IOManager] Disconnecting: ${connectionId}`);
+
+        // Supprimer la connexion visuelle
+        this.connectionManager.deleteConnectionArcById(connectionId);
+
+        // Supprimer du réseau
+        this.networkEventBus.emit('REMOVE_CONNECTION_TUBE', {
+            connectionId: connectionId
+        });
+
+        // TODO
+        //if (sourceNode && targetNode) {
+        //    sourceNode.disconnectPorts(portId, targetNode, targetPortId);
+        //}
+    }
+
     private _resetConnectionState() {
         this._inputNode = null;
         this._outputNode = null;
-        this._currentPortId = null;
-        this._currentAudioOutput = null;
+        this._inputPortId = null;
+        this._outputPortId = null;
         this._currentNode3dConnectable = null;
     }
-
 }
