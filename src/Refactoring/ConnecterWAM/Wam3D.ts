@@ -189,16 +189,6 @@ export class Wam3D extends AudioNode3D{
         return this._wamInstance.audioNode;
     }
 
-    public connect(destination: AudioNode): void {
-        // @ts-ignore
-        this._wamInstance.audioNode.connect(destination);
-    }
-
-    public disconnect(destination: AudioNode): void {
-        // @ts-ignore
-        this._wamInstance.audioNode.disconnect(destination);
-    }
-
     public async getState(): Promise<AudioNodeState> {
         let parameters: WamParameterDataMap = {};
 

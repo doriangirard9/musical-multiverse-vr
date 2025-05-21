@@ -7,7 +7,7 @@ import {UIManager} from "../app/UIManager.ts";
 import {MenuEventBus} from "../eventBus/MenuEventBus.ts";
 
 
-export class Menu {
+export class NodeMenu {
     private readonly _menuJson: MenuConfig;
 
     private _manager: GUI.GUI3DManager;

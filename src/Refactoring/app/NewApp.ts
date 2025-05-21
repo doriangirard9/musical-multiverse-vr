@@ -3,6 +3,9 @@ import {WamInitializer} from "./WamInitializer.ts";
 import {AppOrchestrator} from "./AppOrchestrator.ts";
 import {XRManager} from "../xr/XRManager.ts";
 import {AudioManager} from "./AudioManager.ts";
+import { Node3DInstance } from "../ConnecterWAM/node3d/Node3DInstance.ts";
+import { TestN3DFactory } from "../ConnecterWAM/node3d/subs/TestN3D.ts";
+import { UIManager } from "./UIManager.ts";
 
 export class NewApp {
     private audioCtx: AudioContext | undefined;
@@ -22,6 +25,16 @@ export class NewApp {
             this.wamInitializer = WamInitializer.getInstance(this.audioCtx);
             this.xrManager = XRManager.getInstance();
             this.appOrchestrator = AppOrchestrator.getInstance();
+
+            (async()=>{
+                const scene = SceneManager.getInstance().getScene()
+                const uiManager = UIManager.getInstance()
+                console.log(`scene:`,scene)
+                const [hostId] = await WamInitializer.getInstance(audioContext).getHostGroupId()
+                const instance = new Node3DInstance("testid", scene, uiManager, audioContext, hostId, TestN3DFactory)
+                await instance.instantiate()
+                console.log("salade")
+            })()
         }
 
     }

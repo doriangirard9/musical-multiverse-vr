@@ -61,15 +61,7 @@ export abstract class AudioNode3D implements INetworkObject<AudioNodeState> {
 
     protected abstract instantiate(): any;
 
-    public abstract connect(destination: AudioNode): void;
-    public abstract disconnect(destination: AudioNode): void;
-
     public abstract getAudioNode(): AudioNode;
-
-
-
-
-    protected abstract _createBaseMesh(): void;
 
     protected _initActionManager(): void {
         // const highlightLayer = new B.HighlightLayer(`hl${this.id}`, this._scene);
