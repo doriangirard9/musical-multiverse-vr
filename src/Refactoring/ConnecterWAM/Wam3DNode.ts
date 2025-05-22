@@ -128,7 +128,7 @@ export class Wam3DEditorNode extends AudioNode3D {
         // @ts-ignore
         return {
             id: this.id,
-            configFile: {} as IAudioNodeConfig,
+            kind: {} as IAudioNodeConfig,
             position: { x: this.boundingBox.position.x, y: this.boundingBox.position.y, z: this.boundingBox.position.z },
             rotation: { x: this.boundingBox.rotation.x, y: this.boundingBox.rotation.y, z: this.boundingBox.rotation.z },
             inputNodes: [],

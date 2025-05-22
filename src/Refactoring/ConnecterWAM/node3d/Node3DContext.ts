@@ -15,6 +15,11 @@ export interface Node3DContext{
     
     //// Context ////
     /**
+     * Les classes utilitaires fourni par l'Host.
+     */
+    readonly tools: typeof import("./tools")
+
+    /**
      * Le contexte audio dans lequel le Node3D est créé.
      */
     readonly audioCtx: AudioContext

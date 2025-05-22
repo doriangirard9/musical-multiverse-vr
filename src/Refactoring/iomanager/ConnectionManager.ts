@@ -1,7 +1,7 @@
-import {Wam3D} from "../ConnecterWAM/Wam3D";
 import {SceneManager} from "../app/SceneManager";
 import {UIEventPayload} from "../eventBus/UIEventBus";
 import {
+    AbstractMesh,
     Axis, EventState,
     Mesh,
     MeshBuilder,
@@ -16,9 +16,9 @@ interface ActiveConnectionVisual {
     id: string;
     tubeMesh: Mesh;
     arrowMesh: Mesh;
-    outputMesh: Mesh;
+    outputMesh: AbstractMesh;
     outputNodeId: string;
-    inputMesh: Mesh;
+    inputMesh: AbstractMesh;
     inputNodeId: string;
 }
 
@@ -26,7 +26,7 @@ export class ConnectionManager {
     private static instance: ConnectionManager;
     private scene: Scene;
 
-    private previewStartMesh: Nullable<Mesh> = null;
+    private previewStartMesh: Nullable<AbstractMesh> = null;
     private previewDragPoint: Nullable<TransformNode> = null;
     private previewPointerDragBehavior: Nullable<PointerDragBehavior> = null;
     private previewTube: Nullable<Mesh> = null;
@@ -60,11 +60,11 @@ export class ConnectionManager {
      * @param startNode The WAM node where the connection starts.
      * @param portId The ID of the port on the startNode.
      */
-    public startConnectionPreview(startNode: Wam3D, portId: string): void {
-        console.log(`[Desktop Check] startConnectionPreview: node ${startNode.id}, port ${portId}`);
-        const portMesh = startNode.getPortMesh(portId);
+    public startConnectionPreview(id:string, startMesh: AbstractMesh, portId: string): void {
+        console.log(`[Desktop Check] startConnectionPreview: node ${id}, port ${portId}`);
+        const portMesh = startMesh;
         if (!portMesh) {
-            console.error(`[*] ConnectionManager - Preview: Port mesh not found for node ${startNode.id}, portId: ${portId}`);
+            console.error(`[*] ConnectionManager - Preview: Port mesh not found for node ${id}, portId: ${portId}`);
             return;
         }
 
@@ -74,7 +74,7 @@ export class ConnectionManager {
         const startPos = this.previewStartMesh.getAbsolutePosition(); // ESSENTIEL: cette position doit être correcte
         console.log(`[Desktop Check] Preview Start Position: ${startPos.toString()}`);
         if (startPos.equals(Vector3.Zero())) {
-            console.warn(`[*] ConnectionManager - Preview: Start mesh ${portMesh.name} for node ${startNode.id} is at world origin. This WILL cause issues if not intended.`);
+            console.warn(`[*] ConnectionManager - Preview: Start mesh ${portMesh.name} for node ${id} is at world origin. This WILL cause issues if not intended.`);
         }
 
         const initialEndPos = startPos.clone(); // Pour la position initiale du tube
@@ -281,9 +281,9 @@ export class ConnectionManager {
      */
     public createConnectionArc(
         connectionId: string,
-        outputPortMesh: Mesh,
+        outputPortMesh: AbstractMesh,
         outputNodeId: string,
-        inputPortMesh: Mesh,
+        inputPortMesh: AbstractMesh,
         inputNodeId: string
     ): void {
         if (!outputPortMesh || !inputPortMesh) {

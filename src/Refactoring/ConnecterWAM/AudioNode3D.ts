@@ -2,8 +2,6 @@ import * as B from "@babylonjs/core";
 import * as GUI from "@babylonjs/gui";
 import {IOEvent} from "../iomanager/IOEvent.ts";
 import {SceneManager} from "../app/SceneManager.ts";
-import {NetworkManager} from "../network/NetworkManager.ts";
-import {AudioEventBus} from "../eventBus/AudioEventBus.ts";
 import {UIManager} from "../app/UIManager.ts";
 import {AudioNodeState, INetworkObject} from "../network/types.ts";
 import {TubeParams, TubeParamsMidi} from "../shared/SharedTypes.ts";
@@ -12,7 +10,6 @@ export abstract class AudioNode3D implements INetworkObject<AudioNodeState> {
     static menuOnScene: boolean = false;
     public static currentMenuInstance: AudioNode3D | null = null;
 
-    public id!: string;
     protected readonly _scene: B.Scene;
     protected readonly _audioCtx: AudioContext;
     protected readonly _pointerDragBehavior: B.PointerDragBehavior;
@@ -49,10 +46,13 @@ export abstract class AudioNode3D implements INetworkObject<AudioNodeState> {
     public inputNodesMidi = new Map<string, AudioNode3D>();
     public ioObservable = new B.Observable<IOEvent>();
 
-    protected constructor(audioCtx: AudioContext, id: string) {
+    protected constructor(
+        audioCtx: AudioContext,
+        readonly id: string,
+        readonly kind: string
+    ) {
         this._scene = SceneManager.getInstance().getScene();
         this._audioCtx = audioCtx;
-        this.id = id;
         this._utilityLayer = new B.UtilityLayerRenderer(this._scene);
         this._rotationGizmo = new B.RotationGizmo(this._utilityLayer);
         this._pointerDragBehavior = new B.PointerDragBehavior();

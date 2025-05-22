@@ -4,6 +4,12 @@ import {AudioNode3DBuilder} from "./AudioNode3DBuilder.ts";
 import {Wam3D} from "../ConnecterWAM/Wam3D.ts";
 import {AudioOutput3D} from "./AudioOutput3D.ts";
 import {NetworkManager} from "../network/NetworkManager.ts";
+import { AudioNode3D } from "../ConnecterWAM/AudioNode3D.ts";
+import { Node3D, Node3DFactory, Node3DGUI } from "../ConnecterWAM/node3d/Node3D.ts";
+import { SceneManager } from "./SceneManager.ts";
+import { UIManager } from "./UIManager.ts";
+import { WamInitializer } from "./WamInitializer.ts";
+import { Node3DInstance } from "../ConnecterWAM/node3d/instance/Node3DInstance.ts";
 
 export class AudioManager {
     private static _instance: AudioManager | null = null;
@@ -38,11 +44,39 @@ export class AudioManager {
         this.audioEventBus.on("REMOTE_AUDIO_NODE_DELETED", this.onRemoteAudioNodeDeleted.bind(this));
     }
 
-    public async createAudioNode3D(name: string, id: string, configFile?: string): Promise<Wam3D> {
-        const node: Wam3D = await this.audioNode3DBuilder.create(id, configFile);
-        this.audioEventBus.emit("WAM_CREATED", { nodeId: id, name, configFile });
-        await node.instantiate();
-        return node;
+    public async createNode3D(name:string, id: string, factory: Node3DFactory<any,any>): Promise<Node3DInstance> {
+        const scene = SceneManager.getInstance().getScene()
+        const uiManager = UIManager.getInstance()
+        const audioManager = AudioManager.getInstance()
+        const [hostId] = await WamInitializer.getInstance(audioManager.getAudioContext()).getHostGroupId()
+        
+        const instance = new Node3DInstance(id, scene, uiManager, audioManager.audioCtx, hostId, factory)
+        this.audioEventBus.emit("NODE3D_CREATED", { nodeId: id, name: id, config:{} })
+
+        await instance.instantiate()
+
+        return instance
+    }
+
+    /**
+     * Create an audio node in the world and sync it.
+     * @param id The id of the new AudioNode3D
+     * @param kind The "kind"/"config file name" of the new AudioNode3D 
+     * @returns 
+     */
+    public async createAudioNode3D(id: string, kind: string): Promise<AudioNode3D|null> {
+        this.audioEventBus.emit("AUDIO_NODE_CREATED", { nodeId: id, kind })
+        const node = await this.audioNode3DBuilder.create(id, kind)
+        if(node instanceof AudioNode3D){
+            NetworkManager.getInstance().getAudioNodeComponent().addAudioNode(node.id, node)
+            this.audioEventBus.emit("AUDIO_NODE_LOADED",{nodeId:id, instance:node})
+            return node
+        }
+        else{
+            this.audioEventBus.emit("AUDIO_NODE_ERROR",{nodeId:id, kind, error_message:node})
+            return null
+        }
+        
     }
 
     public async createAudioOutput3D(id: string): Promise<AudioOutput3D> {
@@ -55,7 +89,7 @@ export class AudioManager {
     private async onRemoteAudioNodeAdded(payload: AudioEventPayload["REMOTE_AUDIO_NODE_ADDED"]): Promise<void> {
         console.log('Creating remote audio node:', payload.state);
 
-        const node = await this.audioNode3DBuilder.create(payload.state.id, payload.state.configFile);
+        const node = await this.audioNode3DBuilder.create(payload.state.id, payload.state.kind);
         await node.instantiate();
 
         // Appliquer l'état reçu

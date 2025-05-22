@@ -11,7 +11,7 @@ import {IOManager} from "../iomanager/IOManager.ts";
 import {IOEventBus} from "../eventBus/IOEventBus.ts";
 import {ConnectionManager} from "../iomanager/ConnectionManager.ts";
 import {NetworkManager} from "../network/NetworkManager.ts";
-import {AudioNodeState} from "../network/types.ts";
+import { AudioNode3D } from "../ConnecterWAM/AudioNode3D.ts";
 
 
 export class AppOrchestrator{
@@ -92,11 +92,17 @@ export class AppOrchestrator{
 
         this.MenuEventBus?.on('CREATE_AUDIO_NODE', async (payload) => {
             console.log(`Audio node created: ${payload.name}`);
-            const node = await this.AudioManager?.createAudioNode3D(payload.name, payload.nodeId, payload.configFile);
+            const node = await this.AudioManager?.createAudioNode3D(payload.nodeId, payload.kind)
             if (node) {
-                const state = await node.getState()
-                this.audioEventBus?.emit('LOCAL_AUDIO_NODE_CREATED', { state: state });
-                this.NetworkManager!.getAudioNodeComponent().addAudioNode(node.id, node);
+                if(node instanceof AudioNode3D){
+                    const state = await node.getState()
+                    this.audioEventBus?.emit('LOCAL_AUDIO_NODE_CREATED', { state: state });
+                    this.NetworkManager!.getAudioNodeComponent().addAudioNode(node.id, node);
+                }
+                else{
+                    this.UIManager?.showMessage(`Error: ${node}`, 2000)
+                }
+                
             }
         });
         this.MenuEventBus?.on('CREATE_AUDIO_OUTPUT', async (payload) => {
@@ -108,8 +114,8 @@ export class AppOrchestrator{
     }
 
     private onAudioEvent(): void {
-        this.audioEventBus?.on('WAM_CREATED', () => {});
-        this.audioEventBus?.on('WAM_LOADED', () => {});
+        this.audioEventBus?.on('AUDIO_NODE_CREATED', () => {});
+        this.audioEventBus?.on('AUDIO_NODE_LOADED', () => {});
     }
 
     private debugLogEvents(): void {

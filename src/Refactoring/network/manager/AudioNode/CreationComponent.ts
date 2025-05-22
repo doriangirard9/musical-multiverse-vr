@@ -112,7 +112,6 @@ export class CreationComponent {
         if (this.localAudioNodes3D.has(key)) {
             this.audioEventBus.emit('REMOTE_AUDIO_NODE_DELETED',{nodeId : key});
             this.localAudioNodes3D.delete(key);
-
         }
     }
 

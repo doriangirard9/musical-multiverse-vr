@@ -92,7 +92,8 @@ export interface ParamUpdate {
 export interface PortParam {
     sourceId : string;
     targetId : string;
-    portId : string //'audioIn' | 'midiIn' | 'audioOut' | 'midiOut';
+    sourcePortId : string;
+    targetPortId : string;
 }
 
 export type IParameter = {

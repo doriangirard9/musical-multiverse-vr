@@ -8,23 +8,27 @@ import { BoundingBox } from "../../../boundingBox/BoundingBox";
 import { UIManager } from "../../../app/UIManager";
 import { SimpleMenu } from "../../../menus/SimpleMenu";
 import { Node3DParameterInstance } from "./Node3DParameterInstance";
+import { Node3DConnectableInstance } from "./Node3DConnectableInstance";
+import { IOEventBus } from "../../../eventBus/IOEventBus";
 
 export class Node3DInstance extends AudioNode3D{
 
     constructor(
         id: string,
+        kind: string,
         private scene: Scene,
         private uiManager: UIManager,
         private audioCtx: AudioContext,
         private hostGroupId: string,
         private node_factory: Node3DFactory<Node3DGUI,Node3D>
     ){
-        super(audioCtx,id)
+        super(audioCtx,id,kind)
     }
 
     private declare gui: Node3DGUI
     private declare node: Node3D
-    private parameter_map = new Map<string, Node3DParameterInstance>()
+    readonly parameters = new Map<string, Node3DParameterInstance>()
+    readonly connectables = new Map<string, Node3DConnectableInstance>()
     private declare root_transform: TransformNode
     private menu = null as null|SimpleMenu
 
@@ -34,10 +38,13 @@ export class Node3DInstance extends AudioNode3D{
         const label = this.node_factory.label
         const highlightLayer = new HighlightLayer(`${this.id}-${this.node_factory.label}`, this.scene)
 
+        const tools = await import("../tools")
+
         // GUI related things
         const root_transform = this.root_transform = new TransformNode("node3d root", this.scene)
         this.gui = await this.node_factory.createGUI({
             babylon: await import("@babylonjs/core"),
+            tools,
             scene: this.scene,
         })
         this.gui.root.parent = root_transform
@@ -46,6 +53,7 @@ export class Node3DInstance extends AudioNode3D{
         this.node = await this.node_factory.create({
             audioCtx: this.audioCtx,
             hostGroupId: this.hostGroupId,
+            tools,
 
             // Le nom du wam
             setLabel(label: string){
@@ -64,19 +72,26 @@ export class Node3DInstance extends AudioNode3D{
                     info.getStepCount.bind(info),
                     info.stringify.bind(info)
                 )
-                instance.parameter_map.set(info.id,param)
+                instance.parameters.set(info.id,param)
             },
             removeParameter(id: Node3DParameter["id"]){
-                instance.parameter_map.get(id)?.dispose()
-                instance.parameter_map.delete(id)
+                instance.parameters.get(id)?.dispose()
+                instance.parameters.delete(id)
             },
 
             // Les outputs et inputs que l'on peut connecter
             createConnectable(info: Node3DConnectable){
-                //TODO Il faut remplir cette fonctionnalité
+                const connectable = new Node3DConnectableInstance(
+                    instance,
+                    info,
+                    highlightLayer,
+                    IOEventBus.getInstance()
+                )
+                instance.connectables.set(info.id,connectable)
             },
             removeConnectable(id: Node3DConnectable["id"]){
-                //TODO Il faut remplir cette fonctionnalité
+                instance.connectables.get(id)?.dispose()
+                instance.connectables.delete(id)
             },
 
             // Les mesh qui font partis de la bounding box
@@ -116,7 +131,7 @@ export class Node3DInstance extends AudioNode3D{
             },
             
             notifyStateChange(key?: string){
-                //TODO Il faut remplir cette fonctionnalité
+                //TODO: Il faut remplir cette fonctionnalité
             }
         },this.gui)
     }
@@ -156,6 +171,8 @@ export class Node3DInstance extends AudioNode3D{
                 this.baseMesh = this.bounding_mesh
                 this.bounding_box = new BoundingBox(this,this.id)
 
+                this.boundingBox = this.bounding_box.boundingBox
+
                 this.doUpdateBoundingBox=false
             })
         }
@@ -182,6 +199,7 @@ export class Node3DInstance extends AudioNode3D{
         this.menu?.dispose()
         await this.node.dispose()
         await this.gui.dispose()
-        this.parameter_map.forEach(it=>it.dispose())
+        this.parameters.forEach(it=>it.dispose())
+        this.connectables.forEach(it=>it.dispose())
     }
 }

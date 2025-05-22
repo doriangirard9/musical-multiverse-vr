@@ -2,13 +2,14 @@ import { WebAudioModule } from "@webaudiomodules/sdk";
 import {BaseEventBus} from "./BaseEventBus.ts";
 import {Position3D} from "../shared/SharedTypes.ts";
 import {AudioNodeState} from "../network/types.ts";
+import { AudioNode3D } from "../ConnecterWAM/AudioNode3D.ts";
 
 export type AudioEventType = {
     PARAM_CHANGE: "PARAM_CHANGE";
     POSITION_CHANGE: "POSITION_CHANGE";
-    WAM_CREATED: "WAM_CREATED";
-    WAM_LOADED: "WAM_LOADED";
-    WAM_ERROR: "WAM_ERROR";
+    AUDIO_NODE_CREATED: "AUDIO_NODE_CREATED";
+    AUDIO_NODE_LOADED: "AUDIO_NODE_LOADED";
+    AUDIO_NODE_ERROR: "AUDIO_NODE_ERROR";
     CONNECT_NODES: "CONNECT_NODES";
     DISCONNECT_NODES: "DISCONNECT_NODES";
     APPLY_CONNECTION: "APPLY_CONNECTION";
@@ -41,19 +42,19 @@ export type AudioEventPayload = {
         rotation: Position3D;
         source: "user" | "network";
     };
-    WAM_CREATED: {
+    AUDIO_NODE_CREATED: {
         nodeId: string;
-        name: string;
-        configFile?: string;
+        kind: string;
     };
-    WAM_LOADED: {
+    AUDIO_NODE_LOADED: {
         nodeId: string;
-        instance: WebAudioModule;
+        kind: string;
+        instance: AudioNode3D;
     };
-    WAM_ERROR: {
+    AUDIO_NODE_ERROR: {
         nodeId: string;
-        error: Error;
-        context: string;
+        kind: string;
+        error_message: string;
     };
     CONNECT_NODES: {
         sourceId: string;

@@ -46,15 +46,15 @@ export class Node3DConnectableInstance {
         }
 
         function onleftpick(){
-            ioEventBus.emit('IO_CONNECT_NODE3D', { pickType : "down", connectable: config, instance })
+            ioEventBus.emit('IO_CONNECT', { pickType : "down", connectable: config, instance })
         }
 
         function onpickup(){
-            ioEventBus.emit('IO_CONNECT_NODE3D', { pickType : "up", connectable: config, instance })
+            ioEventBus.emit('IO_CONNECT', { pickType : "up", connectable: config, instance })
         }
 
         function onpickout(){
-            ioEventBus.emit('IO_CONNECT_NODE3D', { pickType : "out", connectable: config, instance })
+            ioEventBus.emit('IO_CONNECT', { pickType : "out", connectable: config, instance })
         }
 
         for(const mesh of meshes) {

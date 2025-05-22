@@ -30,14 +30,10 @@ export class Wam3D extends AudioNode3D{
     private wamInitializer: WamInitializer;
     //@ts-ignore
     private wam3DGUI: Wam3DGUI;
-    constructor(audioCtx: AudioContext, id: string, config: IWamConfig, configFile: string) {
-        super(audioCtx, id);
+    constructor(audioCtx: AudioContext, id: string, config: IWamConfig, kind: string) {
+        super(audioCtx, id, kind);
         this._config = config;
-        this._configFile = configFile;
-        console.log("CONFIG FILE NEW3D : " + configFile);
         this.wamInitializer = WamInitializer.getInstance(audioCtx);
-        //this.eventBus.emit('WAM_CREATED', {nodeId: this.id, name: config.name, configFile: configFile});
-
     }
 
     public async instantiate(): Promise<void> {
@@ -75,7 +71,7 @@ export class Wam3D extends AudioNode3D{
         // this.createBoundingBox();
         const bo = new BoundingBox(this, this.id)
         this.boundingBox = bo.boundingBox;
-        this.eventBus.emit('WAM_LOADED', {nodeId: this.id, instance: this._wamInstance});
+        this.eventBus.emit('AUDIO_NODE_LOADED', {nodeId: this.id, instance: this._wamInstance});
 
         console.log(this)
 
@@ -235,7 +231,7 @@ export class Wam3D extends AudioNode3D{
 
         return {
             id: this.id,
-            configFile: this._configFile,
+            kind: this.kind,
             name: this._config.name,
             position: {x: this.boundingBox.position.x, y: this.boundingBox.position.y, z: this.boundingBox.position.z},
             rotation: {x: this.boundingBox.rotation.x, y: this.boundingBox.rotation.y, z: this.boundingBox.rotation.z},

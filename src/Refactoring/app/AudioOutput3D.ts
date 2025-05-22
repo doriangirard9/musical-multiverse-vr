@@ -28,11 +28,10 @@ export class AudioOutput3D extends AudioNode3D {
     private hitBox: Nullable<Mesh> = null;
 
     private ioEventBus: IOEventBus = IOEventBus.getInstance();
-    constructor(audioCtx: AudioContext, id: string) {
-        super(audioCtx, id);
+    constructor(audioCtx: AudioContext, id: string, kind: string) {
+        super(audioCtx, id, kind);
 
         // Créer le PannerNode pour la spatialisation
-        console.log("is audiocontext set ? ", audioCtx);
         this._pannerNode = this._audioCtx.createPanner();
 
         // Configuration du PannerNode pour une spatialisation correcte en VR
@@ -196,28 +195,6 @@ export class AudioOutput3D extends AudioNode3D {
         }));
         this.hitBox.actionManager.registerAction(new ExecuteCodeAction(ActionManager.OnPointerOutTrigger, (): void => {
             highlightLayer.removeMesh(this.portMesh as Mesh);
-        }));
-
-        this.hitBox.actionManager.registerAction(new ExecuteCodeAction(ActionManager.OnLeftPickTrigger, (): void => {
-            console.log(`pick down - on clique sur  l'entrée pour créer un tube`);
-            this.ioEventBus.emit('IO_CONNECT_AUDIO_OUTPUT', {
-                pickType : "down",
-                audioOutput: this,
-            });
-        }));
-        this.hitBox.actionManager.registerAction(new ExecuteCodeAction(ActionManager.OnPickUpTrigger, (): void => {
-            console.log(`pick up - on relache le bouton sur une sortie`);
-            this.ioEventBus.emit('IO_CONNECT_AUDIO_OUTPUT', {
-                pickType : "up",
-                audioOutput: this,
-            });
-        }));
-        this.hitBox.actionManager.registerAction(new ExecuteCodeAction(ActionManager.OnPickOutTrigger, (): void => {
-            console.log(`pick out - on relache sur une sortie ou dans le vide`);
-            this.ioEventBus.emit('IO_CONNECT_AUDIO_OUTPUT', {
-                pickType : "out",
-                audioOutput: this,
-            });
         }));
     }
 }

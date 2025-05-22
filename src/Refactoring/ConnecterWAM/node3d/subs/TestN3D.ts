@@ -7,17 +7,29 @@ import { Node3DGUIContext } from "../Node3DGUIContext";
 export class TestN3DGUI implements Node3DGUI{
     
     sphere: Mesh
+    audioInput: Mesh
+    audioOutput: Mesh
     block: Mesh
     root: TransformNode
 
     constructor(context: Node3DGUIContext){
-        const {babylon:B} = context
+        const {babylon:B, tools:{MeshUtils}} = context
 
         this.root = new B.TransformNode("test root", context.scene)
 
         this.sphere = B.CreateSphere("test button", {diameter:.5}, context.scene)
         this.sphere.parent = this.root
         this.sphere.position.set(0,.25,0)
+
+        this.audioInput = B.CreateSphere("audio input", {diameter:.5}, context.scene)
+        MeshUtils.setColor(this.audioInput, new B.Color4(0,1,0,1))
+        this.audioInput.parent = this.root
+        this.audioInput.position.set(-0.75,-.25,0)
+
+        this.audioOutput = B.CreateSphere("audio output", {diameter:.5}, context.scene)
+        MeshUtils.setColor(this.audioOutput, new B.Color4(1,0,0,1))
+        this.audioOutput.parent = this.root
+        this.audioOutput.position.set(0.75,-.25,0)
 
         this.block = B.CreateBox("test box",{width:1,depth:1,height:.5}, context.scene)
         this.block.parent = this.root
@@ -33,6 +45,8 @@ export class TestN3D implements Node3D{
     private testValue = 1
 
     constructor(context: Node3DContext, private gui: TestN3DGUI){
+        const {tools:{AudioN3DConnectable}} = context
+
         const node = this
 
         context.addToBoundingBox(gui.block)
@@ -51,6 +65,7 @@ export class TestN3D implements Node3D{
             stringify(value) { return value.toString() },
         })
 
+        context.createConnectable(new AudioN3DConnectable.Input("audioInput", [gui.audioInput],"Destination",context.audioCtx.destination))
     }
 
     async setState(state: any, key?: string){

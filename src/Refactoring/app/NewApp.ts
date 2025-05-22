@@ -3,9 +3,9 @@ import {WamInitializer} from "./WamInitializer.ts";
 import {AppOrchestrator} from "./AppOrchestrator.ts";
 import {XRManager} from "../xr/XRManager.ts";
 import {AudioManager} from "./AudioManager.ts";
-import { Node3DInstance } from "../ConnecterWAM/node3d/instance/Node3DInstance.ts";
 import { TestN3DFactory } from "../ConnecterWAM/node3d/subs/TestN3D.ts";
-import { UIManager } from "./UIManager.ts";
+import { NetworkManager } from "../network/NetworkManager.ts";
+import { OscillatorN3DFactory } from "../ConnecterWAM/node3d/subs/OscillatorN3D.ts";
 
 export class NewApp {
     private audioCtx: AudioContext | undefined;
@@ -26,14 +26,12 @@ export class NewApp {
             this.xrManager = XRManager.getInstance();
             this.appOrchestrator = AppOrchestrator.getInstance();
 
-            (async()=>{
-                const scene = SceneManager.getInstance().getScene()
-                const uiManager = UIManager.getInstance()
-                console.log(`scene:`,scene)
-                const [hostId] = await WamInitializer.getInstance(audioContext).getHostGroupId()
-                const instance = new Node3DInstance("testid", scene, uiManager, audioContext, hostId, TestN3DFactory)
-                await instance.instantiate()
-                console.log("salade")
+            ;(async()=>{
+                const instance = await this.audioManager!!.createNode3D("testid", "testid", TestN3DFactory)
+                NetworkManager.getInstance().getAudioNodeComponent().addAudioNode("testid", instance)
+
+                const instance2 = await this.audioManager!!.createNode3D("occ", "occ", OscillatorN3DFactory)
+                NetworkManager.getInstance().getAudioNodeComponent().addAudioNode("occ", instance2)
             })()
         }
 
@@ -52,7 +50,7 @@ export class NewApp {
     public async start(): Promise<void> {
         this.appOrchestrator = AppOrchestrator.getInstance();
         this.sceneManager.start();
-        await this.xrManager.init(this.sceneManager.getScene());
+        await this.xrManager!!.init(this.sceneManager.getScene());
     }
 
 }

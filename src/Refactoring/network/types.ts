@@ -11,7 +11,7 @@ export interface INetworkObject<T> {
 export type AudioNodeState = {
     id: string;
     name: string;
-    configFile: string;
+    kind: string;
     position: { x: number, y: number, z: number };
     rotation: { x: number, y: number, z: number };
     parameters: WamParameterDataMap;

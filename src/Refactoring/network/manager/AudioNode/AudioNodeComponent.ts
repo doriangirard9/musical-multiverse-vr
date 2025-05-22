@@ -2,7 +2,6 @@ import * as Y from 'yjs';
 import {AudioNodeState, AudioOutputState} from "../../types.ts";
 import {NodeTransform, ParamUpdate, PortParam} from "../../../shared/SharedTypes.ts";
 import {PositionComponent} from "./PositionComponent.ts";
-import {Wam3D} from "../../../ConnecterWAM/Wam3D.ts";
 import {ParameterComponent} from "./ParameterComponent.ts";
 import {CreationComponent} from "./CreationComponent.ts";
 import {TubeComponent} from "./TubeComponent.ts";
@@ -17,7 +16,7 @@ import {ConnectionQueueManager} from "../ConnectionQueueManager.ts";
  */
 export class AudioNodeComponent {
     private readonly doc: Y.Doc;
-    private audioNodes = new Map<string, Wam3D>();
+    private audioNodes = new Map<string, AudioNode3D>();
 
     private readonly networkAudioNodes: Y.Map<AudioNodeState>;
     private readonly networkPositions: Y.Map<NodeTransform>;
@@ -76,13 +75,13 @@ export class AudioNodeComponent {
         return this.doc;
     }
 
-    public getAudioNode(id: string): Wam3D | undefined {
+    public getAudioNode(id: string): AudioNode3D | undefined {
         return this.audioNodes.get(id);
     }
-    public getAudioNodes(): Map<string, Wam3D> {
+    public getAudioNodes(): Map<string, AudioNode3D> {
         return this.audioNodes;
     }
-    public addAudioNode(id: string, node: Wam3D): void {
+    public addAudioNode(id: string, node: AudioNode3D): void {
         this.audioNodes.set(id, node);
     }
     public getNetworkAudioNodes(): Y.Map<AudioNodeState> {

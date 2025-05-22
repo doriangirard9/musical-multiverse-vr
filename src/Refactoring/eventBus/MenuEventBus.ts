@@ -22,7 +22,7 @@ export type MenuEventPayload = {
     CREATE_AUDIO_NODE : {
         nodeId : string;
         name : string;
-        configFile? : string;
+        kind : string;
     };
     CREATE_AUDIO_OUTPUT : {
         nodeId : string;

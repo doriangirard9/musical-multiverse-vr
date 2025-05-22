@@ -1,22 +1,20 @@
-import {Color3, Nullable} from "@babylonjs/core";
-import {Wam3D} from "../ConnecterWAM/Wam3D.ts";
-import {MessageManager} from "../app/MessageManager.ts";
-import {IOEventBus, IOEventPayload} from "../eventBus/IOEventBus.ts";
+import { WritableObject } from "@babylonjs/core";
+import { Wam3D } from "../ConnecterWAM/Wam3D.ts";
+import { MessageManager } from "../app/MessageManager.ts";
+import { IOEventBus, IOEventPayload } from "../eventBus/IOEventBus.ts";
 import { ConnectionManager } from "./ConnectionManager.ts";
-import {NetworkEventBus} from "../eventBus/NetworkEventBus.ts";
-import {NetworkManager} from "../network/NetworkManager.ts";
-import {AudioManager} from "../app/AudioManager.ts";
+import { NetworkEventBus } from "../eventBus/NetworkEventBus.ts";
+import { NetworkManager } from "../network/NetworkManager.ts";
+import { AudioManager } from "../app/AudioManager.ts";
 import { Node3DInstance } from "../ConnecterWAM/node3d/instance/Node3DInstance.ts";
 import { Node3DConnectable } from "../ConnecterWAM/node3d/Node3DConnectable.ts";
 import { WamNode } from "@webaudiomodules/api";
+import { AudioNode3D } from "../ConnecterWAM/AudioNode3D.ts";
 
 export class IOManager {
     private _messageManager: MessageManager;
 
-    private _inputNode: Nullable<Wam3D> = null;
-    private _outputNode: Nullable<Wam3D> = null;
-    private _inputPortId: string | null = null;
-    private _outputPortId: string | null = null;
+    private currentPort: SimplifiedConnectable|null = null;
 
     private static instance: IOManager;
     private connectionManager: ConnectionManager = ConnectionManager.getInstance();
@@ -36,33 +34,17 @@ export class IOManager {
     }
 
     private onIOEvent(): void {
-        this.ioEventBus.on('IO_CONNECT', payload => {
-            this.handler(payload);
-        });
-
-        this.ioEventBus.on('IO_CONNECT_AUDIO_OUTPUT', payload => {
-            this.audioOutputHandler(payload);
-        });
-
-        this.ioEventBus.on('IO_CONNECT_NODE3D', payload => {
-            this.node3dHandler(payload)
-        });
+        this.ioEventBus.on('IO_CONNECT', payload => this.commonHandler(payload))
 
         // Écouter les événements de connexions depuis le réseau
-        this.ioEventBus.on('NETWORK_CONNECTION_ADDED', payload => {
-            this.handleNetworkConnectionAdded(payload);
-        });
+        this.ioEventBus.on('NETWORK_CONNECTION_ADDED', payload => this.handleNetworkConnectionAdded(payload))
 
-        this.ioEventBus.on('NETWORK_CONNECTION_REMOVED', payload => {
-            this.handleNetworkConnectionRemoved(payload);
-        });
+        this.ioEventBus.on('NETWORK_CONNECTION_REMOVED', payload => this.handleNetworkConnectionRemoved(payload))
 
-        this.ioEventBus.on('NETWORK_AUDIO_OUTPUT_ADDED', payload => {
-            this.handleNetworkAudioOutputAdded(payload);
-        });
+        this.ioEventBus.on('NETWORK_AUDIO_OUTPUT_ADDED', payload => this.handleNetworkAudioOutputAdded(payload))
 
         this.ioEventBus.on('NETWORK_AUDIO_OUTPUT_REMOVED', _ => {
-            //todo
+            //TODO: Suppression d'une audio output
         });
     }
 
@@ -90,71 +72,38 @@ export class IOManager {
 
         const audioNodeComponent = NetworkManager.getInstance().getAudioNodeComponent();
 
-        const sourceNode = audioNodeComponent.getAudioNode(portParam.sourceId);
-        if (!sourceNode) {
-            console.warn(`[IOManager] Source node not found: ${portParam.sourceId}`);
-            return;
-        }
+        // Récupérer les audio nodes source et cible
+        const sourceNode = audioNodeComponent.getAudioNode(portParam.sourceId)
+        const targetNode = audioNodeComponent.getAudioNode(portParam.targetId)
 
-        const outputPortMesh = sourceNode.getPortMesh(portParam.portId);
-        if (!outputPortMesh) {
-            console.warn(`[IOManager] Output port mesh not found on source node`);
-            return;
-        }
+        if (!sourceNode) { console.warn(`[IOManager] Source node not found: ${portParam.sourceId}`); return; }
+        if (!targetNode) { console.warn(`[IOManager] Target node not found: ${portParam.targetId}`); return; }
 
-        const targetWam = audioNodeComponent.getAudioNode(portParam.targetId);
-        const targetAudioOutput = targetWam ? null :
-            audioNodeComponent.getAudioOutputComponent().getAudioOutput(portParam.targetId);
-
-        if (!targetWam && !targetAudioOutput) {
-            console.warn(`[IOManager] Target node not found: ${portParam.targetId}`);
-            return;
-        }
-
-        if (targetWam) {
-            const inputPortId = this.getCorrespondingInputPort(portParam.portId);
-            const inputPortMesh = targetWam.getPortMesh(inputPortId);
-
-            if (!inputPortMesh) {
-                console.warn(`[IOManager] Input port mesh not found on target WAM`);
-                return;
+        // On récupère les connectables source et cible
+        const sourceConnectable = (()=>{
+            if(sourceNode instanceof Wam3D) return this.wam3dToNode3d(sourceNode, portParam.sourceId)
+            else{
+                const i = (sourceNode as Node3DInstance).connectables.get(portParam.sourceId)
+                return i ? this.connectableToNode3d(sourceNode,i.config) as SimplifiedConnectable : undefined
             }
+        })()
 
-            this.connectionManager.createConnectionArc(
-                connectionId,
-                outputPortMesh,
-                sourceNode.id,
-                inputPortMesh,
-                targetWam.id
-            );
-
-            sourceNode.connectPorts(portParam.portId, targetWam, inputPortId);
-            console.log(`[IOManager] WAM-to-WAM connection created: ${connectionId}`);
-        } else {
-
-            const audioOutputMesh = targetAudioOutput!.getPortMesh();
-
-            if (!audioOutputMesh) {
-                console.warn(`[IOManager] Audio output mesh not found`);
-                return;
+        const targetConnectable = (()=>{
+            if(targetNode instanceof Wam3D) return this.wam3dToNode3d(targetNode, portParam.targetId)
+            else{
+                const i = (sourceNode as Node3DInstance).connectables.get(portParam.sourceId)
+                return i ? this.connectableToNode3d(sourceNode,i.config) as SimplifiedConnectable : undefined
             }
+        })()
 
-            this.connectionManager.createConnectionArc(
-                connectionId,
-                outputPortMesh,
-                sourceNode.id,
-                audioOutputMesh,
-                targetAudioOutput!.id
-            );
+        if (!sourceConnectable) { console.warn(`[IOManager] Source port not found on source node`); return }
+        if (!targetConnectable) { console.warn(`[IOManager] Target port not found on target node`); return }
 
-            const sourceWamAudioNode = sourceNode.getAudioNode();
-            const targetAudioNode = targetAudioOutput!.getAudioNode();
-
-            if (sourceWamAudioNode && targetAudioNode) {
-                sourceWamAudioNode.connect(targetAudioNode);
-                console.log(`[IOManager] WAM-to-AudioOutput connection created: ${connectionId}`);
-            }
-        }
+        // On connecte !
+        const result = this.connectConnectables(sourceConnectable,targetConnectable)
+        
+        if(result) console.log(`[IOManager] WAM-to-Node connection created: ${result.connectionId}`)
+        else console.warn(`[IOManager] WAM-to-Node connection failed`)
     }
     /**
      * Gère la suppression d'une connexion depuis le réseau
@@ -171,310 +120,197 @@ export class IOManager {
     }
 
     /**
-     * Détermine le port d'entrée correspondant au port de sortie
-     */
-    private getCorrespondingInputPort(outputPortId: string): string {
-        switch (outputPortId) {
-            case 'audioOut':
-                return 'audioIn';
-            case 'midiOut':
-                return 'midiIn';
-            default:
-                // Fallback - pourrait être amélioré selon votre logique
-                return outputPortId.includes('audio') ? 'audioIn' : 'midiIn';
-        }
-    }
-
-    /**
      * Réinitialise l'état de la connexion en cours et annule l'aperçu.
      */
     private _cancelAndResetConnection(): void {
-        this.connectionManager.cancelConnectionPreview();
-        this._resetConnectionState();
+        this.connectionManager.cancelConnectionPreview()
+        this.currentPort = null
     }
 
     /**
-     * Handle IO connection events between nodes
+     * Pour simplifier le code, je cache les Wam3d et les Node3D derrière la même interface: SimplifiedConnectable 
      */
-    private handler(data: IOEventPayload['IO_CONNECT']) {
-        console.log(`Événement : ${data.pickType}, nœud ${data.node.id}, port ${data.portId}`);
 
-        switch (data.pickType) {
-            case "down":
-                if (data.isInput) {
-                    this._inputNode = data.node;
-                    this._inputPortId = data.portId;
-                } else {
-                    this._outputNode = data.node;
-                    this._outputPortId = data.portId;
-                }
-                this.connectionManager.startConnectionPreview(data.node, data.portId);
-                break;
-
-            case "up":
-                let actualOutputNode: Nullable<Wam3D> = null;
-                let actualOutputPortId: Nullable<string> = null;
-                let actualInputNode: Nullable<Wam3D> = null;
-                let actualInputPortId: Nullable<string> = null;
-
-                if (data.isInput && this._outputNode && this._outputPortId) {
-                    actualOutputNode = this._outputNode;
-                    actualOutputPortId = this._outputPortId;
-                    actualInputNode = data.node;
-                    actualInputPortId = data.portId;
-                } else if (!data.isInput && this._inputNode && this._inputPortId) {
-                    actualOutputNode = data.node;
-                    actualOutputPortId = data.portId;
-                    actualInputNode = this._inputNode;
-                    actualInputPortId = this._inputPortId;
-                }
-
-                if (actualOutputNode && actualInputNode && actualOutputPortId && actualInputPortId) {
-                    if (actualOutputNode.id === actualInputNode.id) {
-                        this._messageManager.showMessage("Can't connect a node to itself", 3000);
-                    } else {
-                        const outputPortMesh = actualOutputNode.getPortMesh(actualOutputPortId);
-                        const inputPortMesh = actualInputNode.getPortMesh(actualInputPortId);
-
-                        if (outputPortMesh && inputPortMesh) {
-                            const connectionId = `${actualOutputNode.id}_${actualOutputPortId}_to_${actualInputNode.id}_${actualInputPortId}`;
-                            console.log("[IOManager] Creating connection:", connectionId);
-
-                            // Connecter les ports (audio/MIDI)
-                            actualOutputNode.connectPorts(actualOutputPortId, actualInputNode, actualInputPortId);
-
-                            // Créer la connexion visuelle
-                            this.connectionManager.createConnectionArc(
-                                connectionId,
-                                outputPortMesh,
-                                actualOutputNode.id,
-                                inputPortMesh,
-                                actualInputNode.id
-                            );
-
-                            this.networkEventBus.emit('STORE_CONNECTION_TUBE', {
-                                connectionId: connectionId,
-                                portParam: {
-                                    sourceId: actualOutputNode.id,
-                                    targetId: actualInputNode.id,
-                                    portId: actualOutputPortId,
-                                }
-                            });
-                        } else {
-                            console.error("[IOManager] Failed to get port meshes for visual connection");
-                        }
-                    }
-                } else {
-                    console.log("[IOManager] Released with incomplete connection state - canceling");
-                }
-                this._cancelAndResetConnection();
-                break;
-
-            case "out":
-                console.log("[IOManager] Pointer out - canceling preview");
-                this._cancelAndResetConnection();
-                break;
+    /**
+     * Obtenir une SimplifiedConnectable à partir d'un Node3D
+    */
+    private connectableToNode3d(instance: AudioNode3D, connectable: Node3DConnectable): SimplifiedConnectable{
+        const connectable3d = connectable as Node3DConnectable
+        const simplifiedConnectable: SimplifiedConnectable = {
+            id: connectable3d.id,
+            meshes: connectable3d.meshes,
+            direction: connectable3d.direction,
+            type: connectable3d.type,
+            nodeid: instance.id,
+            receive(value) { connectable3d.receive(value) },
+            connect(sender) { connectable3d.connect(sender) },
+            disconnect(sender) { connectable3d.disconnect(sender) },
         }
+        return simplifiedConnectable
     }
 
     /**
-     * Handle connections to AudioOutput3D
-     */
-    private audioOutputHandler(data: IOEventPayload['IO_CONNECT_AUDIO_OUTPUT']) {
-        const audioOutput = data.audioOutput;
-
-        switch (data.pickType) {
-            case "down":
-                // AudioOutput ne peut pas initier une connexion
-                break;
-
-            case "up":
-                // Connecter un nœud WAM à l'AudioOutput
-                if (this._outputNode && this._outputPortId) {
-                    if (this._outputNode.id !== audioOutput.id) {
-                        const sourceWamAudioNode = this._outputNode.getAudioNode();
-                        const targetAudioOutputNode = audioOutput.getAudioNode();
-
-                        if (sourceWamAudioNode && targetAudioOutputNode) {
-                            const outputPortMesh = this._outputNode.getPortMesh(this._outputPortId);
-                            const audioOutputMesh = audioOutput.getPortMesh();
-                            if (outputPortMesh && audioOutputMesh) {
-                                const connectionId = `${this._outputNode.id}_${this._outputPortId}_to_audioOutput_${audioOutput.id}`;
-                                this.connectionManager.createConnectionArc(
-                                    connectionId,
-                                    outputPortMesh,
-                                    this._outputNode.id,
-                                    audioOutputMesh,
-                                    audioOutput.id
-                                );
-                                sourceWamAudioNode.connect(targetAudioOutputNode);
-                                this.networkEventBus.emit('STORE_CONNECTION_TUBE',{
-                                    connectionId: connectionId,
-                                    portParam: {
-                                        sourceId: this._outputNode.id,
-                                        targetId: audioOutput.id,
-                                        portId: this._outputPortId,
-                                    }
-                                })
+     * Obtenir une SimplifiedConnectable à partir d'un Wam3D.
+     * En attendant, pour faciliter les test j'ignore complétement connection strategy.
+    */
+    private wam3dToNode3d(wam3d:Wam3D, portId: string): SimplifiedConnectable{
+        let connectable: WritableObject<Partial<SimplifiedConnectable>>|undefined
+        if(portId.endsWith("Out")){
+            if(portId.startsWith("audio")){
+                connectable = {
+                    connect(_) { },
+                    disconnect(_) { },
+                    direction: 'output',
+                    type: "audio",
+                    receive(value) {
+                        if(typeof value == "object"){
+                            if("connectAudio" in value){
+                                wam3d.getAudioNode().connect(value.connectAudio as AudioNode)
                             }
-                            console.log("[IOManager] Connected", this._outputNode.id, "to audio output", audioOutput.id);
-                        } else {
-                            console.error("[IOManager] Failed to get audio nodes for connection to AudioOutput");
+                            else if("disconnectAudio" in value){
+                                wam3d.getAudioNode().disconnect(value.disconnectAudio as AudioNode)
+                            }
                         }
-                    } else {
-                        this._messageManager.showMessage("Can't connect a node to itself", 2000);
-                    }
-                } else {
-                    console.log("[IOManager] Released on AudioOutput but no WAM output was being dragged.");
+                    },
                 }
-                this._cancelAndResetConnection();
-                break;
-
-            case "out":
-                this._cancelAndResetConnection();
-                break;
+            }
+            else{
+                connectable = {
+                    connect(_) { },
+                    disconnect(_) { },
+                    direction: 'output',
+                    type: "midi",
+                    receive(value) {
+                        if(typeof value == "object"){
+                            if("connectMidi" in value){
+                                ;(wam3d.getAudioNode() as WamNode).connectEvents((value.connectMidi as WamNode).instanceId)
+                            }
+                            else if("disconnectMidi" in value){
+                                ;(wam3d.getAudioNode() as WamNode).disconnectEvents((value.disconnectMidi as WamNode).instanceId)
+                            }
+                        }
+                    },
+                }
+            }
         }
+        else{
+            if(portId?.startsWith("audio")){
+                connectable = {
+                    connect(sender) { sender({connectAudio:wam3d.getAudioNode()}) },
+                    disconnect(sender) { sender({disconnectAudio:wam3d.getAudioNode()}) },
+                    direction: 'input',
+                    type: "audio",
+                    receive(_) { },
+                }
+            }
+            else{
+                connectable = {
+                    connect(sender) { sender({connectMidi:wam3d.getAudioNode()}) },
+                    disconnect(sender) { sender({disconnectMidi:wam3d.getAudioNode()}) },
+                    direction: 'input',
+                    type: "midi",
+                    receive(_) {},
+                }
+            }
+        }
+        connectable.meshes = [wam3d.getPortMesh(portId)!!]
+        connectable.id = portId
+        connectable.nodeid = wam3d.id
+        return connectable as SimplifiedConnectable
     }
 
-    private _currentNode3dConnectable = null as null|{instance:Node3DInstance, connectable:Node3DConnectable}
+    /**
+     * Connect two connectables
+     * @param connectA connectable to connect from
+     * @param connectB  Connectable to connect to
+     * @returns If the connection was successful returns the connection informations, else null
+     */
+    private connectConnectables(connectA: SimplifiedConnectable, connectB: SimplifiedConnectable) {
 
-    private node3dHandler(data: IOEventPayload['IO_CONNECT_NODE3D']) {
-        const {connectable, instance, pickType} = data
+        // Check if the connection is not a self connection
+        if(connectA.nodeid==connectB.nodeid){
+            this._messageManager.showMessage("Can't connect a node to itself", 2000)
+            return null
+        }
+        
+        // Check if connection direction are compatible
+        let canConnect = false
+        if([connectA.direction, connectB.direction].includes("bidirectional")) canConnect = true
+        else if(connectA.direction != connectB.direction) canConnect = true
+        if(!canConnect){
+            this._messageManager.showMessage(`Cannot connect a ${connectA.direction} port to a ${connectB.direction} port`, 2000)
+            return null
+        }
 
-        switch (data.pickType) {
+        // Check if connection type are compatible
+        if(connectA.type != connectB.type){
+            console.log("connection ",connectA," ",connectB)
+            this._messageManager.showMessage(`Can't connect a ${connectA.type} to a ${connectB.type}`, 2000)
+            return null
+        }
+
+        // Get the connectable order
+        let [input,output] = (()=>{
+            if(connectA.direction == "input") return [connectA, connectB]
+            else if(connectB.direction == "input") return [connectB, connectA]
+            else if(connectA.direction == "output") return [connectB, connectA]
+            else if(connectB.direction == "output") return [connectA, connectB]
+            else return [connectA, connectB]
+        })()
+
+        // Connect !
+        const connectionId = `${input.nodeid}_${input.id}_to_${output.nodeid}_${output.id}`;
+        this.connectionManager.createConnectionArc(
+            connectionId,
+            output.meshes[0], output.nodeid,
+            input.meshes[0], input.nodeid
+        );
+        output.connect(input.receive.bind(input))
+        input.connect(output.receive.bind(output))
+        return {connectionId,input,output}
+    }
+
+    private commonHandler(data: IOEventPayload['IO_CONNECT']) {
+        const {pickType} = data
+
+        switch (pickType) {
             case "down":
-                this._currentNode3dConnectable = {connectable, instance}
-                break;
+                if("node" in data) this.currentPort = this.wam3dToNode3d(data.node, data.portId)
+                else this.currentPort = this.connectableToNode3d(data.instance, data.connectable)
+                this.connectionManager.startConnectionPreview(this.currentPort.nodeid, this.currentPort.meshes[0], this.currentPort.id)
+                break
 
             case "up":
-                let otherConnectable: Pick<Node3DConnectable,'connect'|'disconnect'|'receive'|'direction'|'type'>|undefined
-                let otherId: string|undefined
+                if(this.currentPort){
+                    let connectA = this.currentPort
 
-                
-                const wam3DOutput = this._outputNode
-                const wam3DInput= this._inputNode
-                const wam3DPortId= this._currentPortId
+                    let connectB = (()=>{
+                        if("node" in data) return this.wam3dToNode3d(data.node, data.portId)
+                        else return this.connectableToNode3d(data.instance, data.connectable)
+                    })()
 
-                // Gérer les connections avec les Wam3D, permet de faire des test mais
-                // c'est destiné à disparaitre.
-                if (wam3DOutput){
-                    otherId = wam3DOutput.id
-                    if(wam3DPortId?.startsWith("midi")){
-                        otherConnectable = {
-                            connect(sender) { },
-                            disconnect(sender) { },
-                            direction: 'output',
-                            type: "midi",
-                            receive(value) {
-                                if(typeof value == "object"){
-                                    if("connectAudio" in value){
-                                        wam3DOutput.getAudioNode().connect(value as AudioNode)
-                                    }
-                                    else if("disconnectAudio" in value){
-                                        wam3DOutput.getAudioNode().disconnect(value as AudioNode)
-                                    }
+                    // Ensuite on crée la connexion
+                    if(connectA){
+                        const result = this.connectConnectables(connectA, connectB)
+                        if(result){
+                            const {connectionId, input, output} = result
+                            this.networkEventBus.emit('STORE_CONNECTION_TUBE',{
+                                connectionId,
+                                portParam: {
+                                    sourceId: output.id,
+                                    targetId: input.id,
+                                    sourcePortId: output.id,
+                                    targetPortId: input.id,
                                 }
-                            },
-                        }
-                    }
-                    else{
-                        otherConnectable = {
-                            connect(sender) { },
-                            disconnect(sender) { },
-                            direction: 'output',
-                            type: "audio",
-                            receive(value) {
-                                if(typeof value == "object"){
-                                    if("connectMidi" in value){
-                                        ;(wam3DOutput.getAudioNode() as WamNode).connectEvents((value as WamNode).instanceId)
-                                    }
-                                    else if("disconnectMidi" in value){
-                                        ;(wam3DOutput.getAudioNode() as WamNode).disconnectEvents((value as WamNode).instanceId)
-                                    }
-                                }
-                            },
-                        }
-                    }
-                    
-                }
-                else if (wam3DInput){
-                    otherId = wam3DInput.id
-                    if(wam3DPortId?.startsWith("midi")){
-                        otherConnectable = {
-                            connect(sender) { sender({connectAudio:wam3DInput.getAudioNode()}) },
-                            disconnect(sender) { sender({disconnectAudio:wam3DInput.getAudioNode()}) },
-                            direction: 'input',
-                            type: "midi",
-                            receive(_) { },
-                        }
-                    }
-                    else{
-                        otherConnectable = {
-                            connect(sender) { sender({connectMidi:wam3DInput.getAudioNode()}) },
-                            disconnect(sender) { sender({disconnectMidi:wam3DInput.getAudioNode()}) },
-                            direction: 'input',
-                            type: "audio",
-                            receive(_) {},
+                            })
                         }
                     }
                 }
-                else if(this._currentNode3dConnectable){
-                    otherId = this._currentNode3dConnectable.instance.id
-                    otherConnectable = this._currentNode3dConnectable.connectable
-                }
-
-                if(otherId && otherConnectable){
-                    if(
-                        (
-                            otherConnectable.direction == "bidirectional"
-                            || connectable.direction == "bidirectional"
-                            || connectable.direction != otherConnectable.direction
-                        )
-                        && otherConnectable.type==connectable.type
-                    ){
-                        if(otherId != instance.id){
-                            let [input,output] = (()=>{
-                                if(otherConnectable.direction == "input") return [otherConnectable, connectable]
-                                else if(connectable.direction == "input") return [connectable, otherConnectable]
-
-                                else if(otherConnectable.direction == "output") return [connectable, otherConnectable]
-                                else if(connectable.direction == "output") return [otherConnectable, connectable]
-
-                                else return [otherConnectable, connectable]
-
-                            })()
-
-                            output.connect(input.receive.bind(input))
-                            input.connect(output.receive.bind(output))
-                        }
-                        else{
-                            this._messageManager.showMessage("Can't connect a node to itself", 2000);
-                        }
-                    }
-                    
-                }
-
-                if (this._outputNode && ["input","bidirectional"].includes(connectable.direction)) {
-                    if (this._outputNode.id !== instance.id) {
-                        const sourceNode = this._outputNode.getAudioNode();
-                        sourceNode.connect(audioOutput.getAudioNode());
-                        console.log("Tried to connect ", this._outputNode.id, " to ", audioOutput.id);
-                    } else {
-                        this._messageManager.showMessage("Can't connect a node to itself", 2000);
-                    }
-                    this._resetConnectionState();
-                }
-                else if(this._inputNode && ["output","bidirectional"].includes(connectable.direction)){
-
-                }
-                
-                else if(this._currentNode3dConnectable){
-
-                }
+                this._cancelAndResetConnection()
                 break;
 
             case "out":
-                this._resetConnectionState();
+                this._cancelAndResetConnection();
                 break;
         }
     }
@@ -488,21 +324,8 @@ export class IOManager {
         this.connectionManager.deleteConnectionArcById(connectionId);
 
         // Supprimer du réseau
-        this.networkEventBus.emit('REMOVE_CONNECTION_TUBE', {
-            connectionId: connectionId
-        });
-
-        // TODO
-        //if (sourceNode && targetNode) {
-        //    sourceNode.disconnectPorts(portId, targetNode, targetPortId);
-        //}
-    }
-
-    private _resetConnectionState() {
-        this._inputNode = null;
-        this._outputNode = null;
-        this._inputPortId = null;
-        this._outputPortId = null;
-        this._currentNode3dConnectable = null;
+        this.networkEventBus.emit('REMOVE_CONNECTION_TUBE', { connectionId: connectionId });
     }
 }
+
+type SimplifiedConnectable = { nodeid: string } & Pick<Node3DConnectable,'connect'|'disconnect'|'receive'|'direction'|'type'|'id'|'meshes'>

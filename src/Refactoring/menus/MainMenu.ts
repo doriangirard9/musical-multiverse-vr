@@ -97,7 +97,7 @@ export class MainMenu extends AbstractMenu {
             const button = new GUI.TouchHolographicButton(plugin.name);
             button.text = plugin.name;
             button.onPointerUpObservable.add(()=> {
-                this.menuEventBus.emit("CREATE_AUDIO_NODE", {name : plugin.name, nodeId : uuid(), configFile : plugin.configFile});
+                this.menuEventBus.emit("CREATE_AUDIO_NODE", {name : plugin.name, nodeId : uuid(), kind : plugin.configFile});
                 this.hide()
             });
             this._menu.addButton(button);

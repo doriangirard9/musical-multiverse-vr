@@ -8,6 +8,11 @@ export interface Node3DGUIContext{
     
     //// Context ////
     /**
+     * Les classes utilitaires fourni par l'Host.
+     */
+    readonly tools: typeof import("./tools")
+    
+    /**
      * La bibliothèque BabylonJS.
      */
     readonly babylon: typeof BABYLON
