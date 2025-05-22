@@ -89,7 +89,7 @@ export class PianoRoll3D extends Wam3D {
     s: IAudioNodeConfig
   ) {
     super(scene, audioCtx, id, config, s);
-    this.rows =4;
+    this.rows =16;
     this.cols = 16;
     this.tempo = 60;
     if(this.rows<this._visibleRowCount)
@@ -184,40 +184,20 @@ export class PianoRoll3D extends Wam3D {
         // check if color is green
         if (this.isBtnStartStop) {
           this.stop()
-          this._wamInstance.audioNode.scheduleEvents({
-            type: "wam-transport",
-            data: {
-              playing: false,
-              timeSigDenominator: 4,
-              timeSigNumerator: 4,
-              currentBar: 0,
-              currentBarStarted: this._audioCtx.currentTime,
-              tempo: this.tempo,
-            },
-          });
+
           this.isBtnStartStop = false;
           material.diffuseColor = B.Color3.Red();
           // textBlock.text = "Stop";
           } else {
             this.start()
-            this._wamInstance.audioNode.scheduleEvents({
-              type: "wam-transport",
-              data: {
-                playing: true,
-                timeSigDenominator: 4,
-                timeSigNumerator: 4,
-                currentBar: 0,
-                currentBarStarted: this._audioCtx.currentTime,
-                tempo: this.tempo,
-              },
-            });
+
             this.isBtnStartStop = true;
             material.diffuseColor = B.Color3.Green();
             // textBlock.text = "Start";
           }
       }));
 
-   
+      
       
     }
 
@@ -316,6 +296,11 @@ export class PianoRoll3D extends Wam3D {
         colorBox.dispose();
     });
 
+    // clear exeisting this.pattern
+    this.pattern.notes = [];
+    this.pattern.length = newColumnCount * this.ticksPerColumn;
+    this.sendPatternToPianoRoll();
+
     // Update the column count
     this.cols = newColumnCount;
 
@@ -323,8 +308,13 @@ export class PianoRoll3D extends Wam3D {
     this.startX = -(this.cols - 1) / 2 * (this.buttonWidth + this.buttonSpacing);
     this.endX = (this.cols - 1) / 2 * (this.buttonWidth + this.buttonSpacing);
 
-    // change width this.mesh without scaling
-    this.baseMesh.scaling.x = (this.endX - this.startX) / this.baseMesh.getBoundingInfo().boundingBox.extendSize.x;
+    // Recompute desired width
+    const newWidth = (this.endX - this.startX) + (this.buttonWidth * 2 + this.buttonSpacing) + (this.buttonWidth + this.buttonSpacing * 2);
+    
+    // Apply scaling to baseMesh instead of recreating
+    const currentWidth = this.baseMesh.getBoundingInfo().boundingBox.extendSize.x * 2;
+    this.baseMesh.scaling.x = newWidth / currentWidth;
+
     // Recreate the grid with the new number of columns
     this.createGrid();
     this._updateRowVisibility();
@@ -709,17 +699,42 @@ toggleNoteColor(row: number, col: number): void {
 start(): void {
   this.started = true;
   this.startTime = this.audioContext.currentTime;
+  this._wamInstance.audioNode.scheduleEvents({
+    type: "wam-transport",
+    data: {
+      playing: true,
+      timeSigDenominator: 4,
+      timeSigNumerator: 4,
+      currentBar: 0,
+      currentBarStarted: this._audioCtx.currentTime,
+      tempo: this.tempo,
+    },
+  });
 }
 
 stop(): void {
   this.started = false;
   this.playhead.position.x = this.getStartX();
+  this._wamInstance.audioNode.scheduleEvents({
+    type: "wam-transport",
+    data: {
+      playing: false,
+      timeSigDenominator: 4,
+      timeSigNumerator: 4,
+      currentBar: 0,
+      currentBarStarted: this._audioCtx.currentTime,
+      tempo: this.tempo,
+    },
+  });
 }
 
 setTempo(bpm: number): void {
   this.tempo = bpm;
   this.beatDuration = 60 / this.tempo;
   this.cellDuration = this.beatDuration / this.timeSignatureDenominator;
+  this.stop()
+  this.start()
+  // this.sendPatternToPianoRoll();
 }
 
 
