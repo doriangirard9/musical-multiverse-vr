@@ -41,30 +41,11 @@ export class MainMenu extends AbstractMenu {
             this._menu.addButton(button);
         });
 
-        // Audio outputs
-        const audioOutputsButton = new GUI.TouchHolographicButton("audioOutputs");
-        audioOutputsButton.text = "Audio Outputs";
-        audioOutputsButton.onPointerUpObservable.add((): void => this._createAudioOutputsMenu());
-        this._menu.addButton(audioOutputsButton);
-
         // Options
         const optionsButton = new GUI.TouchHolographicButton("options");
         optionsButton.text = "Options";
         optionsButton.onPointerUpObservable.add((): void => this._createOptionsMenu());
         this._menu.addButton(optionsButton);
-    }
-
-    private _createAudioOutputsMenu(): void {
-        this._clearMenu();
-        this._createBackButton();
-
-        // Audio output
-        const audioOutputButton = new GUI.TouchHolographicButton("audioOutput");
-        audioOutputButton.text = "Audio Output";
-        audioOutputButton.onPointerUpObservable.add(()=> {
-            this.menuEventBus.emit('CREATE_AUDIO_OUTPUT', {name : "audioOutput", nodeId : uuid()});
-        });
-        this._menu.addButton(audioOutputButton);
     }
 
     private _createOptionsMenu(): void {
@@ -97,7 +78,7 @@ export class MainMenu extends AbstractMenu {
             const button = new GUI.TouchHolographicButton(plugin.name);
             button.text = plugin.name;
             button.onPointerUpObservable.add(()=> {
-                this.menuEventBus.emit("CREATE_AUDIO_NODE", {name : plugin.name, nodeId : uuid(), kind : plugin.configFile});
+                this.menuEventBus.emit("CREATE_AUDIO_NODE", {name : plugin.name, nodeId : uuid(), kind : plugin.kind});
                 this.hide()
             });
             this._menu.addButton(button);

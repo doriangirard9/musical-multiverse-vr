@@ -29,11 +29,11 @@ export class AudioNode3DBuilder {
     public async create(id: string, kind: string): Promise<AudioNode3D|string> {
         
         // Builtin Output 
-        if(kind=="output"){
+        if(kind=="audiooutput"){
             return await this.createNode3D(id, kind, TestN3DFactory)
         }
         // Builtin Test
-        else if(kind=="test"){
+        else if(kind=="oscillator"){
             return await this.createNode3D(id, kind, OscillatorN3DFactory)
         }
         // Wam 3d
@@ -50,12 +50,12 @@ export class AudioNode3DBuilder {
             return new AudioOutput3D(this._audioCtx, id);
     }
 
-    private async createNode3D(name:string, id: string, factory: Node3DFactory<any,any>): Promise<Node3DInstance> {
+    private async createNode3D(id: string, kind:string, factory: Node3DFactory<any,any>): Promise<Node3DInstance> {
         const scene = SceneManager.getInstance().getScene()
         const uiManager = UIManager.getInstance()
         const audioManager = AudioManager.getInstance()
         const [hostId] = await WamInitializer.getInstance(audioManager.getAudioContext()).getHostGroupId()
-        const instance = new Node3DInstance(id, scene, uiManager, audioManager.getAudioContext(), hostId, factory)
+        const instance = new Node3DInstance(id, kind, scene, uiManager, audioManager.getAudioContext(), hostId, factory)
         await instance.instantiate()
         return instance
     }

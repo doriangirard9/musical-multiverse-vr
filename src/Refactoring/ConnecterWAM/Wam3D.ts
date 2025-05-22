@@ -13,7 +13,6 @@ import {AudioNode3D} from "./AudioNode3D.ts";
 import {AudioEventBus} from "../eventBus/AudioEventBus.ts";
 import {CustomParameter, IParameter, IWamConfig} from "../shared/SharedTypes.ts";
 import {ParamBuilder} from "../parameters/ParamBuilder.ts";
-import {AudioNodeState} from "../network/types.ts";
 import {Wam3DGUI} from "./Wam3DGUI.ts";
 
 export class Wam3D extends AudioNode3D{
@@ -192,74 +191,16 @@ export class Wam3D extends AudioNode3D{
         return this._wamInstance.audioNode;
     }
 
-    public async getState(): Promise<AudioNodeState> {
-        let parameters: WamParameterDataMap = {};
-
-        // Create an array of promises to fetch all parameter values concurrently
-        const parameterPromises = this._usedParameters.map(async (param) => {
-            const fullParamName: string = `${this._config.root}${param.name}`;
-            return this._wamInstance.audioNode.getParameterValues(false, fullParamName);
-        });
-
-        // Wait for all promises to resolve and merge results into `parameters`
-        const resolvedParameters = await Promise.all(parameterPromises);
-        resolvedParameters.forEach(paramValues => {
-            parameters = {...parameters, ...paramValues}; // Merge each parameter set
-        });
-
-        const inputNodes: string[] = [];
-        this.inputNodes.forEach((node: AudioNode3D): void => {
-            inputNodes.push(node.id);
-        });
-
-        const inputNodesMidi: string[] = [];
-        this.inputNodesMidi.forEach((node: AudioNode3D): void => {
-            inputNodesMidi.push(node.id);
-        });
-
-        // create variable with this type { [name: string]: number };
-        const params: WamParameterDataMap = {};
-
-        //loop on parameters of type WamParameterDataMap and fill params
-        for (const [key, value] of Object.entries(parameters)) {
-            params[key] = {
-                id: key,
-                value: value.value,
-                normalized: false
-            };
-        }
-
-        return {
-            id: this.id,
-            kind: this.kind,
-            name: this._config.name,
-            position: {x: this.boundingBox.position.x, y: this.boundingBox.position.y, z: this.boundingBox.position.z},
-            rotation: {x: this.boundingBox.rotation.x, y: this.boundingBox.rotation.y, z: this.boundingBox.rotation.z},
-            parameters: params
-        };
+    public override async getState(key: string): Promise<any>{
+        return await this._wamInstance.audioNode.getParameterValues(false, key)
     }
 
-    public setState(state: AudioNodeState): void {
-        this.boundingBox.position = new B.Vector3(
-            state.position.x,
-            state.position.y,
-            state.position.z
-        );
-        this.boundingBox.rotation = new B.Vector3(
-            state.rotation.x,
-            state.rotation.y,
-            state.rotation.z
-        );
+    public override async setState(key: string, value: any){
+        await this._wamInstance.audioNode.setParameterValues({key:{id:key, value:value as number, normalized:false}})
+    }
 
-        if (state.parameters) {
-            console.log(`[Wam3D] Applying parameters to node ${this.id}:`, state.parameters);
-
-            // Appliquer chaque paramètre individuellement
-            for (const paramId in state.parameters) {
-                const param = state.parameters[paramId];
-                this.updateSingleParameter(paramId, param.value);
-            }
-        }
+    public override getStateKeys(): Iterable<string>{
+        return this._usedParameters.map(it=>`${this._config.root}${it.name}`);
     }
 
     public async updateSingleParameter(paramId: string, value: number): Promise<void> {

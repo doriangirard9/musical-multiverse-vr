@@ -12,7 +12,7 @@ export class TubeComponent {
 
     constructor(parent: AudioNodeComponent) {
         this.parent = parent;
-        this.networkConnections = parent.getNetworkConnections();
+        this.networkConnections = parent.getConnectionMap();
     }
 
     public initialize(): void {

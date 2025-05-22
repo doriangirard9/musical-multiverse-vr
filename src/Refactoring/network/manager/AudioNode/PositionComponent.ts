@@ -4,6 +4,10 @@ import {AudioEventBus, AudioEventPayload} from "../../../eventBus/AudioEventBus.
 import * as B from "@babylonjs/core";
 import {AudioNodeComponent} from "./AudioNodeComponent.ts";
 
+/**
+ * Composant qui partage partage sur le réseau la position d'un composant quand elle change
+ * en local et change la position d'un composant quand elle change sur le réseau.
+ */
 export class PositionComponent {
     private parent: AudioNodeComponent;
     private readonly networkPositions: Y.Map<NodeTransform>;
@@ -36,17 +40,14 @@ export class PositionComponent {
         console.log(`[PositionComponent] Initialized with throttling`);
     }
 
+
+
+    //// From Local to Network  ////
     private setupEventListeners(): void {
         this.audioEventBus.on('POSITION_CHANGE', (payload: AudioEventPayload['POSITION_CHANGE']) => {
             if (payload.source === 'user') {
                 this.handlePositionChange(payload);
             }
-        });
-    }
-
-    private setupNetworkObservers(): void {
-        this.networkPositions.observe((event) => {
-            this.handlePositionUpdates(event);
         });
     }
 
@@ -103,6 +104,13 @@ export class PositionComponent {
         return Math.sqrt(dx*dx + dy*dy + dz*dz);
     }
 
+
+
+    //// From Network to Local ////
+    private setupNetworkObservers(): void {
+        this.networkPositions.observe((event) => this.handlePositionUpdates(event))
+    }
+
     private handlePositionUpdates(event: Y.YMapEvent<NodeTransform>): void {
         event.changes.keys.forEach((change, key) => {
             if (change.action === "update" || change.action === "add") {
@@ -113,17 +121,9 @@ export class PositionComponent {
                     const node = this.parent.getNodeById(key);
 
                     if (node) {
-                        node.updatePosition(
-                            new B.Vector3(
-                                newValue.position.x,
-                                newValue.position.y,
-                                newValue.position.z
-                            ),
-                            new B.Vector3(
-                                newValue.rotation.x,
-                                newValue.rotation.y,
-                                newValue.rotation.z
-                            )
+                        node.setPosition(
+                            new B.Vector3( newValue.position.x, newValue.position.y, newValue.position.z),
+                            new B.Vector3( newValue.rotation.x, newValue.rotation.y, newValue.rotation.z),
                         );
 
                         this.audioEventBus.emit('POSITION_CHANGE', {
@@ -136,6 +136,9 @@ export class PositionComponent {
                         console.warn(`[PositionComponent] Node ${key} not found locally`);
                     }
                 }
+            }
+            else if(change.action==="delete"){
+                this.cleanupNode(key)
             }
         });
     }

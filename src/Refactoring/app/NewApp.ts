@@ -25,14 +25,6 @@ export class NewApp {
             this.wamInitializer = WamInitializer.getInstance(this.audioCtx);
             this.xrManager = XRManager.getInstance();
             this.appOrchestrator = AppOrchestrator.getInstance();
-
-            ;(async()=>{
-                const instance = await this.audioManager!!.createNode3D("testid", "testid", TestN3DFactory)
-                NetworkManager.getInstance().getAudioNodeComponent().addAudioNode("testid", instance)
-
-                const instance2 = await this.audioManager!!.createNode3D("occ", "occ", OscillatorN3DFactory)
-                NetworkManager.getInstance().getAudioNodeComponent().addAudioNode("occ", instance2)
-            })()
         }
 
     }
@@ -51,6 +43,11 @@ export class NewApp {
         this.appOrchestrator = AppOrchestrator.getInstance();
         this.sceneManager.start();
         await this.xrManager!!.init(this.sceneManager.getScene());
+        
+        ;(async()=>{
+            await this.audioManager!!.createAudioNode3D("samuel", "oscillator")
+            await this.audioManager!!.createAudioNode3D("salade", "audiooutput")
+        })()
     }
 
 }

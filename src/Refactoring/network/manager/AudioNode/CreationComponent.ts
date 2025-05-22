@@ -1,24 +1,23 @@
-import * as Y from 'yjs';
 import {AudioNodeComponent} from "./AudioNodeComponent.ts";
-import {AudioNodeState} from "../../types.ts";
-import {Wam3D} from "../../../ConnecterWAM/Wam3D.ts";
-import {NodeTransform} from "../../../shared/SharedTypes.ts";
-import {AudioEventBus} from "../../../eventBus/AudioEventBus.ts";
+import {AudioEventBus, AudioEventPayload} from "../../../eventBus/AudioEventBus.ts";
+import { AudioManager } from "../../../app/AudioManager.ts";
+import * as Y from "yjs";
 
 export class CreationComponent {
-    private readonly networkAudioNodes3D: Y.Map<AudioNodeState>;
-    private readonly localAudioNodes3D: Map<String,Wam3D>;
+    private localAudioNodes3D
 
-    private readonly networkPositions: Y.Map<NodeTransform>;
+    private networkAudioNodeKind
+    private networkAudioNodeState
+    private networkAudioNodePosition
 
     private audioEventBus = AudioEventBus.getInstance();
-    private readonly parent: AudioNodeComponent;
 
-    constructor(parent: AudioNodeComponent) {
-        this.parent = parent;
-        this.networkAudioNodes3D = parent.getNetworkAudioNodes()
-        this.localAudioNodes3D = parent.getAudioNodes();
-        this.networkPositions = parent.getPositionMap();
+    constructor(private parent: AudioNodeComponent) {
+        this.localAudioNodes3D = parent.getAudioNodes()
+        
+        this.networkAudioNodeKind = parent.getKindMap()
+        this.networkAudioNodeState = parent.getStateMap()
+        this.networkAudioNodePosition = parent.getPositionMap()
     }
 
     public initialize(): void {
@@ -27,105 +26,42 @@ export class CreationComponent {
         console.log(`[CreationComponent] Initialized`);
     }
 
+    //// From Local to Network ////
     private setupEventListeners(): void {
-        this.audioEventBus.on('LOCAL_AUDIO_NODE_CREATED', this.handleLocalNodeCreated.bind(this));
+        this.audioEventBus.on('AUDIO_NODE_CREATED', this.handleLocalToNetwork.bind(this));
     }
 
-    private setupNetworkObservers(): void {
-        this.networkAudioNodes3D.observe((event) => {
-
-            if (this.parent.isProcessingLocalEvent) {
-                return;
-            }
-
-            console.log(`[CreationComponent] AudioNode changes: ${JSON.stringify(event.changes.keys)}`);
-            event.changes.keys.forEach((change, key) => {
-                this.handleAudioNodeChange(change, key);
-            });
-        });
-    }
-
-    private handleAudioNodeChange(change: any, key: string): void {
-        switch (change.action) {
-            case "add":
-                this.handleAudioNodeAdd(key);
-                break;
-            case "update":
-                this.handleAudioNodeUpdate(key);
-                break;
-            case "delete":
-                this.handleAudioNodeDelete(key);
-                break;
-        }
-    }
-
-    private handleAudioNodeAdd(key: string): void {
-        if (!this.localAudioNodes3D.has(key)) {
-            console.log(`[CreationComponent] AudioNode added: ${key}`);
-            const state = this.networkAudioNodes3D.get(key);
-            if (state) {
-                console.log(`[CreationComponent] AudioNode state: ${JSON.stringify(state)}`);
-
-                // Récupérer la position depuis networkPositions si disponible
-                const position = this.networkPositions.get(key);
-                if (position) {
-                    state.position = position.position;
-                    state.rotation = position.rotation;
-                }
-
-                // S'assurer que les paramètres sont inclus dans l'événement
-                // C'est crucial pour que les nouveaux clients reçoivent les bons paramètres
-                this.audioEventBus.emit('REMOTE_AUDIO_NODE_ADDED', { state: state });
-
-                // Après la création du nœud, vérifier s'il a été correctement ajouté et appliquer les paramètres
-                setTimeout(() => {
-                    const node = this.localAudioNodes3D.get(key);
-                    if (node && state.parameters) {
-                        console.log(`[CreationComponent] Applying parameters to newly created node ${key}:`, state.parameters);
-
-                        // Appliquer chaque paramètre individuellement
-                        for (const paramId in state.parameters) {
-                            const param = state.parameters[paramId];
-                            node.updateSingleParameter(paramId, param.value);
-                        }
-                    }
-                }, 100); // Petit délai pour s'assurer que le nœud est bien initialisé
-            }
-        }
-    }
-
-
-    private handleAudioNodeUpdate(key: string): void{
-        const state = this.networkAudioNodes3D.get(key);
-        if (state) {
-            const audioNode = this.localAudioNodes3D.get(key);
-            if (audioNode) {
-                audioNode.setState({
-                    ...state,
-                    parameters: state.parameters
-                });
-            }
-        }
-    }
-
-    private handleAudioNodeDelete(key: string): void {
-        if (this.localAudioNodes3D.has(key)) {
-            this.audioEventBus.emit('REMOTE_AUDIO_NODE_DELETED',{nodeId : key});
-            this.localAudioNodes3D.delete(key);
-        }
-    }
-
-    private handleLocalNodeCreated(payload: { state: AudioNodeState }): void {
-        // Utiliser withLocalProcessing pour éviter la boucle
+    private handleLocalToNetwork(payload: AudioEventPayload['AUDIO_NODE_CREATED']): void {
         this.parent.withLocalProcessing(() => {
-            this.networkAudioNodes3D.set(payload.state.id, payload.state);
-            this.networkPositions.set(payload.state.id, {
-                position: payload.state.position,
-                rotation: payload.state.rotation
-            });
+            // Kind
+            this.networkAudioNodeKind.set(payload.nodeId, payload.kind)
+
+            // State
+            this.networkAudioNodeState.set(payload.nodeId, new Y.Map())
+
+            // Position
+            this.networkAudioNodePosition.set(payload.nodeId, {position:{x:0,y:0,z:0}, rotation:{x:0,y:0,z:0}})
         });
 
-        console.log(`[AudioNodeComponent] Local node added to network: ${payload.state.id}`);
+        console.log(`[AudioNodeComponent] Local node added to network: ${payload.nodeId}`);
+    }
+
+
+    //// From Network to Local ////
+    private setupNetworkObservers(): void {
+        this.networkAudioNodeKind.observe((event) => {
+            if(this.parent.isProcessingLocalEvent) return
+            event.changes.keys.forEach((change, key) => {
+                if(change.action === "add"){
+                    AudioManager.getInstance().createAudioNode3D(key, this.networkAudioNodeKind.get(key)!!)
+                }
+                else if(change.action === "delete"){
+                    if (this.localAudioNodes3D.has(key)) {
+                        this.localAudioNodes3D.delete(key);
+                    }
+                }
+            })
+        })
     }
 
 }

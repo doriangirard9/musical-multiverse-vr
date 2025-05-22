@@ -1,11 +1,10 @@
-import {AudioEventBus,AudioEventPayload} from "../eventBus/AudioEventBus.ts"
-import {Scene} from "@babylonjs/core";
-import {AudioNode3DBuilder} from "./AudioNode3DBuilder.ts";
-import {Wam3D} from "../ConnecterWAM/Wam3D.ts";
-import {AudioOutput3D} from "./AudioOutput3D.ts";
-import {NetworkManager} from "../network/NetworkManager.ts";
+import { AudioEventBus, AudioEventPayload } from "../eventBus/AudioEventBus.ts"
+import { Scene } from "@babylonjs/core";
+import { AudioNode3DBuilder } from "./AudioNode3DBuilder.ts";
+import { AudioOutput3D } from "./AudioOutput3D.ts";
+import { NetworkManager } from "../network/NetworkManager.ts";
 import { AudioNode3D } from "../ConnecterWAM/AudioNode3D.ts";
-import { Node3D, Node3DFactory, Node3DGUI } from "../ConnecterWAM/node3d/Node3D.ts";
+import { Node3DFactory } from "../ConnecterWAM/node3d/Node3D.ts";
 import { SceneManager } from "./SceneManager.ts";
 import { UIManager } from "./UIManager.ts";
 import { WamInitializer } from "./WamInitializer.ts";
@@ -39,24 +38,8 @@ export class AudioManager {
 
 
     private setupEventListeners(): void {
-        // Handle remote audio node creation
-        this.audioEventBus.on("REMOTE_AUDIO_NODE_ADDED", this.onRemoteAudioNodeAdded.bind(this));
-        this.audioEventBus.on("REMOTE_AUDIO_NODE_DELETED", this.onRemoteAudioNodeDeleted.bind(this));
     }
 
-    public async createNode3D(name:string, id: string, factory: Node3DFactory<any,any>): Promise<Node3DInstance> {
-        const scene = SceneManager.getInstance().getScene()
-        const uiManager = UIManager.getInstance()
-        const audioManager = AudioManager.getInstance()
-        const [hostId] = await WamInitializer.getInstance(audioManager.getAudioContext()).getHostGroupId()
-        
-        const instance = new Node3DInstance(id, scene, uiManager, audioManager.audioCtx, hostId, factory)
-        this.audioEventBus.emit("NODE3D_CREATED", { nodeId: id, name: id, config:{} })
-
-        await instance.instantiate()
-
-        return instance
-    }
 
     /**
      * Create an audio node in the world and sync it.
@@ -69,7 +52,7 @@ export class AudioManager {
         const node = await this.audioNode3DBuilder.create(id, kind)
         if(node instanceof AudioNode3D){
             NetworkManager.getInstance().getAudioNodeComponent().addAudioNode(node.id, node)
-            this.audioEventBus.emit("AUDIO_NODE_LOADED",{nodeId:id, instance:node})
+            this.audioEventBus.emit("AUDIO_NODE_LOADED",{nodeId:id, kind:node.kind, instance:node})
             return node
         }
         else{
@@ -79,28 +62,6 @@ export class AudioManager {
         
     }
 
-    public async createAudioOutput3D(id: string): Promise<AudioOutput3D> {
-        const node: AudioOutput3D = await this.audioNode3DBuilder.createAudioOutput(id);
-        this.audioEventBus.emit("AUDIO_OUTPUT_ADDED", { nodeId: id, name: id });
-        await node.instantiate();
-        return node;
-    }
-
-    private async onRemoteAudioNodeAdded(payload: AudioEventPayload["REMOTE_AUDIO_NODE_ADDED"]): Promise<void> {
-        console.log('Creating remote audio node:', payload.state);
-
-        const node = await this.audioNode3DBuilder.create(payload.state.id, payload.state.kind);
-        await node.instantiate();
-
-        // Appliquer l'état reçu
-        node.setState(payload.state);
-        this.networkManager.getAudioNodeComponent().addAudioNode(node.id, node);
-        console.log('Remote audio node created successfully:', payload.state.id);
-    }
-    private async onRemoteAudioNodeDeleted(payload: AudioEventPayload["REMOTE_AUDIO_NODE_DELETED"]): Promise<void> {
-        console.log('Remote audio node change detected:', payload);
-
-    }
 
     /**
      * private async _onRemoteAudioNodeChange(change: { action: 'add' | 'delete', state: AudioNodeState }): Promise<void> {

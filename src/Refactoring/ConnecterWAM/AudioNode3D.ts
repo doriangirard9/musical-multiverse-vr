@@ -3,10 +3,10 @@ import * as GUI from "@babylonjs/gui";
 import {IOEvent} from "../iomanager/IOEvent.ts";
 import {SceneManager} from "../app/SceneManager.ts";
 import {UIManager} from "../app/UIManager.ts";
-import {AudioNodeState, INetworkObject} from "../network/types.ts";
 import {TubeParams, TubeParamsMidi} from "../shared/SharedTypes.ts";
+import { AudioEventBus } from "../eventBus/AudioEventBus.ts";
 
-export abstract class AudioNode3D implements INetworkObject<AudioNodeState> {
+export abstract class AudioNode3D {
     static menuOnScene: boolean = false;
     public static currentMenuInstance: AudioNode3D | null = null;
 
@@ -186,15 +186,25 @@ export abstract class AudioNode3D implements INetworkObject<AudioNodeState> {
         this._rotationGizmo.onDragEndObservable.clear();
     }
 
-    public abstract getState(): Promise<AudioNodeState>;
+    public abstract getState(key: string): Promise<any>
 
-    public setState(state: AudioNodeState): void {
-        this.boundingBox.position = new B.Vector3(state.position.x, state.position.y, state.position.z);
-        this.boundingBox.rotation = new B.Vector3(state.rotation.x, state.rotation.y, state.rotation.z);
-        // this.baseMesh.position = new B.Vector3(this.boundingBox.position.x, this.boundingBox.position.y, this.boundingBox.position.z);
-        // this.baseMesh.rotation = new B.Vector3(this.boundingBox.rotation.x, this.boundingBox.rotation.y, this.boundingBox.rotation.z);
+    public abstract setState(key: string, value: any): Promise<void>
+
+    public abstract getStateKeys(): Iterable<string>
+
+    public async getCompleteState(): Promise<{[key:string]:any}> {
+        const promises = [...this.getStateKeys()] .map(key=>this.getState(key).then(value=>[key,value] as [string,any]))
+        const values = await Promise.all(promises)
+        const map = Object.fromEntries(values)
+        return map
     }
-    public updatePosition(position: B.Vector3, rotation: B.Vector3): void {
+
+    public markStateChange(key: string, value: any): void{
+        AudioEventBus.getInstance().emit("STATE_CHANGE", {nodeId: this.id, key, value:value})
+    }
+
+
+    public setPosition(position: B.Vector3, rotation: B.Vector3): void {
         this.boundingBox.position = position;
         this.boundingBox.rotation = rotation;
     }

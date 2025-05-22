@@ -5,8 +5,8 @@ export interface MenuConfig {
     categories: {
         name: string;
         plugins: {
-            "name": string,
-            "configFile": string
+            name: string,
+            kind: string
         }[];
     }[];
 }

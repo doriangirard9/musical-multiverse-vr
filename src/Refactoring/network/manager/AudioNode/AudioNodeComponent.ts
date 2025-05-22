@@ -1,14 +1,11 @@
 import * as Y from 'yjs';
-import {AudioNodeState, AudioOutputState} from "../../types.ts";
-import {NodeTransform, ParamUpdate, PortParam} from "../../../shared/SharedTypes.ts";
+import {NodeTransform, PortParam} from "../../../shared/SharedTypes.ts";
 import {PositionComponent} from "./PositionComponent.ts";
-import {ParameterComponent} from "./ParameterComponent.ts";
 import {CreationComponent} from "./CreationComponent.ts";
 import {TubeComponent} from "./TubeComponent.ts";
-import {AudioOutputComponent} from "./AudioOutputComponent.ts";
-import {AudioOutput3D} from "../../../app/AudioOutput3D.ts";
 import {AudioNode3D} from "../../../ConnecterWAM/AudioNode3D.ts";
 import {ConnectionQueueManager} from "../ConnectionQueueManager.ts";
+import { StateComponent } from './StateComponent.ts';
 
 /**
  * Composant gérant les nœuds audio et leurs états.
@@ -18,19 +15,23 @@ export class AudioNodeComponent {
     private readonly doc: Y.Doc;
     private audioNodes = new Map<string, AudioNode3D>();
 
-    private readonly networkAudioNodes: Y.Map<AudioNodeState>;
-    private readonly networkPositions: Y.Map<NodeTransform>;
-    private readonly networkParamUpdates: Y.Map<ParamUpdate>;
-    private readonly networkConnections: Y.Map<PortParam>;
-    private readonly networkAudioOutputs: Y.Map<AudioOutputState>;
+    // Les différents états à partagés
+    private networkKinds: Y.Map<string>; // Les types de nœuds audio
+    private networkStates: Y.Map<Y.Map<any>>; // Les états personnalisé des AudioNode3D
+    private networkPositions: Y.Map<NodeTransform>; // Les positions et rotationss
+    private networkConnections: Y.Map<PortParam>; // Les connections
 
+    // Les différents "composants" qui gère la synchronisation des
+    // différents états.
+    // La séparation en composants rend le code plus clair.
     private positionComponent!: PositionComponent;
-    private parameterComponent!: ParameterComponent;
+    private stateComponent!: StateComponent;
     private creationComponent!: CreationComponent;
     private tubeComponent!: TubeComponent;
-    private audioOutputComponent!: AudioOutputComponent;
     private connectionQueueManager!: ConnectionQueueManager;
 
+    // Options qui permet d'indiquer de ne pas changer dans le document les choses changées en local
+    // ou en local les modifications faites dans le document pour éviter les cycles.
     public isProcessingYjsEvent = false;
     public isProcessingLocalEvent = false;
 
@@ -39,31 +40,28 @@ export class AudioNodeComponent {
         this.doc = doc;
 
         // Initialisation des maps Y.js
-        this.networkAudioNodes = doc.getMap('audioNodes');
+        this.networkKinds = doc.getMap('kinds');
+        this.networkStates = doc.getMap('states');
         this.networkPositions = doc.getMap('positions');
-        this.networkParamUpdates = doc.getMap('paramUpdates');
         this.networkConnections = doc.getMap('connections');
-        this.networkAudioOutputs = doc.getMap('audioOutputs');
 
         this.setupEventListeners();
         console.log(`[AudioNodeComponent] Initialized`);
     }
+
+
     public initialize(): void {
-        // Initialisation des composants
         this.creationComponent = new CreationComponent(this);
         this.creationComponent.initialize();
 
         this.positionComponent = new PositionComponent(this);
         this.positionComponent.initialize()
 
-        this.parameterComponent = new ParameterComponent(this);
-        this.parameterComponent.initialize();
+        this.stateComponent = new StateComponent(this);
+        this.stateComponent.initialize();
 
         this.tubeComponent = new TubeComponent(this);
         this.tubeComponent.initialize();
-
-        this.audioOutputComponent = new AudioOutputComponent(this);
-        this.audioOutputComponent.initialize();
 
         this.connectionQueueManager = new ConnectionQueueManager(this);
         this.connectionQueueManager.initialize();
@@ -78,42 +76,27 @@ export class AudioNodeComponent {
     public getAudioNode(id: string): AudioNode3D | undefined {
         return this.audioNodes.get(id);
     }
+
     public getAudioNodes(): Map<string, AudioNode3D> {
         return this.audioNodes;
     }
+
     public addAudioNode(id: string, node: AudioNode3D): void {
         this.audioNodes.set(id, node);
     }
-    public getNetworkAudioNodes(): Y.Map<AudioNodeState> {
-        return this.networkAudioNodes
-    }
-    public getPositionMap(): Y.Map<NodeTransform> {
-        return this.networkPositions;
-    }
-    public getNetworkConnections(): Y.Map<PortParam> {
-        return this.networkConnections;
-    }
-    public getNetworkParamUpdatesMap(): Y.Map<ParamUpdate> {
-        return this.networkParamUpdates;
-    }
-    public getAudioOutputsMap(): Y.Map<AudioOutputState> {
-        return this.networkAudioOutputs;
-    }
-    public getAudioOutput(id: string): AudioOutput3D | undefined {
-        return this.audioOutputComponent.getAudioOutput(id);
-    }
-    public getNodeById(id: string): AudioNode3D | undefined {
-        // D'abord chercher dans les Wam3D
-        const wamNode = this.audioNodes.get(id);
-        if (wamNode) return wamNode;
 
-        // Puis chercher dans les AudioOutput3D
-        return this.audioOutputComponent.getAudioOutput(id);
-    }
+    public getKindMap() { return this.networkKinds }
 
-    public getAudioOutputComponent(){
-        return this.audioOutputComponent;
-    }
+    public getStateMap() { return this.networkStates }
+
+    public getPositionMap() { return this.networkPositions }
+
+    public getConnectionMap() { return this.networkConnections }
+    
+
+    public getNodeById(id: string) { return this.audioNodes.get(id) }
+
+
     public withLocalProcessing<T>(action: () => T): T {
         this.isProcessingLocalEvent = true;
         try {

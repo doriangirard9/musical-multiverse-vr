@@ -3,60 +3,38 @@
     {
       "name": "Editor",
       "plugins": [
-        { "name": "VoxAmp 30", "configFile": "wam3d_voxamp" },
-        { "name": "Disto Machine", "configFile": "wam3d_disto" },
-        { "name": "KVerb", "configFile": "wam3d_reverb" },
-        { "name": "Modal", "configFile": "wam3d_modal" },
-        { "name": "Flute", "configFile": "wam3d_flute" },
-        { "name": "Guitar", "configFile": "wam3d_guitar" }
+        { "name": "VoxAmp 30", "kind": "wam3d_voxamp" },
+        { "name": "Disto Machine", "kind": "wam3d_disto" },
+        { "name": "KVerb", "kind": "wam3d_reverb" },
+        { "name": "Modal", "kind": "wam3d_modal" },
+        { "name": "Flute", "kind": "wam3d_flute" },
+        { "name": "Guitar", "kind": "wam3d_guitar" }
       ]
     },
     {
       "name": "Effects",
         "plugins": [
-          {
-            "name": "Big Muff",
-            "configFile": "bigMuffConfig"
-          },
-          {
-            "name": "Simple Delay",
-            "configFile": "simpleDelayConfig"
-          },
-          {
-            "name": "StonePhaser",
-            "configFile": "stonePhaserConfig"
-          },
-          {
-            "name": "Disto Machine",
-            "configFile": "distoMachineConfig"
-          },
-          {
-            "name": "Quadra Fuzz",
-            "configFile": "QuadraFuzzConfig"
-          },
-          {
-            "name": "Ping Pong Delay",
-            "configFile": "PingPongDelayConfig"
-          }
-          
+          { "name": "Big Muff", "kind": "bigMuffConfig" },
+          { "name": "Simple Delay", "kind": "simpleDelayConfig" },
+          { "name": "StonePhaser", "kind": "stonePhaserConfig" },
+          { "name": "Disto Machine", "kind": "distoMachineConfig" },
+          { "name": "Quadra Fuzz", "kind": "QuadraFuzzConfig" },
+          { "name": "Ping Pong Delay", "kind": "PingPongDelayConfig" }
         ]
     },
     {
         "name": "Instruments",
         "plugins": [
-          {
-            "name": "Spectrum Modal",
-            "configFile": "spectrumModalConfig"
-          },
-          {
-            "name": "Random Note",
-            "configFile": "randomNoteConfig"
-          },
-          {
-            "name" : "Wam Sampler",
-            "configFile": "wamSamplerConfig"
-          }
+          { "name": "Spectrum Modal", "kind": "spectrumModalConfig" },
+          { "name": "Random Note", "kind": "randomNoteConfig" },
+          { "name" : "Wam Sampler", "kind": "wamSamplerConfig" }
         ]
+    },
+    {
+      "name": "Audio Output",
+      "plugins": [
+        { "name": "Audio Output", "kind": "audiooutput" }
+      ]
     }
   ]
 }

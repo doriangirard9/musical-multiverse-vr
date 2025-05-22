@@ -6,16 +6,6 @@ import { Node3DInstance } from "../ConnecterWAM/node3d/instance/Node3DInstance.t
 import {PortParam} from "../shared/SharedTypes.ts";
 import {AudioOutputState} from "../network/types.ts";
 
-export type IOEventType = {
-    IO_CONNECT: "IO_CONNECT";
-
-    NETWORK_CONNECTION_ADDED: "NETWORK_CONNECTION_ADDED";
-    NETWORK_CONNECTION_REMOVED: "NETWORK_CONNECTION_REMOVED";
-
-    NETWORK_AUDIO_OUTPUT_ADDED: "NETWORK_AUDIO_OUTPUT_ADDED";
-    NETWORK_AUDIO_OUTPUT_REMOVED: "NETWORK_AUDIO_OUTPUT_REMOVED";
-}
-
 export type IOEventPayload = {
     IO_CONNECT: {
         type: PortType,
@@ -38,13 +28,6 @@ export type IOEventPayload = {
         connectionId: string;
     };
 
-    NETWORK_AUDIO_OUTPUT_ADDED: {
-        audioOutputId: string;
-        state: AudioOutputState;
-    };
-    NETWORK_AUDIO_OUTPUT_REMOVED: {
-        audioOutputId: string;
-    };
 };
 export class IOEventBus extends BaseEventBus<IOEventPayload> {
     private static instance: IOEventBus;

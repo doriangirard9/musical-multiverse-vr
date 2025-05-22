@@ -94,23 +94,12 @@ export class AppOrchestrator{
             console.log(`Audio node created: ${payload.name}`);
             const node = await this.AudioManager?.createAudioNode3D(payload.nodeId, payload.kind)
             if (node) {
-                if(node instanceof AudioNode3D){
-                    const state = await node.getState()
-                    this.audioEventBus?.emit('LOCAL_AUDIO_NODE_CREATED', { state: state });
-                    this.NetworkManager!.getAudioNodeComponent().addAudioNode(node.id, node);
-                }
-                else{
+                if(!(node instanceof AudioNode3D)){
                     this.UIManager?.showMessage(`Error: ${node}`, 2000)
                 }
                 
             }
         });
-        this.MenuEventBus?.on('CREATE_AUDIO_OUTPUT', async (payload) => {
-            const node = await this.AudioManager?.createAudioOutput3D(payload.nodeId);
-            if (node) {
-                this.NetworkManager?.getAudioNodeComponent().getAudioOutputComponent().addAudioOutput(node.id, node);
-            }
-        })
     }
 
     private onAudioEvent(): void {

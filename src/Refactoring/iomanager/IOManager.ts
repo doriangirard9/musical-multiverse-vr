@@ -40,27 +40,6 @@ export class IOManager {
         this.ioEventBus.on('NETWORK_CONNECTION_ADDED', payload => this.handleNetworkConnectionAdded(payload))
 
         this.ioEventBus.on('NETWORK_CONNECTION_REMOVED', payload => this.handleNetworkConnectionRemoved(payload))
-
-        this.ioEventBus.on('NETWORK_AUDIO_OUTPUT_ADDED', payload => this.handleNetworkAudioOutputAdded(payload))
-
-        this.ioEventBus.on('NETWORK_AUDIO_OUTPUT_REMOVED', _ => {
-            //TODO: Suppression d'une audio output
-        });
-    }
-
-    private async handleNetworkAudioOutputAdded(payload: IOEventPayload['NETWORK_AUDIO_OUTPUT_ADDED']): Promise<void> {
-        const { audioOutputId, state } = payload;
-        const existingNode = NetworkManager.getInstance().getAudioNodeComponent().getNodeById(audioOutputId);
-
-        if (existingNode) {
-            //@ts-ignore
-            existingNode.setState(state)
-            return;
-        }
-
-        const node = await AudioManager.getInstance().createAudioOutput3D(audioOutputId);
-        node.setState(state);
-        NetworkManager.getInstance().getAudioNodeComponent().getAudioOutputComponent().addAudioOutput(audioOutputId, node);
     }
 
     /**
