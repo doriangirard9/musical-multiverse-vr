@@ -5,7 +5,6 @@ import { IOEventBus, IOEventPayload } from "../eventBus/IOEventBus.ts";
 import { ConnectionManager } from "./ConnectionManager.ts";
 import { NetworkEventBus } from "../eventBus/NetworkEventBus.ts";
 import { NetworkManager } from "../network/NetworkManager.ts";
-import { AudioManager } from "../app/AudioManager.ts";
 import { Node3DInstance } from "../ConnecterWAM/node3d/instance/Node3DInstance.ts";
 import { Node3DConnectable } from "../ConnecterWAM/node3d/Node3DConnectable.ts";
 import { WamNode } from "@webaudiomodules/api";

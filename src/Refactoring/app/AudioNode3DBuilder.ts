@@ -2,11 +2,10 @@ import { AudioNode3D } from "../ConnecterWAM/AudioNode3D.ts";
 import { Node3DInstance } from "../ConnecterWAM/node3d/instance/Node3DInstance.ts";
 import { Node3DFactory } from "../ConnecterWAM/node3d/Node3D.ts";
 import { OscillatorN3DFactory } from "../ConnecterWAM/node3d/subs/OscillatorN3D.ts";
-import { TestN3DFactory } from "../ConnecterWAM/node3d/subs/TestN3D.ts";
+import { AudioOutputN3DFactory } from "../ConnecterWAM/node3d/subs/AudioOutputN3D.ts";
 import {Wam3D} from "../ConnecterWAM/Wam3D.ts";
 import {IWamConfig} from "../shared/SharedTypes.ts";
 import { AudioManager } from "./AudioManager.ts";
-import {AudioOutput3D} from "./AudioOutput3D.ts";
 import { SceneManager } from "./SceneManager.ts";
 import { UIManager } from "./UIManager.ts";
 import { WamInitializer } from "./WamInitializer.ts";
@@ -30,7 +29,7 @@ export class AudioNode3DBuilder {
         
         // Builtin Output 
         if(kind=="audiooutput"){
-            return await this.createNode3D(id, kind, TestN3DFactory)
+            return await this.createNode3D(id, kind, AudioOutputN3DFactory)
         }
         // Builtin Test
         else if(kind=="oscillator"){
@@ -44,10 +43,6 @@ export class AudioNode3DBuilder {
             return new Wam3D(this._audioCtx, id, config, kind)
         }
         return "Unknown error"
-    }
-
-    public async createAudioOutput(id: string): Promise<AudioOutput3D> {
-            return new AudioOutput3D(this._audioCtx, id);
     }
 
     private async createNode3D(id: string, kind:string, factory: Node3DFactory<any,any>): Promise<Node3DInstance> {

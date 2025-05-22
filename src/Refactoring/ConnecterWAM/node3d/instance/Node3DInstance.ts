@@ -3,7 +3,6 @@ import { Node3DConnectable } from "../Node3DConnectable";
 import { Node3DParameter } from "../Node3DParameter";
 import { Node3D, Node3DFactory, Node3DGUI } from "../Node3D";
 import { AudioNode3D } from "../../AudioNode3D";
-import { AudioNodeState } from "../../../network/types";
 import { BoundingBox } from "../../../boundingBox/BoundingBox";
 import { UIManager } from "../../../app/UIManager";
 import { SimpleMenu } from "../../../menus/SimpleMenu";
@@ -130,8 +129,8 @@ export class Node3DInstance extends AudioNode3D{
                 instance.dispose()
             },
             
-            notifyStateChange(key?: string){
-                //TODO: Il faut remplir cette fonctionnalité
+            notifyStateChange(key: string){
+                instance.markStateChange(key)
             }
         },this.gui)
     }
@@ -184,10 +183,16 @@ export class Node3DInstance extends AudioNode3D{
     }
 
 
-    public async getState(): Promise<AudioNodeState> {
-        return {
+    public getState(key: string): Promise<any> {
+        return this.node.getState(key)
+    }
 
-        } as any as AudioNodeState
+    public setState(key: string, value: any): Promise<void> {
+        return this.node.setState(key,value)
+    }
+
+    public getStateKeys(): Iterable<string> {
+        return this.node.getStateKeys()
     }
 
     private disposed = false

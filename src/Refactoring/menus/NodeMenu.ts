@@ -53,28 +53,11 @@ export class NodeMenu {
             this._menu.addButton(button);
         });
 
-        // audio outputs
-        const audioOutputsButton = new GUI.TouchHolographicButton("audioOutputs");
-        audioOutputsButton.text = "Audio Outputs";
-        audioOutputsButton.onPointerUpObservable.add((): void => this._createAudioOutputsMenu());
-        this._menu.addButton(audioOutputsButton);
-
         // options
         const optionsButton = new GUI.TouchHolographicButton("options");
         optionsButton.text = "Options";
         optionsButton.onPointerUpObservable.add((): void => this._createOptionsMenu());
         this._menu.addButton(optionsButton);
-    }
-
-    private _createAudioOutputsMenu(): void {
-        this._clearMenu();
-        this._createBackButton();
-
-        // audio output
-        const audioOutputButton = new GUI.TouchHolographicButton("audioOutput");
-        audioOutputButton.text = "Audio Output";
-        audioOutputButton.onPointerUpObservable.add(async() => await AudioManager.getInstance().createAudioNode3D("audioOutput", uuid()));
-        this._menu.addButton(audioOutputButton);
     }
 
     private _createOptionsMenu(): void {
@@ -108,10 +91,10 @@ export class NodeMenu {
 
         // plugins
         this._menuJson.categories[categoryIndex].plugins.forEach((plugin): void => {
-            console.log(plugin.configFile)
+            console.log(plugin.kind)
             const button = new GUI.TouchHolographicButton(plugin.name);
             button.text = plugin.name;
-            button.onPointerUpObservable.add(async () => await AudioManager.getInstance().createAudioNode3D(plugin.name, uuid(), plugin.configFile));
+            button.onPointerUpObservable.add(async () => await AudioManager.getInstance().createAudioNode3D(uuid(), plugin.kind));
             this._menu.addButton(button);
         });
     }

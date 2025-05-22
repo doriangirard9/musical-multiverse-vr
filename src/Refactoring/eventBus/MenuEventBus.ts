@@ -1,5 +1,4 @@
 import {BaseEventBus} from "./BaseEventBus.ts";
-import {IAudioNodeConfig} from "../shared/SharedTypes.ts";
 
 export type MenuEventType = {
     OPEN_MENU : "OPEN_MENU";

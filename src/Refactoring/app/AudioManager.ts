@@ -1,37 +1,26 @@
-import { AudioEventBus, AudioEventPayload } from "../eventBus/AudioEventBus.ts"
-import { Scene } from "@babylonjs/core";
-import { AudioNode3DBuilder } from "./AudioNode3DBuilder.ts";
-import { AudioOutput3D } from "./AudioOutput3D.ts";
-import { NetworkManager } from "../network/NetworkManager.ts";
 import { AudioNode3D } from "../ConnecterWAM/AudioNode3D.ts";
-import { Node3DFactory } from "../ConnecterWAM/node3d/Node3D.ts";
-import { SceneManager } from "./SceneManager.ts";
-import { UIManager } from "./UIManager.ts";
-import { WamInitializer } from "./WamInitializer.ts";
-import { Node3DInstance } from "../ConnecterWAM/node3d/instance/Node3DInstance.ts";
+import { AudioEventBus } from "../eventBus/AudioEventBus.ts";
+import { NetworkManager } from "../network/NetworkManager.ts";
+import { AudioNode3DBuilder } from "./AudioNode3DBuilder.ts";
 
 export class AudioManager {
     private static _instance: AudioManager | null = null;
 
-    private readonly scene: Scene;
-    private readonly audioCtx: AudioContext;
     private audioNode3DBuilder: AudioNode3DBuilder;
     private audioEventBus: AudioEventBus;
-    private networkManager : NetworkManager = NetworkManager.getInstance();
-    private constructor(scene: Scene, audioCtx: AudioContext) {
-        this.scene = scene;
-        this.audioCtx = audioCtx;
-        this.audioNode3DBuilder = new AudioNode3DBuilder(this.audioCtx);
+
+    private constructor(private audioCtx: AudioContext) {
+        this.audioNode3DBuilder = new AudioNode3DBuilder(audioCtx);
         this.audioEventBus = AudioEventBus.getInstance();
         this.setupEventListeners();
     }
 
-    public static getInstance(scene?: Scene, audioCtx?: AudioContext): AudioManager {
+    public static getInstance(audioCtx?: AudioContext): AudioManager {
         if (!AudioManager._instance) {
-            if (!scene || !audioCtx) {
+            if (!audioCtx) {
                 throw new Error("Scene and AudioContext are required for first instantiation");
             }
-            AudioManager._instance = new AudioManager(scene, audioCtx);
+            AudioManager._instance = new AudioManager(audioCtx);
         }
         return AudioManager._instance;
     }

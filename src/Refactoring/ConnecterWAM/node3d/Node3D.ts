@@ -29,18 +29,24 @@ export interface Node3D{
     /**
      * Met à jour l'état du Node3D.
      * Supporte une modification partielle de l'état pour optimiser la synchronisation.
+     * @param key La clé de l'état à mettre à jour.
      * @param state L'état du Node3D.
-     * @param key La clé de l'état à mettre à jour. Si non défini, met à jour tout l'état.
      */
-    setState(state: any, key?: string): Promise<void>
+    setState(key: string, state: any): Promise<void>
 
     /**
      * Récupère l'état du Node3D.
      * Supporte une récupération partielle de l'état pour optimiser la synchronisation.
-     * @param key La clé de l'état à récupérer. Si non défini, récupère tout l'état.
+     * @param key La clé de l'état à récupérer.
      * @returns L'état du Node3D.
      */
-    getState(key?: string): Promise<any>
+    getState(key: string): Promise<any>
+
+    /**
+     * Récupère toutes les clés d'état du Node3D.
+     * @returns Une liste des clés des états du Node3D.
+     */
+    getStateKeys(): string[]
 
 
 

@@ -4,7 +4,6 @@ import {Wam3D} from "../ConnecterWAM/Wam3D.ts";
 import { Node3DConnectable } from "../ConnecterWAM/node3d/Node3DConnectable.ts";
 import { Node3DInstance } from "../ConnecterWAM/node3d/instance/Node3DInstance.ts";
 import {PortParam} from "../shared/SharedTypes.ts";
-import {AudioOutputState} from "../network/types.ts";
 
 export type IOEventPayload = {
     IO_CONNECT: {

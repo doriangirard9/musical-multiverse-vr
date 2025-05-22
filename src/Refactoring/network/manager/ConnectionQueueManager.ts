@@ -1,13 +1,10 @@
 import {IOEventBus, IOEventPayload} from "../../eventBus/IOEventBus.ts";
+import { PortParam } from "../../shared/SharedTypes.ts";
 import {AudioNodeComponent} from "./AudioNode/AudioNodeComponent.ts";
 
 interface PendingConnection {
     connectionId: string;
-    portParam: {
-        sourceId: string;
-        targetId: string;
-        portId: string;
-    };
+    portParam: PortParam;
     attempts: number;
     maxAttempts: number;
 }
@@ -57,11 +54,7 @@ export class ConnectionQueueManager {
     /**
      * Ajoute une connexion à la file d'attente
      */
-    public addConnection(connectionId: string, portParam: {
-        sourceId: string;
-        targetId: string;
-        portId: string;
-    }): void {
+    public addConnection(connectionId: string, portParam: PortParam): void {
         console.log(`[ConnectionQueueManager] Adding connection request: ${connectionId} (${portParam.sourceId} -> ${portParam.targetId})`);
 
         const exists = this.pendingConnections.some(

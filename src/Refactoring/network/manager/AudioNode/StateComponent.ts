@@ -28,10 +28,15 @@ export class StateComponent {
         this.audioEventBus.on('STATE_CHANGE', (payload) => this.handleStateChange(payload))
     }
 
-    private handleStateChange(payload: AudioEventPayload['STATE_CHANGE']): void {
+    private async handleStateChange(payload: AudioEventPayload['STATE_CHANGE']) {
+        const node = this.parent.getNodeById(payload.nodeId)!!
+
         const state_map = this.pendingUpdates.get(payload.nodeId) ?? new Map<string,any>()
         this.pendingUpdates.set(payload.nodeId, state_map)
-        state_map.set(payload.key, payload.value)
+
+        const value = await node.getState(payload.key)
+        
+        state_map.set(payload.key, value)
     }
 
     private processPendingUpdates(): void {

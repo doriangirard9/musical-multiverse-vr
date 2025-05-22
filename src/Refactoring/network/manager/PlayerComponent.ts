@@ -10,7 +10,6 @@ import {Player} from "../../app/Player.ts";
  * - La gestion des joueurs locaux et distants
  */
 export class PlayerComponent {
-    private readonly doc: Y.Doc;
     private readonly localPlayerId: string;
     private networkEventBus: NetworkEventBus;
 
@@ -19,7 +18,6 @@ export class PlayerComponent {
 
 
     constructor(doc: Y.Doc, localPlayerId: string) {
-        this.doc = doc;
         this.localPlayerId = localPlayerId;
         this.networkEventBus = NetworkEventBus.getInstance();
 

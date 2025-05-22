@@ -73,7 +73,7 @@ export class TubeComponent {
 
     private isConnectionAlreadyStored(portParam: PortParam): boolean {
         // Vérifier si une connexion similaire existe déjà
-        const connectionPrefix = `${portParam.sourceId}-${portParam.targetId}-${portParam.portId}`;
+        const connectionPrefix = `${portParam.sourceId}_${portParam.sourcePortId}_to_${portParam.targetId}_${portParam.targetPortId}`;
 
         for (const [key, _] of this.networkConnections.entries()) {
             if (key.startsWith(connectionPrefix)) {

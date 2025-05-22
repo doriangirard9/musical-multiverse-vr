@@ -123,9 +123,9 @@ export interface Node3DContext{
     /**
      * Indique que l'état du Node3D a changé.
      * Il est possible de ne notifier qu'une partie de l'état.
-     * @param key La clé de l'état à notifier. Si non défini, notifie que tout l'état a changé.
+     * @param key La clé de l'état à notifier.
      */
-    notifyStateChange(key?: string): void
+    notifyStateChange(key: string): void
     
 
 }

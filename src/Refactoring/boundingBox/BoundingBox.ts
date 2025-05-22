@@ -6,7 +6,6 @@ import {SceneManager} from "../app/SceneManager.ts";
 import {DragBoundingBox} from "./DragBoundingBox.ts";
 import {RotateBoundingBox} from "./RotateBoundingBox.ts";
 import {PlayerManager} from "../app/PlayerManager.ts";
-import { AudioEventBus } from "../eventBus/AudioEventBus.ts";
 import {XRControllerManager} from "../xr/XRControllerManager.ts";
 import {XRManager} from "../xr/XRManager.ts";
 import {XRInputStates} from "../xr/types.ts";
@@ -20,7 +19,6 @@ export class BoundingBox {
     public rotationBehavior!: RotateBoundingBox;
     private id: string;
     private highlightLayer!: B.HighlightLayer;
-    private readonly eventBus = AudioEventBus.getInstance();
 
     private readonly xButtonListenerId: string;
     private readonly bButtonListenerId: string;
@@ -36,7 +34,6 @@ export class BoundingBox {
         this.squeezeListenerId = `squeeze-${this.id}`;
 
         this.createBoundingBox();
-        this.initializeEventListeners();
 
         this.boundingBox.rotation.x = -Math.PI / 6;
 
@@ -44,105 +41,6 @@ export class BoundingBox {
 
     }
 
-    private initializeEventListeners(): void {
-        // Écouter les changements de position
-        this.eventBus.on('POSITION_CHANGE', (payload) => {
-            if (payload.nodeId === this.id) {
-                this.updateAllArcs();
-            }
-        });
-
-        // Écouter les connexions/déconnexions
-        this.eventBus.on('CONNECT_NODES', () => this.updateAllArcs());
-        this.eventBus.on('DISCONNECT_NODES', () => this.updateAllArcs());
-    }
-
-    private updateAllArcs(): void {
-        this.updateAudioArcs();
-        this.updateMidiArcs();
-    }
-
-    private updateAudioArcs(): void {
-        // Mettre à jour les arcs d'entrée audio
-        this.audioNode3D.inputArcs.forEach(arc => {
-            if (arc.TubeMesh && arc.OutputMesh && arc.inputMesh) {
-                this.updateArc(
-                    arc.OutputMesh.getAbsolutePosition(),
-                    arc.inputMesh.getAbsolutePosition(),
-                    arc.TubeMesh,
-                    arc.arrow
-                );
-            }
-        });
-
-        // Mettre à jour les arcs de sortie audio
-        this.audioNode3D.outputArcs.forEach(arc => {
-            if (arc.TubeMesh && arc.OutputMesh && arc.inputMesh) {
-                this.updateArc(
-                    arc.OutputMesh.getAbsolutePosition(),
-                    arc.inputMesh.getAbsolutePosition(),
-                    arc.TubeMesh,
-                    arc.arrow
-                );
-            }
-        });
-    }
-
-    private updateMidiArcs(): void {
-        // Mettre à jour les arcs d'entrée MIDI
-        this.audioNode3D.inputArcsMidi.forEach(arc => {
-            if (arc.TubeMesh && arc.OutputMeshMidi && arc.inputMeshMidi) {
-                this.updateArc(
-                    arc.OutputMeshMidi.getAbsolutePosition(),
-                    arc.inputMeshMidi.getAbsolutePosition(),
-                    arc.TubeMesh,
-                    arc.arrow
-                );
-            }
-        });
-
-        // Mettre à jour les arcs de sortie MIDI
-        this.audioNode3D.outputArcsMidi.forEach(arc => {
-            if (arc.TubeMesh && arc.OutputMeshMidi && arc.inputMeshMidi) {
-                this.updateArc(
-                    arc.OutputMeshMidi.getAbsolutePosition(),
-                    arc.inputMeshMidi.getAbsolutePosition(),
-                    arc.TubeMesh,
-                    arc.arrow
-                );
-            }
-        });
-    }
-
-    private updateArc(
-        start: B.Vector3,
-        end: B.Vector3,
-        tubeMesh: B.Mesh,
-        arrow: B.Mesh
-    ): void {
-        const direction = end.subtract(start).normalize();
-        const arrowLength = 0.7;
-        const sphereRadius = 0.25;
-        const adjustedEnd = end.subtract(direction.scale(sphereRadius + arrowLength / 2));
-
-        // Mettre à jour le tube
-        const options = {
-            path: [start, adjustedEnd],
-            radius: 0.1,
-            tessellation: 8,
-            instance: tubeMesh
-        };
-        B.MeshBuilder.CreateTube("tube", options, this.scene);
-
-        // Mettre à jour la flèche
-        arrow.position = adjustedEnd;
-        arrow.lookAt(end);
-        arrow.rotate(B.Axis.X, Math.PI / 2, B.Space.LOCAL);
-
-        // Ajouter les ombres
-        //this._app.shadowGenerator.addShadowCaster(tubeMesh);
-        //this._app.shadowGenerator.addShadowCaster(arrow);
-    }
 
     public createBoundingBox(): void {
         let w = this.audioNode3D.baseMesh.getBoundingInfo().boundingBox.extendSize.x * 2;
@@ -159,7 +57,6 @@ export class BoundingBox {
         }, this.scene);
 
         this.setupBoundingBoxProperties();
-        this.setupMeshHierarchy();
         this.setupBehaviors();
         this.positionBoundingBoxInFrontOfPlayer();
         this.setupShadows();
@@ -170,16 +67,6 @@ export class BoundingBox {
         this.boundingBox.visibility = 0;
         this.boundingBox.isPickable = true;
         this.boundingBox.checkCollisions = true;
-    }
-
-    private setupMeshHierarchy(): void {
-        this.audioNode3D.baseMesh.parent = this.boundingBox;
-        if (this.audioNode3D.inputMesh) {
-            // TODO this.audioNode3D.inputMesh.parent = this.boundingBox;
-        }
-        if (this.audioNode3D.outputMesh) {
-            // TODO Ca cause des problème je sais pas à quoi ça sert this.audioNode3D.outputMesh.parent = this.boundingBox;
-        }
     }
 
     private setupBehaviors(): void {

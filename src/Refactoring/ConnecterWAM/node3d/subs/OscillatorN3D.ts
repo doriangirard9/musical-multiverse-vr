@@ -42,9 +42,11 @@ export class OscillatorN3D implements Node3D{
         context.createConnectable(new T.AudioN3DConnectable.Output("audioOutput", [gui.audioOutput], "Audio Output", audionode))
     }
 
-    async setState(_: any, __?: string){ }
+    async setState(_1: string, _2: any,){ }
 
-    async getState(_?: string){ return {} }
+    async getState(_1: string){ return {} }
+
+    getStateKeys(){ return [] }
     
     async dispose(){ }
 

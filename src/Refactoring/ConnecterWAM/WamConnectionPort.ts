@@ -4,11 +4,11 @@ import {WamNode} from "@webaudiomodules/api";
 import {PortType} from "./interfaces/EnumConnexionType.ts";
 
 export class WamConnectionPort implements IWamPort {
-    id: string;
+    id: 'audioIn' | 'audioOut' | 'midiIn' | 'midiOut';
     node: WamNode;
     type: PortType;
 
-    constructor(type: PortType, id: string, node: WamNode) {
+    constructor(type: PortType, id: 'audioIn' | 'audioOut' | 'midiIn' | 'midiOut', node: WamNode) {
         this.node = node;
         this.id = id;
         this.type = type;

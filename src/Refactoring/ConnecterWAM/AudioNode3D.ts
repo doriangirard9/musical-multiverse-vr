@@ -1,9 +1,7 @@
 import * as B from "@babylonjs/core";
 import * as GUI from "@babylonjs/gui";
-import {IOEvent} from "../iomanager/IOEvent.ts";
 import {SceneManager} from "../app/SceneManager.ts";
 import {UIManager} from "../app/UIManager.ts";
-import {TubeParams, TubeParamsMidi} from "../shared/SharedTypes.ts";
 import { AudioEventBus } from "../eventBus/AudioEventBus.ts";
 
 export abstract class AudioNode3D {
@@ -16,13 +14,6 @@ export abstract class AudioNode3D {
     public baseMesh!: B.Mesh;
     public boundingBox! : B.AbstractMesh;
 
-    public inputArcs: TubeParams[] = [];
-    public outputArcs: TubeParams[] = [];
-    public inputArcsMidi: TubeParamsMidi[] = [];
-    public outputArcsMidi: TubeParamsMidi[] = [];
-
-    public tubeMesh?: B.Mesh;
-
     // Gizmo
     protected _rotationGizmo: B.RotationGizmo;
     protected _utilityLayer: B.UtilityLayerRenderer;
@@ -30,21 +21,6 @@ export abstract class AudioNode3D {
     // Menu
     protected _menu!: GUI.NearMenu;
     public _isMenuOpen: boolean = false;
-
-    // IO
-    public inputMesh?: B.Mesh;
-    public outputMesh?: B.Mesh;
-    public outputMeshBig?: B.Mesh;
-    public inputMeshBig?: B.Mesh;
-    public inputMeshMidi?: B.Mesh;
-    public inputMeshBigMidi?: B.Mesh;
-    public outputMeshMidi?: B.Mesh;
-    public outputMeshBigMidi?: B.Mesh;
-
-
-    public inputNodes = new Map<string, AudioNode3D>();
-    public inputNodesMidi = new Map<string, AudioNode3D>();
-    public ioObservable = new B.Observable<IOEvent>();
 
     protected constructor(
         audioCtx: AudioContext,
@@ -62,35 +38,6 @@ export abstract class AudioNode3D {
     protected abstract instantiate(): any;
 
     public abstract getAudioNode(): AudioNode;
-
-    protected _initActionManager(): void {
-        // const highlightLayer = new B.HighlightLayer(`hl${this.id}`, this._scene);
-        // this.baseMesh.actionManager = new B.ActionManager(this._scene);
-
-        // const xrLeftInputStates: XRInputStates = this._app.xrManager.xrInputManager.leftInputStates;
-        // this.baseMesh.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPointerOverTrigger, (): void => {
-        //     highlightLayer.addMesh(this.baseMesh, B.Color3.Black());
-
-        //     xrLeftInputStates['x-button'].onButtonStateChangedObservable.add((component: B.WebXRControllerComponent): void => {
-        //         if (component.pressed) {
-        //             if (this._isMenuOpen) this._hideMenu();
-        //             else this._showMenu();
-        //         }
-        //     });
-        // }));
-        // this.baseMesh.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPointerOutTrigger, (): void => {
-        //     highlightLayer.removeMesh(this.baseMesh);
-        //     xrLeftInputStates['x-button'].onButtonStateChangedObservable.clear();
-        // }));
-
-        // // move the wam in the scene
-        // this.baseMesh.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnLeftPickTrigger, (): void => {
-        //     this.baseMesh.addBehavior(this._pointerDragBehavior);
-        // }));
-        // this.baseMesh.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickUpTrigger, (): void => {
-        //     this.baseMesh.removeBehavior(this._pointerDragBehavior);
-        // }));
-    }
 
     protected _createParameterStand(position: B.Vector3, name: string): B.Mesh {
         const parameterStand: B.Mesh = B.MeshBuilder.CreatePlane(`parameterStand${this.id}`, { size: 0.8 }, this._scene);
@@ -199,8 +146,8 @@ export abstract class AudioNode3D {
         return map
     }
 
-    public markStateChange(key: string, value: any): void{
-        AudioEventBus.getInstance().emit("STATE_CHANGE", {nodeId: this.id, key, value:value})
+    public markStateChange(key: string): void{
+        AudioEventBus.getInstance().emit("STATE_CHANGE", {nodeId: this.id, key})
     }
 
 

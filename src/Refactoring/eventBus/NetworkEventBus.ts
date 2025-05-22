@@ -1,5 +1,5 @@
 import {BaseEventBus} from "./BaseEventBus.ts";
-import {AudioNodeState, AudioOutputState, PlayerState} from "../network/types.ts";
+import {AudioOutputState, PlayerState} from "../network/types.ts";
 import {PortParam} from "../shared/SharedTypes.ts";
 
 export type NetworkEventType = {
@@ -7,7 +7,6 @@ export type NetworkEventType = {
     PLAYER_DELETED: "PLAYER_DELETED";
     PLAYER_STATE_UPDATED: "PLAYER_STATE_UPDATED";
 
-    SEND_NODE_TO_NETWORK: "SEND_NODE_TO_NETWORK";
     STORE_CONNECTION_TUBE: "STORE_CONNECTION_TUBE";
     REMOVE_CONNECTION_TUBE: "REMOVE_CONNECTION_TUBE";
 
@@ -24,9 +23,6 @@ export type NetworkEventPayload = {
     };
     PLAYER_STATE_UPDATED: {
         playerState: PlayerState;
-    };
-    SEND_NODE_TO_NETWORK: {
-        state : AudioNodeState;
     };
     STORE_CONNECTION_TUBE: {
         connectionId : string;

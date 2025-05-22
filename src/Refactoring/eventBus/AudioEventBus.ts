@@ -19,7 +19,6 @@ export type AudioEventPayload = {
     STATE_CHANGE: {
         nodeId: string;
         key: string;
-        value: any;
     };
     AUDIO_NODE_CREATED: {
         nodeId: string;

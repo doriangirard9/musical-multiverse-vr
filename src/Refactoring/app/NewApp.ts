@@ -1,19 +1,12 @@
 import {SceneManager} from "./SceneManager.ts";
-import {WamInitializer} from "./WamInitializer.ts";
-import {AppOrchestrator} from "./AppOrchestrator.ts";
 import {XRManager} from "../xr/XRManager.ts";
 import {AudioManager} from "./AudioManager.ts";
-import { TestN3DFactory } from "../ConnecterWAM/node3d/subs/TestN3D.ts";
-import { NetworkManager } from "../network/NetworkManager.ts";
-import { OscillatorN3DFactory } from "../ConnecterWAM/node3d/subs/OscillatorN3D.ts";
 
 export class NewApp {
     private audioCtx: AudioContext | undefined;
     private sceneManager: SceneManager;
     private xrManager: XRManager | null = null;
     private audioManager: AudioManager | null = null;
-    private appOrchestrator: AppOrchestrator | null = null;
-    private wamInitializer: WamInitializer | null = null;
     private static instance: NewApp;
 
     private constructor(audioContext?: AudioContext) {
@@ -21,10 +14,8 @@ export class NewApp {
         this.sceneManager = SceneManager.getInstance(canvas);
         if (audioContext !== undefined) {
             this.audioCtx = audioContext;
-            this.audioManager = AudioManager.getInstance(this.sceneManager.getScene(),this.audioCtx);
-            this.wamInitializer = WamInitializer.getInstance(this.audioCtx);
+            this.audioManager = AudioManager.getInstance(this.audioCtx);
             this.xrManager = XRManager.getInstance();
-            this.appOrchestrator = AppOrchestrator.getInstance();
         }
 
     }
@@ -40,7 +31,6 @@ export class NewApp {
     }
 
     public async start(): Promise<void> {
-        this.appOrchestrator = AppOrchestrator.getInstance();
         this.sceneManager.start();
         await this.xrManager!!.init(this.sceneManager.getScene());
         

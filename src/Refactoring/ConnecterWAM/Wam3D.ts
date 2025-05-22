@@ -22,7 +22,6 @@ export class Wam3D extends AudioNode3D{
     protected _parametersInfo!: WamParameterInfoMap;
     protected _parameter3D: { [name: string]: IParameter } = {};
     protected _paramBuilder!: ParamBuilder;
-    private readonly _configFile!: string;
     // public drag = new Drag(this._app)
 
     protected eventBus = AudioEventBus.getInstance();
@@ -58,20 +57,8 @@ export class Wam3D extends AudioNode3D{
         this._utilityLayer = new B.UtilityLayerRenderer(this._scene);
         this._rotationGizmo = new B.RotationGizmo(this._utilityLayer);
 
-        this._initActionManager();
-        //this._createInput(new B.Vector3(-(this._usedParameters.length / 2 + 0.2), this.baseMesh.position.y, this.baseMesh.position.z));
-        //this._createOutput(new B.Vector3(this._usedParameters.length / 2 + 0.2, this.baseMesh.position.y, this.baseMesh.position.z));
-
-        // shadow
-        // this._app.shadowGenerator.addShadowCaster(this.baseMesh);
-        // this._app.shadowGenerator.addShadowCaster(this.outputMesh!)
-        // this._app.shadowGenerator.addShadowCaster(this.inputMesh!)
-
-        // this.createBoundingBox();
         const bo = new BoundingBox(this, this.id)
         this.boundingBox = bo.boundingBox;
-        this.eventBus.emit('AUDIO_NODE_LOADED', {nodeId: this.id, instance: this._wamInstance});
-
         console.log(this)
 
     }

@@ -1,7 +1,8 @@
 import {WamNode} from "@webaudiomodules/api";
+import { PortType } from "./EnumConnexionType";
 
 export interface IWamConnectionStrategy {
-    connect(src: WamNode, dst: WamNode): void;
-    disconnect(src: WamNode, dst: WamNode): void;
+    connect(src: WamNode|AudioNode, dst: WamNode|AudioNode): void;
+    disconnect(src: WamNode|AudioNode, dst: WamNode|AudioNode): void;
     canHandle(src: PortType, dst: PortType): boolean;
 }
