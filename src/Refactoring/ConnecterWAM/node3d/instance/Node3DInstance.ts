@@ -1,4 +1,4 @@
-import { Scene, TransformNode, AbstractMesh, Mesh, MeshBuilder, HighlightLayer } from "@babylonjs/core";
+import { Scene, TransformNode, AbstractMesh, Mesh, MeshBuilder, HighlightLayer, Vector3, Quaternion } from "@babylonjs/core";
 import { Node3DConnectable } from "../Node3DConnectable";
 import { Node3DParameter } from "../Node3DParameter";
 import { Node3D, Node3DFactory, Node3DGUI } from "../Node3D";
@@ -9,6 +9,7 @@ import { SimpleMenu } from "../../../menus/SimpleMenu";
 import { Node3DParameterInstance } from "./Node3DParameterInstance";
 import { Node3DConnectableInstance } from "./Node3DConnectableInstance";
 import { IOEventBus } from "../../../eventBus/IOEventBus";
+import { XRManager } from "../../../xr/XRManager";
 
 export class Node3DInstance extends AudioNode3D{
 
@@ -125,6 +126,20 @@ export class Node3DInstance extends AudioNode3D{
             showMessage(message: string){
                 instance.uiManager.showMessage(message,3000)
             },
+
+            getPlayerPosition() {
+                const xrManager = XRManager.getInstance();
+                if (xrManager.xrHelper && xrManager.xrHelper.baseExperience) {
+                    const vrCamera = xrManager.xrHelper.baseExperience.camera;
+                    return {position: vrCamera.globalPosition.clone(), rotation: vrCamera.absoluteRotation.clone()}
+                }
+                else return {position:Vector3.Zero(), rotation: Quaternion.Identity()}
+            },
+
+            getPosition(){
+                return {position: instance.root_transform.absolutePosition.clone(), rotation: instance.root_transform.absoluteRotationQuaternion.clone()}
+            },
+
             delete(){
                 instance.dispose()
             },

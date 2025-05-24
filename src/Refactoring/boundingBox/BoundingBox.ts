@@ -55,6 +55,7 @@ export class BoundingBox {
             height: bbHeight,
             depth: bbDepth
         }, this.scene);
+        this.audioNode3D.baseMesh.parent = this.boundingBox;
 
         this.setupBoundingBoxProperties();
         this.setupBehaviors();
@@ -167,42 +168,6 @@ export class BoundingBox {
                 console.error("Failed to initialize ActionManager:", error);
             }
         }
-        // MB : apparently this listener is the reason for the PickedTyInfo nasty bug
-        // Pointer over action (highlight the bounding box)
-        /*
-        try {
-            console.log("add action to boundingbox", this.boundingBox.actionManager)
-
-            this.boundingBox.actionManager!.registerAction(
-                new B.ExecuteCodeAction(B.ActionManager.OnPointerOverTrigger, (): void => {
-                    try {
-                        // MICHEL BUFFA
-                        // C'EST CA QUI FAISAIT LE RAYPICK INFO ERROR AU DEMARRAGE
-                        //this.highlightLayer.addMesh(this.boundingBox as B.Mesh, B.Color3.Black());
-                    } catch (error) {
-                        console.error("Failed to highlight bounding box:", error);
-                    }
-                })
-            );
-            console.log("add action Manager to boundingbox");
-
-        } catch (error) {
-            console.error("Failed to register pointer over action:", error);
-        }
-            */
-        // END OF BUGGY PART
-
-
-        //     try {
-        //         console.log("add action to boundingbox",this.boundingBox.actionManager)
-        //     this.boundingBox.actionManager!.registerAction(
-        //         new B.ExecuteCodeAction(B.ActionManager.OnPointerOverTrigger, (): void => {
-        //             this.highlightLayer.addMesh(this.boundingBox as B.Mesh, B.Color3.Black());
-        //         })
-        //     );
-        // } catch (error) {
-        //     console.error("Failed to register pointer over action:", error);
-        // }
 
         try {
             // Pointer out action (remove highlight)
@@ -226,20 +191,10 @@ export class BoundingBox {
     }
 
     public confirmDelete() {
-        //on click right click on the mouse the menu will appear
-        // this.boundingBox.actionManager!.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnRightPickTrigger, (): void => {
-
-        //     if (this.audioNode3D._isMenuOpen) this.audioNode3D._hideMenu();
-        //     else this.audioNode3D._showMenu();
-        //     }));
-
-        // this.boundingBox.actionManager = new B.ActionManager(this.scene);
-
         const xrRightInputStates: XRInputStates = XRManager.getInstance().xrInputManager.rightInputStates;
 
         this.boundingBox.actionManager!.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPointerOverTrigger, (): void => {
             console.log("pointer over", xrRightInputStates);
-            // highlightLayer.addMesh(this.baseMesh, B.Color3.Black());
             xrRightInputStates['b-button'].onButtonStateChangedObservable.add((component: B.WebXRControllerComponent): void => {
                 if (component.pressed) {
                     if (this.audioNode3D._isMenuOpen) this.audioNode3D._hideMenu();
@@ -248,11 +203,6 @@ export class BoundingBox {
             });
 
         }));
-
-        // this.boundingBox.actionManager!.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPointerOutTrigger, (): void => {
-        //     // highlightLayer.removeMesh(this.baseMesh);
-        //     xrLeftInputStates['x-button'].onButtonStateChangedObservable.clear();
-        // }));
     }
 
 
@@ -273,10 +223,6 @@ export class BoundingBox {
         this.boundingBox.position = position;
         this.boundingBox.setDirection(direction);
         console.log("Changing rotation 2")
-        //this.boundingBox.rotation.x = -Math.PI / 6;  // Optional rotation on X-axis
-
-        // Additional scene-related setups
-        //this._app.ground.checkCollisions = true;
 
     }
 

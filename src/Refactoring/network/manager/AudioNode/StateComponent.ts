@@ -40,34 +40,52 @@ export class StateComponent {
     }
 
     private processPendingUpdates(): void {
-        for(const [nodeId, state_map] of this.pendingUpdates.entries()) {
-            for(const [key, value] of state_map.entries()) {
-                this.networkStates.get(nodeId)!!.set(key, value)
+        if(this.pendingUpdates.size === 0) return
+
+        const updates = this.pendingUpdates
+        this.pendingUpdates = new Map()
+        this.parent.getYjsDoc().transact(() => {
+            for(const [nodeId, state_map] of updates.entries()) {
+                for(const [key, value] of state_map.entries()) {
+                    console.log(`send ${key} to ${value}`)
+                    this.networkStates.get(nodeId)!!.set(key, value)
+                }
             }
-        }
-        this.pendingUpdates.clear()
+        },this)
+        console.log("SEND STATES")
     }
 
 
     //// NETWORK TO LOCAL ////
     private setupNetworkToLocal(): void {
+        const self = this
         const {parent} = this
         function onStateChange(nodeId: string, state_map: Y.Map<any>){
-            const node = parent.getNodeById(nodeId)!!
             state_map.observe((event)=>{
-                for(const [key,{action}] of event.changes.keys){
-                    if(action=="add"||action=="update") node.setState(key, state_map.get(key))
+                console.log("onStateChange", nodeId, event, event.transaction.origin, self, "stop")
+                if(event.transaction.origin==self)return
+                console.log("onStateChangeProceed")
+
+                const node = parent.getNodeById(nodeId)!!
+                console.log("nodeid",nodeId,"node",node)
+                for(const [key,{action,newValue}] of event.keys){
+                    if(action=="add"||action=="update"){
+                        console.log(`set ${key} to ${state_map.get(key)}`)
+                        node.setState(key, state_map.get(key))
+                    }
                 }
             })
         }
         this.networkStates.observe((event) => {
-            for(const [key, {action}] of event.changes.keys) {
+            //if(event.transaction.origin==self)return
+
+            for(const [nodeid, {action}] of event.changes.keys) {
                 if(action=="add"||action=="update") {
-                    const state_map = event.target.get(key)
-                    if(state_map) onStateChange(key, state_map)
+                    const state_map = event.target.get(nodeid)
+                    if(state_map) onStateChange(nodeid, state_map)
                 }
                 else if(action=="delete") {
-                    this.cleanupNode(key)
+                    this.cleanupNode(nodeid)
                 }
             }
         })

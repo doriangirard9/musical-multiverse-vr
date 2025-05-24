@@ -112,9 +112,23 @@ export interface Node3DContext{
     //// Gestion de la scène ////
 
     /**
+     * Récupère la position de la tête du joueur dans la scène.
+     */
+    getPlayerPosition(): {position: BABYLON.Vector3, rotation: BABYLON.Quaternion}
+
+
+
+    //// Gestion de la node3d dans la scène ////
+
+    /**
      * Se supprime de la scène.
      */
     delete(): void
+
+    /**
+     * Récupère la position de la node3D dans le monde
+     */
+    getPosition(): {position: BABYLON.Vector3, rotation: BABYLON.Quaternion}
     
 
 

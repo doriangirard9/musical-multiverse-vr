@@ -1,4 +1,4 @@
-import {WebAudioModule} from "@webaudiomodules/sdk";
+import {initializeWamHost, WebAudioModule} from "@webaudiomodules/sdk";
 import {NoteExtension} from "../wamExtensions/notes/NoteExtension.ts";
 import {PatternExtension} from "../wamExtensions/patterns/PatternExtension.ts";
 
@@ -50,8 +50,6 @@ export class WamInitializer {
         return await WAM.createInstance(hostGroupId, this._audioCtx);
     }
     private async createHostGroupId(): Promise<[string, string]> {
-        const scriptUrl: string = 'https://mainline.i3s.unice.fr/wam2/packages/sdk/src/initializeWamHost.js';
-        const {default: initializeWamHost} = await import(/* @vite-ignore */ scriptUrl);
         return await initializeWamHost(this._audioCtx);
     }
 

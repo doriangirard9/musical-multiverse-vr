@@ -22,6 +22,7 @@ export class IOManager {
 
     private constructor() {
         this._messageManager = new MessageManager();
+        console.log("[IOManager] POMME IOManager initialized");
         this.onIOEvent();
     }
 
@@ -251,6 +252,7 @@ export class IOManager {
     private commonHandler(data: IOEventPayload['IO_CONNECT']) {
         const {pickType} = data
 
+        console.log(`[IOManager] Pick type: ${pickType} | ${data}`)
         switch (pickType) {
             case "down":
                 if("node" in data) this.currentPort = this.wam3dToNode3d(data.node, data.portId)

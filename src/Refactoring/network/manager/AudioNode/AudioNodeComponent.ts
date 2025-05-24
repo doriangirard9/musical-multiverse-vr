@@ -6,6 +6,7 @@ import {TubeComponent} from "./TubeComponent.ts";
 import {AudioNode3D} from "../../../ConnecterWAM/AudioNode3D.ts";
 import {ConnectionQueueManager} from "../ConnectionQueueManager.ts";
 import { StateComponent } from './StateComponent.ts';
+import { SyncManager } from '../../sync/SyncManager.ts';
 
 /**
  * Composant gérant les nœuds audio et leurs états.

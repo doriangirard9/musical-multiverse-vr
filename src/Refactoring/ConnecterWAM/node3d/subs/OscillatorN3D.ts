@@ -1,4 +1,3 @@
-import type { Mesh, TransformNode } from "@babylonjs/core";
 import type { Node3D, Node3DFactory, Node3DGUI } from "../Node3D";
 import type { Node3DContext } from "../Node3DContext";
 import type { Node3DGUIContext } from "../Node3DGUIContext";
@@ -6,9 +5,10 @@ import type { Node3DGUIContext } from "../Node3DGUIContext";
 
 export class OscillatorN3DGUI implements Node3DGUI{
     
-    audioOutput: Mesh
-    block: Mesh
-    root: TransformNode
+    audioOutput
+    block
+    root
+    frequency
 
     constructor(context: Node3DGUIContext){
         const {babylon:B,tools:T} = context
@@ -23,6 +23,10 @@ export class OscillatorN3DGUI implements Node3DGUI{
         this.block = B.CreateBox("test box",{width:1,depth:1,height:.5}, context.scene)
         this.block.parent = this.root
         this.block.position.set(0,-.25,0)
+
+        this.frequency = B.CreateSphere("frequency param", {diameter:.5}, context.scene)
+        this.frequency.parent = this.root
+        this.frequency.position.set(0,0.25,0)
     }
 
     async dispose(){ }
@@ -31,22 +35,54 @@ export class OscillatorN3DGUI implements Node3DGUI{
 
 export class OscillatorN3D implements Node3D{
 
-    constructor(context: Node3DContext, gui: OscillatorN3DGUI){
+    audionode: OscillatorNode
+
+    constructor(context: Node3DContext, private gui: OscillatorN3DGUI){
         const {tools:T} = context
 
         context.addToBoundingBox(gui.block)
 
-        const audionode = context.audioCtx.createOscillator()
+        const audionode = this.audionode = context.audioCtx.createOscillator()
+        audionode.frequency.value = 130 // Hz
         audionode.start()
 
         context.createConnectable(new T.AudioN3DConnectable.Output("audioOutput", [gui.audioOutput], "Audio Output", audionode))
+
+        context.createParameter({
+            id: "frequency",
+            getLabel() { return "Frequency" },
+            getStepCount() { return 10 },
+            getValue() { return (audionode.frequency.value-130)/100 },
+            setValue(value: number) { 
+                audionode.frequency.value = value * 100 + 130
+                gui.frequency.scaling.setAll(value * .8 + .2)
+                context.notifyStateChange("frequency")
+            },
+            meshes: [gui.frequency],
+            stringify(value) { return `Frequency: ${Math.round(value * 100 + 130)} Hz` },
+        })
     }
 
-    async setState(_1: string, _2: any,){ }
+    async setState(key: string, value: any){
+        const self = this
+        ;({
+            frequency(value:any){
+                self.audionode.frequency.value = value * 100 + 130, self.audionode.context.currentTime, 0.01
+                self.gui.frequency.scaling.setAll(value * .8 + .2)
+            }
+        })[key]!!?.(value)
+    }
 
-    async getState(_1: string){ return {} }
+    async getState(key: string){
+        const self = this
+        return ({
+            frequency(){
+                return (self.audionode.frequency.value - 130) / 100
+            }
+        })[key]!!?.()
+    }
 
-    getStateKeys(){ return [] }
+    getStateKeys(){ return ["frequency"] }
     
     async dispose(){ }
 
