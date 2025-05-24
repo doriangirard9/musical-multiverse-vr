@@ -21,7 +21,7 @@ export class SyncManager<
     constructor(options: {
             name: string,
             doc: Y.Doc,
-            create: (state: {get(key:string):S|undefined}, data: D) => Promise<T>,
+            create: (id:string, state: {get(key:string):S|undefined}, data: D) => Promise<T>,
             on_add?: (instance: T, state: {get(key:string):S|undefined}, data: D) => Promise<void>,
             on_remove?: (instance: T, state: {get(key:string):S|undefined}, data: D) => Promise<void>,
             send_interval?: number,
@@ -40,6 +40,7 @@ export class SyncManager<
     }
 
     private instances = new Map<string, T>()
+    private reverse_instances = new Map<T,string>()
 
     /**
      * Add a new instance to the registry.
@@ -50,10 +51,13 @@ export class SyncManager<
     async add(id:string, instance: undefined extends D ? T : never): Promise<void>;
     async add(id:string, instance: T, data: D): Promise<void>;
     async add(id:string, instance: T|never, data?: D){
+
+        console.log("new ",id,instance)
         const resolve = this.get_resolver(id)
 
         // Add the instance to the registry
         this.instances.set(id, instance)
+        this.reverse_instances.set(instance,id)
 
         const state = new Y.Map<S>()
         
@@ -70,6 +74,7 @@ export class SyncManager<
 
         // Write in shared
         this.doc.transact(() => {
+            console.log("send")
             this.shared_state.set(id, state)
             this.shared_data.set(id, {data:data as D})
         },this)
@@ -85,10 +90,15 @@ export class SyncManager<
      * @param instance
      * @param data
      */
-    async remove(id:string){
+    async remove(id_or_instance:string|T){
+        const id = typeof id_or_instance == "string" ? id_or_instance : this.reverse_instances.get(id_or_instance)
+        if(id===undefined)return
+
         const shared_state = this.shared_state.get(id)
         const shared_data = this.shared_data.get(id)
-        const instance = this.instances.get(id)
+        const instance = typeof id_or_instance == "string" ? this.instances.get(id_or_instance) : id_or_instance
+        if(instance===undefined)return
+        
         if(!shared_data || !shared_state){
             console.warn(`SyncManager : Shared data for instance ${id} not found when removing`)
             return
@@ -106,6 +116,7 @@ export class SyncManager<
 
         // Remove the instance
         this.instances.delete(id)
+        this.reverse_instances.delete(instance)
         
         this.doc.transact(()=>{
             this.shared_data.delete(id)
@@ -121,8 +132,9 @@ export class SyncManager<
         for(const [id,{action,oldValue}] of event.keys){
             if(action=="delete"){
                 // Remove the instance
-                const instance = this.instances.get(id)
+                const instance = this.instances.get(id)!! //TODO: Peut être mettre une vérification plutôt que ça.
                 this.instances.delete(id)
+                this.reverse_instances.delete(instance)
 
                 // Clear pending state change
                 this.pendingStateChange.delete(id)
@@ -139,8 +151,9 @@ export class SyncManager<
                 const new_shared = this.shared_data.get(id)!!
 
                 // Create instance
-                const instance = await this.create(new_shared_state, new_shared.data)
+                const instance = await this.create(id, new_shared_state, new_shared.data)
                 this.instances.set(id,instance)
+                this.reverse_instances.set(instance,id)
                 console.log("added to instance ",id)
                 await this.initialize(id,instance,new_shared_state)
                 await Promise.all([...new_shared_state.entries()].map(([key,value])=>{
@@ -289,10 +302,31 @@ export class SyncManager<
     //// Getters ////
     private pendingGet = new Map<string, Set<{resolve:(value:T|undefined)=>void, timeout:any}>>()
 
+    /**
+     * Get an instance from its ID, synchronously now or undefinid if the instance does not exit
+     * @param id R The id of the instance
+     * @returns The instane with this id or undefined if it does not exist
+     */
     public getInstanceNow(id: string): T | undefined {
         return this.instances.get(id)
     }
 
+    /**
+     * Get the id of an instance
+     * @param instance The instance
+     * @returns The id of the instance
+     */
+    public getId(instance: T){
+        return this.reverse_instances.get(instance)
+    }
+
+    /**
+     * Get an instance from its ID asynchronously, if the instance does not exit, it wait some time for the instance
+     * to be registred.
+     * @param id The id of the instance to get
+     * @param timeout
+     * @returns 
+     */
     public async getInstance(id: string, timeout?: number): Promise<T | undefined> {
         const final_timeout = timeout ?? this.get_timeout
 

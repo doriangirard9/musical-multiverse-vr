@@ -9,7 +9,7 @@ const highlightColor = Color3.Blue()
 /**
  * A simple parameter whose value is changed by dragging it.
  */
-export class Node3DParameterInstance {
+export class N3DParameterInstance {
 
     /**
      * 

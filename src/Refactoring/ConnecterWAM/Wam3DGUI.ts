@@ -11,8 +11,6 @@ import {
     Vector3
 } from "@babylonjs/core";
 import {Wam3D} from "./Wam3D.ts";
-import {PortType} from "./interfaces/EnumConnexionType.ts";
-import {IWamPort} from "./interfaces/IWamPort.ts";
 import {SceneManager} from "../app/SceneManager.ts";
 import {IOEventBus} from "../eventBus/IOEventBus.ts";
 

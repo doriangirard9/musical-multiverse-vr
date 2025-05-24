@@ -1,7 +1,7 @@
 import * as B from "@babylonjs/core";
 import * as GUI from "@babylonjs/gui";
 import { v4 as uuid } from 'uuid';
-import {AudioManager} from "../app/AudioManager.ts";
+import {Node3dManager} from "../app/Node3dManager.ts";
 import {MenuConfig} from "../shared/SharedTypes.ts";
 import {UIManager} from "../app/UIManager.ts";
 import {MenuEventBus} from "../eventBus/MenuEventBus.ts";
@@ -94,7 +94,7 @@ export class NodeMenu {
             console.log(plugin.kind)
             const button = new GUI.TouchHolographicButton(plugin.name);
             button.text = plugin.name;
-            button.onPointerUpObservable.add(async () => await AudioManager.getInstance().createAudioNode3D(uuid(), plugin.kind));
+            button.onPointerUpObservable.add(async () => await Node3dManager.getInstance().createAudioNode3D(uuid(), plugin.kind));
             this._menu.addButton(button);
         });
     }

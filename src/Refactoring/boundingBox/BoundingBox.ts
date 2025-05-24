@@ -17,21 +17,19 @@ export class BoundingBox {
     public boundingBox!: B.AbstractMesh;
     public dragBehavior!: DragBoundingBox;
     public rotationBehavior!: RotateBoundingBox;
-    private id: string;
     private highlightLayer!: B.HighlightLayer;
 
     private readonly xButtonListenerId: string;
     private readonly bButtonListenerId: string;
     private readonly squeezeListenerId: string;
 
-    constructor(private audioNode3D: AudioNode3D, id: string) {
-        this.id = id;
+    constructor(private audioNode3D: AudioNode3D) {
         this.dragBehavior = new DragBoundingBox();
         this.rotationBehavior = new RotateBoundingBox();
 
-        this.xButtonListenerId = `x-button-${this.id}`;
-        this.bButtonListenerId = `b-button-${this.id}`;
-        this.squeezeListenerId = `squeeze-${this.id}`;
+        this.xButtonListenerId = `x-button-`;
+        this.bButtonListenerId = `b-button`;
+        this.squeezeListenerId = `squeeze`;
 
         this.createBoundingBox();
 
@@ -50,7 +48,7 @@ export class BoundingBox {
         const bbHeight = h + 0.1;
         const bbDepth = d + 0.8;
 
-        this.boundingBox = B.MeshBuilder.CreateBox(`boundingBox${this.id}`, {
+        this.boundingBox = B.MeshBuilder.CreateBox(`boundingBox`, {
             width: w,
             height: bbHeight,
             depth: bbDepth
@@ -96,12 +94,12 @@ export class BoundingBox {
 
         XRControllerManager.Instance.addButtonListener('left', 'x-button', this.xButtonListenerId, (event) => {
             if (event.pressed) {
-                console.log(`X-button pressed on BoundingBox ${this.id}`);
+                console.log(`X-button pressed on BoundingBox `);
                 this._handleDelete();
             }
         });
 
-        console.log(`X-button handler attached for BoundingBox ${this.id}`);
+        console.log(`X-button handler attached for BoundingBox `);
     }
 
     private attachBButtonHandler(): void {
@@ -111,12 +109,12 @@ export class BoundingBox {
 
         XRControllerManager.Instance.addButtonListener('right', 'b-button', this.bButtonListenerId, (event) => {
             if (event.pressed) {
-                console.log(`B-button pressed on BoundingBox ${this.id}`);
+                console.log(`B-button pressed on BoundingBox `);
                 this._handleDelete();
             }
         });
 
-        console.log(`B-button handler attached for BoundingBox ${this.id}`);
+        console.log(`B-button handler attached for BoundingBox `);
     }
 
     private _lastSqueezeValue: number = 0;
@@ -137,17 +135,17 @@ export class BoundingBox {
             console.log(`Squeeze value: ${value}, last value: ${this._lastSqueezeValue}`);
 
             if (value === 1 && this._lastSqueezeValue < 1) {
-                console.log(`Enabling rotation behavior for BoundingBox ${this.id}`);
+                console.log(`Enabling rotation behavior for BoundingBox `);
                 this._enableRotationBehavior();
             } else if (value < 1 && this._lastSqueezeValue === 1) {
-                console.log(`Disabling rotation behavior for BoundingBox ${this.id}`);
+                console.log(`Disabling rotation behavior for BoundingBox `);
                 this._disableRotationBehavior();
             }
 
             this._lastSqueezeValue = value;
         });
 
-        console.log(`Squeeze handler attached for BoundingBox ${this.id}`);
+        console.log(`Squeeze handler attached for BoundingBox `);
     }
 
     public addActionHandlers(): void {
@@ -159,7 +157,7 @@ export class BoundingBox {
         }
 
         // Create a highlight layer for pointer interactions
-        this.highlightLayer = new B.HighlightLayer(`hl${this.id}`, this.scene);
+        this.highlightLayer = new B.HighlightLayer(`hl`, this.scene);
         if (!this.boundingBox.actionManager) {
             try {
                 console.log("doesnt have action manager", this.boundingBox.actionManager)
@@ -305,7 +303,7 @@ export class BoundingBox {
             this.boundingBox.dispose();
         }
 
-        console.log(`BoundingBox ${this.id} disposed`);
+        console.log(`BoundingBox  disposed`);
     }
 
 }

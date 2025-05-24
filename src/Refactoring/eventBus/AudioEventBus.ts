@@ -16,10 +16,6 @@ export type AudioEventPayload = {
         rotation: Position3D;
         source: "user" | "network";
     };
-    STATE_CHANGE: {
-        nodeId: string;
-        key: string;
-    };
     AUDIO_NODE_CREATED: {
         nodeId: string;
         kind: string;

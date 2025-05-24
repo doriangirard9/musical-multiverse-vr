@@ -5,8 +5,6 @@ import {
     WamParameterInfoMap,
 } from "@webaudiomodules/api";
 import {WebAudioModule} from "@webaudiomodules/sdk";
-import {IWamPort} from "./interfaces/IWamPort.ts";
-import {AudioInputPort, AudioOutputPort, MidiInputPort, MidiOutputPort} from "./WamPort.ts";
 import {WamInitializer} from "../app/WamInitializer.ts";
 import {BoundingBox} from "../boundingBox/BoundingBox.ts";
 import {AudioNode3D} from "./AudioNode3D.ts";

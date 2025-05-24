@@ -6,29 +6,31 @@ import { AudioNode3D } from "../../AudioNode3D";
 import { BoundingBox } from "../../../boundingBox/BoundingBox";
 import { UIManager } from "../../../app/UIManager";
 import { SimpleMenu } from "../../../menus/SimpleMenu";
-import { Node3DParameterInstance } from "./Node3DParameterInstance";
-import { Node3DConnectableInstance } from "./Node3DConnectableInstance";
+import { N3DParameterInstance } from "./N3DParameterInstance";
+import { N3DConnectableInstance } from "./N3DConnectableInstance";
 import { IOEventBus } from "../../../eventBus/IOEventBus";
 import { XRManager } from "../../../xr/XRManager";
+import { SyncManager } from "../../../network/sync/SyncManager";
+import { SyncSerializable } from "../../../network/sync/SyncSerializable";
+import { Node3dManager } from "../../../app/Node3dManager";
+import { Doc } from "yjs";
 
 export class Node3DInstance extends AudioNode3D{
 
     constructor(
-        id: string,
-        kind: string,
         private scene: Scene,
         private uiManager: UIManager,
         private audioCtx: AudioContext,
         private hostGroupId: string,
         private node_factory: Node3DFactory<Node3DGUI,Node3D>
     ){
-        super(audioCtx,id,kind)
+        super(audioCtx)
     }
 
     private declare gui: Node3DGUI
     private declare node: Node3D
-    readonly parameters = new Map<string, Node3DParameterInstance>()
-    readonly connectables = new Map<string, Node3DConnectableInstance>()
+    readonly parameters = new Map<string, N3DParameterInstance>()
+    readonly connectables = new Map<string, N3DConnectableInstance>()
     private declare root_transform: TransformNode
     private menu = null as null|SimpleMenu
 
@@ -36,7 +38,7 @@ export class Node3DInstance extends AudioNode3D{
 
         const instance = this
         const label = this.node_factory.label
-        const highlightLayer = new HighlightLayer(`${this.id}-${this.node_factory.label}`, this.scene)
+        const highlightLayer = new HighlightLayer(`-${this.node_factory.label}`, this.scene)
 
         const tools = await import("../tools")
 
@@ -62,7 +64,7 @@ export class Node3DInstance extends AudioNode3D{
 
             // Les paramètres draggables
             createParameter(info: Node3DParameter){
-                const param = new Node3DParameterInstance(
+                const param = new N3DParameterInstance(
                     instance.root_transform,
                     info.meshes,
                     highlightLayer,
@@ -81,7 +83,7 @@ export class Node3DInstance extends AudioNode3D{
 
             // Les outputs et inputs que l'on peut connecter
             createConnectable(info: Node3DConnectable){
-                const connectable = new Node3DConnectableInstance(
+                const connectable = new N3DConnectableInstance(
                     instance,
                     info,
                     highlightLayer,
@@ -183,7 +185,7 @@ export class Node3DInstance extends AudioNode3D{
                 this.root_transform.parent = this.bounding_mesh
 
                 this.baseMesh = this.bounding_mesh
-                this.bounding_box = new BoundingBox(this,this.id)
+                this.bounding_box = new BoundingBox(this)
 
                 this.boundingBox = this.bounding_box.boundingBox
 
@@ -216,10 +218,25 @@ export class Node3DInstance extends AudioNode3D{
         this.disposed = true
         this.bounding_box?.dispose()
         this.bounding_mesh?.dispose()
+        this.parameters.forEach(it=>it.dispose())
+        this.connectables.forEach(it=>it.dispose())
         this.menu?.dispose()
         await this.node.dispose()
         await this.gui.dispose()
-        this.parameters.forEach(it=>it.dispose())
-        this.connectables.forEach(it=>it.dispose())
+    }
+
+    static getSyncManager(
+        scene: Scene,
+        doc: Doc,
+        audioManager: Node3dManager,
+        messages: UIManager
+    ){
+        const syncmanager: SyncManager<SyncSerializable,Node3DInstance,string> = new SyncManager({
+            name: "node3d_instances",
+            doc,
+            async create(_,__,kind) { return (await audioManager.builder.create(kind)) as Node3DInstance },
+            async on_remove(instance) { instance.dispose() },
+        })
+        return syncmanager
     }
 }

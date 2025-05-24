@@ -57,9 +57,4 @@ export class UIManager {
         this.messageManager.hideMessage();
     }
 
-    private toggleMainMenu(enable: boolean): void {
-        console.log(`Main menu ${enable ? "enabled" : "disabled"}`);
-    }
-
-
 }

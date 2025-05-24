@@ -3,13 +3,14 @@ import { NodeCompUtils } from "../../components/NodeCompUtils";
 import { Node3DConnectable } from "../Node3DConnectable";
 import { Node3DInstance } from "./Node3DInstance";
 import { IOEventBus } from "../../../eventBus/IOEventBus";
+import { N3DConnectionInstance } from "./N3DConnectionInstance";
 
 /**
  * A simple connection node that is used to connect to other nodes.
  */
-export class Node3DConnectableInstance {
+export class N3DConnectableInstance {
 
-    public connectionCount = 0
+    public connections = new Set<N3DConnectionInstance>()
 
     /**
      * 
@@ -77,7 +78,10 @@ export class Node3DConnectableInstance {
             })
         }
 
-        this.dispose = ()=> disposes.forEach(d => d())
+        this.dispose = ()=>{
+            this.connections.forEach(c => c.remove())
+            disposes.forEach(d => d())
+        }
     }
 
     declare dispose: () => void

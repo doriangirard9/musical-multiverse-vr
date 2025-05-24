@@ -8,8 +8,9 @@ import {Player} from "../../app/Player.ts";
  * Responsable de :
  * - La synchronisation des états des joueurs via Y.js
  * - La gestion des joueurs locaux et distants
+ * TODO: Changer tout ça pour plutôt utiliser SyncManager
  */
-export class PlayerComponent {
+export class PlayerNetwork {
     private readonly localPlayerId: string;
     private networkEventBus: NetworkEventBus;
 

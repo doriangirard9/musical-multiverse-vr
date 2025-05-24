@@ -1,8 +1,7 @@
 import * as Y from 'yjs';
-import {ConnectionComponent} from "./manager/ConnectionComponent.ts";
 import {PlayerManager} from "../app/PlayerManager.ts";
-import {PlayerComponent} from "./manager/PlayerComponent.ts";
-import {AudioNodeComponent} from "./manager/AudioNode/AudioNodeComponent.ts";
+import {PlayerNetwork} from "./manager/PlayerNetwork.ts";
+import {Node3DNetwork} from "./manager/Node3DNetwork.ts";
 
 
 /**
@@ -11,32 +10,24 @@ import {AudioNodeComponent} from "./manager/AudioNode/AudioNodeComponent.ts";
  */
 export class NetworkManager {
 
-    private readonly _doc: Y.Doc;
-    private readonly _id: string;
+    readonly doc: Y.Doc
+    private readonly playerId: string
 
-    //@ts-ignore
-    private connectionManager: ConnectionComponent;
-    //@ts-ignore
-    private playerManager: PlayerComponent;
-    //@ts-ignore
-    private audioNodeManager: AudioNodeComponent;
-
-    private static instance: NetworkManager;
+    readonly player
+    readonly node3d
 
 
     private constructor() {
-        this._doc = new Y.Doc();
-        this._id = PlayerManager.getInstance().getId();
+        this.doc = new Y.Doc()
+        
+        this.playerId = PlayerManager.getInstance().getId()
+        this.player = new PlayerNetwork(this.doc, this.playerId)
+        this.node3d = new Node3DNetwork(this.doc)
 
-        this.connectionManager = new ConnectionComponent(this._doc, this._id);
-        this.playerManager = new PlayerComponent(this._doc, this._id);
-        this.audioNodeManager = new AudioNodeComponent(this._doc);
-
-        // Initialisation des composants
-        this.audioNodeManager.initialize();
-        console.log("Current player id:", this._id);
+        console.log("Current player id:", this.playerId)
     }
 
+    private static instance?: NetworkManager
 
     public static getInstance() {
         if (!this.instance) {
@@ -46,13 +37,9 @@ export class NetworkManager {
     }
 
     public updatePlayers(deltaTime: number): void {
-        if (this.playerManager) {
-            this.playerManager.update(deltaTime);
+        if (this.player) {
+            this.player.update(deltaTime);
         }
-    }
-
-    public getAudioNodeComponent(): AudioNodeComponent {
-        return this.audioNodeManager;
     }
 
 }

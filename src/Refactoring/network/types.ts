@@ -1,10 +1,5 @@
 import {Position3D} from "../shared/SharedTypes.ts";
 
-export type AudioOutputState = {
-    id: string;
-    position: Position3D;
-    rotation: Position3D;
-}
 export type PlayerState = {
     id: string;
     position: { x: number, y: number, z: number };

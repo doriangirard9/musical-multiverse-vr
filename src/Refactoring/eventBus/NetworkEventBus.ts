@@ -1,5 +1,5 @@
 import {BaseEventBus} from "./BaseEventBus.ts";
-import {AudioOutputState, PlayerState} from "../network/types.ts";
+import {PlayerState} from "../network/types.ts";
 import {PortParam} from "../shared/SharedTypes.ts";
 
 export type NetworkEventType = {
@@ -31,14 +31,6 @@ export type NetworkEventPayload = {
     REMOVE_CONNECTION_TUBE: {
         connectionId: string;
     };
-    STORE_AUDIO_OUTPUT: {
-        audioOutputId : string;
-        state : AudioOutputState;
-    };
-    REMOVE_AUDIO_OUTPUT: {
-        audioOutputId : string
-    };
-
 };
 
 export class NetworkEventBus extends BaseEventBus<NetworkEventPayload> {

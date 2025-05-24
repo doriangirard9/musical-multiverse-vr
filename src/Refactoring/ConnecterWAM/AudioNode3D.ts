@@ -2,9 +2,9 @@ import * as B from "@babylonjs/core";
 import * as GUI from "@babylonjs/gui";
 import {SceneManager} from "../app/SceneManager.ts";
 import {UIManager} from "../app/UIManager.ts";
-import { AudioEventBus } from "../eventBus/AudioEventBus.ts";
+import { Synchronized } from "../network/sync/Synchronized.ts";
 
-export abstract class AudioNode3D {
+export abstract class AudioNode3D implements Synchronized {
     static menuOnScene: boolean = false;
     public static currentMenuInstance: AudioNode3D | null = null;
 
@@ -22,11 +22,7 @@ export abstract class AudioNode3D {
     protected _menu!: GUI.NearMenu;
     public _isMenuOpen: boolean = false;
 
-    protected constructor(
-        audioCtx: AudioContext,
-        readonly id: string,
-        readonly kind: string
-    ) {
+    protected constructor(audioCtx: AudioContext) {
         this._scene = SceneManager.getInstance().getScene();
         this._audioCtx = audioCtx;
         this._utilityLayer = new B.UtilityLayerRenderer(this._scene);
@@ -40,7 +36,7 @@ export abstract class AudioNode3D {
     public abstract getAudioNode(): AudioNode;
 
     protected _createParameterStand(position: B.Vector3, name: string): B.Mesh {
-        const parameterStand: B.Mesh = B.MeshBuilder.CreatePlane(`parameterStand${this.id}`, { size: 0.8 }, this._scene);
+        const parameterStand: B.Mesh = B.MeshBuilder.CreatePlane(`parameterStand`, { size: 0.8 }, this._scene);
         parameterStand.rotate(B.Axis.X, Math.PI / 2, B.Space.WORLD);
         parameterStand.parent = this.baseMesh;
         parameterStand.position = position;
@@ -48,7 +44,7 @@ export abstract class AudioNode3D {
         parameterStand.material = new B.StandardMaterial('material', this._scene);
         parameterStand.material.zOffset = -1;
 
-        const nameTextPlane: B.Mesh = B.MeshBuilder.CreatePlane(`textPlane${this.id}`, { size: 1 }, this._scene);
+        const nameTextPlane: B.Mesh = B.MeshBuilder.CreatePlane(`textPlane`, { size: 1 }, this._scene);
         nameTextPlane.parent = parameterStand;
         nameTextPlane.position.z = -0.01;
         const advancedTexture: GUI.AdvancedDynamicTexture = GUI.AdvancedDynamicTexture.CreateForMesh(nameTextPlane);
@@ -62,7 +58,7 @@ export abstract class AudioNode3D {
     }
 
     protected _createOptionsMenu(): void {
-        this._menu = new GUI.NearMenu(`menu${this.id}`);
+        this._menu = new GUI.NearMenu(`menu`);
         console.log("options menu = bouton delete ?")
         UIManager.getInstance().getGui3DManager().addControl(this._menu);
         this._menu.margin = 0.05;
@@ -133,6 +129,8 @@ export abstract class AudioNode3D {
         this._rotationGizmo.onDragEndObservable.clear();
     }
 
+
+    // State and sync
     public abstract getState(key: string): Promise<any>
 
     public abstract setState(key: string, value: any): Promise<void>
@@ -146,9 +144,22 @@ export abstract class AudioNode3D {
         return map
     }
 
-    public markStateChange(key: string): void{
-        AudioEventBus.getInstance().emit("STATE_CHANGE", {nodeId: this.id, key})
+    public markStateChange(key:string){
+        this.set_state(key) // Fait le pond avec le nouveau système
     }
+
+    // Nouveau système de sync (SyncManager), se base sur l'ancien comme ça j'ai pas besoin de modifier toutes les sous-classes
+    private set_state: (key:string)=>void = ()=>{}
+
+    async initSync(_: string, set_state: (key: string) => void): Promise<void> {
+        this.set_state = set_state
+    }
+
+    disposeSync(): void { this.set_state = ()=>{} }
+
+    askStates(): void { for(const key of this.getStateKeys())this.set_state(key) }
+
+    async removeState(_: string) { }
 
 
     public setPosition(position: B.Vector3, rotation: B.Vector3): void {

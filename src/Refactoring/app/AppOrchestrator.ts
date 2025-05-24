@@ -2,7 +2,7 @@ import {NetworkEventBus} from "../eventBus/NetworkEventBus.ts";
 import {UIEventBus} from "../eventBus/UIEventBus.ts";
 import {MenuEventBus} from "../eventBus/MenuEventBus.ts";
 
-import {AudioManager} from "./AudioManager.ts";
+import {Node3dManager} from "./Node3dManager.ts";
 import {UIManager} from "./UIManager.ts";
 import {SceneManager} from "./SceneManager.ts";
 import {PlayerManager} from "./PlayerManager.ts";
@@ -22,7 +22,7 @@ export class AppOrchestrator{
     private UIEventBus : UIEventBus | null = null;
     private IOEventBus : IOEventBus | null = null;
     private MenuEventBus : MenuEventBus | null = null;
-    private AudioManager : AudioManager | null = null;
+    private AudioManager : Node3dManager | null = null;
     private iOManager : IOManager | null = null;
     private UIManager : UIManager | null = null;
     private SceneManager : SceneManager | null = null;
@@ -55,7 +55,7 @@ export class AppOrchestrator{
         this.IOEventBus = IOEventBus.getInstance();
 
         // ---------------MANAGERS-------------------
-        this.AudioManager = AudioManager.getInstance();
+        this.AudioManager = Node3dManager.getInstance();
         this.UIManager = UIManager.getInstance();
         this.SceneManager = SceneManager.getInstance();
         this.PlayerManager = PlayerManager.getInstance();
@@ -92,7 +92,7 @@ export class AppOrchestrator{
 
         this.MenuEventBus?.on('CREATE_AUDIO_NODE', async (payload) => {
             console.log(`Audio node created: ${payload.name}`);
-            const node = await this.AudioManager?.createAudioNode3D(payload.nodeId, payload.kind)
+            const node = await this.AudioManager?.createNode3d(payload.nodeId, payload.kind)
             if (node) {
                 if(!(node instanceof AudioNode3D)){
                     this.UIManager?.showMessage(`Error: ${node}`, 2000)
