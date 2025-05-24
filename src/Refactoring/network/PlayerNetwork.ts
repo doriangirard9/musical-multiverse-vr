@@ -1,7 +1,7 @@
 import * as Y from 'yjs';
-import {PlayerState} from "../types.ts";
-import {NetworkEventBus} from "../../eventBus/NetworkEventBus.ts";
-import {Player} from "../../app/Player.ts";
+import {PlayerState} from "./types.ts";
+import {NetworkEventBus} from "../eventBus/NetworkEventBus.ts";
+import {Player} from "../app/Player.ts";
 
 /**
  * Composant gérant les joueurs et leurs états.

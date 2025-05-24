@@ -32,6 +32,8 @@ export class N3DConnectableInstance {
 
         const {color, meshes} = config
 
+        const connectable = this
+
         function hover(){
             if(!hovered) {
                 hovered = true
@@ -47,15 +49,15 @@ export class N3DConnectableInstance {
         }
 
         function onleftpick(){
-            ioEventBus.emit('IO_CONNECT', { pickType : "down", connectable: config, instance })
+            ioEventBus.emit('IO_CONNECT', { pickType : "down", connectable })
         }
 
         function onpickup(){
-            ioEventBus.emit('IO_CONNECT', { pickType : "up", connectable: config, instance })
+            ioEventBus.emit('IO_CONNECT', { pickType : "up", connectable })
         }
 
         function onpickout(){
-            ioEventBus.emit('IO_CONNECT', { pickType : "out", connectable: config, instance })
+            ioEventBus.emit('IO_CONNECT', { pickType : "out", connectable })
         }
 
         for(const mesh of meshes) {

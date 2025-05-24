@@ -1,10 +1,11 @@
-import { Color3, CreateCylinder, Observer, Scene } from "@babylonjs/core"
+import { AbstractMesh, Color3, CreateCylinder, Observer, Quaternion, Scene, Vector3 } from "@babylonjs/core"
 import { SyncManager } from "../../../network/sync/SyncManager"
 import { N3DConnectableInstance } from "./N3DConnectableInstance"
 import { Node3DInstance } from "./Node3DInstance"
 import { SyncSerializable } from "../../../network/sync/SyncSerializable"
 import { Doc } from "yjs"
 import { UIManager } from "../../../app/UIManager"
+import { MeshUtils } from "../tools"
 
 /**
  * Une connection entre deux connectable de deux Node3D.
@@ -13,18 +14,19 @@ import { UIManager } from "../../../app/UIManager"
 export class N3DConnectionInstance{
 
     private tube
+    private arrow?: AbstractMesh
 
     constructor(
-        scene: Scene,
-        private nodes: SyncManager<any,Node3DInstance>,
-        private connections: SyncManager<any,N3DConnectionInstance>,
+        private scene: Scene,
+        private nodes: SyncManager<any,Node3DInstance,any>,
+        private connections: SyncManager<any,N3DConnectionInstance,any>,
         private messages: UIManager
     ){
-        this.tube = CreateCylinder("tube",{
-            height: .5,
-            diameter: .5,
-            subdivisions: 6,
-        },scene)
+        this.tube = CreateCylinder("connection tube",{
+            height: 1,
+            diameter: .25,
+            tessellation: 6
+        },this.scene)
     }
 
     // Public API
@@ -51,7 +53,7 @@ export class N3DConnectionInstance{
     private cOutput = null as N3DConnectableInstance|null
     private cInput = null as N3DConnectableInstance|null
     private observables = [] as Observer<any>[]
-    private color = Color3.White() //TODO: Gérer la couleur de la connexion
+    private color = Color3.White().toColor4(1) //TODO: Gérer la couleur de la connexion
     private buildTimeout?: any
 
     /**
@@ -63,13 +65,21 @@ export class N3DConnectionInstance{
     private connect(cA: N3DConnectableInstance, cB: N3DConnectableInstance): boolean{
         this.disconnect()
 
-        // Check if the connection is not a self connection
+        // Check that the connection is not a self connection
         if(cA==cB){
             this.messages.showMessage("Can't connect a node to itself", 2000)
             return false
         }
 
-        // Check if the connection don't have the maximum number of connection
+        // Check that the connection does not already exists
+        for(const connection of cA.connections){
+            if(connection.cInput == cB || connection.cOutput == cB){
+                this.messages.showMessage(`Already connected to ${cB.config.label}`, 2000)
+                return false
+            }
+        }
+
+        // Check that the connection don't have the maximum number of connection
         if(cA.connections.size >= (cA.config.max_connections??Number.MAX_SAFE_INTEGER)){
             this.messages.showMessage(`The first connectable already have the maximum number of connection`,2000)
         }
@@ -78,7 +88,7 @@ export class N3DConnectionInstance{
             this.messages.showMessage(`The second connectable already have the maximum number of connection`,2000)
         }
         
-        // Check if connection direction are compatible
+        // Check that the connections directions are compatible
         let canConnect = false
         if([cA.config.direction, cB.config.direction].includes("bidirectional")) canConnect = true
         else if(cA.config.direction != cB.config.direction) canConnect = true
@@ -87,7 +97,7 @@ export class N3DConnectionInstance{
             return false
         }
 
-        // Check if connection type are compatible
+        // Check that the connections types are compatibles
         if(cA.config.type != cB.config.type){
             this.messages.showMessage(`Can't connect a ${cA.config.type} to a ${cB.config.type}`, 2000)
             return false
@@ -112,18 +122,54 @@ export class N3DConnectionInstance{
         this.cOutput.connections.add(this)
         this.cInput.connections.add(this)
 
-        this.color = this.cOutput.config.color
+        this.color = this.cOutput.config.color.toColor4(1)
 
         // Visual connection
         const inputMesh = input.config.meshes[0]
-        const outputMesh = output.config.meshes[1]
+        const outputMesh = output.config.meshes[0]
+
+        if(![input.config.direction, output.config.direction].includes("bidirectional")){
+            this.arrow = CreateCylinder("connection arrow",{
+                height: 1,
+                diameterBottom: .5,
+                diameterTop: 0,
+                tessellation: 6,
+            },this.scene)
+            MeshUtils.setColor(this.arrow, this.color)
+        }
+        MeshUtils.setColor(this.tube, this.color)
 
         const connection = this
         function movetube(){
+            console.log("[N3DConnectionInstance] Move tube")
             // TODO: Gérer vraiment le visuel des connexions
             if(!connection.buildTimeout)connection.buildTimeout = setTimeout(()=>{
-                const center = inputMesh.absolutePosition.add(outputMesh.absolutePosition).scaleInPlace(.5)
-                connection.tube.setAbsolutePosition(center)
+                // Some calculations
+                const offset = inputMesh.absolutePosition.subtract(outputMesh.absolutePosition)
+                const length = offset.length()
+                const tubeLength = (length - 1)
+                offset.normalize()
+
+                const pointA = outputMesh.absolutePosition
+                const pointB = connection.tube ? offset.scale(tubeLength).addInPlace(pointA) : inputMesh.absolutePosition
+                const pointC = inputMesh.absolutePosition
+
+                const orientation = Quaternion.FromUnitVectorsToRef(Vector3.Up(), offset.normalizeToNew(), new Quaternion())
+                
+                // Move the tube
+                const tubeCenter = pointA.add(pointB).scaleInPlace(.5)
+                connection.tube.setAbsolutePosition(tubeCenter)
+                connection.tube.rotationQuaternion = orientation
+                connection.tube.scaling.set(1,tubeLength,1)
+
+                // Move the arrow
+                if(connection.arrow){
+                    const arrowCenter = pointB.add(pointC).scaleInPlace(.5)
+                    connection.arrow.setAbsolutePosition(arrowCenter)
+                    connection.arrow.rotationQuaternion = orientation
+                }
+
+
                 connection.buildTimeout = undefined
             },20)
         }
@@ -146,6 +192,7 @@ export class N3DConnectionInstance{
             this.cInput = null
             this.cOutput = null
             this.observables.forEach(it=>it.remove())
+            this.arrow?.dispose()
         }
     }
 
@@ -191,6 +238,8 @@ export class N3DConnectionInstance{
 
     dispose(){
         this.disconnect()
+        this.tube.dispose()
+        console.log("[N3DConnectionInstance] Disposed")
     }
 
     remove(){

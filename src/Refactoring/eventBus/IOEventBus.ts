@@ -1,32 +1,11 @@
 import {BaseEventBus} from "./BaseEventBus.ts";
-import {PortType} from "../ConnecterWAM/interfaces/EnumConnexionType.ts";
-import {Wam3D} from "../ConnecterWAM/Wam3D.ts";
-import { Node3DConnectable } from "../ConnecterWAM/node3d/Node3DConnectable.ts";
-import { Node3DInstance } from "../ConnecterWAM/node3d/instance/Node3DInstance.ts";
-import {PortParam} from "../shared/SharedTypes.ts";
+import { N3DConnectableInstance } from "../ConnecterWAM/node3d/instance/N3DConnectableInstance.ts";
 
 export type IOEventPayload = {
     IO_CONNECT: {
-        type: PortType,
-        pickType: 'up' | 'down' | 'out',
-        node : Wam3D
-        portId: 'audioIn' | 'audioOut' | 'midiIn' | 'midiOut',
-        isInput: boolean,
-    }|{
         pickType: 'down' | 'up' | 'out'
-        instance: Node3DInstance
-        connectable: Node3DConnectable
+        connectable: N3DConnectableInstance
     };
-
-    NETWORK_CONNECTION_ADDED: {
-        connectionId: string;
-        portParam: PortParam;
-    };
-
-    NETWORK_CONNECTION_REMOVED: {
-        connectionId: string;
-    };
-
 };
 export class IOEventBus extends BaseEventBus<IOEventPayload> {
     private static instance: IOEventBus;

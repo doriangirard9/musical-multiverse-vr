@@ -1,7 +1,8 @@
 import * as Y from 'yjs';
 import {PlayerManager} from "../app/PlayerManager.ts";
-import {PlayerNetwork} from "./manager/PlayerNetwork.ts";
-import {Node3DNetwork} from "./manager/Node3DNetwork.ts";
+import {PlayerNetwork} from "./PlayerNetwork.ts";
+import {Node3DNetwork} from "./Node3DNetwork.ts";
+import { ConnectionManager } from './ConnectionManager.ts';
 
 
 /**
@@ -13,6 +14,7 @@ export class NetworkManager {
     readonly doc: Y.Doc
     private readonly playerId: string
 
+    readonly connection
     readonly player
     readonly node3d
 
@@ -21,6 +23,8 @@ export class NetworkManager {
         this.doc = new Y.Doc()
         
         this.playerId = PlayerManager.getInstance().getId()
+        
+        this.connection = new ConnectionManager(this.doc,this.playerId)
         this.player = new PlayerNetwork(this.doc, this.playerId)
         this.node3d = new Node3DNetwork(this.doc)
 

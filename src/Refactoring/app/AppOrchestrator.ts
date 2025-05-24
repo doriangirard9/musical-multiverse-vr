@@ -7,9 +7,8 @@ import {UIManager} from "./UIManager.ts";
 import {SceneManager} from "./SceneManager.ts";
 import {PlayerManager} from "./PlayerManager.ts";
 import {AudioEventBus} from "../eventBus/AudioEventBus.ts";
-import {IOManager} from "../iomanager/IOManager.ts";
+import {ConnectionManager} from "../iomanager/IOManager.ts";
 import {IOEventBus} from "../eventBus/IOEventBus.ts";
-import {ConnectionManager} from "../iomanager/ConnectionManager.ts";
 import {NetworkManager} from "../network/NetworkManager.ts";
 import { AudioNode3D } from "../ConnecterWAM/AudioNode3D.ts";
 
@@ -23,7 +22,7 @@ export class AppOrchestrator{
     private IOEventBus : IOEventBus | null = null;
     private MenuEventBus : MenuEventBus | null = null;
     private AudioManager : Node3dManager | null = null;
-    private iOManager : IOManager | null = null;
+    private iOManager : ConnectionManager | null = null;
     private UIManager : UIManager | null = null;
     private SceneManager : SceneManager | null = null;
     private PlayerManager : PlayerManager | null = null;
@@ -59,8 +58,7 @@ export class AppOrchestrator{
         this.UIManager = UIManager.getInstance();
         this.SceneManager = SceneManager.getInstance();
         this.PlayerManager = PlayerManager.getInstance();
-        this.iOManager = IOManager.getInstance();
-        this.ConnectionManager = ConnectionManager.getInstance();
+        this.iOManager = ConnectionManager.getInstance();
         this.NetworkManager = NetworkManager.getInstance();
     }
     private trucMocheAChanger(){
