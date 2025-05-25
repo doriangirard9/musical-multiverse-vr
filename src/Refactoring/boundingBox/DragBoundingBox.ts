@@ -20,6 +20,8 @@ export class DragBoundingBox implements B.Behavior<B.AbstractMesh> {
     private readonly MAX_DISTANCE = 15;
     private readonly MIN_HEIGHT = 0.1;
 
+    public on_move = ()=>{}
+
     private eventBus = AudioEventBus.getInstance();
 
     constructor() {
@@ -267,25 +269,7 @@ export class DragBoundingBox implements B.Behavior<B.AbstractMesh> {
     private _emitPositionChange(): void {
         if (!this.selected) return;
 
-        const transform: NodeTransform = {
-            position: {
-                x: this.selected.position.x,
-                y: this.selected.position.y,
-                z: this.selected.position.z
-            },
-            rotation: {
-                x: this.selected.rotation.x,
-                y: this.selected.rotation.y,
-                z: this.selected.rotation.z
-            }
-        };
-
-        this.eventBus.emit('POSITION_CHANGE', {
-            nodeId: this.selected.id.split('boundingBox')[1],
-            position: transform.position,
-            rotation: transform.rotation,
-            source: 'user'
-        });
+        this.on_move()
     }
 
 

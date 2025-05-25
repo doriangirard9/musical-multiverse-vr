@@ -19,6 +19,8 @@ export class BoundingBox {
     public rotationBehavior!: RotateBoundingBox;
     private highlightLayer!: B.HighlightLayer;
 
+    public on_move = ()=>{}
+
     private readonly xButtonListenerId: string;
     private readonly bButtonListenerId: string;
     private readonly squeezeListenerId: string;
@@ -37,6 +39,8 @@ export class BoundingBox {
 
         this.attachControllerBehaviors();
 
+        this.dragBehavior.on_move = ()=>this.on_move()
+        this.rotationBehavior.on_move = ()=>this.on_move()
     }
 
 

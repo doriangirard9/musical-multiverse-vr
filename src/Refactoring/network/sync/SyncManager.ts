@@ -3,8 +3,7 @@ import { SyncSerializable } from "./SyncSerializable";
 import * as Y from "yjs";
 
 export class SyncManager<
-    S extends SyncSerializable,
-    T extends Synchronized<S>,
+    T extends Synchronized,
     D extends SyncSerializable|undefined = undefined
 >{
 
@@ -21,9 +20,9 @@ export class SyncManager<
     constructor(options: {
             name: string,
             doc: Y.Doc,
-            create: (id:string, state: {get(key:string):S|undefined}, data: D) => Promise<T>,
-            on_add?: (instance: T, state: {get(key:string):S|undefined}, data: D) => Promise<void>,
-            on_remove?: (instance: T, state: {get(key:string):S|undefined}, data: D) => Promise<void>,
+            create: (id:string, state: {get(key:string):SyncSerializable|undefined}, data: D) => Promise<T>,
+            on_add?: (instance: T, state: {get(key:string):SyncSerializable|undefined}, data: D) => Promise<void>,
+            on_remove?: (instance: T, state: {get(key:string):SyncSerializable|undefined}, data: D) => Promise<void>,
             send_interval?: number,
             get_timeout?: number,
         },
@@ -34,7 +33,7 @@ export class SyncManager<
         this.on_remove = options.on_remove
         this.send_interval = options.send_interval ?? 100
         this.get_timeout = options.get_timeout ?? 1000
-        this.shared_state =  options.doc.getMap<Y.Map<S>>()
+        this.shared_state =  options.doc.getMap<Y.Map<SyncSerializable>>()
         this.shared_data = options.doc.getMap<{data:D}>(options.name)
         this.shared_data.observe(this.add_from_network.bind(this))
     }
@@ -59,7 +58,7 @@ export class SyncManager<
         this.instances.set(id, instance)
         this.reverse_instances.set(instance,id)
 
-        const state = new Y.Map<S>()
+        const state = new Y.Map<SyncSerializable>()
         
         // Initialize the synchronizable
         this.initialize(id, instance, state)
@@ -140,7 +139,7 @@ export class SyncManager<
                 this.pendingStateChange.delete(id)
 
                 // Get share data
-                const {data,state} = oldValue as {data:D, state: Y.Map<S>}
+                const {data,state} = oldValue as {data:D, state: Y.Map<SyncSerializable>}
                 this.on_remove?.(instance!!, state, data)
             }
             else if(action=="add"){
@@ -157,7 +156,7 @@ export class SyncManager<
                 console.log("added to instance ",id)
                 await this.initialize(id,instance,new_shared_state)
                 await Promise.all([...new_shared_state.entries()].map(([key,value])=>{
-                    return instance.setState(key,value)
+                    return instance.setState(key as string,value as SyncSerializable)
                 }))
 
                 resolve(instance)
@@ -198,7 +197,7 @@ export class SyncManager<
      * @param id 
      * @param instance 
      */
-    private async initialize(id: string, instance: T, shared: Y.Map<S>){
+    private async initialize(id: string, instance: T, shared: Y.Map<SyncSerializable>){
         // L'instance peut indiquer des changements d'état
         // Les changements sont enregistrés dans une liste et seront envoyé ensemble d'un coups.
         await instance.initSync(
@@ -208,7 +207,7 @@ export class SyncManager<
         )
 
         // Synchronisation des états
-        shared.observe(async(event: Y.YMapEvent<S>)=>{
+        shared.observe(async(event: Y.YMapEvent<SyncSerializable>)=>{
             console.log("on shared state change", id, event)
             if(event.transaction.origin==this)return
 
@@ -217,10 +216,10 @@ export class SyncManager<
             for(const [key,{action}] of event.keys){
                 const newValue = shared.get(key)
                 if(action=="delete"){
-                    await instance.removeState(key)
+                    await instance.removeState(key as string)
                 }
                 else if(action=="add" || action=="update"){
-                    await instance.setState(key, newValue!!)
+                    await instance.setState(key as string, newValue!!)
                 }
             }
         })
@@ -232,7 +231,7 @@ export class SyncManager<
      * @param id Ge
      * @returns 
      */
-    private async get_changes_and_remove(id: string): Promise<({remove:string}|{set:string,value:S})[]>{
+    private async get_changes_and_remove(id: string): Promise<({remove:string}|{set:string,value:SyncSerializable})[]>{
         const instance = this.instances.get(id)
         const shared = this.shared_data.get(id)
 
@@ -249,7 +248,7 @@ export class SyncManager<
         if(!changes) return []
         this.pendingStateChange.delete(id)
 
-        const ret = [] as ({remove:string}|{set:string,value:S})[]
+        const ret = [] as ({remove:string}|{set:string,value:SyncSerializable})[]
     
         await Promise.all([...changes].map(async([key,type])=>{
             if(type=="add"){
@@ -291,7 +290,7 @@ export class SyncManager<
             this.doc.transact(() => {
                 for(const change of computed_changes){
                     console.log("send a change ", id, change)
-                    if("remove" in change) shared_state.delete(change.remove)
+                    if("remove" in change) shared_state.delete(change.remove as string)
                     else shared_state.set(change.set, change.value)
                 }
             },this)

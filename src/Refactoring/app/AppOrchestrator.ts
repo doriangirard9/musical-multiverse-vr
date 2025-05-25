@@ -31,10 +31,8 @@ export class AppOrchestrator{
     private constructor() {
         this.initManagers()
 
-        this.onUIEvent();
         this.onMenuEvent();
         this.onAudioEvent();
-        this.trucMocheAChanger();
         this.debugLogEvents()
     }
 
@@ -60,17 +58,6 @@ export class AppOrchestrator{
         this.PlayerManager = PlayerManager.getInstance();
         this.iOManager = ConnectionManager.getInstance();
         this.NetworkManager = NetworkManager.getInstance();
-    }
-    private trucMocheAChanger(){
-        this.audioEventBus?.on('POSITION_CHANGE', (payload) => {
-            this.UIEventBus?.emit("WAM_POSITION_CHANGE", payload);
-        });
-    }
-    private onUIEvent(): void {
-        this.UIEventBus?.on('WAM_POSITION_CHANGE', (payload) => {
-            console.log(`WAM position changed: ${payload.nodeId}`);
-            this.ConnectionManager?.handleNodeUpdate(payload);
-        });
     }
 
     private onMenuEvent(): void {

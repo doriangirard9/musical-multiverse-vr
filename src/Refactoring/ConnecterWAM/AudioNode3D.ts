@@ -2,9 +2,8 @@ import * as B from "@babylonjs/core";
 import * as GUI from "@babylonjs/gui";
 import {SceneManager} from "../app/SceneManager.ts";
 import {UIManager} from "../app/UIManager.ts";
-import { Synchronized } from "../network/sync/Synchronized.ts";
 
-export abstract class AudioNode3D implements Synchronized {
+export abstract class AudioNode3D {
     static menuOnScene: boolean = false;
     public static currentMenuInstance: AudioNode3D | null = null;
 
@@ -128,36 +127,7 @@ export abstract class AudioNode3D implements Synchronized {
         this._rotationGizmo.onDragStartObservable.clear();
         this._rotationGizmo.onDragEndObservable.clear();
     }
-
-
-    // State and sync
-    public abstract getState(key: string): Promise<any>
-
-    public abstract setState(key: string, value: any): Promise<void>
-
-    public abstract getStateKeys(): Iterable<string>
-
-    public async getCompleteState(): Promise<{[key:string]:any}> {
-        const promises = [...this.getStateKeys()] .map(key=>this.getState(key).then(value=>[key,value] as [string,any]))
-        const values = await Promise.all(promises)
-        const map = Object.fromEntries(values)
-        return map
-    }
-
-    public markStateChange(key:string){
-        this.set_state(key) // Fait le pond avec le nouveau système
-    }
-
-    // Nouveau système de sync (SyncManager), se base sur l'ancien comme ça j'ai pas besoin de modifier toutes les sous-classes
-    private set_state: (key:string)=>void = ()=>{}
-
-    async initSync(_: string, set_state: (key: string) => void): Promise<void> {
-        this.set_state = set_state
-    }
-
-    disposeSync(): void { this.set_state = ()=>{} }
-
-    askStates(): void { for(const key of this.getStateKeys())this.set_state(key) }
+    
 
     async removeState(_: string) { }
 

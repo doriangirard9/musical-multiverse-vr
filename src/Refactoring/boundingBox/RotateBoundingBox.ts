@@ -11,6 +11,9 @@ export class RotateBoundingBox implements B.Behavior<B.AbstractMesh> {
     private _selectedMesh: B.AbstractMesh | null = null;
     private _observer: B.Nullable<B.Observer<B.Scene>> = null;
     private _eventBus = AudioEventBus.getInstance();
+
+    public on_move = ()=>{}
+
     constructor() {
     }
 
@@ -152,12 +155,7 @@ export class RotateBoundingBox implements B.Behavior<B.AbstractMesh> {
                         };
 
                         if (this._hasSignificantChange(currentTransform, lastEmittedTransform)) {
-                            this._eventBus.emit('POSITION_CHANGE', {
-                                nodeId: this._selectedMesh.id.split('boundingBox')[1],
-                                position: currentTransform.position,
-                                rotation: currentTransform.rotation,
-                                source: 'user'
-                            });
+                            this.on_move()
                             lastEmittedTransform = { ...currentTransform };
                         }
                     }

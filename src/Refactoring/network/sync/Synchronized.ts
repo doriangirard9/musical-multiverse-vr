@@ -1,7 +1,7 @@
 import { SyncSerializable } from "./SyncSerializable"
 
 
-export interface Synchronized<S extends SyncSerializable = SyncSerializable>{
+export interface Synchronized{
 
     /**
      * Initialize the synchronizable object.
@@ -31,7 +31,7 @@ export interface Synchronized<S extends SyncSerializable = SyncSerializable>{
      * @param key The key of the state to set.
      * @param value The new value of the state.
      */
-    setState(key: string, value: S): Promise<void>
+    setState(key: string, value: SyncSerializable): Promise<void>
 
     /**
      * Remove the state associated with the given key.
@@ -43,6 +43,6 @@ export interface Synchronized<S extends SyncSerializable = SyncSerializable>{
      * Get the state associated with the given key.
      * @param key The key of the state to get.
      */
-    getState(key: string): Promise<S>
+    getState(key: string): Promise<SyncSerializable>
     
 }

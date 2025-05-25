@@ -11,11 +11,11 @@ import { N3DConnectableInstance } from "./N3DConnectableInstance";
 import { IOEventBus } from "../../../eventBus/IOEventBus";
 import { XRManager } from "../../../xr/XRManager";
 import { SyncManager } from "../../../network/sync/SyncManager";
-import { SyncSerializable } from "../../../network/sync/SyncSerializable";
 import { Node3dManager } from "../../../app/Node3dManager";
 import { Doc } from "yjs";
+import { Synchronized } from "../../../network/sync/Synchronized";
 
-export class Node3DInstance extends AudioNode3D{
+export class Node3DInstance extends AudioNode3D implements Synchronized{
 
     constructor(
         private scene: Scene,
@@ -147,9 +147,10 @@ export class Node3DInstance extends AudioNode3D{
             },
             
             notifyStateChange(key: string){
-                instance.markStateChange(key)
+                instance.set_state(key)
             }
         },this.gui)
+
     }
 
     //// BOUNDING BOX ////
@@ -158,37 +159,44 @@ export class Node3DInstance extends AudioNode3D{
     private bounding_box = null as null|BoundingBox
     private doUpdateBoundingBox = false
 
+    private updateBoundingBoxNow(){
+        if(this.disposed)return
+
+        this.bounding_box?.dispose()
+        this.bounding_mesh?.dispose()
+
+        
+        const bounds = this.boxes
+            .map(it=>it.getHierarchyBoundingVectors(true))
+            .reduce((a,b)=>({min: a.min.minimizeInPlace(b.min), max: a.max.maximizeInPlace(b.max)}))
+
+        const size = bounds.max.subtractInPlace(bounds.min)
+        this.bounding_mesh = MeshBuilder.CreateBox('box', {
+            width: size.x,
+            height: size.y,
+            depth: size.z,
+        }, this._scene)
+        size.scaleInPlace(.5)
+        this.bounding_mesh.position.subtractInPlace(bounds.min).subtractInPlace(size)
+        this.bounding_mesh.isVisible = false
+
+        this.root_transform.parent = this.bounding_mesh
+
+        this.baseMesh = this.bounding_mesh
+        this.bounding_box = new BoundingBox(this)
+
+        this.boundingBox = this.bounding_box.boundingBox
+
+        this.set_state("position")
+        this.bounding_box.on_move = ()=>this.set_state("position")
+    }
+
     private updateBoundingBox(){
-        if(!this.doUpdateBoundingBox){
+        if(!this.boundingBox) this.updateBoundingBoxNow()
+        else if(!this.doUpdateBoundingBox){
             this.doUpdateBoundingBox=true
             setTimeout(()=>{
-                if(this.disposed)return
-
-                this.bounding_box?.dispose()
-                this.bounding_mesh?.dispose()
-
-                
-                const bounds = this.boxes
-                    .map(it=>it.getHierarchyBoundingVectors(true))
-                    .reduce((a,b)=>({min: a.min.minimizeInPlace(b.min), max: a.max.maximizeInPlace(b.max)}))
-
-                const size = bounds.max.subtractInPlace(bounds.min)
-                this.bounding_mesh = MeshBuilder.CreateBox('box', {
-                    width: size.x,
-                    height: size.y,
-                    depth: size.z,
-                }, this._scene)
-                size.scaleInPlace(.5)
-                this.bounding_mesh.position.subtractInPlace(bounds.min).subtractInPlace(size)
-                this.bounding_mesh.isVisible = false
-
-                this.root_transform.parent = this.bounding_mesh
-
-                this.baseMesh = this.bounding_mesh
-                this.bounding_box = new BoundingBox(this)
-
-                this.boundingBox = this.bounding_box.boundingBox
-
+                this.updateBoundingBoxNow()
                 this.doUpdateBoundingBox=false
             })
         }
@@ -200,17 +208,35 @@ export class Node3DInstance extends AudioNode3D{
     }
 
 
-    public getState(key: string): Promise<any> {
-        return this.node.getState(key)
+    ///// Synchronized ////
+    private set_state: (key:string)=>void = ()=>{}
+
+    async initSync(_: string, set_state: (key: string) => void): Promise<void> {
+        this.set_state = set_state
     }
 
-    public setState(key: string, value: any): Promise<void> {
-        return this.node.setState(key,value)
+    askStates(): void { 
+        this.set_state("position")
+        for(const key of this.node.getStateKeys()) this.set_state(key)
     }
 
-    public getStateKeys(): Iterable<string> {
-        return this.node.getStateKeys()
+    public async getState(key: string): Promise<any> {
+        if(key=="position") return {
+            position: this.boundingBox.position.asArray(),
+            rotation: this.boundingBox.rotation.asArray(),
+        }
+        else return this.node.getState(key)
     }
+
+    public async setState(key: string, value: any): Promise<void> {
+        if(key=="position"){
+            this.boundingBox.position.fromArray(value.position) 
+            this.boundingBox.rotation.fromArray(value.rotation)
+        }
+        else this.node.setState(key,value)
+    }
+
+    disposeSync(): void { this.set_state = ()=>{} }
 
     private disposed = false
 
@@ -231,7 +257,7 @@ export class Node3DInstance extends AudioNode3D{
         audioManager: Node3dManager,
         messages: UIManager
     ){
-        const syncmanager: SyncManager<SyncSerializable,Node3DInstance,string> = new SyncManager({
+        const syncmanager: SyncManager<Node3DInstance,string> = new SyncManager({
             name: "node3d_instances",
             doc,
             async create(_,__,kind) { return (await audioManager.builder.create(kind)) as Node3DInstance },

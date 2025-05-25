@@ -1,6 +1,6 @@
 import { AbstractMesh, ActionManager, Axis, Color3, ExecuteCodeAction, HighlightLayer, MeshBuilder, PickingInfo, SixDofDragBehavior, Space, TransformNode, Vector3 } from "@babylonjs/core"
 import { AdvancedDynamicTexture, TextBlock } from "@babylonjs/gui"
-import { NodeCompUtils } from "../../components/NodeCompUtils"
+import { NodeCompUtils } from "../tools/utils/NodeCompUtils"
 
 const highlightColor = Color3.Blue()
 
