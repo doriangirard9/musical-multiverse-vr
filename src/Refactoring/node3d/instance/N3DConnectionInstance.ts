@@ -1,10 +1,10 @@
 import { AbstractMesh, Color3, CreateCylinder, Observer, Quaternion, Scene, Vector3 } from "@babylonjs/core"
-import { SyncManager } from "../../../network/sync/SyncManager"
+import { SyncManager } from "../../network/sync/SyncManager"
 import { N3DConnectableInstance } from "./N3DConnectableInstance"
 import { Node3DInstance } from "./Node3DInstance"
-import { SyncSerializable } from "../../../network/sync/SyncSerializable"
+import { SyncSerializable } from "../../network/sync/SyncSerializable"
 import { Doc } from "yjs"
-import { UIManager } from "../../../app/UIManager"
+import { UIManager } from "../../app/UIManager"
 import { MeshUtils } from "../tools"
 
 /**
@@ -18,8 +18,8 @@ export class N3DConnectionInstance{
 
     constructor(
         private scene: Scene,
-        private nodes: SyncManager<any,Node3DInstance,any>,
-        private connections: SyncManager<any,N3DConnectionInstance,any>,
+        private nodes: SyncManager<Node3DInstance,any>,
+        private connections: SyncManager<N3DConnectionInstance,any>,
         private messages: UIManager
     ){
         this.tube = CreateCylinder("connection tube",{
@@ -250,10 +250,10 @@ export class N3DConnectionInstance{
     static getSyncManager(
         scene: Scene,
         doc: Doc,
-        nodes: SyncManager<any, Node3DInstance, any>,
+        nodes: SyncManager<Node3DInstance, any>,
         messages: UIManager
     ){
-        const syncmanager: SyncManager<SyncSerializable,N3DConnectionInstance,any> = new SyncManager({
+        const syncmanager: SyncManager<N3DConnectionInstance,any> = new SyncManager({
             name: "node3d_connections",
             doc,
             async create() { return new N3DConnectionInstance(scene, nodes, syncmanager, messages) },

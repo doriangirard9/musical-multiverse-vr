@@ -68,13 +68,7 @@ export class NodeMenu {
     private _createSoundGeneratorsMenu(): void {
         this._clearMenu();
         this._createBackButton();
-
-        /*// simple oscillator
-        const simpleOscillatorButton = new GUI.TouchHolographicButton("simpleOscillator");
-        simpleOscillatorButton.text = "Simple Oscillator";
-        simpleOscillatorButton.onPointerUpObservable.add((): Promise<void> => this._app.createAudioNode3D("simpleOscillator", uuid()));
-        this._menu.addButton(simpleOscillatorButton);
-
+        
         // step sequencer
         /* Utiliser PianoRoll de Ayoub
         const stepSequencerButton = new GUI.TouchHolographicButton("stepSequencer");

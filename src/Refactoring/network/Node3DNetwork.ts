@@ -1,7 +1,7 @@
 import * as Y from 'yjs';
-import { N3DConnectionInstance } from '../ConnecterWAM/node3d/instance/N3DConnectionInstance.ts';
+import { N3DConnectionInstance } from '../node3d/instance/N3DConnectionInstance.ts';
 import { SceneManager } from '../app/SceneManager.ts';
-import { Node3DInstance } from '../ConnecterWAM/node3d/instance/Node3DInstance.ts';
+import { Node3DInstance } from '../node3d/instance/Node3DInstance.ts';
 import { Node3dManager } from '../app/Node3dManager.ts';
 import { UIManager } from '../app/UIManager.ts';
 

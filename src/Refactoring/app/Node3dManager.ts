@@ -1,6 +1,5 @@
-import { AudioNode3D } from "../ConnecterWAM/AudioNode3D.ts";
-import { Node3DInstance } from "../ConnecterWAM/node3d/instance/Node3DInstance.ts";
-import { RandomUtils } from "../ConnecterWAM/node3d/tools/utils/RandomUtils.ts";
+import { Node3DInstance } from "../node3d/instance/Node3DInstance.ts";
+import { RandomUtils } from "../node3d/tools/utils/RandomUtils.ts";
 import { AudioEventBus } from "../eventBus/AudioEventBus.ts";
 import { NetworkManager } from "../network/NetworkManager.ts";
 import { Node3DBuilder as Node3DBuilder } from "./Node3DBuilder.ts";
@@ -11,7 +10,7 @@ export class Node3dManager {
     private audioEventBus: AudioEventBus;
 
     private constructor(private audioCtx: AudioContext) {
-        this.builder = new Node3DBuilder(audioCtx);
+        this.builder = new Node3DBuilder();
         this.audioEventBus = AudioEventBus.getInstance();
     }
 
@@ -30,9 +29,10 @@ export class Node3dManager {
     public async createNode3d(kind: string, id?: string): Promise<Node3DInstance|null>{
         const nodeId = id ?? RandomUtils.randomID()
 
+        this.audioEventBus.emit("AUDIO_NODE_CREATED",{nodeId, kind})
         const node = await this.builder.create(kind)
-        if(node instanceof AudioNode3D){
-            NetworkManager.getInstance().node3d.nodes.add(nodeId, node, kind)
+        if(node instanceof Node3DInstance){
+            await NetworkManager.getInstance().node3d.nodes.add(nodeId, node, kind)
             this.audioEventBus.emit("AUDIO_NODE_LOADED",{nodeId, kind, instance:node})
             return node
         }

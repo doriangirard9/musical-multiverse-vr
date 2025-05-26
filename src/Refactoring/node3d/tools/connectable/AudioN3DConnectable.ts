@@ -1,16 +1,19 @@
 import { AbstractMesh, Color3 } from "@babylonjs/core";
 import { Node3DConnectable } from "../../Node3DConnectable";
-import { WamNode } from "@webaudiomodules/api";
 
 /**
  * Simple implementations of Node3DConnectable for the "audio" protocol.
  */
-export class MidiN3DConnectable{
+export class AudioN3DConnectable{
 
     private constructor(){}
 
+    static InputColor = Color3.FromHexString("#00FF00")
+
+    static OutputColor = Color3.FromHexString("#FF0000")
+
     /**
-     * A input connectable that connect an WamNode.
+     * A input connectable that connect an AudioNode.
      */
     static Input = class Input implements Node3DConnectable {
 
@@ -18,71 +21,71 @@ export class MidiN3DConnectable{
             readonly id: string,
             readonly meshes: AbstractMesh[],
             readonly label: string,
-            readonly wamNode: WamNode,
+            readonly audioNode: AudioNode,
         ){}
 
-        get type(){ return "midi" }
+        get type(){ return "audio" }
 
         get direction(){ return "input" as "input" }
 
-        get color(){ return Color3.Blue() }
+        get color(){ return AudioN3DConnectable.OutputColor }
 
         connect(sender: (value: any) => void): void {
-            sender({connectMidi:this.wamNode})
+            sender({connectAudio:this.audioNode})
         }
 
         disconnect(sender: (value: any) => void): void {
-            sender({disconnectMidi:this.wamNode})
+            sender({disconnectAudio:this.audioNode})
         }
 
         receive(_: any): void { }
     }
 
     /**
-     * A input connectable that connect an WamNode, its audio node can be changed at any time.
+     * A input connectable that connect an AudioNode, its audio node can be changed at any time.
      * It can also contains no audio node.
      */
     static DynamicInput = class Input implements Node3DConnectable {
 
-        private _audioNode: WamNode|null = null
+        private _audioNode: AudioNode|null = null
         private senders: ((value: any) => void)[] = []
 
         constructor(
             readonly id: string,
             readonly meshes: AbstractMesh[],
             readonly label: string,
-            wamNode: WamNode|null,
+            audioNode: AudioNode|null,
         ){
-            this.wamNode = wamNode
+            this.audioNode = audioNode
         }
 
-        get type(){ return "midi" }
+        get type(){ return "audio" }
 
         get direction(){ return "input" as "input" }
 
-        get color(){ return Color3.Blue() }
+        get color(){ return AudioN3DConnectable.OutputColor }
 
         connect(sender: (value: any) => void): void {
             this.senders.push(sender)
-            if(this._audioNode) sender({connectMidi:this._audioNode})
+            if(this._audioNode) sender({connectAudio:this._audioNode})
         }
 
         disconnect(sender: (value: any) => void): void {
             const index = this.senders.indexOf(sender)
             if(index !== -1) this.senders.splice(index, 1)
-            if(this._audioNode) sender({disconnectMidi:this._audioNode})
+            if(this._audioNode) sender({disconnectAudio:this._audioNode})
         }
 
-        set wamNode(wamNode: WamNode|null){
+        set audioNode(audioNode: AudioNode|null){
             if(this._audioNode!=null){
                 for(const sender of this.senders){
-                    sender({disconnectMidi:this._audioNode})
+                    sender({disconnectAudio:this._audioNode})
                 }
             }
-            this._audioNode = wamNode
+            this._audioNode = audioNode
             if(this._audioNode){
                 for(const sender of this.senders){
-                    sender({connectMidi:this._audioNode})
+                    sender({connectAudio:this._audioNode})
                 }
             }
         }
@@ -91,7 +94,7 @@ export class MidiN3DConnectable{
     }
 
     /**
-     * A output connectable that connect an WamNode.
+     * A output connectable that connect an AudioNode.
      */
     static Output = class Output implements Node3DConnectable {
 
@@ -99,14 +102,14 @@ export class MidiN3DConnectable{
             readonly id: string,
             readonly meshes: AbstractMesh[],
             readonly label: string,
-            readonly wamNode: WamNode,
+            readonly audioNode: AudioNode,
         ){}
 
-        get type(){ return "midi" }
+        get type(){ return "audio" }
 
         get direction(){ return "output" as "output" }
 
-        get color(){ return Color3.Blue() }
+        get color(){ return AudioN3DConnectable.OutputColor }
 
         connect(_: (value: any) => void): void { }
 
@@ -114,8 +117,8 @@ export class MidiN3DConnectable{
 
         receive(value: any): void {
             if(typeof value === "object"){
-                if("connectMidi" in value) this.wamNode.connectEvents((value.connectMidi as WamNode).instanceId)
-                else if("disconnectMidi" in value) this.wamNode.disconnectEvents((value.disconnectMidi as WamNode).instanceId)
+                if("connectAudio" in value) this.audioNode.connect(value.connectAudio as AudioNode)
+                else if("disconnectAudio" in value) this.audioNode.disconnect(value.disconnectAudio as AudioNode)
             }
         }
     }
@@ -125,24 +128,24 @@ export class MidiN3DConnectable{
      */
     static ListOutput = class ListOutput implements Node3DConnectable {
 
-        readonly connections: WamNode[] = []
+        readonly connections: AudioNode[] = []
 
         constructor(
             readonly id: string,
             readonly meshes: AbstractMesh[],
             readonly label: string,
             /** A callback called when a new connection is added to the list. */
-            readonly on_add: (wamNode:WamNode) => void,
+            readonly on_add: (audioNode:AudioNode) => void,
             /** A callback called when a connection is removed from the list. */
-            readonly on_remove: (wamNode:WamNode) => void,
+            readonly on_remove: (audioNode:AudioNode) => void,
 
         ){}
 
-        get type(){ return "midi" }
+        get type(){ return "audio" }
 
         get direction(){ return "output" as "output" }
 
-        get color(){ return Color3.Blue() }
+        get color(){ return AudioN3DConnectable.OutputColor }
 
         connect(_: (value: any) => void): void { }
 
@@ -150,15 +153,15 @@ export class MidiN3DConnectable{
 
         receive(value: any): void {
             if(typeof value === "object"){
-                if("connectMidi" in value){
-                    this.connections.push(value.connectMidi as WamNode)
-                    this.on_add(value.connectMidi as WamNode)
+                if("connectAudio" in value){
+                    this.connections.push(value.connectAudio as AudioNode)
+                    this.on_add(value.connectAudio as AudioNode)
                 }
-                else if("disconnectMidi" in value){
-                    const index = this.connections.indexOf(value.disconnectMidi as WamNode)
+                else if("disconnectAudio" in value){
+                    const index = this.connections.indexOf(value.disconnectAudio as AudioNode)
                     if(index !== -1){
                         this.connections.splice(index, 1)
-                        this.on_remove(value.disconnectMidi as WamNode)
+                        this.on_remove(value.disconnectAudio as AudioNode)
                     }
                 }
             }
@@ -166,41 +169,41 @@ export class MidiN3DConnectable{
     }
 
     /**
-     * A output connectable that connect an WamNode, its audio node can be changed at any time.
+     * A output connectable that connect an AudioNode, its audio node can be changed at any time.
      * It can also contains no audio node.
      */
-    static DynamicOutput = class DynamicOutput extends MidiN3DConnectable.ListOutput {
+    static DynamicOutput = class DynamicOutput extends AudioN3DConnectable.ListOutput {
 
-        private _audioNode: WamNode|null = null
+        private _audioNode: AudioNode|null = null
 
         constructor(
             readonly id: string,
             readonly meshes: AbstractMesh[],
             readonly label: string,
-            wamNode: WamNode|null,
+            audioNode: AudioNode|null,
         ){
             super(
                 id, meshes, label,
                 () => {
-                    if(this._audioNode) this.connections.forEach(n=>this._audioNode?.connectEvents((n as WamNode).instanceId))
+                    if(this._audioNode) this.connections.forEach(n=>this._audioNode?.connect(n))
                 },
                 () => {
-                    if(this._audioNode) this.connections.forEach(n=>this._audioNode?.disconnectEvents((n as WamNode).instanceId))
+                    if(this._audioNode) this.connections.forEach(n=>this._audioNode?.disconnect(n))
                 }
             )
-            this._audioNode = wamNode
+            this._audioNode = audioNode
         }
 
-        set wamNode(wamNode: WamNode|null){
+        set audioNode(audioNode: AudioNode|null){
             if(this._audioNode!=null){
-                for(const wamNode of this.connections){
-                    this.on_remove(wamNode)
+                for(const audioNode of this.connections){
+                    this.on_remove(audioNode)
                 }
             }
-            this._audioNode = wamNode
+            this._audioNode = audioNode
             if(this._audioNode){
-                for(const wamNode of this.connections){
-                    this.on_add(wamNode)
+                for(const audioNode of this.connections){
+                    this.on_add(audioNode)
                 }
             }
         }

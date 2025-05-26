@@ -2,7 +2,7 @@ import { ActionManager, ExecuteCodeAction, HighlightLayer } from "@babylonjs/cor
 import { NodeCompUtils } from "../tools/utils/NodeCompUtils";
 import { Node3DConnectable } from "../Node3DConnectable";
 import { Node3DInstance } from "./Node3DInstance";
-import { IOEventBus } from "../../../eventBus/IOEventBus";
+import { IOEventBus } from "../../eventBus/IOEventBus";
 import { N3DConnectionInstance } from "./N3DConnectionInstance";
 
 /**

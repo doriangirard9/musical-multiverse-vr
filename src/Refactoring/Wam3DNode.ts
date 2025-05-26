@@ -3,7 +3,7 @@ import { IAudioNodeConfig} from "./types.ts";
 import {Scene} from "@babylonjs/core";
 import { controls, WamGUIGenerator, WAMGuiInitCode } from "wam3dgenerator";
 import { AudioNode3D } from "./AudioNode3D.ts";
-import { AudioNodeState } from "../network/types.ts";
+import { AudioNodeState } from "./network/types.ts";
 import { WamNode } from "@webaudiomodules/api";
 import { App } from "../App.ts";
 import { BoundingBox } from "./BoundingBox.ts";

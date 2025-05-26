@@ -2,20 +2,19 @@ import { Scene, TransformNode, AbstractMesh, Mesh, MeshBuilder, HighlightLayer, 
 import { Node3DConnectable } from "../Node3DConnectable";
 import { Node3DParameter } from "../Node3DParameter";
 import { Node3D, Node3DFactory, Node3DGUI } from "../Node3D";
-import { AudioNode3D } from "../../AudioNode3D";
-import { BoundingBox } from "../../../boundingBox/BoundingBox";
-import { UIManager } from "../../../app/UIManager";
-import { SimpleMenu } from "../../../menus/SimpleMenu";
+import { BoundingBox } from "../../boundingBox/BoundingBox";
+import { UIManager } from "../../app/UIManager";
+import { SimpleMenu } from "../../menus/SimpleMenu";
 import { N3DParameterInstance } from "./N3DParameterInstance";
 import { N3DConnectableInstance } from "./N3DConnectableInstance";
-import { IOEventBus } from "../../../eventBus/IOEventBus";
-import { XRManager } from "../../../xr/XRManager";
-import { SyncManager } from "../../../network/sync/SyncManager";
-import { Node3dManager } from "../../../app/Node3dManager";
+import { IOEventBus } from "../../eventBus/IOEventBus";
+import { XRManager } from "../../xr/XRManager";
+import { SyncManager } from "../../network/sync/SyncManager";
+import { Node3dManager } from "../../app/Node3dManager";
 import { Doc } from "yjs";
-import { Synchronized } from "../../../network/sync/Synchronized";
+import { Synchronized } from "../../network/sync/Synchronized";
 
-export class Node3DInstance extends AudioNode3D implements Synchronized{
+export class Node3DInstance implements Synchronized{
 
     constructor(
         private scene: Scene,
@@ -23,9 +22,7 @@ export class Node3DInstance extends AudioNode3D implements Synchronized{
         private audioCtx: AudioContext,
         private hostGroupId: string,
         private node_factory: Node3DFactory<Node3DGUI,Node3D>
-    ){
-        super(audioCtx)
-    }
+    ){}
 
     private declare gui: Node3DGUI
     private declare node: Node3D
@@ -177,24 +174,21 @@ export class Node3DInstance extends AudioNode3D implements Synchronized{
             width: size.x,
             height: size.y,
             depth: size.z,
-        }, this._scene)
+        }, this.scene)
         size.scaleInPlace(.5)
         this.bounding_mesh.position.subtractInPlace(bounds.min).subtractInPlace(size)
         this.bounding_mesh.isVisible = false
 
         this.root_transform.parent = this.bounding_mesh
 
-        this.baseMesh = this.bounding_mesh
-        this.bounding_box = new BoundingBox(this)
-
-        this.boundingBox = this.bounding_box.boundingBox
+        this.bounding_box = new BoundingBox(this.bounding_mesh)
 
         this.set_state("position")
         this.bounding_box.on_move = ()=>this.set_state("position")
     }
 
     private updateBoundingBox(){
-        if(!this.boundingBox) this.updateBoundingBoxNow()
+        if(!this.bounding_box) this.updateBoundingBoxNow()
         else if(!this.doUpdateBoundingBox){
             this.doUpdateBoundingBox=true
             setTimeout(()=>{
@@ -224,19 +218,21 @@ export class Node3DInstance extends AudioNode3D implements Synchronized{
 
     public async getState(key: string): Promise<any> {
         if(key=="position") return {
-            position: this.boundingBox.position.asArray(),
-            rotation: this.boundingBox.rotation.asArray(),
+            position: this.bounding_box?.boundingBox.position.asArray(),
+            rotation: this.bounding_box?.boundingBox.rotation.asArray(),
         }
         else return this.node.getState(key)
     }
 
     public async setState(key: string, value: any): Promise<void> {
         if(key=="position"){
-            this.boundingBox.position.fromArray(value.position) 
-            this.boundingBox.rotation.fromArray(value.rotation)
+            this.bounding_box?.boundingBox.position.fromArray(value.position) 
+            this.bounding_box?.boundingBox.rotation.fromArray(value.rotation)
         }
         else this.node.setState(key,value)
     }
+
+    async removeState(key: string): Promise<void> {}
 
     disposeSync(): void { this.set_state = ()=>{} }
 

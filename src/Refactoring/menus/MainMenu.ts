@@ -30,7 +30,6 @@ export class MainMenu extends AbstractMenu {
         // Sound generators
         const soundGeneratorsButton = new GUI.TouchHolographicButton("soundGenerators");
         soundGeneratorsButton.text = "Sound Generators";
-        soundGeneratorsButton.onPointerUpObservable.add((): void => this._createSoundGeneratorsMenu());
         this._menu.addButton(soundGeneratorsButton);
 
         // WAM plugins
@@ -52,21 +51,6 @@ export class MainMenu extends AbstractMenu {
         this._clearMenu();
         this._createBackButton();
         // Add options specific buttons here
-    }
-
-    private _createSoundGeneratorsMenu(): void {
-        this._clearMenu();
-        this._createBackButton();
-
-        // Simple oscillator
-        const simpleOscillatorButton = new GUI.TouchHolographicButton("simpleOscillator");
-        simpleOscillatorButton.text = "Simple Oscillator";
-        simpleOscillatorButton.onPointerUpObservable.add(() => {
-            //this._app.createAudioNode3D("simpleOscillator", uuid())
-        });
-        this._menu.addButton(simpleOscillatorButton);
-
-        // Additional sound generators can be added here
     }
 
     private _createPluginsMenu(categoryIndex: number): void {

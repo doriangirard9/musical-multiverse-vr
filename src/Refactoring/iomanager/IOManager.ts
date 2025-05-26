@@ -1,8 +1,8 @@
 import { IOEventBus, IOEventPayload } from "../eventBus/IOEventBus.ts";
-import { N3DConnectableInstance } from "../ConnecterWAM/node3d/instance/N3DConnectableInstance.ts";
+import { N3DConnectableInstance } from "../node3d/instance/N3DConnectableInstance.ts";
 import { NetworkManager } from "../network/NetworkManager.ts";
-import { RandomUtils } from "../ConnecterWAM/node3d/tools/utils/RandomUtils.ts";
-import { N3DConnectionInstance } from "../ConnecterWAM/node3d/instance/N3DConnectionInstance.ts";
+import { RandomUtils } from "../node3d/tools/utils/RandomUtils.ts";
+import { N3DConnectionInstance } from "../node3d/instance/N3DConnectionInstance.ts";
 import { SceneManager } from "../app/SceneManager.ts";
 import { UIManager } from "../app/UIManager.ts";
 

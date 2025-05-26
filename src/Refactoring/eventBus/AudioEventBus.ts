@@ -1,6 +1,6 @@
 import {BaseEventBus} from "./BaseEventBus.ts";
 import {Position3D} from "../shared/SharedTypes.ts";
-import { AudioNode3D } from "../ConnecterWAM/AudioNode3D.ts";
+import { Node3DInstance } from "../node3d/instance/Node3DInstance.ts";
 
 
 export type AudioEventPayload = {
@@ -23,7 +23,7 @@ export type AudioEventPayload = {
     AUDIO_NODE_LOADED: {
         nodeId: string;
         kind: string;
-        instance: AudioNode3D;
+        instance: Node3DInstance;
     };
     AUDIO_NODE_ERROR: {
         nodeId: string;

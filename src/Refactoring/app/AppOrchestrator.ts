@@ -10,7 +10,7 @@ import {AudioEventBus} from "../eventBus/AudioEventBus.ts";
 import {ConnectionManager} from "../iomanager/IOManager.ts";
 import {IOEventBus} from "../eventBus/IOEventBus.ts";
 import {NetworkManager} from "../network/NetworkManager.ts";
-import { AudioNode3D } from "../ConnecterWAM/AudioNode3D.ts";
+import { Node3DInstance } from "../node3d/instance/Node3DInstance.ts";
 
 
 export class AppOrchestrator{
@@ -79,7 +79,7 @@ export class AppOrchestrator{
             console.log(`Audio node created: ${payload.name}`);
             const node = await this.AudioManager?.createNode3d(payload.kind, payload.nodeId)
             if (node) {
-                if(!(node instanceof AudioNode3D)){
+                if(!(node instanceof Node3DInstance)){
                     this.UIManager?.showMessage(`Error: ${node}`, 2000)
                 }
                 

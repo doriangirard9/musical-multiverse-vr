@@ -1,41 +1,37 @@
 import * as B from "@babylonjs/core";
 import {SceneManager} from "../app/SceneManager.ts";
 import {PlayerManager} from "../app/PlayerManager.ts";
-import {AudioEventBus} from "../eventBus/AudioEventBus.ts";
 import {XRManager} from "../xr/XRManager.ts";
 import {XRControllerManager} from "../xr/XRControllerManager.ts";
-import {NodeTransform} from "../shared/SharedTypes.ts";
+import { RandomUtils } from "../node3d/tools/utils/RandomUtils.ts";
 
 
 export class DragBoundingBox implements B.Behavior<B.AbstractMesh> {
-    name = "DragBoundingBox";
-    selected: B.AbstractMesh | null = null;
-    drag: B.PointerDragBehavior;
+    name = "DragBoundingBox"
+    selected: B.AbstractMesh | null = null
+    drag: B.PointerDragBehavior
 
-    private readonly listenerId: string;
-    private initialPosition: B.Vector3 | null = null;
-    private observerHandle: B.Nullable<B.Observer<B.Scene>> = null;
+    private readonly id = RandomUtils.randomID()
 
-    private readonly HORIZONTAL_SPEED = 0.10;
-    private readonly MAX_DISTANCE = 15;
-    private readonly MIN_HEIGHT = 0.1;
+    private initialPosition: B.Vector3 | null = null
+    private observerHandle: B.Nullable<B.Observer<B.Scene>> = null
+
+    private readonly HORIZONTAL_SPEED = 0.10
+    private readonly MAX_DISTANCE = 15
+    private readonly MIN_HEIGHT = 0.1
 
     public on_move = ()=>{}
-
-    private eventBus = AudioEventBus.getInstance();
+    public on_select = ()=>{}
+    public on_unselect = ()=>{}
 
     constructor() {
-        this.listenerId = `drag-${Date.now().toString(36)}`;
-
-        this.drag = new B.PointerDragBehavior({
-            dragPlaneNormal: new B.Vector3(0, 1, 0)
-        });
+        this.drag = new B.PointerDragBehavior({ dragPlaneNormal: new B.Vector3(0, 1, 0) })
 
         this.drag.useObjectOrientationForDragging = false;
         this.drag.onDragObservable.add(() => {
             if (this.selected) {
-                this._applyConstraints();
-                this._emitPositionChange();
+                this._applyConstraints()
+                if (!this.selected) this.on_move()
             }
         });
     }
@@ -47,84 +43,55 @@ export class DragBoundingBox implements B.Behavior<B.AbstractMesh> {
     attach(target: B.AbstractMesh): void {
         console.log("DragBoundingBox attached to", target.name);
 
-        if (!target.actionManager) {
-            target.actionManager = new B.ActionManager(target._scene);
-        }
+        target.actionManager ??= new B.ActionManager(target._scene)
 
-        target.actionManager.registerAction(
-            new B.ExecuteCodeAction(
-                B.ActionManager.OnPickDownTrigger,
-                () => this.select(target)
-            )
-        );
-
-        target.actionManager.registerAction(
-            new B.ExecuteCodeAction(
-                B.ActionManager.OnPickUpTrigger,
-                () => this.release()
-            )
-        );
-
-        target.actionManager.registerAction(
-            new B.ExecuteCodeAction(
-                B.ActionManager.OnPickOutTrigger,
-                (e) => {
-                    if (e.meshUnderPointer && e.meshUnderPointer.position.y < this.MIN_HEIGHT) {
-                        target.position.y = this.MIN_HEIGHT;
-                        this._emitPositionChange();
-                    }
-                    this.release();
-                }
-            )
-        );
+        // Select on pick up
+        target.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickDownTrigger, () => this.select(target)))
+        
+        // Unselect on pick down or pick out
+        target.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickUpTrigger, () => this.release()))
+        target.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickOutTrigger, () => this.release()))
     }
 
     detach(): void {
-        console.log("DragBoundingBox detached");
-        this._removeListeners();
-
-        if (this.selected) {
-            this.release();
-        }
+        this.release()
     }
 
+    /**
+     * Select a mesh as draggable target, if another mesh is already selected, its unselected
+     */
     select(target: B.AbstractMesh | null): void {
-        if (this.selected === target) return;
+        // Do nothing is the target is the same as before
+        if (this.selected === target) return
 
-        if (this.selected && this.selected !== target) {
-            this.release();
-        }
+        // Release the previously selected target
+        this.release()
 
-        this.selected = target;
+        this.selected = target
 
         if (this.selected) {
-            console.log(`DragBoundingBox: Selected ${this.selected.name}`);
-
-            try {
-                XRManager.getInstance().xrFeaturesManager.disableFeature(B.WebXRFeatureName.MOVEMENT);
-            } catch (e) {
-                console.warn("Could not disable XR movement:", e);
-            }
+            try { XRManager.getInstance().xrFeaturesManager.disableFeature(B.WebXRFeatureName.MOVEMENT) }
+            catch (e) { console.warn("Could not disable XR movement:", e) }
 
             this.selected.visibility = 0.5;
             this.selected.addBehavior(this.drag);
-            const playerState = PlayerManager.getInstance()._getPlayerState();
+            const player = PlayerManager.getInstance().getPlayerState();
 
-            if (playerState && playerState.direction) {
-                const norm = new B.Vector3(
-                    playerState.direction.x,
-                    playerState.direction.y,
-                    playerState.direction.z
-                );
-                this.drag.options.dragPlaneNormal = norm;
+            if (player && player.direction) {
+                const norm = new B.Vector3(player.direction.x, player.direction.y, player.direction.z)
+                this.drag.options.dragPlaneNormal = norm
             }
+            this.initialPosition = this.selected.position.clone()
+            this._setupInputListeners()
 
-            this.initialPosition = this.selected.position.clone();
-            this._setupInputListeners();
+            this.on_select()
         }
     }
 
-    release(): void {
+    /**
+     * Unselect the currently selected mesh
+     */
+    release() {
         if (!this.selected) return;
 
         console.log(`DragBoundingBox: Releasing ${this.selected.name}`);
@@ -147,29 +114,32 @@ export class DragBoundingBox implements B.Behavior<B.AbstractMesh> {
             this.selected.removeBehavior(this.drag);
         }
 
-        this._removeListeners();
+        this._removeListeners()
 
-        this.initialPosition = null;
-        this.selected = null;
+        // Forbid putting the object under the minimum height
+        if(this.selected.position.y < this.MIN_HEIGHT){
+            this.selected.position.y = this.MIN_HEIGHT
+            this.on_move()
+        }
+
+        this.initialPosition = null
+        this.selected = null
+
+        this.on_unselect()
     }
 
 
     private _setupInputListeners(): void {
         this._removeListeners();
 
-        XRControllerManager.Instance.addButtonListener(
-            'left',
-            'x-button',
-            `${this.listenerId}-reset`,
-            (event) => {
-                if (this.selected && event.pressed && this.initialPosition) {
-                    // Réinitialiser à la position initiale
-                    this.selected.position = this.initialPosition.clone();
-                    console.log("DragBoundingBox: Reset to initial position");
-                    this._emitPositionChange();
-                }
+        XRControllerManager.Instance.addButtonListener('left', 'x-button', `${this.id}-reset`, (event) => {
+            if (this.selected && event.pressed && this.initialPosition) {
+                // Réinitialiser à la position initiale
+                this.selected.position = this.initialPosition.clone();
+                console.log("DragBoundingBox: Reset to initial position");
+                if (!this.selected) this.on_move()
             }
-        );
+        })
 
         this._setupDirectControllerTracking();
     }
@@ -187,22 +157,20 @@ export class DragBoundingBox implements B.Behavior<B.AbstractMesh> {
             if (!controller || !controller.motionController) return;
 
             const thumbstick = controller.motionController.getComponent("xr-standard-thumbstick");
-            if (!thumbstick) return;
+            if (!thumbstick) return
 
-            const x = thumbstick.axes.x;
-            const y = thumbstick.axes.y;
+            const x = thumbstick.axes.x
+            const y = thumbstick.axes.y
 
             if (Math.abs(x) >= 0.2 || Math.abs(y) >= 0.2) {
                 if (this.selected.behaviors && this.selected.behaviors.includes(this.drag)) {
                     this.selected.removeBehavior(this.drag);
                 }
-            } else {
-                // No significant XR input so pointer drag remains active for debugging
-                return;
             }
+            else return
 
-            const playerState = PlayerManager.getInstance()._getPlayerState();
-            if (!playerState || !playerState.direction) return;
+            const playerState = PlayerManager.getInstance().getPlayerState()
+            if (!playerState || !playerState.direction) return
 
             const forward = new B.Vector3(
                 playerState.direction.x,
@@ -210,25 +178,21 @@ export class DragBoundingBox implements B.Behavior<B.AbstractMesh> {
                 playerState.direction.z
             ).normalize();
 
-            const right = new B.Vector3(forward.z, 0, -forward.x).normalize();
-            const forwardMove = forward.scale(-y * this.HORIZONTAL_SPEED);
-            const rightMove = right.scale(x * this.HORIZONTAL_SPEED);
+            const right = new B.Vector3(forward.z, 0, -forward.x).normalize()
+            const forwardMove = forward.scale(-y * this.HORIZONTAL_SPEED)
+            const rightMove = right.scale(x * this.HORIZONTAL_SPEED)
 
-            this.selected.position.addInPlace(forwardMove);
-            this.selected.position.addInPlace(rightMove);
+            this.selected.position.addInPlace(forwardMove)
+            this.selected.position.addInPlace(rightMove)
 
-            this._applyConstraints();
-            this._emitPositionChange();
+            this._applyConstraints()
+            if (this.selected) this.on_move()
         });
     }
 
     private _removeListeners(): void {
         try {
-            XRControllerManager.Instance.removeButtonListener(
-                'left',
-                'x-button',
-                `${this.listenerId}-reset`
-            );
+            XRControllerManager.Instance.removeButtonListener( 'left', 'x-button', `${this.id}-reset`)
         } catch (e) {
             console.warn("Error removing button listeners:", e);
         }
@@ -242,7 +206,7 @@ export class DragBoundingBox implements B.Behavior<B.AbstractMesh> {
     private _applyConstraints(): void {
         if (!this.selected) return;
 
-        const playerState = PlayerManager.getInstance()._getPlayerState();
+        const playerState = PlayerManager.getInstance().getPlayerState();
         if (!playerState || !playerState.position) return;
 
         const playerPos = new B.Vector3(
@@ -265,13 +229,5 @@ export class DragBoundingBox implements B.Behavior<B.AbstractMesh> {
             this.selected.position.y = this.MIN_HEIGHT;
         }
     }
-
-    private _emitPositionChange(): void {
-        if (!this.selected) return;
-
-        this.on_move()
-    }
-
-
 
 }

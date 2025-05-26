@@ -128,6 +128,8 @@ export class N3DParameterInstance {
             let startingValue = 0
             let stepSize = 0.01
             let changeFactor = 0
+
+            // Get the stepCount / change factor / etc...
             drag.onDragStartObservable.add(() => {
                 visual.offset(1)
                 
@@ -139,9 +141,11 @@ export class N3DParameterInstance {
                 }
                 else{
                     stepSize = 1/stepCount
-                    changeFactor = stepSize*2
+                    changeFactor = stepSize*4
                 }
 
+                // If stepCount is 1, the value is directly changed
+                if(stepCount==2)setValue(getValue()<.5 ? 1 : 0)
             })
 
             drag.onDragEndObservable.add(() => visual.offset(-1))

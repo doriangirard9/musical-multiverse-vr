@@ -54,7 +54,7 @@ export class PlayerManager {
      * Vérifie si l'état a suffisamment changé et l'envoie si nécessaire
      */
     private _checkAndSendPlayerState(): void {
-        const currentState = this._getPlayerState();
+        const currentState = this.getPlayerState();
         if (!currentState) return;
 
         // Premier envoi ou a significativement changé
@@ -100,7 +100,7 @@ export class PlayerManager {
     }
 
 
-    public _getPlayerState(): PlayerState | undefined {
+    public getPlayerState(): PlayerState | undefined {
         // Même logique que précédemment
         if (!this.xrManager.xrHelper || !this.xrManager.xrHelper.baseExperience.camera) {
             console.error("XRManager camera is not initialized");
