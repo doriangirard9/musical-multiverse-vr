@@ -544,16 +544,20 @@ updatePattern(row: number, col: number, isActive: boolean): void {
   const note = this.notes[row];
   const midi = this.convertNoteToMidi(note);
   if (midi === null) return;
+
   const tick = col * this.ticksPerColumn;
   const index = this.pattern.notes.findIndex(n => n.number === midi && n.tick === tick);
 
   if (isActive && index === -1) {
-      this.pattern.notes.push({ tick, number: midi, duration: 6, velocity: 100 });
+    this.pattern.notes.push({ tick, number: midi, duration: 6, velocity: 100 });
   } else if (!isActive && index !== -1) {
-      this.pattern.notes.splice(index, 1);
+    this.pattern.notes.splice(index, 1);
   }
 
   this.sendPatternToPianoRoll();
+
+  // ✅ send to network
+  this._app.networkManager?.setPattern(this.id, this.pattern);
 }
 
 getStartX(): number {
@@ -782,7 +786,33 @@ setTempo(bpm: number): void {
       }));
   }
 
+  public setPattern(pattern: Pattern): void {
+    this.pattern = pattern;
+  
+    // Reset grid
+    this.buttons.forEach(row => row.forEach(btn => {
+      btn.isActive = false;
+      btn.material.diffuseColor = new B.Color3(0.2, 0.6, 0.8);
+    }));
+  
+    // Apply new pattern
+    pattern.notes.forEach(note => {
+      const col = Math.floor(note.tick / this.ticksPerColumn);
+      const row = this.notes.findIndex(n => this.convertNoteToMidi(n) === note.number);
+      if (row >= 0 && col >= 0 && row < this.rows && col < this.cols) {
+        const btn = this.getButton(row, col);
+        if (btn) {
+          btn.isActive = true;
+          (btn.material as B.StandardMaterial).diffuseColor = new B.Color3(1, 0, 0);
+        }
+      }
+    });
+  
+    this.sendPatternToPianoRoll();
+  }
+  
 
+  
   public async getState(): Promise<AudioNodeState> {
     const parameters: WamParameterDataMap = {};
 
@@ -825,21 +855,5 @@ public setState(state: AudioNodeState): void {
   super.setState(state);
   console.log("trigger3");
 
-  this.buttons.forEach((row, rowIndex: number): void => {
-      row.forEach((note, i: number): void => {
-          const paramId = `note${rowIndex}:${i}`;
-          const paramData = state.parameters[paramId];
-
-          if (paramData) {
-              note.isActive = paramData.value === 1;
-          } else {
-              console.warn(`Parameter ${paramId} is missing in state.parameters.`);
-              // You can decide to default to false or handle it differently
-              note.isActive = false;
-          }
-
-          this.toggleNoteColor(rowIndex, i);
-      });
-  });
 }
 }

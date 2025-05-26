@@ -6,8 +6,9 @@ import { AudioNode3D } from "../audioNodes3D/AudioNode3D";
 import { Player } from "../Player";
 import { Awareness } from 'y-protocols/awareness';
 import { AudioEventBus, AudioEventPayload } from "../AudioEvents";
-import { NodeTransform, ParamUpdate } from "../audioNodes3D/types";
+import { NodeTransform, ParamUpdate, Pattern } from "../audioNodes3D/types";
 import { Wam3D } from "../audioNodes3D/Wam3D";
+import { PianoRoll3D } from '../audioNodes3D/PianoRoll/PianoRoll3D';
 
 const SIGNALING_SERVER = 'ws://localhost:443';//'wss://musical-multiverse-vr.onrender.com';
 
@@ -52,6 +53,7 @@ export class NetworkManager {
     private _networkParamUpdates!: Y.Map<ParamUpdate>;
     private _networkPositions!: Y.Map<NodeTransform>;
     private _networkConnections!: Y.Map<{sourceId: string, targetId: string,isSrcMidi: boolean}>;
+    private _networkPatterns!: Y.Map<Pattern>;
 
     // State flags
     private isProcessingYjsEvent = false;
@@ -82,6 +84,8 @@ export class NetworkManager {
         this._networkParamUpdates = this._doc.getMap('paramUpdates');
         this._networkPositions = this._doc.getMap('positions');
         this._networkConnections = this._doc.getMap('connections');
+        this._networkPatterns = this._doc.getMap<Pattern>('patterns');
+
     }
 
     private setupEventListeners(): void {
@@ -176,6 +180,23 @@ export class NetworkManager {
             });
         }
     }
+    public setPattern(nodeId: string, pattern: Pattern): void {
+        this._networkPatterns.set(nodeId, pattern);
+    }
+      
+    private handlePatternUpdates(event: Y.YMapEvent<Pattern>): void {
+        event.changes.keys.forEach((change, key) => {
+          if (change.action === 'add' || change.action === 'update') {
+            const pattern = this._networkPatterns.get(key);
+            const node = this._audioNodes3D.get(key);
+            if (pattern && node instanceof PianoRoll3D) {
+              node.setPattern(pattern);
+            }
+          }
+        });
+      }
+
+      
     private handleConnectionUpdates(event: Y.YMapEvent<{sourceId: string, targetId: string, isSrcMidi: boolean}>): void {
         event.changes.keys.forEach((change, key) => {
             if (change.action === "add") {
@@ -318,6 +339,13 @@ export class NetworkManager {
                 this.withNetworkProcessing(() => this.handleConnectionUpdates(event));
             }
         });
+        // patterns observer
+        this._networkPatterns.observe((event) => {
+            if (!this.isProcessingLocalEvent) {
+              this.withNetworkProcessing(() => this.handlePatternUpdates(event));
+            }
+          });
+          
     }
 
     private handleParameterUpdates(event: Y.YMapEvent<ParamUpdate>): void {

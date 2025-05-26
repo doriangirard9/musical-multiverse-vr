@@ -37,6 +37,19 @@ export interface ParamUpdate {
     paramId: string;
     value: number;
 }
+export interface PatternNote {
+    tick: number;        // start time in ticks
+    number: number;      // MIDI note number
+    duration: number;    // duration in ticks
+    velocity: number;    // velocity from 0 to 127
+  }
+  
+  export interface Pattern {
+    length: number;           // total length of the pattern in ticks (e.g. 96 for 16x6)
+    notes: PatternNote[];     // list of notes
+  }
+  
+  
 export type IParameter = {
     onValueChangedObservable: B.Observable<number>;
     setDirectValue(value: number): void;
