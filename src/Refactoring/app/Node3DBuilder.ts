@@ -6,15 +6,19 @@ import { Node3dManager } from "./Node3dManager.ts";
 import { SceneManager } from "./SceneManager.ts";
 import { UIManager } from "./UIManager.ts";
 import { WamInitializer } from "./WamInitializer.ts";
+import { WAMGuiInitCode } from "wam3dgenerator";
+import { Wam3DGeneratorN3DFactory } from "../ConnecterWAM/node3d/subs/Wam3DGeneratorN3D.ts";
 
 
 // const WAM_CONFIGS_URL: string = "https://wam-configs.onrender.com";
 const WAM_CONFIGS_URL: string = "http://localhost:3000";
 
-export class Node3DBuilder {
+export type Node3DConfig = {
+    name: string,
+    wam3d: WAMGuiInitCode
+}
 
-    constructor(private readonly _audioCtx: AudioContext) {
-    }
+export class Node3DBuilder {
 
     /**
      * Create a Node3D from a kind name and a configuration
@@ -27,6 +31,14 @@ export class Node3DBuilder {
         
         if(kind=="audiooutput") return await this.instantiateNode3d(AudioOutputN3DFactory)
         else if(kind=="oscillator") return await this.instantiateNode3d(OscillatorN3DFactory)
+        else{
+            const response = await fetch(`${WAM_CONFIGS_URL}/wamsConfig/${kind}.json`,{method:"get",headers:{"Content-Type":"application/json"}})
+            if(!response.ok)return `AudioNode3d of type ${kind} does not exists`
+            const config = await response.json() as Node3DConfig
+
+            // Wam3DGenerator
+            if("wam3d" in config)return await this.instantiateNode3d(new Wam3DGeneratorN3DFactory(config.name, config.wam3d))
+        }
         return "Unknown error"
         // Wam 3d
         /*else{

@@ -8,6 +8,12 @@ import { Node3DGUIContext } from "./Node3DGUIContext"
  * Représente l'interface d'un Node3D.
  */
 export interface Node3DGUI{
+
+    /**
+     * La GUI de Node3D doit être compris dans un block de 1 sur 1 sur 1.
+     * Une fois dans le monde, la taille de la GUI est multiplié par la valeur de cet attribut. 
+     */
+    worldSize: number
     
     root: TransformNode
 

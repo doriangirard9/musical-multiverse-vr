@@ -10,6 +10,8 @@ export class OscillatorN3DGUI implements Node3DGUI{
     root
     frequency
 
+    get worldSize(){ return 1 }
+
     constructor(context: Node3DGUIContext){
         const {babylon:B,tools:T} = context
 
@@ -44,6 +46,7 @@ export class OscillatorN3D implements Node3D{
 
         const audionode = this.audionode = context.audioCtx.createOscillator()
         audionode.frequency.value = 130 // Hz
+        gui.frequency.scaling.setAll((130-130)/100  * .8 + .2)
         audionode.start()
 
         context.createConnectable(new T.AudioN3DConnectable.Output("audioOutput", [gui.audioOutput], "Audio Output", audionode))

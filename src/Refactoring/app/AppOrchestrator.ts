@@ -77,7 +77,7 @@ export class AppOrchestrator{
 
         this.MenuEventBus?.on('CREATE_AUDIO_NODE', async (payload) => {
             console.log(`Audio node created: ${payload.name}`);
-            const node = await this.AudioManager?.createNode3d(payload.nodeId, payload.kind)
+            const node = await this.AudioManager?.createNode3d(payload.kind, payload.nodeId)
             if (node) {
                 if(!(node instanceof AudioNode3D)){
                     this.UIManager?.showMessage(`Error: ${node}`, 2000)

@@ -1,33 +1,25 @@
 {
   "categories": [
     {
-      "name": "Editor",
+      "name": "Generator",
       "plugins": [
-        { "name": "VoxAmp 30", "kind": "wam3d_voxamp" },
-        { "name": "Disto Machine", "kind": "wam3d_disto" },
-        { "name": "KVerb", "kind": "wam3d_reverb" },
-        { "name": "Modal", "kind": "wam3d_modal" },
-        { "name": "Flute", "kind": "wam3d_flute" },
-        { "name": "Guitar", "kind": "wam3d_guitar" }
+        { "name": "Oscillator", "kind": "oscillator" }
       ]
     },
     {
       "name": "Effects",
-        "plugins": [
-          { "name": "Big Muff", "kind": "bigMuffConfig" },
-          { "name": "Simple Delay", "kind": "simpleDelayConfig" },
-          { "name": "StonePhaser", "kind": "stonePhaserConfig" },
-          { "name": "Disto Machine", "kind": "distoMachineConfig" },
-          { "name": "Quadra Fuzz", "kind": "QuadraFuzzConfig" },
-          { "name": "Ping Pong Delay", "kind": "PingPongDelayConfig" }
-        ]
+      "plugins": [
+        { "name": "Disto Machine", "kind": "disto_machine" },
+        { "name": "Vox Amp 30", "kind": "voxamp" },
+        { "name": "KVerb", "kind": "kverb" }
+      ]
     },
     {
-        "name": "Instruments",
+      "name": "Instruments",
         "plugins": [
-          { "name": "Spectrum Modal", "kind": "spectrumModalConfig" },
-          { "name": "Random Note", "kind": "randomNoteConfig" },
-          { "name" : "Wam Sampler", "kind": "wamSamplerConfig" }
+          { "name": "Flute", "kind": "flute" },
+          { "name": "Guitar", "kind": "guitar" },
+          { "name": "Modal", "kind": "modal" }
         ]
     },
     {

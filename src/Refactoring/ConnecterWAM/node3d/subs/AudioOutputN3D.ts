@@ -10,6 +10,8 @@ export class AudioOutputN3DGUI implements Node3DGUI{
     block: Mesh
     root: TransformNode
 
+    get worldSize(){ return 1 }
+
     constructor(context: Node3DGUIContext){
         const {babylon:B, tools:{MeshUtils}} = context
 

@@ -44,12 +44,15 @@ export class Node3DInstance extends AudioNode3D implements Synchronized{
 
         // GUI related things
         const root_transform = this.root_transform = new TransformNode("node3d root", this.scene)
+        const gui_root_transform = new TransformNode("node3d gui root",this.scene)
         this.gui = await this.node_factory.createGUI({
             babylon: await import("@babylonjs/core"),
             tools,
             scene: this.scene,
         })
-        this.gui.root.parent = root_transform
+        gui_root_transform.parent = root_transform
+        this.gui.root.parent = gui_root_transform
+        gui_root_transform.scaling.setAll(this.gui.worldSize)
 
         // Node related things
         this.node = await this.node_factory.create({
@@ -150,7 +153,6 @@ export class Node3DInstance extends AudioNode3D implements Synchronized{
                 instance.set_state(key)
             }
         },this.gui)
-
     }
 
     //// BOUNDING BOX ////

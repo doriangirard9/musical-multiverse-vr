@@ -22,5 +22,4 @@ export interface Node3DGUIContext{
      */
     readonly scene: BABYLON.Scene
 
-
 }
