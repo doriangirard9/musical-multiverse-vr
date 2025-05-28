@@ -41,6 +41,17 @@ interface NoteButtonMesh extends B.Mesh {
 
 
 export class PianoRoll3D extends Wam3D {
+  // 🎨 Color Constants
+  private readonly COLOR_ACTIVE = new B.Color3(1, 0, 0);         // Red
+  private readonly COLOR_INACTIVE = new B.Color3(0.2, 0.6, 0.8); // Blue
+  private readonly COLOR_PLAYING = new B.Color3(0, 1, 0);        // Green
+  private readonly COLOR_BLACK_KEY = new B.Color3(0.1, 0.1, 0.1);
+  private readonly COLOR_WHITE_KEY = new B.Color3(1, 1, 1);
+  private readonly COLOR_DISABLED = new B.Color3(0.2, 0.2, 0.2);
+  private readonly COLOR_BASE_MESH = new B.Color3(0.5, 0.2, 0.2);
+  private readonly COLOR_MENU_BUTTON = new B.Color3(0, 0, 0);
+
+
   private rows: number;
   private cols: number;
   private tempo: number;
@@ -302,11 +313,11 @@ this.initActions()}
          }, this._scene);
 
         const material = new B.StandardMaterial('material', this._scene);
-        material.diffuseColor = new B.Color3(0.5, 0.2, 0.2);
+        material.diffuseColor = this.COLOR_BASE_MESH;
         this.baseMesh.material = material;
     }
     private _createScrollButtons(): void {
-      const scrollColor = new B.Color3(0.2, 0.6, 0.8);
+      const scrollColor = this.COLOR_INACTIVE;
       const size = {
         width: this.endX - this.startX,
         height: this.buttonHeight,
@@ -418,14 +429,14 @@ this.initActions()}
     // Disable the scroll up button if at the top
     const materialUp = this._btnScrollUp.material as B.StandardMaterial;
     materialUp.diffuseColor = this._startRowIndex > 0 
-        ? new B.Color3(0.2, 0.6, 0.8) // Active
-        : new B.Color3(0.2, 0.2, 0.2); // Inactive
+        ? this.COLOR_INACTIVE // Active
+        : this.COLOR_DISABLED; // Inactive
 
     // Disable the scroll down button if at the bottom
     const materialDown = this._btnScrollDown.material as B.StandardMaterial;
     materialDown.diffuseColor = this._startRowIndex + this._visibleRowCount < this.rows
-        ? new B.Color3(0.2, 0.6, 0.8) // Active
-        : new B.Color3(0.2, 0.2, 0.2); // Inactive
+        ? this.COLOR_INACTIVE // Active
+        : this.COLOR_DISABLED; // Inactive
 }
 
 
@@ -457,8 +468,8 @@ this.initActions()}
     textPlane.isPickable = false;
 
     const textMaterial = new B.StandardMaterial(`${buttonMesh.name}_textMaterial`, this._scene);
-    textMaterial.specularColor = new B.Color3(0, 0, 0);
-    textMaterial.emissiveColor = new B.Color3(1, 1, 1);
+    textMaterial.specularColor = this.COLOR_MENU_BUTTON;
+    textMaterial.emissiveColor = this.COLOR_WHITE_KEY;
     textPlane.material = textMaterial;
 
     const textTexture = new B.DynamicTexture(`${buttonMesh.name}_texture`, { width: 128, height: 128 }, this._scene, true);
@@ -569,7 +580,7 @@ private _createColorBox(row: number, isBlack: boolean): B.Mesh {
     positionZ
   );
 
-  const color = isBlack ? new B.Color3(0.1, 0.1, 0.1) : new B.Color3(1, 1, 1);
+  const color = isBlack ? this.COLOR_BLACK_KEY : this.COLOR_WHITE_KEY;
 
   return this._createBox(
     `color_box_${row}`,
@@ -587,7 +598,7 @@ private _createNoteButton(row: number, col: number, z: number): NoteButtonMesh {
   const button = this._createBox(
     `button${row}_${col}`,
     { width: this.buttonWidth, height: this.buttonHeight, depth: this.buttonDepth },
-    new B.Color3(0.2, 0.6, 0.8),
+    this.COLOR_INACTIVE,
     position,
     this.baseMesh
   ) as NoteButtonMesh;
@@ -603,7 +614,7 @@ createPlayhead(): void {
   this.playhead = this._createBox(
     "playhead",
     { width: 0.1, height: 0.2, depth: this.endZ - this.startZ + this.buttonDepth },
-    new B.Color3(0, 1, 0),
+    this.COLOR_PLAYING,
     new B.Vector3(this.getStartX(), 0.2, 0),
     this.baseMesh
   );
@@ -629,13 +640,13 @@ highlightActiveButtons(currentCol: number): void {
       const button = this.getButton(row, currentCol);
       
       if (button && button.isActive) {
-          button.material.diffuseColor = new B.Color3(0, 1, 0); // Green for active
+          button.material.diffuseColor = this.COLOR_PLAYING; // Green for active
           
           setTimeout(() => {
               if (button.isActive) {
                   button.material.diffuseColor = button.isActive
-                      ? new B.Color3(1, 0, 0) // Red for active
-                      : new B.Color3(0.2, 0.6, 0.8); // Blue for inactive
+                      ? this.COLOR_ACTIVE // Red for active
+                      : this.COLOR_INACTIVE; // Blue for inactive
               }
           }, this.cellDuration * 1000);
       }
@@ -663,8 +674,8 @@ toggleNoteColor(row: number, col: number): void {
   button.isActive = !button.isActive;
   const material = button.material as B.StandardMaterial; // <-- Cast to StandardMaterial
   material.diffuseColor = button.isActive
-      ? new B.Color3(1, 0, 0) // Red for active
-      : new B.Color3(0.2, 0.6, 0.8); // Blue for inactive
+      ? this.COLOR_ACTIVE // Red for active
+      : this.COLOR_INACTIVE; // Blue for inactive
 
   this.updatePattern(row, col, button.isActive);
 }
@@ -761,7 +772,7 @@ setTempo(bpm: number): void {
     // Reset grid
     this.buttons.forEach(row => row.forEach(btn => {
       btn.isActive = false;
-      btn.material.diffuseColor = new B.Color3(0.2, 0.6, 0.8);
+      btn.material.diffuseColor = this.COLOR_INACTIVE;
     }));
   
     // Apply new pattern
@@ -772,7 +783,7 @@ setTempo(bpm: number): void {
         const btn = this.getButton(row, col);
         if (btn) {
           btn.isActive = true;
-          (btn.material as B.StandardMaterial).diffuseColor = new B.Color3(1, 0, 0);
+          (btn.material as B.StandardMaterial).diffuseColor = this.COLOR_ACTIVE;
         }
       }
     });
