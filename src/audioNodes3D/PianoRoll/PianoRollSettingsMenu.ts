@@ -124,7 +124,7 @@ export class PianoRollSettingsMenu {
         this._menu.rows = 1;
         this._menu.columns = 4;
 
-        const rowOptions = [4, 8, 16, 32];
+        const rowOptions = [8, 16, 32];
 
         rowOptions.forEach((rows) => {
             const button = new GUI.TouchHolographicButton(`rows_${rows}`);

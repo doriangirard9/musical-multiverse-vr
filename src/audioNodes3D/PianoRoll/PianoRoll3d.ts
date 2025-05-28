@@ -48,11 +48,12 @@ export class PianoRoll3D extends Wam3D {
   private buttonHeight = 0.2;
   private buttonDepth = 0.5;
   private buttonSpacing = 0.2;
-  private startX: number;
-  private endX: number;
-  private startZ: number;
-  private endZ: number;
+  private startX!: number;
+  private endX!: number;
+  private startZ!: number;
+  private endZ!: number;
   private beatDuration: number;
+  
   private cellDuration: number;
   private timeSignatureNumerator = 4;
   private timeSignatureDenominator = 4;
@@ -95,10 +96,7 @@ export class PianoRoll3D extends Wam3D {
     if(this.rows<this._visibleRowCount)
     this._visibleRowCount = this.rows
 
-    this.startX = -(this.cols - 1) / 2 * (this.buttonWidth + this.buttonSpacing);
-    this.endX = (this.cols - 1) / 2 * (this.buttonWidth + this.buttonSpacing);
-    this.startZ = -(this._visibleRowCount-1) / 2 * (this.buttonDepth + this.buttonSpacing);
-    this.endZ = (this._visibleRowCount - 1) / 2 * (this.buttonDepth + this.buttonSpacing);
+this._recalculateGridBoundaries();
     this.beatDuration = 60 / this.tempo;
     this.cellDuration = this.beatDuration / this.timeSignatureDenominator;
 
@@ -165,6 +163,16 @@ export class PianoRoll3D extends Wam3D {
         console.error("Error instantiating PianoRoll:", error);
       }
     }
+    private _recalculateGridBoundaries(): void {
+      // Horizontal (X axis)
+      this.startX = -((this.cols - 1) / 2) * (this.buttonWidth + this.buttonSpacing);
+      this.endX = ((this.cols - 1) / 2) * (this.buttonWidth + this.buttonSpacing);
+    
+      // Vertical (Z axis) for rows
+      this.startZ = -((this._visibleRowCount - 1) / 2) * (this.buttonDepth + this.buttonSpacing);
+      this.endZ = ((this._visibleRowCount - 1) / 2) * (this.buttonDepth + this.buttonSpacing);
+    }
+    
     public startStopButton(): void {
       this.btnStartStop = B.MeshBuilder.CreateBox("startStopButton", { width: 2, height:0.6, depth: 0.4 }, this._scene);
       this.btnStartStop.parent = this.baseMesh;
@@ -216,44 +224,6 @@ export class PianoRoll3D extends Wam3D {
       this.menuButton.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickTrigger, () => {
         this.menu.show();
       }));
-    //   // add text to the button
-    //   const textPlane = B.MeshBuilder.CreatePlane("textPlane", { width: 2, height: 2 }, this._scene);
-    //   textPlane.parent = this.menuButton;
-    //   textPlane.position.y = 0.11;
-    //   textPlane.rotation.x = Math.PI / 2;
-    //   textPlane.isPickable = false;
-    //   const textMaterial = new B.StandardMaterial("textMaterial", this._scene);
-    //   textMaterial.specularColor = new B.Color3(0, 0, 0);
-    //   textMaterial.emissiveColor = new B.Color3(1, 1, 1);
-    //   textPlane.material = textMaterial;
-    //   const textTexture = new B.DynamicTexture("texture", { width: 128, height: 128 }, this._scene, true);
-    //   textMaterial.diffuseTexture = textTexture;
-    //   textMaterial.useAlphaFromDiffuseTexture = true;
-    //   const ctx = textTexture.getContext();
-    //   ctx.clearRect(0, 0, 128, 128);
-    //   ctx.font = "bold 48px Arial";
-    //   // @ts-ignore
-    //   ctx.textAlign = "center";
-    //   // @ts-ignore
-    //   ctx.textBaseline = "middle";
-    //   ctx.fillStyle = "white";
-    //   ctx.fillText("Menu", 64, 64);
-    //   textTexture.update();
-    //   // add text to the button
-    //   const textBlock = new GUI.TextBlock("textBlock", "Menu");
-    //   textBlock.color = "white";
-    //   textBlock.fontSize = 24;
-    //   textBlock.textHorizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_CENTER;
-    //   textBlock.textVerticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_CENTER;
-    //   textBlock.parent = this.menuButton;
-    //   textBlock.fontFamily = "Arial";
-    //   textBlock.fontSize = 24;
-    //   textBlock.color = "white";
-    //   textBlock.textHorizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_CENTER;
-    //   textBlock.textVerticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_CENTER;
-    //   textBlock.fontFamily = "Arial";
-    //   textBlock.fontSize = 24;
-    //   textBlock.color = "white";
 }
     public setRows(newRowCount: number): void {
       // Clear existing buttons
@@ -275,9 +245,8 @@ export class PianoRoll3D extends Wam3D {
       }
   
       // Recalculate grid boundaries
-      this.startZ = -(this._visibleRowCount - 1) / 2 * (this.buttonDepth + this.buttonSpacing);
-      this.endZ = (this._visibleRowCount - 1) / 2 * (this.buttonDepth + this.buttonSpacing);
-  
+      this._recalculateGridBoundaries();
+
       // Recreate the grid with the new number of rows
       this.createGrid();
       this._updateRowVisibility();
@@ -305,8 +274,7 @@ export class PianoRoll3D extends Wam3D {
     this.cols = newColumnCount;
 
     // Recalculate grid boundaries
-    this.startX = -(this.cols - 1) / 2 * (this.buttonWidth + this.buttonSpacing);
-    this.endX = (this.cols - 1) / 2 * (this.buttonWidth + this.buttonSpacing);
+    this._recalculateGridBoundaries();
 
     // Recompute desired width
     const newWidth = (this.endX - this.startX) + (this.buttonWidth * 2 + this.buttonSpacing) + (this.buttonWidth + this.buttonSpacing * 2);
@@ -577,52 +545,77 @@ public connect(destination: AudioNode): void {
 
 
 createGrid(): void {
-  this.buttonMaterial = new B.StandardMaterial("buttonMaterial", this._scene);
-  this.buttonMaterial.diffuseColor = new B.Color3(0.2, 0.6, 0.8);
   this.buttons = Array.from({ length: this.rows }, () => []);
   this.colorBoxes = Array.from({ length: this.rows }, () => undefined as unknown as B.Mesh);
 
-  for (let i = 0; i < this.rows; i++) {
-      const isBlack = this.isBlackKeyFromNoteName(this.notes[i]);
+  for (let row = 0; row < this.rows; row++) {
+    const isBlackKey = this.isBlackKeyFromNoteName(this.notes[row]);
+    const colorBox = this._createColorBox(row, isBlackKey);
+    this.colorBoxes[row] = colorBox;
 
-      const colorBox = B.MeshBuilder.CreateBox(`color_box_${i}`, {
-          width: this.buttonWidth,
-          height: this.buttonHeight,
-          depth: this.buttonDepth
-      }, this._scene);
-
-      colorBox.parent  = this.baseMesh;
-      colorBox.position.x = this.startX -(this.buttonWidth + this.buttonSpacing);
-      colorBox.position.z = (i - (this.rows - 1) / 2) * (this.buttonDepth + this.buttonSpacing);
-      colorBox.position.y = this.buttonHeight / 2 ;
-
-      const colorMaterial = new B.StandardMaterial(`colorBoxMaterial_${i}`, this._scene);
-      colorMaterial.diffuseColor = isBlack ? new B.Color3(0.1, 0.1, 0.1) : new B.Color3(1, 1, 1);
-      colorBox.material = colorMaterial;
-      this.colorBoxes[i] = colorBox;
-
-      for (let j = 0; j < this.cols; j++) {
-          const button = B.MeshBuilder.CreateBox(`button${i}_${j}`, {
-              width: this.buttonWidth,
-              height: this.buttonHeight,
-              depth: this.buttonDepth
-          }, this._scene) as NoteButtonMesh;  // <<==== Type assertion here
-
-          button.position.x = (j - (this.cols - 1) / 2) * (this.buttonWidth + this.buttonSpacing);
-          button.position.z = colorBox.position.z;
-          button.position.y = this.buttonHeight / 2;
-
-          button.isActive = false;      // <<==== Property now exists
-          button.isPlaying = false;     // <<==== Property now exists
-          button.parent = this.baseMesh;
-
-          const material = new B.StandardMaterial(`buttonMaterial_${i}_${j}`, this._scene);
-          material.diffuseColor = new B.Color3(0.2, 0.6, 0.8);
-          button.material = material;
-
-          this.buttons[i].push(button);
-      }
+    for (let col = 0; col < this.cols; col++) {
+      const button = this._createNoteButton(row, col, colorBox.position.z);
+      this.buttons[row].push(button);
+    }
   }
+}
+
+private _createBox(
+  name: string,
+  size: { width: number; height: number; depth: number },
+  color: B.Color3,
+  position: B.Vector3,
+  parent?: B.Node
+): B.Mesh {
+  const box = B.MeshBuilder.CreateBox(name, size, this._scene);
+
+  const material = new B.StandardMaterial(`${name}_mat`, this._scene);
+  material.diffuseColor = color;
+  box.material = material;
+
+  box.position = position.clone();
+
+  if (parent) {
+    box.parent = parent;
+  }
+
+  return box;
+}
+private _createColorBox(row: number, isBlack: boolean): B.Mesh {
+  const positionZ = (row - (this.rows - 1) / 2) * (this.buttonDepth + this.buttonSpacing);
+  const position = new B.Vector3(
+    this.startX - (this.buttonWidth + this.buttonSpacing),
+    this.buttonHeight / 2,
+    positionZ
+  );
+
+  const color = isBlack ? new B.Color3(0.1, 0.1, 0.1) : new B.Color3(1, 1, 1);
+
+  return this._createBox(
+    `color_box_${row}`,
+    { width: this.buttonWidth, height: this.buttonHeight, depth: this.buttonDepth },
+    color,
+    position,
+    this.baseMesh
+  );
+}
+
+private _createNoteButton(row: number, col: number, z: number): NoteButtonMesh {
+  const positionX = (col - (this.cols - 1) / 2) * (this.buttonWidth + this.buttonSpacing);
+  const position = new B.Vector3(positionX, this.buttonHeight / 2, z);
+
+  const button = this._createBox(
+    `button${row}_${col}`,
+    { width: this.buttonWidth, height: this.buttonHeight, depth: this.buttonDepth },
+    new B.Color3(0.2, 0.6, 0.8),
+    position,
+    this.baseMesh
+  ) as NoteButtonMesh;
+
+  button.isActive = false;
+  button.isPlaying = false;
+
+  return button;
 }
 
 
