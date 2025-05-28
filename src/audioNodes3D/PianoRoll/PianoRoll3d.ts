@@ -174,35 +174,33 @@ this._recalculateGridBoundaries();
     }
     
     public startStopButton(): void {
-      this.btnStartStop = B.MeshBuilder.CreateBox("startStopButton", { width: 2, height:0.6, depth: 0.4 }, this._scene);
-      this.btnStartStop.parent = this.baseMesh;
-      const material = new B.StandardMaterial("material", this._scene);
-      material.diffuseColor =  B.Color3.Green();
-      this.btnStartStop.material = material;
-      this.btnStartStop.position.x = this.startX -(this.buttonWidth + this.buttonSpacing);
-      this.btnStartStop.position.z = this.endZ+ (this.buttonDepth + this.buttonSpacing);
-      this.btnStartStop.position.y = 0.2;
-      // add click action to start stop button
+      this.btnStartStop = this._createBox(
+        "startStopButton",
+        { width: 2, height: 0.6, depth: 0.4 },
+        B.Color3.Green(),
+        new B.Vector3(this.startX - (this.buttonWidth + this.buttonSpacing), 0.2, this.endZ + (this.buttonDepth + this.buttonSpacing)),
+        this.baseMesh
+      );
+
+      // add click action to toggle start stop button
       this.btnStartStop.actionManager = new B.ActionManager(this._scene);
-      
-
-      // toggle start stop
       this.btnStartStop.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickTrigger, () => {
-  
-        // check if color is green
-        if (this.isBtnStartStop) {
-          this.stop()
+      
+      const mat = this.btnStartStop.material as B.StandardMaterial;
+      // check if color is green
+      if (this.isBtnStartStop) {
+        this.stop()
 
-          this.isBtnStartStop = false;
-          material.diffuseColor = B.Color3.Red();
-          // textBlock.text = "Stop";
-          } else {
-            this.start()
+        this.isBtnStartStop = false;
+        mat.diffuseColor = B.Color3.Red();
+        // textBlock.text = "Stop";
+        } else {
+          this.start()
 
-            this.isBtnStartStop = true;
-            material.diffuseColor = B.Color3.Green();
-            // textBlock.text = "Start";
-          }
+          this.isBtnStartStop = true;
+          mat.diffuseColor = B.Color3.Green();
+          // textBlock.text = "Start";
+        }
       }));
 
       
@@ -211,14 +209,14 @@ this._recalculateGridBoundaries();
 
     // create box that can be clicked to show a menu
     public createMenuButton(): void {
-      this.menuButton = B.MeshBuilder.CreateBox("menuButton", { width: 2, height:0.6, depth: 0.4 }, this._scene);
-      this.menuButton.parent = this.baseMesh;
-      const material = new B.StandardMaterial("material", this._scene);
-      material.diffuseColor =  B.Color3.Black();
-      this.menuButton.material = material;
-      // this.menuButton.position.x = this.startX -(this.buttonWidth + this.buttonSpacing);
-      // this.menuButton.position.z = this.endZ+ (this.buttonDepth + this.buttonSpacing);
-      this.menuButton.position.y = 0.6;
+      this.menuButton = this._createBox(
+        "menuButton",
+        { width: 2, height: 0.6, depth: 0.4 },
+        B.Color3.Black(),
+        new B.Vector3(0, 0.6, 0),
+        this.baseMesh
+      );
+
       // add click action to start stop button
       this.menuButton.actionManager = new B.ActionManager(this._scene);
       this.menuButton.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickTrigger, () => {
@@ -307,69 +305,51 @@ this.initActions()}
         material.diffuseColor = new B.Color3(0.5, 0.2, 0.2);
         this.baseMesh.material = material;
     }
-  private _createScrollButtons(): void {
-    // Create "scroll up" button at the top
-    this._btnScrollUp = B.MeshBuilder.CreateBox(
-      "btnScrollUp",
-      { width: this.endX - this.startX, 
-        height: this.buttonHeight, 
-        depth: this.buttonDepth },
-      this._scene
-    );
+    private _createScrollButtons(): void {
+      const scrollColor = new B.Color3(0.2, 0.6, 0.8);
+      const size = {
+        width: this.endX - this.startX,
+        height: this.buttonHeight,
+        depth: this.buttonDepth,
+      };
     
-    const materialUp = new B.StandardMaterial("materialScrollUp", this._scene);
-    materialUp.diffuseColor = new B.Color3(0.2, 0.6, 0.8);
-    this._btnScrollUp.material = materialUp;
-    this._btnScrollUp.parent = this.baseMesh;
-    this._btnScrollUp.position.y = 0.2;
-    // get depth of this.baseMesh
-    this._btnScrollUp.position.z = this.startZ - this.buttonSpacing -this._btnScrollUp.getBoundingInfo().boundingBox.extendSize.z*2
-    console.log("tictac",this._btnScrollUp.getBoundingInfo().boundingBox.extendSize.z*2 // Position above the top visible row (centered at -3)
-  )
+      // Create scroll up button
+      this._btnScrollUp = this._createBox(
+        "btnScrollUp",
+        size,
+        scrollColor,
+        new B.Vector3(0, 0.2, 0), // Temporary z, will be adjusted next
+        this.baseMesh
+      );
     
-    // Create "scroll down" button at the bottom
-    this._btnScrollDown = B.MeshBuilder.CreateBox(
-      "btnScrollDown",
-      { width: this.endX-this.startX, 
-        height: this.buttonHeight, 
-        depth: this.buttonDepth },
-      this._scene
-    );
+      const scrollUpZ = this.startZ - this.buttonSpacing - this._btnScrollUp.getBoundingInfo().boundingBox.extendSize.z * 2;
+      this._btnScrollUp.position.z = scrollUpZ;
     
-    const materialDown = new B.StandardMaterial("materialScrollDown", this._scene);
-    materialDown.diffuseColor = new B.Color3(0.2, 0.6, 0.8);
-    this._btnScrollDown.material = materialDown;
-    this._btnScrollDown.parent = this.baseMesh;
-    this._btnScrollDown.position.y = 0.2;
-    this._btnScrollDown.position.z =  this.endZ + this.buttonSpacing + this._btnScrollUp.getBoundingInfo().boundingBox.extendSize.z*2;
+      // Create scroll down button
+      this._btnScrollDown = this._createBox(
+        "btnScrollDown",
+        size,
+        scrollColor,
+        new B.Vector3(0, 0.2, 0), // Temporary z, will be adjusted next
+        this.baseMesh
+      );
     
-    // // Add text to the buttons
-    // this._addScrollButtonLabel(this._btnScrollUp, "up");
-    // this._addScrollButtonLabel(this._btnScrollDown, "down");
+      const scrollDownZ = this.endZ + this.buttonSpacing + this._btnScrollUp.getBoundingInfo().boundingBox.extendSize.z * 2;
+      this._btnScrollDown.position.z = scrollDownZ;
     
-    // Add click actions to the buttons
-    if (!this._btnScrollUp.actionManager) {
+      // Add click actions
       this._btnScrollUp.actionManager = new B.ActionManager(this._scene);
-    }
-    
-    if (!this._btnScrollDown.actionManager) {
       this._btnScrollDown.actionManager = new B.ActionManager(this._scene);
+    
+      this._btnScrollUp.actionManager.registerAction(
+        new B.ExecuteCodeAction(B.ActionManager.OnPickTrigger, () => this._scrollUp())
+      );
+    
+      this._btnScrollDown.actionManager.registerAction(
+        new B.ExecuteCodeAction(B.ActionManager.OnPickTrigger, () => this._scrollDown())
+      );
     }
     
-    // Scroll up action
-    this._btnScrollUp.actionManager.registerAction(
-      new B.ExecuteCodeAction(B.ActionManager.OnPickTrigger, () => {
-        this._scrollUp();
-      })
-    );
-    
-    // Scroll down action
-    this._btnScrollDown.actionManager.registerAction(
-      new B.ExecuteCodeAction(B.ActionManager.OnPickTrigger, () => {
-        this._scrollDown();
-      })
-    );
-  }
 
   private _scrollUp(): void {
     // Scroll up if we're not already at the top
@@ -620,18 +600,14 @@ private _createNoteButton(row: number, col: number, z: number): NoteButtonMesh {
 
 
 createPlayhead(): void {
-  this.playhead = B.MeshBuilder.CreateBox("playhead", {
-      width: 0.1,
-      height: 0.2,
-      depth: this.endZ - this.startZ + this.buttonDepth
-  }, this._scene);
-
-  const playheadMaterial = new B.StandardMaterial("playheadMaterial", this._scene);
-  playheadMaterial.diffuseColor = new B.Color3(0, 1, 0);
-  this.playhead.material = playheadMaterial;
-  this.playhead.position.x = this.getStartX();
-  this.playhead.position.y = 0.2;
-  this.playhead.parent = this.baseMesh;
+  this.playhead = this._createBox(
+    "playhead",
+    { width: 0.1, height: 0.2, depth: this.endZ - this.startZ + this.buttonDepth },
+    new B.Color3(0, 1, 0),
+    new B.Vector3(this.getStartX(), 0.2, 0),
+    this.baseMesh
+  );
+  
 }
 
 update(): void {
