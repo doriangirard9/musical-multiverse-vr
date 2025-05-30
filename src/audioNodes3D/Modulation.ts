@@ -218,6 +218,7 @@ export class Modulation extends Wam3D{
 
 
     private _modulationStep = (): void => {
+        // @ts-ignore
         if (!this.isModulating || !this._parentNode?._wamInstance?.audioNode) {
             this._stopModulationLoop();
             return;
@@ -251,6 +252,7 @@ export class Modulation extends Wam3D{
 
         try {
             //pas sur
+            // @ts-ignore
             this._parentNode._wamInstance.audioNode.scheduleEvents(automationEvent);
             //this._parentNode.audioNode.scheduleEvents(automationEvent);
             this.eventBus.emit('VISUAL_PARAM_UPDATE', {
@@ -262,8 +264,10 @@ export class Modulation extends Wam3D{
 
             //console.log(`[Modulation] Sent automation: ${this._targetParamId} = ${modulationValue.toFixed(3)} at time ${currentTime.toFixed(3)}`);
             requestAnimationFrame(async () => {
+                // @ts-ignore
                 if (this._parentNode?._wamInstance?.audioNode) {
                     try {
+                        // @ts-ignore
                         const values: WamParameterDataMap = await this._parentNode._wamInstance.audioNode.getParameterValues(true, this._targetParamId);
                         if (values && values[this._targetParamId]) {
                             //console.log(`[Modulation ${this.id}]  WAM value for ${this._targetParamId}: ${values[this._targetParamId].value.toFixed(3)} `);
