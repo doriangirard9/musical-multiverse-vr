@@ -1,4 +1,14 @@
-import { Scene, TransformNode, AbstractMesh, Mesh, MeshBuilder, HighlightLayer, Vector3, Quaternion } from "@babylonjs/core";
+import {
+    Scene,
+    TransformNode,
+    AbstractMesh,
+    Mesh,
+    MeshBuilder,
+    HighlightLayer,
+    Vector3,
+    Quaternion,
+    Color3, Color4
+} from "@babylonjs/core";
 import { Node3DConnectable } from "../Node3DConnectable";
 import { Node3DParameter } from "../Node3DParameter";
 import { Node3D, Node3DFactory, Node3DGUI } from "../Node3D";
@@ -13,6 +23,8 @@ import { SyncManager } from "../../network/sync/SyncManager";
 import { Node3dManager } from "../../app/Node3dManager";
 import { Doc } from "yjs";
 import { Synchronized } from "../../network/sync/Synchronized";
+import {ShakeBehavior} from "../../behaviours/boundingBox/ShakeBehavior.ts";
+import {MeshUtils} from "../tools";
 
 export class Node3DInstance implements Synchronized{
 
@@ -182,6 +194,24 @@ export class Node3DInstance implements Synchronized{
         this.root_transform.parent = this.bounding_mesh
 
         this.bounding_box = new BoundingBox(this.bounding_mesh)
+
+        const shake = new ShakeBehavior()
+        let red =false
+        shake.on_start = () => {
+            console.log("start shake")
+        }
+        shake.on_shake = (counter: number) => {
+            console.log("shaking", counter)
+            if (counter > 10) {
+                console.error("SHAKE SHAKE SHAKE");
+                if(!red)MeshUtils.setColor(this.bounding_box?.boundingBox!!, Color3.Red().toColor4())
+            }
+        }
+        shake.on_stop = (counter: number) => {
+            console.log("stop shaking", counter)
+
+        }
+        this.bounding_box.boundingBox.addBehavior(shake)
 
         this.set_state("position")
         this.bounding_box.on_move = ()=>this.set_state("position")
