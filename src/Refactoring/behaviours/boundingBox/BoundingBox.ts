@@ -1,11 +1,11 @@
 import * as B from "@babylonjs/core";
 
 import {Scene} from "@babylonjs/core";
-import {SceneManager} from "../app/SceneManager.ts";
+import {SceneManager} from "../../app/SceneManager.ts";
 import {DragBoundingBox} from "./DragBoundingBox.ts";
 import {RotateBoundingBox} from "./RotateBoundingBox.ts";
-import {PlayerManager} from "../app/PlayerManager.ts";
-import {XRControllerManager} from "../xr/XRControllerManager.ts";
+import {PlayerManager} from "../../app/PlayerManager.ts";
+import {XRControllerManager} from "../../xr/XRControllerManager.ts";
 
 
 

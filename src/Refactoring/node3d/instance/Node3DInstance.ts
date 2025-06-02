@@ -2,7 +2,7 @@ import { Scene, TransformNode, AbstractMesh, Mesh, MeshBuilder, HighlightLayer, 
 import { Node3DConnectable } from "../Node3DConnectable";
 import { Node3DParameter } from "../Node3DParameter";
 import { Node3D, Node3DFactory, Node3DGUI } from "../Node3D";
-import { BoundingBox } from "../../boundingBox/BoundingBox";
+import { BoundingBox } from "../../behaviours/boundingBox/BoundingBox";
 import { UIManager } from "../../app/UIManager";
 import { SimpleMenu } from "../../menus/SimpleMenu";
 import { N3DParameterInstance } from "./N3DParameterInstance";
@@ -259,7 +259,7 @@ export class Node3DInstance implements Synchronized{
             name: "node3d_instances",
             doc,
             async create(_,__,kind) { return (await audioManager.builder.create(kind)) as Node3DInstance },
-            async on_remove(instance) { instance.dispose() },
+            async on_remove(instance) { await instance.dispose() },
         })
         return syncmanager
     }
