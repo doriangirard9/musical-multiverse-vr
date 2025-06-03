@@ -97,7 +97,7 @@ export class AudioOutputN3D implements Node3D{
 
     async getState(_1: string){ }
 
-    getStateKeys(): string[] { return []}
+    getStateKeys(): string[] { return [] }
     
     async dispose(){
         this.pannerNode.disconnect(this.audioCtx.destination)

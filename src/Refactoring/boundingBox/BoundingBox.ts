@@ -38,7 +38,7 @@ export class BoundingBox {
         let h = this.draggable.getBoundingInfo().boundingBox.extendSize.y * 2
         let d = this.draggable.getBoundingInfo().boundingBox.extendSize.z * 2
 
-        this.boundingBox = B.MeshBuilder.CreateBox(`boundingBox`, {width:w+.01, height:h+.01, depth:d+.01}, this.scene)
+        this.boundingBox = B.MeshBuilder.CreateBox(`boundingBox`, {width:w+.01, height:h+.01, depth:d+.5}, this.scene)
         this.draggable.parent = this.boundingBox
 
         this.setupBoundingBoxProperties()

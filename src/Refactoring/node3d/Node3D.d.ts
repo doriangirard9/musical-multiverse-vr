@@ -2,6 +2,7 @@ import { TransformNode } from "@babylonjs/core"
 import { Node3DContext } from "./Node3DContext"
 import { Node3DGUIContext } from "./Node3DGUIContext"
 
+type Serializable = { [key: string]: Serializable } | Serializable[] | string | number | boolean | null
 
 
 /**
@@ -31,14 +32,13 @@ export interface Node3D{
 
 
     //// Set state / Get state / Synchronization ////
-
     /**
-     * Met à jour l'état du Node3D.
+     * Met à jour un état du Node3D ou en crée un nouveau.
      * Supporte une modification partielle de l'état pour optimiser la synchronisation.
      * @param key La clé de l'état à mettre à jour.
      * @param state L'état du Node3D.
      */
-    setState(key: string, state: any): Promise<void>
+    setState(key: string, state: Serializable|undefined): Promise<void>
 
     /**
      * Récupère l'état du Node3D.
@@ -46,7 +46,7 @@ export interface Node3D{
      * @param key La clé de l'état à récupérer.
      * @returns L'état du Node3D.
      */
-    getState(key: string): Promise<any>
+    getState(key: string): Promise<Serializable|void>
 
     /**
      * Récupère toutes les clés d'état du Node3D.

@@ -1,6 +1,7 @@
-import { AbstractMesh, ActionManager, Axis, Color3, ExecuteCodeAction, HighlightLayer, MeshBuilder, PickingInfo, SixDofDragBehavior, Space, TransformNode, Vector3 } from "@babylonjs/core"
-import { AdvancedDynamicTexture, TextBlock } from "@babylonjs/gui"
+import { ActionManager, Color3, ExecuteCodeAction, HighlightLayer, PickingInfo, SixDofDragBehavior, TransformNode, Vector3 } from "@babylonjs/core"
 import { NodeCompUtils } from "../tools/utils/NodeCompUtils"
+import { Node3DParameter } from "../Node3DParameter"
+import { N3DText } from "./utils/N3DText"
 
 const highlightColor = Color3.Blue()
 
@@ -16,7 +17,7 @@ export class N3DParameterInstance {
      * @param root The root node of the audio node, the parent node of the parameter node.
      * @param draggable The draggable mesh of the parameter, which is highlighted and draggable.
      * @param highlightLayer The highlight layer used to highlight the parameter.
-     * @param getName A function that returns the name of the parameter.
+     * @param getLabel A function that returns the name of the parameter.
      * @param getValue A function that returns the value of the parameter. (between 0 and 1)
      * @param setValue A function that sets the value of the parameter. (between 0 and 1)
      * @param getStepSize A function that returns the step size of the parameter. (between 0 and 1)
@@ -24,45 +25,14 @@ export class N3DParameterInstance {
      */
     constructor(
         root: TransformNode,
-        draggables: AbstractMesh[],
         highlightLayer: HighlightLayer,
-        getName: () => string,
-        getValue: () => number,
-        setValue: (value: number) => void,
-        getStepCount: () => number,
-        stringify: (value: number) => string,
+        readonly config: Node3DParameter,
     ) {
+        const {getLabel, getStepCount, getValue, setValue, stringify, meshes:draggables} = config
 
         /* Parameter value text visual */
         // Gère l'affichage du texte de la valeur du paramètre
-        const text = this.text = (()=>{
-            const valuePlane = MeshBuilder.CreatePlane('textPlane', { size: 1, width: 5 }, root.getScene())
-            valuePlane.parent = root
-            valuePlane.rotate(Axis.X, 0, Space.WORLD)
-            valuePlane.setEnabled(false)
-
-            const valueTex = AdvancedDynamicTexture.CreateForMesh(valuePlane, 1024, Math.floor(1024/5))
-            const valueBlock = new TextBlock()
-            valueBlock.fontSize = 50
-            valueBlock.color = 'white'
-            valueBlock.outlineColor = 'black'
-            valueBlock.outlineWidth = 5
-            valueTex.addControl(valueBlock)
-
-            return {
-                set(value: string){ valueBlock.text = value },
-                show(){ valuePlane.setEnabled(true) },
-                hide(){ valuePlane.setEnabled(false) },
-                dispose(){
-                    valuePlane.dispose()
-                    valueTex.dispose()
-                    valueBlock.dispose()
-                },
-                setPosition(absolute: Vector3){
-                    valuePlane.setAbsolutePosition(absolute)
-                }
-            }
-        })()
+        const text = this.text = new N3DText(`parameter ${config.id}`, root, config.meshes)
         /* */
 
 
@@ -96,10 +66,8 @@ export class N3DParameterInstance {
 
         /* Shared functions */
         function updateText(){
-            const position = draggables[0].getAbsolutePosition().clone()
-            position.y += draggables[0].getBoundingInfo().boundingBox.extendSize.y*2
-            text.setPosition(position)
-            text.set(getName() + "\n" + stringify(getValue()))
+            text.updatePosition()
+            text.set(getLabel() + "\n" + stringify(getValue()))
         }
         /* */
 
@@ -135,22 +103,25 @@ export class N3DParameterInstance {
                 
                 startingValue = getValue()
                 const stepCount = getStepCount()
-                if(stepCount==0){
+                if(stepCount<=1){
                     stepSize = 0.001
                     changeFactor = 0.2
                 }
                 else{
-                    stepSize = 1/stepCount
+                    stepSize = 1/(stepCount-1)
                     changeFactor = stepSize*4
                 }
 
-                // If stepCount is 1, the value is directly changed
-                if(stepCount==2)setValue(getValue()<.5 ? 1 : 0)
+                // If stepCount is 2, the value is directly changed
+                if(stepSize==1)setValue(getValue()<.5 ? 1 : 0)
             })
 
             drag.onDragEndObservable.add(() => visual.offset(-1))
 
             drag.onDragObservable.add((event: {delta: Vector3, position: Vector3, pickInfo: PickingInfo}): void => {
+                // If stepCount is 2, do nothing on drag
+                if(stepSize==1)return
+                
                 let newvalue = (startingValue + event.delta.y * changeFactor)
                 newvalue = newvalue - newvalue % stepSize
                 newvalue = Math.max(0, Math.min(1, newvalue))

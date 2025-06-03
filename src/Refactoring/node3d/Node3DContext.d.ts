@@ -1,6 +1,7 @@
 import * as BABYLON from "@babylonjs/core";
 import { Node3DParameter } from "./Node3DParameter";
 import { Node3DConnectable } from "./Node3DConnectable";
+import { Node3DButton } from "./Node3DButton";
 
 
 
@@ -27,7 +28,7 @@ export interface Node3DContext{
     /**
      * Le group id du host Web Audio Module.
      */
-    readonly hostGroupId: string
+    readonly groupId: string
 
 
 
@@ -53,6 +54,22 @@ export interface Node3DContext{
      * @param mesh Le mesh du paramètre à supprimer.
      */
     removeParameter(id: Node3DParameter["id"]): void
+
+
+
+    //// Gestion des boutons ////
+
+    /**
+     * Créer un paramètre dans la scène 3D.
+     * @param info Les informations du paramètre.
+     */
+    createButton(info: Node3DButton): void
+
+    /**
+     * Supprime un paramètre de la scène 3D.
+     * @param mesh Le mesh du paramètre à supprimer.
+     */
+    removeButton(id: Node3DButton["id"]): void
 
 
 

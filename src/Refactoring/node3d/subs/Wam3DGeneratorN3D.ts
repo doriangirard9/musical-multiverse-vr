@@ -102,7 +102,7 @@ class Wam3DGeneratorN3D implements Node3D{
                 },
                 defineDraggableField(_) { },
             }
-        },guicode,controls,context.audioCtx,context.hostGroupId)
+        },guicode,controls,context.audioCtx,context.groupId)
         this.states = new ControlStateManager(gui.wam_generator.controls)
         this.states.onStateChange = name => context.notifyStateChange(name)
         context.addToBoundingBox(gui.wam_generator.pad_node as AbstractMesh)
