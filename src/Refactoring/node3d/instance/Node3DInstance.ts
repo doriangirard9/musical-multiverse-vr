@@ -202,7 +202,9 @@ export class Node3DInstance implements Synchronized{
 
         shake.on_shake = (power: number, time: number) => { 
             console.log("shaking", power, "during", time) 
-            if(time>10)NetworkManager.getInstance()
+            if(time>10){
+                this.dispose()
+            }
         }
 
         shake.on_stop = (counter: number) => {
@@ -253,6 +255,10 @@ export class Node3DInstance implements Synchronized{
         if(key=="position"){
             this.bounding_box?.boundingBox.position.fromArray(value.position) 
             this.bounding_box?.boundingBox.rotation.fromArray(value.rotation)
+        } else if (key === "delete") {
+            if(this.disposed) return
+            await this.dispose()
+
         }
         else this.node.setState(key,value)
     }
@@ -265,6 +271,7 @@ export class Node3DInstance implements Synchronized{
 
     public async dispose(){
         this.disposed = true
+        this.set_state("delete")
         this.highlighter.dispose()
         this.bounding_box?.dispose()
         this.bounding_mesh?.dispose()
