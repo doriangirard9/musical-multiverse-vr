@@ -6,7 +6,7 @@ import {
     MeshBuilder,
    
     Vector3,
-    Quaternion, Color3, Color4
+    Quaternion, Color3
 } from "@babylonjs/core";
 import { Node3DConnectable } from "../Node3DConnectable";
 import { Node3DParameter } from "../Node3DParameter";
@@ -26,6 +26,7 @@ import { N3DShared } from "./N3DShared";
 import { N3DMenuInstance } from "./utils/N3DMenuManager";
 import {MeshUtils} from "../tools";
 import {ShakeBehavior} from "../../behaviours/boundingBox/ShakeBehavior.ts";
+import { NetworkManager } from "../../network/NetworkManager.ts";
 
 export class Node3DInstance implements Synchronized{
 
@@ -189,23 +190,29 @@ export class Node3DInstance implements Synchronized{
 
         this.bounding_box = new BoundingBox(this.bounding_mesh)
 
+
+        //// SHAKE TEST ////
         const shake = new ShakeBehavior()
         let red =false
+
         shake.on_start = () => {
             console.log("start shake")
+            MeshUtils.setColor(this.bounding_box?.boundingBox!!, Color3.Red().toColor4())
         }
-        shake.on_shake = (counter: number) => {
-            console.log("shaking", counter)
-            if (counter > 10) {
-                console.error("SHAKE SHAKE SHAKE");
-                if(!red)MeshUtils.setColor(this.bounding_box?.boundingBox!!, Color3.Red().toColor4())
-            }
+
+        shake.on_shake = (power: number, time: number) => { 
+            console.log("shaking", power, "during", time) 
+            if(time>10)NetworkManager.getInstance()
         }
+
         shake.on_stop = (counter: number) => {
             console.log("stop shaking", counter)
-
+            MeshUtils.setColor(this.bounding_box?.boundingBox!!, Color3.White().toColor4())
         }
+
         this.bounding_box.boundingBox.addBehavior(shake)
+        //// SHAKE TEST ////
+
 
         this.set_state("position")
         this.bounding_box.on_move = ()=>this.set_state("position")

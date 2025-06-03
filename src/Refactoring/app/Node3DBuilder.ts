@@ -4,11 +4,11 @@ import { OscillatorN3DFactory } from "../node3d/subs/OscillatorN3D.ts";
 import { AudioOutputN3DFactory } from "../node3d/subs/AudioOutputN3D.ts";
 import { Node3dManager } from "./Node3dManager.ts";
 import { SceneManager } from "./SceneManager.ts";
-import { UIManager } from "./UIManager.ts";
 import { WamInitializer } from "./WamInitializer.ts";
 import { WAMGuiInitCode } from "wam3dgenerator";
 import { Wam3DGeneratorN3DFactory } from "../node3d/subs/Wam3DGeneratorN3D.ts";
 import { SequencerN3DFactory } from "../node3d/subs/SequencerN3D.ts";
+import { N3DShared } from "../node3d/instance/N3DShared.ts";
 
 
 // const WAM_CONFIGS_URL: string = "https://wam-configs.onrender.com";
@@ -45,12 +45,18 @@ export class Node3DBuilder {
         return "Unknown error"
     }
 
+    private shared: N3DShared|null = null
+
     private async instantiateNode3d(factory: Node3DFactory<any,any>): Promise<Node3DInstance> {
-        const scene = SceneManager.getInstance().getScene()
-        const uiManager = UIManager.getInstance()
+
+        const shared = this.shared ??= new N3DShared(
+            SceneManager.getInstance().getScene(),
+            Node3dManager.getInstance().getAudioContext(),
+            (await WamInitializer.getInstance(Node3dManager.getInstance().getAudioContext()).getHostGroupId())[0]
+        )
+
         const audioManager = Node3dManager.getInstance()
-        const [hostId] = await WamInitializer.getInstance(audioManager.getAudioContext()).getHostGroupId()
-        const instance = new Node3DInstance(scene, uiManager, audioManager.getAudioContext(), hostId, factory)
+        const instance = new Node3DInstance(shared, factory)
         await instance.instantiate()
         return instance
     }
