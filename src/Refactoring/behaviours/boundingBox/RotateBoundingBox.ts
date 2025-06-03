@@ -1,8 +1,8 @@
 import * as B from "@babylonjs/core";
-import {SceneManager} from "../app/SceneManager.ts";
-import {AudioEventBus} from "../eventBus/AudioEventBus.ts";
-import {XRManager} from "../xr/XRManager.ts";
-import {NodeTransform} from "../shared/SharedTypes.ts";
+import {SceneManager} from "../../app/SceneManager.ts";
+import {AudioEventBus} from "../../eventBus/AudioEventBus.ts";
+import {XRManager} from "../../xr/XRManager.ts";
+import {NodeTransform} from "../../shared/SharedTypes.ts";
 
 
 export class RotateBoundingBox implements B.Behavior<B.AbstractMesh> {

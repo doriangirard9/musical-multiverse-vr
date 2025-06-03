@@ -51,7 +51,6 @@ export class SyncManager<
     async add(id:string, instance: T, data: D): Promise<void>;
     async add(id:string, instance: T|never, data?: D){
 
-        console.log("new ",id,instance)
         const resolve = this.get_resolver(id)
 
         // Add the instance to the registry
@@ -73,7 +72,6 @@ export class SyncManager<
 
         // Write in shared
         this.doc.transact(() => {
-            console.log("send")
             this.shared_state.set(id, state)
             this.shared_data.set(id, {data:data as D})
         },this)
@@ -143,7 +141,6 @@ export class SyncManager<
                 this.on_remove?.(instance!!, state, data)
             }
             else if(action=="add"){
-                console.log("new sync added", this.shared_data.get(id))
                 const resolve = this.get_resolver(id)
 
                 const new_shared_state = this.shared_state.get(id)!!
@@ -153,7 +150,6 @@ export class SyncManager<
                 const instance = await this.create(id, new_shared_state, new_shared.data)
                 this.instances.set(id,instance)
                 this.reverse_instances.set(instance,id)
-                console.log("added to instance ",id)
                 await this.initialize(id,instance,new_shared_state)
                 await Promise.all([...new_shared_state.entries()].map(([key,value])=>{
                     return instance.setState(key as string,value as SyncSerializable)
@@ -174,7 +170,6 @@ export class SyncManager<
     private timeout?: any
 
     private addChange(id:string, key:string, type:"remove"|"add"){
-        console.log("add change", id, key, type)
         const state_changes = this.pendingStateChange.get(id) ?? new Map<string,"remove"|"add">()
         this.pendingStateChange.delete(id)
         this.pendingStateChange.set(id, state_changes)
@@ -208,11 +203,7 @@ export class SyncManager<
 
         // Synchronisation des états
         shared.observe(async(event: Y.YMapEvent<SyncSerializable>)=>{
-            console.log("on shared state change", id, event)
             if(event.transaction.origin==this)return
-
-            console.log("on state change", [...event.keys].map(it=>it[0]))
-
             for(const [key,{action}] of event.keys){
                 const newValue = shared.get(key)
                 if(action=="delete"){
@@ -269,10 +260,8 @@ export class SyncManager<
      * @param instance 
      */
     private async send_changes(){
-        console.log("send changes")
         // Parcours les changements
         for(const [id, _] of this.pendingStateChange.entries()){
-            console.log("send all changes of ", id, Object.fromEntries(_))
             const instance = this.instances.get(id)
             const shared = this.shared_data.get(id)
             const shared_state = this.shared_state.get(id)
@@ -289,7 +278,6 @@ export class SyncManager<
 
             this.doc.transact(() => {
                 for(const change of computed_changes){
-                    console.log("send a change ", id, change)
                     if("remove" in change) shared_state.delete(change.remove as string)
                     else shared_state.set(change.set, change.value)
                 }

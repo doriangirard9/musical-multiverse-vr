@@ -74,6 +74,7 @@ export class OscillatorN3D implements Node3D{
                 self.gui.frequency.scaling.setAll(value * .8 + .2)
             }
         })[key]!!?.(value)
+
     }
 
     async getState(key: string){

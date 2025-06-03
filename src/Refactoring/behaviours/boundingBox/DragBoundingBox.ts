@@ -1,9 +1,9 @@
 import * as B from "@babylonjs/core";
-import {SceneManager} from "../app/SceneManager.ts";
-import {PlayerManager} from "../app/PlayerManager.ts";
-import {XRManager} from "../xr/XRManager.ts";
-import {XRControllerManager} from "../xr/XRControllerManager.ts";
-import { RandomUtils } from "../node3d/tools/utils/RandomUtils.ts";
+import {SceneManager} from "../../app/SceneManager.ts";
+import {PlayerManager} from "../../app/PlayerManager.ts";
+import {XRManager} from "../../xr/XRManager.ts";
+import {XRControllerManager} from "../../xr/XRControllerManager.ts";
+import { RandomUtils } from "../../node3d/tools/utils/RandomUtils.ts";
 
 
 export class DragBoundingBox implements B.Behavior<B.AbstractMesh> {
@@ -31,7 +31,7 @@ export class DragBoundingBox implements B.Behavior<B.AbstractMesh> {
         this.drag.onDragObservable.add(() => {
             if (this.selected) {
                 this._applyConstraints()
-                if (!this.selected) this.on_move()
+                this.on_move()
             }
         });
     }

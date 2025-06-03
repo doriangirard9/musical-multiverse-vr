@@ -1,8 +1,8 @@
-import { Scene, TransformNode, AbstractMesh, Mesh, MeshBuilder, Vector3, Quaternion } from "@babylonjs/core";
+import { Scene, TransformNode, AbstractMesh, Mesh, MeshBuilder, Vector3, Quaternion, Color3 } from "@babylonjs/core";
 import { Node3DConnectable } from "../Node3DConnectable";
 import { Node3DParameter } from "../Node3DParameter";
 import { Node3D, Node3DFactory, Node3DGUI } from "../Node3D";
-import { BoundingBox } from "../../boundingBox/BoundingBox";
+import { BoundingBox } from "../../behaviours/boundingBox/BoundingBox";
 import { UIManager } from "../../app/UIManager";
 import { N3DParameterInstance } from "./N3DParameterInstance";
 import { N3DConnectableInstance } from "./N3DConnectableInstance";
@@ -15,6 +15,8 @@ import { Synchronized } from "../../network/sync/Synchronized";
 import { N3DHighlighter } from "./utils/N3DHighlighter";
 import { N3DShared } from "./N3DShared";
 import { N3DMenuInstance } from "./utils/N3DMenuManager";
+import {ShakeBehavior} from "../../behaviours/boundingBox/ShakeBehavior.ts";
+import {MeshUtils} from "../tools";
 
 export class Node3DInstance implements Synchronized{
 
@@ -178,6 +180,24 @@ export class Node3DInstance implements Synchronized{
 
         this.bounding_box = new BoundingBox(this.bounding_mesh)
 
+        const shake = new ShakeBehavior()
+        let red =false
+        shake.on_start = () => {
+            console.log("start shake")
+        }
+        shake.on_shake = (counter: number) => {
+            console.log("shaking", counter)
+            if (counter > 10) {
+                console.error("SHAKE SHAKE SHAKE");
+                if(!red)MeshUtils.setColor(this.bounding_box?.boundingBox!!, Color3.Red().toColor4())
+            }
+        }
+        shake.on_stop = (counter: number) => {
+            console.log("stop shaking", counter)
+
+        }
+        this.bounding_box.boundingBox.addBehavior(shake)
+
         this.set_state("position")
         this.bounding_box.on_move = ()=>this.set_state("position")
     }
@@ -249,7 +269,7 @@ export class Node3DInstance implements Synchronized{
             name: "node3d_instances",
             doc,
             async create(_,__,kind) { return (await audioManager.builder.create(kind)) as Node3DInstance },
-            async on_remove(instance) { instance.dispose() },
+            async on_remove(instance) { await instance.dispose() },
         })
         return syncmanager
     }
