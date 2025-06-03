@@ -1,4 +1,13 @@
-import { Scene, TransformNode, AbstractMesh, Mesh, MeshBuilder, Vector3, Quaternion, Color3 } from "@babylonjs/core";
+import {
+    Scene,
+    TransformNode,
+    AbstractMesh,
+    Mesh,
+    MeshBuilder,
+   
+    Vector3,
+    Quaternion, Color3, Color4
+} from "@babylonjs/core";
 import { Node3DConnectable } from "../Node3DConnectable";
 import { Node3DParameter } from "../Node3DParameter";
 import { Node3D, Node3DFactory, Node3DGUI } from "../Node3D";
@@ -15,8 +24,8 @@ import { Synchronized } from "../../network/sync/Synchronized";
 import { N3DHighlighter } from "./utils/N3DHighlighter";
 import { N3DShared } from "./N3DShared";
 import { N3DMenuInstance } from "./utils/N3DMenuManager";
-import {ShakeBehavior} from "../../behaviours/boundingBox/ShakeBehavior.ts";
 import {MeshUtils} from "../tools";
+import {ShakeBehavior} from "../../behaviours/boundingBox/ShakeBehavior.ts";
 
 export class Node3DInstance implements Synchronized{
 
