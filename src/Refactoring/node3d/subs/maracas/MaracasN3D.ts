@@ -80,7 +80,7 @@ export class MaracasN3D implements Node3D{
                 const note = Math.floor(10+100*value)
                 conn.scheduleEvents({type:"wam-midi", time:t, data:{bytes:[0x90, note, 127]}})
                 conn.scheduleEvents({type:"wam-midi", time:t+1, data:{bytes:[0x90, note, 0]}})
-                conn.scheduleEvents({type:"wam-midi", time:t+1.1UN, data:{bytes:[0x80, note, 0]}})
+                conn.scheduleEvents({type:"wam-midi", time:t+1.1, data:{bytes:[0x80, note, 0]}})
             })
         }
         this.last_offset = offset
