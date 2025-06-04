@@ -33,7 +33,7 @@ export class Node3DInstance implements Synchronized{
 
     constructor(
         private shared: N3DShared,
-        private node_factory: Node3DFactory<Node3DGUI,Node3D>
+        private node_factory: Node3DFactory<Node3DGUI,Node3D>,
     ){}
 
     private declare gui: Node3DGUI
@@ -44,6 +44,7 @@ export class Node3DInstance implements Synchronized{
     private declare root_transform: TransformNode
     private menu!: N3DMenuInstance
     private highlighter!: N3DHighlighter
+    public on_dispose = ()=>{}
 
     async instantiate(){
         const {scene, highlightLayer, babylon, tools} = this.shared
@@ -169,6 +170,8 @@ export class Node3DInstance implements Synchronized{
     private bounding_box = null as null|BoundingBox
     private doUpdateBoundingBox = false
 
+    get boundingBoxMesh(){ return this.bounding_box!!.boundingBox }
+
     private updateBoundingBoxNow(){
         if(this.disposed)return
 
@@ -264,6 +267,8 @@ export class Node3DInstance implements Synchronized{
     private disposed = false
 
     public async dispose(){
+        if(this.disposed)return
+        this.on_dispose()
         this.disposed = true
         this.set_state("delete")
         this.highlighter.dispose()
@@ -286,6 +291,7 @@ export class Node3DInstance implements Synchronized{
         const syncmanager: SyncManager<Node3DInstance,string> = new SyncManager({
             name: "node3d_instances",
             doc,
+            async on_add(instance) { instance.on_dispose = ()=> syncmanager.remove(instance) },
             async create(_,__,kind) { return (await audioManager.builder.create(kind)) as Node3DInstance },
             async on_remove(instance) { await instance.dispose() },
         })

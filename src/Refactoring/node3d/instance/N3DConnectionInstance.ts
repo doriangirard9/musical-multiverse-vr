@@ -15,6 +15,7 @@ export class N3DConnectionInstance{
 
     private tube
     private arrow?: AbstractMesh
+    public on_dispose = ()=>{}
 
     constructor(
         private scene: Scene,
@@ -184,8 +185,8 @@ export class N3DConnectionInstance{
     private disconnect(){
         const {cOutput,cInput} = this
         if(cOutput && cInput){
-            cOutput.config.connect(cInput.config.receive.bind(cInput.config))
-            cInput.config.connect(cOutput.config.receive.bind(cOutput.config))
+            cOutput.config.disconnect(cInput.config.receive.bind(cInput.config))
+            cInput.config.disconnect(cOutput.config.receive.bind(cOutput.config))
             cOutput.connections.delete(this)
             cInput.connections.delete(this)
             this.cInput = null
@@ -236,6 +237,7 @@ export class N3DConnectionInstance{
     }
 
     dispose(){
+        this.on_dispose()
         this.disconnect()
         this.tube.dispose()
         console.log("[N3DConnectionInstance] Disposed")
@@ -256,6 +258,7 @@ export class N3DConnectionInstance{
             name: "node3d_connections",
             doc,
             async create() { return new N3DConnectionInstance(scene, nodes, syncmanager, messages) },
+            async on_add(instance) { instance.on_dispose = ()=> syncmanager.remove(instance) },
             async on_remove(instance) { instance.dispose() },
         })
         return syncmanager

@@ -108,12 +108,12 @@ export class SyncManager<
         // Remove the pending modifications
         this.pendingStateChange.delete(id)
 
-        // Call the cleanup function
-        await this.on_remove?.(instance, shared_state, shared_data.data)
-
         // Remove the instance
         this.instances.delete(id)
         this.reverse_instances.delete(instance)
+
+        // Call the cleanup function
+        await this.on_remove?.(instance, shared_state, shared_data.data)
         
         this.doc.transact(()=>{
             this.shared_data.delete(id)

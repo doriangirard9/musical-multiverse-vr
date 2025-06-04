@@ -2,6 +2,9 @@ import {SceneManager} from "./SceneManager.ts";
 import {XRManager} from "../xr/XRManager.ts";
 import {Node3dManager} from "./Node3dManager.ts";
 import { AppOrchestrator } from "./AppOrchestrator.ts";
+import { N3DPreviewer } from "../node3d/instance/N3DPreviewer.ts";
+import { LivePianoN3DFactory } from "../node3d/subs/LivePianoN3D.ts";
+import { createStandCollection, Node3DStand } from "../world/Node3DStand.ts";
 
 export class NewApp {
     private audioCtx: AudioContext | undefined;
@@ -37,8 +40,12 @@ export class NewApp {
         this.sceneManager.start();
         await this.xrManager!!.init(this.sceneManager.getScene());
         
-        await this.audioManager!!.createNode3d("livepiano")
+        //await this.audioManager!!.createNode3d("livepiano")
         await this.audioManager!!.createNode3d("audiooutput")
+
+        const shared = this.audioManager?.builder?.shared!!
+        const {root} = await createStandCollection(shared,Node3dManager.getInstance())
+        root.position.set(0, -1, 40)
     }
 
 }

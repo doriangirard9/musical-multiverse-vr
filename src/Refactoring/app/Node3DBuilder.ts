@@ -11,6 +11,7 @@ import { SequencerN3DFactory } from "../node3d/subs/SequencerN3D.ts";
 import { N3DShared } from "../node3d/instance/N3DShared.ts";
 import { MaracasN3DFactory } from "../node3d/subs/maracas/MaracasN3D.ts";
 import { LivePianoN3DFactory } from "../node3d/subs/LivePianoN3D.ts";
+import { NetworkManager } from "../network/NetworkManager.ts";
 
 
 // const WAM_CONFIGS_URL: string = "https://wam-configs.onrender.com";
@@ -49,7 +50,7 @@ export class Node3DBuilder {
         return "Unknown error"
     }
 
-    private shared: N3DShared|null = null
+    shared: N3DShared|null = null
 
     private async instantiateNode3d(factory: Node3DFactory<any,any>): Promise<Node3DInstance> {
 
