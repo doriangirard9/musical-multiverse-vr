@@ -202,8 +202,8 @@ export class Node3DInstance implements Synchronized{
 
         shake.on_shake = (power: number, time: number) => { 
             console.log("shaking", power, "during", time) 
-            if(time>10){
-                this.dispose()
+            if(time>5){
+                NetworkManager.getInstance().node3d.nodes.remove(this)
             }
         }
 
