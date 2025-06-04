@@ -47,9 +47,9 @@ export class N3DText{
     updatePosition(){
         const target = this.targets.reduce((a,b)=>a.absolutePosition.y>b.absolutePosition.y?a:b)
 
-        const position = target.absolutePosition.clone()
+        const position = target.getBoundingInfo().boundingBox.centerWorld.clone()
         position.y += target.getBoundingInfo().boundingBox.extendSizeWorld.y/2
-        position.y += this.plane.getBoundingInfo().boundingBox.extendSizeWorld.y*.7
+        position.y += this.plane.getBoundingInfo().boundingBox.extendSizeWorld.y*2
         this.plane.setAbsolutePosition(position)
     }
 

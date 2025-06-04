@@ -20,7 +20,8 @@
         "plugins": [
           { "name": "Flute", "kind": "flute" },
           { "name": "Guitar", "kind": "guitar" },
-          { "name": "Modal", "kind": "modal" }
+          { "name": "Modal", "kind": "modal" },
+          { "name": "Tiny54", "kind": "tiny54" }
         ]
     },
     {

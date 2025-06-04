@@ -7,6 +7,7 @@ import { LivePianoN3DFactory } from "../node3d/subs/LivePianoN3D";
 import { MaracasN3DFactory } from "../node3d/subs/maracas/MaracasN3D";
 import { N3DPreviewer } from "../node3d/instance/N3DPreviewer";
 import { OscillatorN3DFactory } from "../node3d/subs/OscillatorN3D";
+import { Wam3DGeneratorN3DFactory } from "../node3d/subs/Wam3DGeneratorN3D";
 
 const STAND_MODEL_URL = (await import("./stand.glb?url")).default
 
@@ -63,7 +64,7 @@ const STANDS: {factory:Node3DFactory<Node3DGUI,any>, kind:string}[]=[
     {factory: OscillatorN3DFactory, kind:"oscillator"},
 ]
 
-export async function createStandCollection(shared: N3DShared, node3DManager: Node3dManager): {root: TransformNode, stands:Node3DStand[]}{
+export async function createStandCollection(shared: N3DShared, node3DManager: Node3dManager): Promise<{root: TransformNode, stands:Node3DStand[]}>{
     const root = new TransformNode("stand collection", shared.scene)
     const offset = new Vector3(-.5,0,0)
     const added = new Vector3(-.7,0,0)
