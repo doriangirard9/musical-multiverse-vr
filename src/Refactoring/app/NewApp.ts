@@ -37,7 +37,7 @@ export class NewApp {
         this.sceneManager.start();
         await this.xrManager!!.init(this.sceneManager.getScene());
         
-        await this.audioManager!!.createNode3d("maracas")
+        await this.audioManager!!.createNode3d("livepiano")
         await this.audioManager!!.createNode3d("audiooutput")
     }
 
