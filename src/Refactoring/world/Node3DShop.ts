@@ -13,11 +13,14 @@ import { N3DShared } from "../node3d/instance/N3DShared";
 export class Node3DShop {
 
     private free_positions = [] as number[]
-    private positions = [] as {name:string, parent:Node, position:Vector3, rotation:Vector, scaling:Vector3, preview?:N3DPreviewer}[]
+    private positions = [] as {name:string, parent:Node, position:Vector3, rotation:Vector3, scaling:Vector3, preview?:N3DPreviewer}[]
     readonly root
     private disposed = false
 
-    constructor(target: TransformNode){
+    constructor(
+        target: TransformNode,
+        config?:{order?:"sorted"|"random"|"nothing"},
+    ){
 
         for(const mesh of target.getChildMeshes(false)){
             if(mesh.name.startsWith("placement")){
@@ -33,9 +36,18 @@ export class Node3DShop {
                     scaling: mesh.scaling.clone()
                 })
                 this.free_positions.push(this.positions.length-1)
-                this.free_positions.sort((a,b)=>this.positions[a].name.localeCompare(this.positions[b].name))
                 mesh.dispose()
             }
+        }
+
+        switch(config?.order??"sorted"){
+            case "sorted":
+                this.free_positions.sort((a,b)=>this.positions[a].name.localeCompare(this.positions[b].name))
+                break
+            case "random":
+                this.free_positions.sort(() => Math.random() - 0.5)
+                break
+            default:
         }
 
         this.root = target

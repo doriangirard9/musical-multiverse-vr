@@ -48,7 +48,7 @@ export class N3DPreviewer{
         let size = 1.1
         if(this.inWorldSize) size *= gui.worldSize
         const hitbox = CreateBox("preview hitbox", {size}, shared.scene)
-        hitbox.visibility = .5
+        hitbox.visibility = .3
 
         gui.root.parent = hitbox
         hitbox.parent = this.root

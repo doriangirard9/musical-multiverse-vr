@@ -54,7 +54,7 @@ export class NewApp {
         const model = (await ImportMeshAsync(Node3DShop.SHOP_MODEL_URL, scene)).meshes[0]
         model.position.set(0, -2.65, 50)
         model.scaling.scaleInPlace(.6)
-        const shop = new Node3DShop(model)
+        const shop = new Node3DShop(model, {order:"random"})
         await shop.initialize(shared, Node3dManager.getInstance(), Node3DShop.SHOP_KINDS)
     }
 
