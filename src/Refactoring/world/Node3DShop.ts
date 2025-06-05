@@ -77,7 +77,7 @@ export class Node3DShop {
     }
 
     static SHOP_KINDS=  [
-        "livepiano", "maracas", "audiooutput", "oscillator",
+        "livepiano", "maracas", "audiooutput", "oscillator", "notesbox",
         "modal", "tiny54", "voxamp", "flute", "disto_machine", "guitar", "kverb",
     ]
 
