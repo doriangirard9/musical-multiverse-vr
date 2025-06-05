@@ -5,7 +5,7 @@ import { AudioOutputN3DFactory } from "../node3d/subs/AudioOutputN3D.ts";
 import { Node3dManager } from "./Node3dManager.ts";
 import { SceneManager } from "./SceneManager.ts";
 import { WamInitializer } from "./WamInitializer.ts";
-import { WAMGuiInitCode } from "wam3dgenerator";
+import { WAMGuiInitCode, examples } from "wam3dgenerator";
 import { Wam3DGeneratorN3DFactory } from "../node3d/subs/Wam3DGeneratorN3D.ts";
 import { SequencerN3DFactory } from "../node3d/subs/SequencerN3D.ts";
 import { N3DShared } from "../node3d/instance/N3DShared.ts";
@@ -14,15 +14,18 @@ import { LivePianoN3DFactory } from "../node3d/subs/LivePianoN3D.ts";
 import {NoteBoxN3DFactory} from "../node3d/subs/NoteBoxN3D.ts";
 
 
-// const WAM_CONFIGS_URL: string = "https://wam-configs.onrender.com";
 const WAM_CONFIGS_URL: string = "http://localhost:3000";
-
-export type Node3DConfig = {
-    name: string,
-    wam3d: WAMGuiInitCode
-}
+export type Node3DConfig = { name: string, wam3d: WAMGuiInitCode }
 
 export class Node3DBuilder {
+
+    /**
+     * Some of the valid kinds of Node3D.
+     */
+    static FACTORY_KINDS = [
+        "audiooutput", "sequencer", "oscillator", "maracas", "livepiano", "notesbox",
+        ...Object.keys(examples).map(k => `wam3d-${k}`),
+    ]
 
     /**
      * Get a Node3DFactory from it kind name.
@@ -30,20 +33,34 @@ export class Node3DBuilder {
      * @returns 
      */
     public async getFactory(kind: string): Promise<Node3DFactory<Node3DGUI,Node3D>|null> {
+        // Builtin
         if(kind=="audiooutput") return AudioOutputN3DFactory
-        else if(kind=="sequencer") return SequencerN3DFactory
-        else if(kind=="oscillator") return OscillatorN3DFactory
-        else if(kind=="maracas") return MaracasN3DFactory
-        else if(kind=="livepiano") return LivePianoN3DFactory
-        else if(kind=="notesbox") return NoteBoxN3DFactory
-        else{
-            const response = await fetch(`${WAM_CONFIGS_URL}/wamsConfig/${kind}.json`,{method:"get",headers:{"Content-Type":"application/json"}})
-            if(!response.ok)return null
-            const config = await response.json() as Node3DConfig
-
-            // Wam3DGenerator
-            if("wam3d" in config)return new Wam3DGeneratorN3DFactory(config.name, config.wam3d)
+        if(kind=="sequencer") return SequencerN3DFactory
+        if(kind=="oscillator") return OscillatorN3DFactory
+        if(kind=="maracas") return MaracasN3DFactory
+        if(kind=="livepiano") return LivePianoN3DFactory
+        if(kind=="notesbox") return NoteBoxN3DFactory
+        
+        // Wam3DGenerator examples
+        if(kind.startsWith("wam3d-")) {
+            const config = (examples as Record<string,WAMGuiInitCode>)[kind.substring(6)]
+            if(!config) return null
+            return new Wam3DGeneratorN3DFactory(kind.substring(6), config)
         }
+
+        // Configs
+        {
+            const response = await fetch(`${WAM_CONFIGS_URL}/wamsConfig/${kind}.json`,{method:"get",headers:{"Content-Type":"application/json"}})
+            if(response.ok){
+                const config = await response.json() as Node3DConfig
+
+                // Wam3DGenerator
+                if("wam3d" in config)return new Wam3DGeneratorN3DFactory(config.name, config.wam3d)
+            }
+            
+        }
+
+        
         return null
     }
 
