@@ -64,8 +64,6 @@ class XRControllerManager {
                 this._checkAnalogButtonState(controller, buttonName, lastValue);
             });
         });
-
-        console.log("Continuous tracking setup for analog buttons");
     }
 
     /**
@@ -169,7 +167,6 @@ class XRControllerManager {
         // Stocker le callback avec son id
         this._buttonObservers.get(buttonKey)!.set(id, callback);
 
-        console.log(`Added button listener "${id}" for ${controller} ${buttonName}`);
     }
 
     /**
@@ -186,13 +183,7 @@ class XRControllerManager {
         const buttonKey = `${controller}-${buttonName}`;
 
         if (this._buttonObservers.has(buttonKey)) {
-            const removed = this._buttonObservers.get(buttonKey)!.delete(id);
-
-            if (removed) {
-                console.log(`Removed button listener "${id}" for ${controller} ${buttonName}`);
-            } else {
-                console.warn(`Button listener "${id}" not found for ${controller} ${buttonName}`);
-            }
+            this._buttonObservers.get(buttonKey)!.delete(id);
         }
     }
 
@@ -323,9 +314,6 @@ class XRControllerManager {
         this._buttonStates.clear();
         this._activeAnalogButtons.clear();
 
-        // Nous ne supprimons pas les écouteurs enregistrés
-        // pour qu'ils soient réactivés lorsque les contrôleurs sont reconnectés
-        console.log("XRControllerManager reset, controllers detached");
     }
 
     /**

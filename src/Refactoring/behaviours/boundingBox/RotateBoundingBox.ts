@@ -82,7 +82,8 @@ export class RotateBoundingBox implements B.Behavior<B.AbstractMesh> {
     }
 
     logRed(msg: string): void {
-        console.log("%c" + msg, "color:red");
+        //console.log("%c" + msg, "color:red");
+        return
     }
 
     private _selectMeshUnderController(controller: B.WebXRInputSource): void {

@@ -26,25 +26,19 @@ export class XRManager {
      * Initialize the WebXR experience, XRInputs and XR features
      */
     public async init(scene: B.Scene): Promise<void> {
-        console.log('Initializing XRManager...');
         this._scene = scene;
 
         try {
-            // Ajouter timeout à l'initialisation de WebXR
             this.xrHelper = await withTimeout(
                 this._getWebXRExperience(),
-                10000, // 10 secondes
+                10000,
                 undefined,
                 "WebXR experience initialization timed out"
             );
 
-            console.log('XRHelper initialized:', this.xrHelper);
-            console.log('Camera:', this.xrHelper.baseExperience.camera);
             this._initXRFeatures();
 
-            // Créer le XRInputManager mais ne pas encore initialiser les contrôleurs
             this.xrInputManager = new XRInputManager(this.xrHelper);
-            console.log('XRInputManager initialized');
 
             this.xrHelper.baseExperience.camera.checkCollisions = true;
             this.xrHelper.baseExperience.camera.applyGravity = true;
@@ -56,7 +50,7 @@ export class XRManager {
                         break;
                     case B.WebXRState.IN_XR:
                         console.log('[*] XR STATE - In XR...');
-                        // Besoin d'attendre qu'on soit dans en VR avant d'initialiser les contrôleurs
+                        // Besoin d'attendre qu'on soit en VR avant d'initialiser les contrôleurs
                         this._initControllersAfterXREntry();
                         break;
                     case B.WebXRState.EXITING_XR:
@@ -74,23 +68,22 @@ export class XRManager {
 
     private async _initControllersAfterXREntry(): Promise<void> {
         if (this._controllersInitialized) {
-            console.log('Controllers already initialized, skipping');
+            //console.log('Controllers already initialized, skipping');
             return;
         }
 
         try {
-            console.log('Initializing controllers after XR entry...');
+            //console.log('Initializing controllers after XR entry...');
             await withTimeout(
                 this.xrInputManager.initControllers(),
                 5000, // Timeout pour pas attendre a l'infini si il y a un soucis
                 undefined,
                 "Controller initialization timed out after XR entry"
             );
-            console.log('Controllers initialized successfully');
+
             this._controllersInitialized = true;
         } catch (err) {
             console.warn("Controller initialization error after XR entry, running in degraded mode:", err);
-            // Continuer en mode dégradé
             this._controllersInitialized = true; // évite de loop
         }
     }
@@ -100,12 +93,10 @@ export class XRManager {
      * @throws {Error} if WebXR is not supported
      */
     private async _getWebXRExperience(): Promise<B.WebXRDefaultExperience> {
-        console.log('Checking WebXR support...');
         const isSupported: boolean = await B.WebXRSessionManager.IsSessionSupportedAsync('immersive-vr');
         if (!isSupported) {
             throw new Error('WebXR immersive-vr is not supported on this browser');
         }
-        console.log('Creating WebXR experience for immersive-vr...');
         const xrExperience = await this._scene.createDefaultXRExperienceAsync({
             uiOptions: { sessionMode: 'immersive-vr' }
         });
