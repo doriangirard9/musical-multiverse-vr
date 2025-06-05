@@ -42,7 +42,7 @@ export class NewApp {
         this.sceneManager.start();
         await this.xrManager!!.init(this.sceneManager.getScene());
         
-        //await this.audioManager!!.createNode3d("livepiano")
+        await this.audioManager!!.createNode3d("notesbox")
         await this.audioManager!!.createNode3d("audiooutput")
 
         const shared = this.audioManager?.builder?.shared!!

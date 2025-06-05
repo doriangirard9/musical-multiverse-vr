@@ -11,6 +11,7 @@ import { SequencerN3DFactory } from "../node3d/subs/SequencerN3D.ts";
 import { N3DShared } from "../node3d/instance/N3DShared.ts";
 import { MaracasN3DFactory } from "../node3d/subs/maracas/MaracasN3D.ts";
 import { LivePianoN3DFactory } from "../node3d/subs/LivePianoN3D.ts";
+import {NoteBoxN3DFactory} from "../node3d/subs/NoteBoxN3D.ts";
 
 
 // const WAM_CONFIGS_URL: string = "https://wam-configs.onrender.com";
@@ -34,6 +35,7 @@ export class Node3DBuilder {
         else if(kind=="oscillator") return OscillatorN3DFactory
         else if(kind=="maracas") return MaracasN3DFactory
         else if(kind=="livepiano") return LivePianoN3DFactory
+        else if(kind=="notesbox") return NoteBoxN3DFactory
         else{
             const response = await fetch(`${WAM_CONFIGS_URL}/wamsConfig/${kind}.json`,{method:"get",headers:{"Content-Type":"application/json"}})
             if(!response.ok)return null
