@@ -39,11 +39,7 @@ export class XRInputManager {
      * Configure les écouteurs pour les événements d'ajout et de suppression de contrôleurs
      */
     private _setupControllerListeners(): void {
-        // Écouter l'ajout de contrôleurs
         this._xrHelper.input.onControllerAddedObservable.add((controller) => {
-            console.log(`Contrôleur ajouté: ${controller.inputSource.handedness}`);
-
-            // Attendre que le motion controller soit initialisé
             controller.onMotionControllerInitObservable.addOnce(() => {
                 if (controller.inputSource.handedness === 'left') {
                     this._updateLeftController(controller);
@@ -55,8 +51,6 @@ export class XRInputManager {
 
         // Écouter la suppression de contrôleurs
         this._xrHelper.input.onControllerRemovedObservable.add((controller) => {
-            console.log(`Contrôleur supprimé: ${controller.inputSource.handedness}`);
-
             if (controller.inputSource.handedness === 'left') {
                 this.leftController = null;
                 this.leftInputStates = {};
@@ -79,8 +73,6 @@ export class XRInputManager {
                 // Vérification directe des contrôleurs disponibles
                 const controllers = this._xrHelper.input.controllers;
 
-                console.log(`Checking for controllers: Found ${controllers.length} controllers`);
-
                 if (controllers.length > 0) {
                     // Des contrôleurs sont disponibles, les traiter
                     let rightFound = false;
@@ -92,8 +84,6 @@ export class XRInputManager {
                         if (controller.inputSource.handedness === 'right' && !rightFound) {
                             rightFound = true;
                             this.rightController = controller;
-
-                            // Important: vérifier si le motion controller est prêt
                             if (controller.motionController) {
                                 const component_ids = controller.motionController.getComponentIds();
                                 this.rightInputStates = {};
@@ -107,21 +97,15 @@ export class XRInputManager {
                                             this.rightInputStates[id] = component;
                                         }
                                     });
-                                    console.log('Right controller components:', component_ids);
-                                } else {
-                                    console.log('Right controller has no components yet');
                                 }
                             }
                         } else if (controller.inputSource.handedness === 'left' && !leftFound) {
                             leftFound = true;
                             this.leftController = controller;
-
-                            // Important: vérifier si le motion controller est prêt
                             if (controller.motionController) {
                                 const component_ids = controller.motionController.getComponentIds();
                                 this.leftInputStates = {};
 
-                                // Vérifier si les composants ont des boutons
                                 if (component_ids.length > 0) {
                                     leftHasComponents = true;
                                     component_ids.forEach(id => {
@@ -130,15 +114,11 @@ export class XRInputManager {
                                             this.leftInputStates[id] = component;
                                         }
                                     });
-                                    console.log('Left controller components:', component_ids);
-                                } else {
-                                    console.log('Left controller has no components yet');
                                 }
                             }
                         }
                     });
 
-                    // IMPORTANT: Ne pas initialiser tant que les composants ne sont pas prêts
                     const controllersReady = (rightFound && rightHasComponents) || (leftFound && leftHasComponents);
                     if (controllersReady) {
                         this._initialized = true;
@@ -153,13 +133,10 @@ export class XRInputManager {
 
                         // Initialiser le menu et les comportements
                         this._initializeMenu();
-                        this._initializeDummyBehavior();
-
-                        console.log(`Initialized with ${rightFound ? 'right' : ''} ${leftFound ? 'left' : ''} controller`);
+                        //this._initializeDummyBehavior(); // Non util pour l'instant
                         resolve();
                         return true; // Arrêter la vérification périodique
                     } else {
-                        console.log('Controllers found but components not ready yet');
                         return false; // Continuer à vérifier
                     }
                 }
@@ -167,20 +144,17 @@ export class XRInputManager {
                 return false; // Continuer à vérifier
             };
 
-            // Vérifier immédiatement
             if (checkControllers()) return;
 
             const interval = setInterval(() => {
                 if (checkControllers()) {
                     clearInterval(interval);
                 }
-            }, 200); // Vérifier toutes les 200ms)
+            }, 200);
 
-            // Garantir que nous ne restons pas bloqués
             setTimeout(() => {
                 clearInterval(interval);
 
-                // Si toujours pas initialisé, résoudre quand même avec ce qu'on a
                 if (!this._initialized) {
                     console.log('Controller initialization timeout - proceeding with partial initialization');
 
@@ -196,7 +170,7 @@ export class XRInputManager {
 
                         // Initialiser le menu et les comportements
                         this._initializeMenu();
-                        this._initializeDummyBehavior();
+                        //this._initializeDummyBehavior(); // Non util pour l'instant
                     }
 
                     this._initialized = true;
@@ -204,17 +178,14 @@ export class XRInputManager {
                 }
             }, 5000); // Timeout de 5 secondes
 
-            // Aussi, écouter l'initialisation des motion controllers spécifiquement
             const listenForMotionControllers = (controller: B.WebXRInputSource) => {
                 controller.onMotionControllerInitObservable.add((_) => {
-                    console.log(`Motion controller initialized for ${controller.inputSource.handedness}`);
                     if (checkControllers()) {
                         clearInterval(interval);
                     }
                 });
             };
 
-            // Configurer ces écouteurs pour les contrôleurs existants et futurs
             this._xrHelper.input.controllers.forEach(listenForMotionControllers);
             this._xrHelper.input.onControllerAddedObservable.add(listenForMotionControllers);
         });
@@ -237,10 +208,7 @@ export class XRInputManager {
             });
         }
 
-        // Mettre à jour XRControllerManager
         XRControllerManager.Instance.updateLeftControllerStates(this.leftInputStates);
-
-        console.log('Left controller updated in XRControllerManager');
     }
 
     /**
@@ -260,22 +228,17 @@ export class XRInputManager {
             });
         }
 
-        // Mettre à jour XRControllerManager
         XRControllerManager.Instance.updateRightControllerStates(this.rightInputStates);
-
-        console.log('Right controller updated in XRControllerManager');
     }
 
     /**
      * Initialise le menu et attache les comportements associés
      */
     private _initializeMenu(): void {
-        console.log("Initializing menu");
         if (!this._menu) {
             this._menu = new MainMenu(menuJson as MenuConfig);
         }
 
-        // D'abord vérifier si l'écouteur existe déjà, le supprimer si nécessaire
         if (XRControllerManager.Instance.hasButtonListener('right', 'a-button', this.MENU_TOGGLE_ID)) {
             XRControllerManager.Instance.removeButtonListener('right', 'a-button', this.MENU_TOGGLE_ID);
         }
@@ -299,9 +262,8 @@ export class XRInputManager {
 
     }
 
-
+    //@ts-ignore unused
     private _initializeDummyBehavior(): void {
-        console.log("Initializing dummy behavior");
 
         if (XRControllerManager.Instance.hasButtonListener('right', 'a-button', this.DUMMY_BEHAVIOR_ID)) {
             XRControllerManager.Instance.removeButtonListener('right', 'a-button', this.DUMMY_BEHAVIOR_ID);
