@@ -2,9 +2,9 @@ import {SceneManager} from "./SceneManager.ts";
 import {XRManager} from "../xr/XRManager.ts";
 import {Node3dManager} from "./Node3dManager.ts";
 import { AppOrchestrator } from "./AppOrchestrator.ts";
-import { N3DPreviewer } from "../node3d/instance/N3DPreviewer.ts";
-import { LivePianoN3DFactory } from "../node3d/subs/LivePianoN3D.ts";
-import { createStandCollection, Node3DStand } from "../world/Node3DStand.ts";
+import { createStandCollection } from "../world/Node3DStand.ts";
+import { ImportMeshAsync } from "@babylonjs/core";
+import { Node3DShop } from "../world/Node3DShop.ts";
 
 export class NewApp {
     private audioCtx: AudioContext | undefined;
@@ -37,6 +37,8 @@ export class NewApp {
     }
 
     public async start(): Promise<void> {
+        const scene = this.sceneManager.getScene()
+        
         this.sceneManager.start();
         await this.xrManager!!.init(this.sceneManager.getScene());
         
@@ -44,8 +46,16 @@ export class NewApp {
         await this.audioManager!!.createNode3d("audiooutput")
 
         const shared = this.audioManager?.builder?.shared!!
+
+        /*
         const {root} = await createStandCollection(shared,Node3dManager.getInstance())
         root.position.set(0, -1, 40)
+        */
+        const model = (await ImportMeshAsync(Node3DShop.SHOP_MODEL_URL, scene)).meshes[0]
+        model.position.set(0, -2.65, 50)
+        model.scaling.scaleInPlace(.6)
+        const shop = new Node3DShop(model)
+        await shop.initialize(shared, Node3dManager.getInstance(), Node3DShop.SHOP_KINDS)
     }
 
 }

@@ -1,5 +1,5 @@
 import { Node3DInstance } from "../node3d/instance/Node3DInstance.ts";
-import { Node3DFactory } from "../node3d/Node3D.ts";
+import { Node3D, Node3DFactory, Node3DGUI } from "../node3d/Node3D.ts";
 import { OscillatorN3DFactory } from "../node3d/subs/OscillatorN3D.ts";
 import { AudioOutputN3DFactory } from "../node3d/subs/AudioOutputN3D.ts";
 import { Node3dManager } from "./Node3dManager.ts";
@@ -11,7 +11,6 @@ import { SequencerN3DFactory } from "../node3d/subs/SequencerN3D.ts";
 import { N3DShared } from "../node3d/instance/N3DShared.ts";
 import { MaracasN3DFactory } from "../node3d/subs/maracas/MaracasN3D.ts";
 import { LivePianoN3DFactory } from "../node3d/subs/LivePianoN3D.ts";
-import { NetworkManager } from "../network/NetworkManager.ts";
 
 
 // const WAM_CONFIGS_URL: string = "https://wam-configs.onrender.com";
@@ -25,6 +24,28 @@ export type Node3DConfig = {
 export class Node3DBuilder {
 
     /**
+     * Get a Node3DFactory from it kind name.
+     * @param kind The kind of Node3D, correspond to the name of its config file.
+     * @returns 
+     */
+    public async getFactory(kind: string): Promise<Node3DFactory<Node3DGUI,Node3D>|null> {
+        if(kind=="audiooutput") return AudioOutputN3DFactory
+        else if(kind=="sequencer") return SequencerN3DFactory
+        else if(kind=="oscillator") return OscillatorN3DFactory
+        else if(kind=="maracas") return MaracasN3DFactory
+        else if(kind=="livepiano") return LivePianoN3DFactory
+        else{
+            const response = await fetch(`${WAM_CONFIGS_URL}/wamsConfig/${kind}.json`,{method:"get",headers:{"Content-Type":"application/json"}})
+            if(!response.ok)return null
+            const config = await response.json() as Node3DConfig
+
+            // Wam3DGenerator
+            if("wam3d" in config)return new Wam3DGeneratorN3DFactory(config.name, config.wam3d)
+        }
+        return null
+    }
+
+    /**
      * Create a Node3D from a kind name and a configuration
      * The Node3D is not added to the world, it should be added before being used.
      * @param id The id of the Node3D, unique for every Node3D
@@ -32,22 +53,10 @@ export class Node3DBuilder {
      * @returns The new Node3D or a description of the error
      */
     public async create(kind: string): Promise<Node3DInstance|string> {
-        
-        // TODO: Il y a peut être plus propre que des if/else
-        if(kind=="audiooutput") return await this.instantiateNode3d(AudioOutputN3DFactory)
-        else if(kind=="sequencer") return await this.instantiateNode3d(SequencerN3DFactory)
-        else if(kind=="oscillator") return await this.instantiateNode3d(OscillatorN3DFactory)
-        else if(kind=="maracas") return await this.instantiateNode3d(MaracasN3DFactory)
-        else if(kind=="livepiano") return await this.instantiateNode3d(LivePianoN3DFactory)
-        else{
-            const response = await fetch(`${WAM_CONFIGS_URL}/wamsConfig/${kind}.json`,{method:"get",headers:{"Content-Type":"application/json"}})
-            if(!response.ok)return `AudioNode3d of type ${kind} does not exists`
-            const config = await response.json() as Node3DConfig
+        const factory = await this.getFactory(kind)
+        if(factory==null)return `AudioNode3d of type ${kind} does not exists`
 
-            // Wam3DGenerator
-            if("wam3d" in config)return await this.instantiateNode3d(new Wam3DGeneratorN3DFactory(config.name, config.wam3d))
-        }
-        return "Unknown error"
+        return await this.instantiateNode3d(factory)
     }
 
     shared: N3DShared|null = null
@@ -60,7 +69,6 @@ export class Node3DBuilder {
             (await WamInitializer.getInstance(Node3dManager.getInstance().getAudioContext()).getHostGroupId())[0]
         )
 
-        const audioManager = Node3dManager.getInstance()
         const instance = new Node3DInstance(shared, factory)
         await instance.instantiate()
         return instance

@@ -1,8 +1,8 @@
 import { ActionManager, Color3, CreateBox, ExecuteCodeAction, PointerDragBehavior, TransformNode } from "@babylonjs/core";
-import { N3DShared } from "./N3DShared";
-import { Node3DFactory, Node3DGUI } from "../Node3D";
-import { N3DHighlighter } from "./utils/N3DHighlighter";
-import { Node3dManager } from "../../app/Node3dManager";
+import { N3DShared } from "../node3d/instance/N3DShared";
+import { Node3DGUI } from "../node3d/Node3D";
+import { N3DHighlighter } from "../node3d/instance/utils/N3DHighlighter";
+import { Node3dManager } from "../app/Node3dManager";
 
 
 /**
@@ -17,20 +17,21 @@ export class N3DPreviewer{
 
     constructor(
         private shared: N3DShared,
-        private factory: Node3DFactory<Node3DGUI,any>,
         private kind: string,
         private node3DManager: Node3dManager,
         private inWorldSize: boolean = false
     ){
-        this.root = new TransformNode(`${factory.label} preview root`, shared.scene)
+        this.root = new TransformNode(`${kind} preview root`, shared.scene)
     }
 
     async initialize(){
         const shared = this.shared
+        const factory = await this.node3DManager.builder.getFactory(this.kind)
+        if(!factory)throw new Error(`Node3D factory for kind "${this.kind}" not found`)
 
         // Intialize the GUI visual
         const highlighter = this.highlighter = new N3DHighlighter(shared.highlightLayer)
-        const gui = this.gui = await this.factory.createGUI({
+        const gui = this.gui = await factory.createGUI({
             babylon: shared.babylon,
             highlight: (...args)=>highlighter.highlight(...args),
             unhighlight: (...args)=>highlighter.unhighlight(...args),
@@ -56,7 +57,7 @@ export class N3DPreviewer{
         const drag_behaviour = new PointerDragBehavior()
         hitbox.addBehavior(drag_behaviour)
 
-        drag_behaviour.onDragStartObservable.add(async(event)=>{
+        drag_behaviour.onDragStartObservable.add(async()=>{
             setTimeout(function timefn(){
                 
                 if(drag_behaviour.dragging){
@@ -66,7 +67,7 @@ export class N3DPreviewer{
             },20)
         })
 
-        drag_behaviour.onDragEndObservable.add(async(event)=>{
+        drag_behaviour.onDragEndObservable.add(async()=>{
             const dragDistance = hitbox.position.length()
             if(dragDistance>4){
                 console.log(dragDistance)
@@ -82,11 +83,11 @@ export class N3DPreviewer{
         })
 
         const action = hitbox.actionManager ??= new ActionManager()
-        const _onover = action.registerAction(new ExecuteCodeAction(ActionManager.OnPointerOverTrigger, ()=>{
+        action.registerAction(new ExecuteCodeAction(ActionManager.OnPointerOverTrigger, ()=>{
             this.shared.highlightLayer.addMesh(hitbox, Color3.Green())
         }))!!
         
-        const _onout = action.registerAction(new ExecuteCodeAction(ActionManager.OnPointerOutTrigger, ()=>{
+        action.registerAction(new ExecuteCodeAction(ActionManager.OnPointerOutTrigger, ()=>{
             this.shared.highlightLayer.removeMesh(hitbox)
         }))!!
     }
