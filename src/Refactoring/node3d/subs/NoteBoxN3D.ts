@@ -121,6 +121,7 @@ export class NoteBoxN3D implements Node3D {
     private padButtons: Node3DButton[] = [];
     private playingSampleIndex: number = -1;
     private playTimeouts: Set<any> = new Set();
+    private maxSamples: number = 16;
 
     constructor(private context: Node3DContext, private gui: NoteBoxN3DGUI) {
         const {tools: T, audioCtx} = context;
@@ -194,6 +195,10 @@ export class NoteBoxN3D implements Node3D {
                             this.currentSample.duration = this.lastEventTime - this.currentSample.startTime;
                         }
 
+                        if (this.samples.length >= this.maxSamples) {
+                            continue;
+                        }
+
                         this.currentSample = {
                             id: this.samples.length,
                             events: [],
@@ -212,7 +217,7 @@ export class NoteBoxN3D implements Node3D {
                         }
                     }
 
-                    if (this.currentSample) {
+                    if (this.currentSample && this.samples.length <= this.maxSamples) {
                         this.currentSample.events.push(event);
                         this.lastEventTime = eventTime;
                         this.currentSample.duration = eventTime - this.currentSample.startTime;
@@ -252,9 +257,9 @@ export class NoteBoxN3D implements Node3D {
             this.forwardEventsToOutput(eventCopy);
         }
     }
-
+    //@ts-ignore
     async setState(key: string, state: any): Promise<void> {}
-
+    //@ts-ignore
     async getState(key: string): Promise<any> {}
 
     getStateKeys(): string[] {
