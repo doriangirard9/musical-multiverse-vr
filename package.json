@@ -23,7 +23,7 @@
     "@webaudiomodules/sdk": "^0.0.12",
     "tone": "^15.0.4",
     "uuid": "^11.1.0",
-    "wam3dgenerator": "github:Jempasam/3d_wam_editor#0.0.1",
+    "wam3dgenerator": "github:Jempasam/3d_wam_editor#semver:0.0.2",
     "ws": "^8.18.1",
     "y-webrtc": "^10.3.0",
     "yjs": "^13.6.24"
