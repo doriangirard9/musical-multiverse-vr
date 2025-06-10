@@ -31,6 +31,8 @@ import { N3DButtonInstance } from "./N3DButtonInstance.ts";
 
 export class Node3DInstance implements Synchronized{
 
+    static readonly SIZE_MULTIPLIER = .5
+
     constructor(
         private shared: N3DShared,
         private node_factory: Node3DFactory<Node3DGUI,Node3D>,
@@ -75,7 +77,7 @@ export class Node3DInstance implements Synchronized{
 
         gui_root_transform.parent = root_transform
         this.gui.root.parent = gui_root_transform
-        gui_root_transform.scaling.setAll(this.gui.worldSize)
+        gui_root_transform.scaling.setAll(this.gui.worldSize*Node3DInstance.SIZE_MULTIPLIER)
 
 
         // Node related things

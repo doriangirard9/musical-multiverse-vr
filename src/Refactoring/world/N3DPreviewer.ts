@@ -3,6 +3,7 @@ import { N3DShared } from "../node3d/instance/N3DShared";
 import { Node3DGUI } from "../node3d/Node3D";
 import { N3DHighlighter } from "../node3d/instance/utils/N3DHighlighter";
 import { Node3dManager } from "../app/Node3dManager";
+import { Node3DInstance } from "../node3d/instance/Node3DInstance";
 
 
 /**
@@ -42,11 +43,11 @@ export class N3DPreviewer{
             scene: shared.scene,
             tools: shared.tools
         })
-        if(this.inWorldSize)gui.root.scaling.setAll(gui.worldSize)
+        if(this.inWorldSize)gui.root.scaling.setAll(gui.worldSize*Node3DInstance.SIZE_MULTIPLIER)
 
         // Create a hitbox
         let size = 1.1
-        if(this.inWorldSize) size *= gui.worldSize
+        if(this.inWorldSize) size *= gui.worldSize*Node3DInstance.SIZE_MULTIPLIER
         const hitbox = CreateBox("preview hitbox", {size}, shared.scene)
         hitbox.visibility = .3
 
@@ -61,7 +62,7 @@ export class N3DPreviewer{
             setTimeout(function timefn(){
                 
                 if(drag_behaviour.dragging){
-                    hitbox.scaling.setAll(hitbox.scaling.y*.9+gui.worldSize*.1)
+                    hitbox.scaling.setAll(hitbox.scaling.y*.9+gui.worldSize*Node3DInstance.SIZE_MULTIPLIER*.1)
                     setTimeout(timefn,20)
                 }
             },20)
