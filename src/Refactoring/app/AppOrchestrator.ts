@@ -33,7 +33,7 @@ export class AppOrchestrator{
 
         this.onMenuEvent();
         this.onAudioEvent();
-        this.debugLogEvents()
+        //this.debugLogEvents()
     }
 
     public static getInstance(): AppOrchestrator {
@@ -61,20 +61,6 @@ export class AppOrchestrator{
     }
 
     private onMenuEvent(): void {
-        this.MenuEventBus?.on('OPEN_MENU', (payload) => {
-            console.log(`Menu opened: ${payload.menuId}`);
-        });
-        this.MenuEventBus?.on('CLOSE_MENU', (payload) => {
-            console.log(`Menu closed: ${payload.menuId}`);
-        });
-
-        this.MenuEventBus?.on('MAIN_MENU_ENABLE', (payload) => {
-            console.log(`Main menu enabled ? : ${payload.enable}`);
-        });
-        this.MenuEventBus?.on('MAIN_MENU_DISABLE', (payload) => {
-            console.log(`Main menu disabled ? : ${payload.disable}`);
-        });
-
         this.MenuEventBus?.on('CREATE_AUDIO_NODE', async (payload) => {
             console.log(`Audio node created: ${payload.name}`);
             const node = await this.AudioManager?.createNode3d(payload.kind, payload.nodeId)

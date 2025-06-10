@@ -2,6 +2,11 @@ import {SceneManager} from "./SceneManager.ts";
 import {XRManager} from "../xr/XRManager.ts";
 import {Node3dManager} from "./Node3dManager.ts";
 import { AppOrchestrator } from "./AppOrchestrator.ts";
+import { createStandCollection } from "../world/Node3DStand.ts";
+import { ImportMeshAsync } from "@babylonjs/core";
+import { Node3DShop } from "../world/Node3DShop.ts";
+import { Node3DBuilder } from "./Node3DBuilder.ts";
+import { Inspector } from "@babylonjs/inspector";
 
 export class NewApp {
     private audioCtx: AudioContext | undefined;
@@ -34,11 +39,29 @@ export class NewApp {
     }
 
     public async start(): Promise<void> {
+        const scene = this.sceneManager.getScene()
+        
         this.sceneManager.start();
         await this.xrManager!!.init(this.sceneManager.getScene());
         
-        await this.audioManager!!.createNode3d("oscillator")
+        await this.audioManager!!.createNode3d("notesbox")
         await this.audioManager!!.createNode3d("audiooutput")
+
+        const shared = this.audioManager?.builder?.shared!!
+
+        //// LE SUPER MAGASIN ////
+        {
+            setTimeout(()=>Inspector.Show(scene,{}), 10000)
+            // Mais qu'est ce donc ??? On peut rendre le magasin encore plus cool ????? J'ose pas mettre "true", c'est probablement TROP cool.
+            let mode_magasin_super_giga_cool = true
+
+            const model = (await ImportMeshAsync(Node3DShop.SHOP_MODEL_URL, scene)).meshes[0]
+            model.position.set(0, -2.65, 50)
+            model.scaling.scaleInPlace(.6)
+            const shop = new Node3DShop(model, {order:"random"})
+            let kinds = mode_magasin_super_giga_cool ? Node3DBuilder.FACTORY_KINDS : Node3DShop.SHOP_KINDS
+            await shop.initialize(shared, Node3dManager.getInstance(), kinds)
+        }
     }
 
 }

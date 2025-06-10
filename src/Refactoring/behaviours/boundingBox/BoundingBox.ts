@@ -78,25 +78,18 @@ export class BoundingBox {
         XRControllerManager.Instance.addButtonListener('right', 'xr-standard-squeeze', this.squeezeListenerId, (event) => {
             const value = event.value !== undefined ? event.value : (event.pressed ? 1 : 0);
 
-            console.log(`Squeeze value: ${value}, last value: ${this._lastSqueezeValue}`);
-
             if (value === 1 && this._lastSqueezeValue < 1) {
-                console.log(`Enabling rotation behavior for BoundingBox `);
                 this._enableRotationBehavior();
             } else if (value < 1 && this._lastSqueezeValue === 1) {
-                console.log(`Disabling rotation behavior for BoundingBox `);
                 this._disableRotationBehavior();
             }
 
             this._lastSqueezeValue = value;
         });
 
-        console.log(`Squeeze handler attached for BoundingBox `);
     }
 
     public addActionHandlers(): void {
-        // Make sure the bounding box exists and actionManager is properly initialized
-        console.log("Entered addActionHandlers BoundingBox.ts");
         if (!this.boundingBox || !this.scene) {
             console.error("Bounding box or scene not initialized properly");
             return;
@@ -105,7 +98,6 @@ export class BoundingBox {
         // Create a highlight layer for pointer interactions
         if (!this.boundingBox.actionManager) {
             try {
-                console.log("doesnt have action manager", this.boundingBox.actionManager)
                 this.boundingBox.actionManager = new B.ActionManager(this.scene);
             } catch (error) {
                 console.error("Failed to initialize ActionManager:", error);
@@ -129,7 +121,6 @@ export class BoundingBox {
         // Apply transformations to the bounding box
         this.boundingBox.position = position;
         this.boundingBox.setDirection(direction);
-        console.log("Changing rotation 2")
 
     }
 
@@ -142,16 +133,13 @@ export class BoundingBox {
     private _enableRotationBehavior(): void {
         if (this.boundingBox && !this.boundingBox.behaviors.includes(this.rotationBehavior)) {
             this.boundingBox.addBehavior(this.rotationBehavior);
-            console.log("enable rotation behavior");
         }
     }
 
     // Disable rotation behavior
     private _disableRotationBehavior(): void {
-
         if (this.boundingBox && this.boundingBox.behaviors.includes(this.rotationBehavior)) {
             this.boundingBox.removeBehavior(this.rotationBehavior)  // Detach the drag inputs
-            console.log("disable rotation behavior");
         }
     }
 
@@ -173,7 +161,6 @@ export class BoundingBox {
             this.boundingBox.dispose();
         }
 
-        console.log(`BoundingBox  disposed`);
     }
 
 }

@@ -3,6 +3,8 @@ import * as tools from "../tools"
 import * as babylonjs from "@babylonjs/core"
 import { UIManager } from "../../app/UIManager";
 import { N3DMenuManager } from "./utils/N3DMenuManager";
+import { SyncManager } from "../../network/sync/SyncManager";
+import { N3DConnectionInstance } from "./N3DConnectionInstance";
 
 export class N3DShared{
 
@@ -11,7 +13,6 @@ export class N3DShared{
         readonly audioContext: AudioContext,
         readonly groupId: string,
     ){}
-
 
 
     readonly highlightLayer = new HighlightLayer(`node3D highlight layer`, this.scene)

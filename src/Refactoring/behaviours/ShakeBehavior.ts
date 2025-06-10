@@ -1,4 +1,4 @@
-import {AbstractMesh, Behavior, SixDofDragBehavior, Vector3} from "@babylonjs/core"
+import {AbstractMesh, Behavior, PointerDragBehavior, SixDofDragBehavior, Vector3} from "@babylonjs/core"
 
 /**
  * A useful behavior used for shake detection.
@@ -27,7 +27,7 @@ export class ShakeBehavior implements Behavior<AbstractMesh> {
 
     name = "shakeBehavior";
 
-    private sixOnDrag : SixDofDragBehavior
+    private sixOnDrag : PointerDragBehavior
     private target : AbstractMesh | null = null
 
     private shake_power = 0
@@ -39,8 +39,8 @@ export class ShakeBehavior implements Behavior<AbstractMesh> {
     private interval : any = null
 
     constructor() {
-        this.sixOnDrag = new SixDofDragBehavior()
-        this.sixOnDrag.disableMovement = true
+        this.sixOnDrag = new PointerDragBehavior()
+        this.sixOnDrag.moveAttached = false
     }
 
     private setShakePower(power: number) {

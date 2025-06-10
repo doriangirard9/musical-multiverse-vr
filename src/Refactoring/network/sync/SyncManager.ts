@@ -105,15 +105,17 @@ export class SyncManager<
             return
         }
 
+        instance.disposeSync()
+
         // Remove the pending modifications
         this.pendingStateChange.delete(id)
-
-        // Call the cleanup function
-        await this.on_remove?.(instance, shared_state, shared_data.data)
 
         // Remove the instance
         this.instances.delete(id)
         this.reverse_instances.delete(instance)
+
+        // Call the cleanup function
+        await this.on_remove?.(instance, shared_state, shared_data.data)
         
         this.doc.transact(()=>{
             this.shared_data.delete(id)
@@ -128,8 +130,10 @@ export class SyncManager<
 
         for(const [id,{action,oldValue}] of event.keys){
             if(action=="delete"){
+
                 // Remove the instance
                 const instance = this.instances.get(id)!! //TODO: Peut être mettre une vérification plutôt que ça.
+                instance.disposeSync()
                 this.instances.delete(id)
                 this.reverse_instances.delete(instance)
 
@@ -170,6 +174,12 @@ export class SyncManager<
     private timeout?: any
 
     private addChange(id:string, key:string, type:"remove"|"add"){
+        const instance = this.instances.get(id)
+        if(!instance){
+            console.warn(`SyncManager : Instance ${id} not found when adding change`)
+            return
+        }
+
         const state_changes = this.pendingStateChange.get(id) ?? new Map<string,"remove"|"add">()
         this.pendingStateChange.delete(id)
         this.pendingStateChange.set(id, state_changes)

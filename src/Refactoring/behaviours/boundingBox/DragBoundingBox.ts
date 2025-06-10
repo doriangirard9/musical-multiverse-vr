@@ -37,12 +37,9 @@ export class DragBoundingBox implements B.Behavior<B.AbstractMesh> {
     }
 
     init(): void {
-        console.log("DragBoundingBox initialized");
     }
 
     attach(target: B.AbstractMesh): void {
-        console.log("DragBoundingBox attached to", target.name);
-
         target.actionManager ??= new B.ActionManager(target._scene)
 
         // Select on pick up
@@ -94,7 +91,6 @@ export class DragBoundingBox implements B.Behavior<B.AbstractMesh> {
     release() {
         if (!this.selected) return;
 
-        console.log(`DragBoundingBox: Releasing ${this.selected.name}`);
         try {
             XRManager.getInstance().xrFeaturesManager.enableFeature(
                 B.WebXRFeatureName.MOVEMENT,
@@ -136,7 +132,6 @@ export class DragBoundingBox implements B.Behavior<B.AbstractMesh> {
             if (this.selected && event.pressed && this.initialPosition) {
                 // Réinitialiser à la position initiale
                 this.selected.position = this.initialPosition.clone();
-                console.log("DragBoundingBox: Reset to initial position");
                 if (!this.selected) this.on_move()
             }
         })

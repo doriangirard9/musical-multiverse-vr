@@ -25,23 +25,28 @@ import { N3DHighlighter } from "./utils/N3DHighlighter";
 import { N3DShared } from "./N3DShared";
 import { N3DMenuInstance } from "./utils/N3DMenuManager";
 import {MeshUtils} from "../tools";
-import {ShakeBehavior} from "../../behaviours/boundingBox/ShakeBehavior.ts";
+import {ShakeBehavior} from "../../behaviours/ShakeBehavior.ts";
 import { NetworkManager } from "../../network/NetworkManager.ts";
+import { N3DButtonInstance } from "./N3DButtonInstance.ts";
 
 export class Node3DInstance implements Synchronized{
 
+    static readonly SIZE_MULTIPLIER = .5
+
     constructor(
         private shared: N3DShared,
-        private node_factory: Node3DFactory<Node3DGUI,Node3D>
+        private node_factory: Node3DFactory<Node3DGUI,Node3D>,
     ){}
 
     private declare gui: Node3DGUI
     private declare node: Node3D
     readonly parameters = new Map<string, N3DParameterInstance>()
+    readonly buttons = new Map<string, N3DButtonInstance>()
     readonly connectables = new Map<string, N3DConnectableInstance>()
     private declare root_transform: TransformNode
     private menu!: N3DMenuInstance
     private highlighter!: N3DHighlighter
+    public on_dispose = ()=>{}
 
     async instantiate(){
         const {scene, highlightLayer, babylon, tools} = this.shared
@@ -72,7 +77,7 @@ export class Node3DInstance implements Synchronized{
 
         gui_root_transform.parent = root_transform
         this.gui.root.parent = gui_root_transform
-        gui_root_transform.scaling.setAll(this.gui.worldSize)
+        gui_root_transform.scaling.setAll(this.gui.worldSize*Node3DInstance.SIZE_MULTIPLIER)
 
 
         // Node related things
@@ -107,10 +112,12 @@ export class Node3DInstance implements Synchronized{
             },
 
             createButton(info) {
-                
+                const button = new N3DButtonInstance(instance.root_transform, highlightLayer, info)
+                instance.buttons.set(info.id, button)
             },
             removeButton(id) {
-                
+                instance.buttons.get(id)?.dispose()
+                instance.buttons.delete(id)
             },
 
             // Les mesh qui font partis de la bounding box
@@ -165,6 +172,8 @@ export class Node3DInstance implements Synchronized{
     private bounding_box = null as null|BoundingBox
     private doUpdateBoundingBox = false
 
+    get boundingBoxMesh(){ return this.bounding_box!!.boundingBox }
+
     private updateBoundingBoxNow(){
         if(this.disposed)return
 
@@ -172,6 +181,7 @@ export class Node3DInstance implements Synchronized{
         this.bounding_mesh?.dispose()
 
         
+        // Update bounds shape
         const bounds = this.boxes
             .map(it=>it.getHierarchyBoundingVectors(true))
             .reduce((a,b)=>({min: a.min.minimizeInPlace(b.min), max: a.max.maximizeInPlace(b.max)}))
@@ -191,31 +201,20 @@ export class Node3DInstance implements Synchronized{
         this.bounding_box = new BoundingBox(this.bounding_mesh)
 
 
-        //// SHAKE TEST ////
+        // Shake behavior
         const shake = new ShakeBehavior()
-        let red =false
-
-        shake.on_start = () => {
-            console.log("start shake")
-            MeshUtils.setColor(this.bounding_box?.boundingBox!!, Color3.Red().toColor4())
-        }
-
-        shake.on_shake = (power: number, time: number) => { 
-            console.log("shaking", power, "during", time) 
-            if(time>5){
-                NetworkManager.getInstance().node3d.nodes.remove(this)
-            }
-        }
-
-        shake.on_stop = (counter: number) => {
-            console.log("stop shaking", counter)
-            MeshUtils.setColor(this.bounding_box?.boundingBox!!, Color3.White().toColor4())
-        }
-
         this.bounding_box.boundingBox.addBehavior(shake)
-        //// SHAKE TEST ////
+
+        shake.on_start = () => MeshUtils.setColor(this.bounding_box?.boundingBox!!, Color3.Red().toColor4())
+
+        shake.on_shake = (_, time: number) => { 
+            if(time>5) NetworkManager.getInstance().node3d.nodes.remove(this)
+        }
+
+        shake.on_stop = () => MeshUtils.setColor(this.bounding_box?.boundingBox!!, Color3.White().toColor4())
 
 
+        // On position change
         this.set_state("position")
         this.bounding_box.on_move = ()=>this.set_state("position")
     }
@@ -270,12 +269,15 @@ export class Node3DInstance implements Synchronized{
     private disposed = false
 
     public async dispose(){
+        if(this.disposed)return
+        this.on_dispose()
         this.disposed = true
         this.set_state("delete")
         this.highlighter.dispose()
         this.bounding_box?.dispose()
         this.bounding_mesh?.dispose()
         this.parameters.forEach(it=>it.dispose())
+        this.buttons.forEach(it=>it.dispose())
         this.connectables.forEach(it=>it.dispose())
         this.menu?.dispose()
         await this.node.dispose()
@@ -291,6 +293,7 @@ export class Node3DInstance implements Synchronized{
         const syncmanager: SyncManager<Node3DInstance,string> = new SyncManager({
             name: "node3d_instances",
             doc,
+            async on_add(instance) { instance.on_dispose = ()=> syncmanager.remove(instance) },
             async create(_,__,kind) { return (await audioManager.builder.create(kind)) as Node3DInstance },
             async on_remove(instance) { await instance.dispose() },
         })
