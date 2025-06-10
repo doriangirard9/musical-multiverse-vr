@@ -34,7 +34,7 @@ interface PatternNote {
   
 
 // colors 
-  // 🎨 Color Constants
+  // Color Constants
   const COLOR_ACTIVE = new B.Color3(1, 0, 0);         // Red
   const COLOR_INACTIVE = new B.Color3(0.2, 0.6, 0.8); // Blue
   const COLOR_PLAYING = new B.Color3(0, 1, 0);        // Green
@@ -55,7 +55,6 @@ class PianoRollN3DGUI implements Node3DGUI {
     scrollUpButton!: B.Mesh
     scrollDownButton!: B.Mesh
     midiOutput!: B.Mesh;
-    buttons: NoteButtonMesh[][] = [];
 
     // Grid properties
     rows: number= 16;
@@ -76,8 +75,9 @@ class PianoRollN3DGUI implements Node3DGUI {
     private _visibleRowCount: number = 7;
     private _startRowIndex: number = 0;
     
-    // piano Black and white buttons
-    private colorBoxes: B.Mesh[] = [];
+    // grid buttons(buttons: blue keys,colorBoxes: black and white keys)
+    buttons: NoteButtonMesh[][] = [];
+    colorBoxes: B.Mesh[] = [];
 
   // scrolling 
   private _btnScrollUp!: B.Mesh;
@@ -86,8 +86,7 @@ class PianoRollN3DGUI implements Node3DGUI {
   //menu
 //   private menu!  : PianoRollSettingsMenu;
 
-    private btnStartStop!: B.Mesh;
-    private isBtnStartStop: boolean = true;
+    public btnStartStop!: B.Mesh;
 
 
   private notes: string[] = [
@@ -101,20 +100,11 @@ class PianoRollN3DGUI implements Node3DGUI {
         this.root = new B.TransformNode("pianoroll root", context.scene)
         this.root.scaling.setAll(0.1);
 
-        this.instantiate()
         // Adjust visible row count if necessary
         if (this.rows < this._visibleRowCount) {
-        this._visibleRowCount = this.rows;
+            this._visibleRowCount = this.rows;
         }
-
-        // this._recalculateGridBoundaries();
-        // this._createBaseMesh();
-        // this._createGrid();
-        // this._createPlayhead();
-        // this._createControlButtons();
-        // this._createScrollButtons();
-        // this._updateRowVisibility();
-
+        this.instantiate()
     }
 
     public async instantiate(): Promise<void> {
@@ -123,7 +113,6 @@ class PianoRollN3DGUI implements Node3DGUI {
         this._recalculateGridBoundaries()
         this._createBaseMesh();
           this.createPlayhead();
-        //   this._initActionManager();//move to node
           this._createScrollButtons();
           this._updateRowVisibility();
         //   this.createMenuButton();// to do : add menu class
@@ -142,10 +131,6 @@ class PianoRollN3DGUI implements Node3DGUI {
           this.midiOutput.scaling.setAll(0.5);
           this.midiOutput.parent = this.root;
 
-
-          
-
-          // this.start();
           this.startStopButton();
         //   this.menu = new PianoRollSettingsMenu(this.context.scene, this);
 
@@ -158,10 +143,11 @@ createGrid(): void {
   for (let row = 0; row < this.rows; row++) {
     const isBlackKey = this.isBlackKeyFromNoteName(this.notes[row]);
     const colorBox = this._createColorBox(row, isBlackKey);
+    colorBox.parent = this.root; // Set parent to root for proper hierarchy
     this.colorBoxes[row] = colorBox;
 
     for (let col = 0; col < this.cols; col++) {
-      const button = this._createNoteButton(row, col, colorBox.position.z);
+      const button = this._createNoteButton(row, col, 1)//colorBox.position.z);
       this.buttons[row].push(button);
     }
   }
@@ -414,33 +400,7 @@ private _recalculateGridBoundaries(): void {
       B.Color3.Green(),
       new B.Vector3(this.startX - (this.buttonWidth + this.buttonSpacing), 0.2, this.endZ + (this.buttonDepth + this.buttonSpacing)),
       this.root
-    );
-
-    // add click action to toggle start stop button
-    this.btnStartStop.actionManager = new B.ActionManager(this.context.scene);
-    this.btnStartStop.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickTrigger, () => {
-    
-    const mat = this.btnStartStop.material as B.StandardMaterial;
-    // check if color is green
-
-    // TODO : move to Node
-    // if (this.isBtnStartStop) {
-    //   this.stop()
-
-    //   this.isBtnStartStop = false;
-    //   mat.diffuseColor = B.Color3.Red();
-    //   // textBlock.text = "Stop";
-    //   } else {
-    //     this.start()
-
-    //     this.isBtnStartStop = true;
-    //     mat.diffuseColor = B.Color3.Green();
-    //     // textBlock.text = "Start";
-    //   }
-    }));
-
-    
-    
+    ); 
   }
 
   getButton(row: number, col: number): NoteButtonMesh | null {
@@ -474,6 +434,7 @@ class PianoRollN3D implements Node3D{
       private timeSignatureDenominator = 4;
       private context;
       private notes: string[] = [];
+      private isBtnStartStop: boolean = true;
 
     constructor(context: Node3DContext, private gui: PianoRollN3DGUI){
         const {tools:T} = context
@@ -505,7 +466,7 @@ class PianoRollN3D implements Node3D{
           scene.onBeforeRenderObservable.add(() => this.update());
         }
         this.initActions()
-
+        this.toggleStartStopBtn();
         // this.start()
         // Create note buttons
 
@@ -534,11 +495,10 @@ class PianoRollN3D implements Node3D{
            "MIDI Output",
            this.wamInstance.audioNode
        );
-         // output.receive("connectMidi")
-         this.context.createConnectable(output);
+
+       this.context.createConnectable(output);
          this.started = true;
-        // this.startTime = performance.now() / 1000; // Convert to seconds
-        // this.gui.setStartStopButtonColor(true);
+
         this.startTime = this.context.audioCtx.currentTime;
         this.wamInstance.audioNode.scheduleEvents({
           type: "wam-transport",
@@ -616,7 +576,28 @@ class PianoRollN3D implements Node3D{
                 }
             }
           }
+          toggleStartStopBtn(): void {
+            if(!this.gui.btnStartStop.actionManager)
+            this.gui.btnStartStop.actionManager = new B.ActionManager(this.gui.context.scene);
+            this.gui.btnStartStop.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickTrigger, () => {
+                const mat = this.gui.btnStartStop.material as B.StandardMaterial;
+                if (this.isBtnStartStop) {
+                    this.stop()
+                    
+                    this.isBtnStartStop = false;
+                    mat.diffuseColor = B.Color3.Red();
+                    // textBlock.text = "Stop";
+                } else {
+                    this.start()
+                    
+                    this.isBtnStartStop = true;
+                    mat.diffuseColor = B.Color3.Green();
+                    // textBlock.text = "Start";
+                }
+            }));
+            };
           
+
 
           // helpers
           convertNoteToMidi(note: string): number | null {
