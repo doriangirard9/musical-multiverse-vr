@@ -77,7 +77,7 @@ class PianoRollN3DGUI implements Node3DGUI {
     
     // grid buttons(buttons: blue keys,colorBoxes: black and white keys)
     buttons: NoteButtonMesh[][] = [];
-    colorBoxes: B.Mesh[] = [];
+    keyBoard: B.Mesh[] = [];
 
   // scrolling 
   private _btnScrollUp!: B.Mesh;
@@ -109,8 +109,8 @@ class PianoRollN3DGUI implements Node3DGUI {
 
     public async instantiate(): Promise<void> {
 
-        this.createGrid();
-        this._recalculateGridBoundaries()
+      this._recalculateGridBoundaries()
+      this.createGrid();
         this._createBaseMesh();
           this.createPlayhead();
           this._createScrollButtons();
@@ -138,13 +138,13 @@ class PianoRollN3DGUI implements Node3DGUI {
 
 createGrid(): void {
   this.buttons = Array.from({ length: this.rows }, () => []);
-  this.colorBoxes = Array.from({ length: this.rows }, () => undefined as unknown as B.Mesh);
+  this.keyBoard = Array.from({ length: this.rows }, () => undefined as unknown as B.Mesh);
 
   for (let row = 0; row < this.rows; row++) {
     const isBlackKey = this.isBlackKeyFromNoteName(this.notes[row]);
     const colorBox = this._createColorBox(row, isBlackKey);
     colorBox.parent = this.root; // Set parent to root for proper hierarchy
-    this.colorBoxes[row] = colorBox;
+    this.keyBoard[row] = colorBox;
 
     for (let col = 0; col < this.cols; col++) {
       const button = this._createNoteButton(row, col, 1)//colorBox.position.z);
@@ -335,8 +335,8 @@ this.block = this._createBox(
         const isVisible = row >= this._startRowIndex && row < endRowIndex;
 
         // === Update the Keyboard (colorBox) as well ===
-        if (this.colorBoxes[row]) {
-            const colorBox = this.colorBoxes[row];
+        if (this.keyBoard[row]) {
+            const colorBox = this.keyBoard[row];
 
             if (isVisible) {
                 // Calculate the visual row index relative to the visible window
