@@ -4,6 +4,8 @@ import type { Node3DGUIContext } from "../../Node3DGUIContext";
 import { MidiN3DConnectable } from "../../tools";
 import { Node3DContext } from "../../Node3DContext";
 import * as B from "@babylonjs/core";
+import { WebAudioModule } from "@webaudiomodules/api";
+import { WamInitializer } from "../../../app/WamInitializer";
 interface PatternNote {
     tick: number;
     number: number;
@@ -65,10 +67,10 @@ class PianoRollN3DGUI implements Node3DGUI {
     private startZ!: number;
     private endZ!: number;
 
-    private buttonWidth = 2;
-    private buttonHeight = 0.2;
-    private buttonDepth = 0.5;
-    private buttonSpacing = 0.2;
+    buttonWidth = 2;
+    buttonHeight = 0.2;
+    buttonDepth = 0.5;
+    buttonSpacing = 0.2;
 
     // Scrolling properties
     private _visibleRowCount: number = 7;
@@ -93,7 +95,7 @@ class PianoRollN3DGUI implements Node3DGUI {
     "C4", "C#4", "D4", "D#4", "E4", "F4", "F#4", "G4", "G#4", "A4", "A#4", "B4"
   ];
 
-    constructor(private context: Node3DGUIContext) {
+    constructor(public context: Node3DGUIContext) {
         const {babylon:B,tools:T} = context
         this.tool= T;
         this.root = new B.TransformNode("pianoroll root", context.scene)
@@ -441,6 +443,12 @@ private _recalculateGridBoundaries(): void {
     
   }
 
+  getButton(row: number, col: number): NoteButtonMesh | null {
+    if (this.buttons[row] && this.buttons[row][col]) {
+        return this.buttons[row][col] as NoteButtonMesh;
+    }
+    return null;
+  }
     async dispose(): Promise<void> {
         // this.root.dispose()
 
@@ -454,8 +462,34 @@ private _recalculateGridBoundaries(): void {
 
 class PianoRollN3D implements Node3D{
 
+      private wamInstance!: WebAudioModule;
+      private pattern: Pattern;
+      private tempo: number = 120;
+      private started: boolean = false;
+      private startTime: number = 0;
+      private ticksPerColumn: number = 6;
+      private beatDuration: number;
+      private cellDuration: number;
+      private timeSignatureNumerator = 4;
+      private timeSignatureDenominator = 4;
+      private context;
+      private notes: string[] = [];
+
     constructor(context: Node3DContext, private gui: PianoRollN3DGUI){
         const {tools:T} = context
+        this.context = context;
+        this.beatDuration = 60 / this.tempo;
+        this.cellDuration = this.beatDuration / this.timeSignatureDenominator;
+        this.pattern = {
+            length: this.gui.cols * this.ticksPerColumn,
+            notes: []
+        };
+        this.notes = [
+            "C3", "C#3", "D3", "D#3", "E3", "F3", "F#3", "G3", "G#3", "A3", "A#3", "B3",
+            "C4", "C#4", "D4", "D#4", "E4", "F4", "F#4", "G4", "G#4", "A4", "A#4", "B4"
+        ];
+        
+        
         const pianoRoll = this
         context.addToBoundingBox(gui.block)
 
@@ -463,11 +497,227 @@ class PianoRollN3D implements Node3D{
         
         const midi_output = new T.MidiN3DConnectable.ListOutput("midioutput", [gui.midiOutput], "MIDI Output")
         context.createConnectable(midi_output)
+        
+        this.wamInitializer();
+        
+        const scene = gui.context.scene;
+        if (scene && scene.onBeforeRenderObservable) {
+          scene.onBeforeRenderObservable.add(() => this.update());
+        }
+        this.initActions()
 
+        // this.start()
         // Create note buttons
 
     }
 
+      private async wamInitializer(){
+      
+        
+         this.wamInstance = await WamInitializer.getInstance().initWamInstance("https://www.webaudiomodules.com/community/plugins/burns-audio/pianoroll/index.js");
+    
+        //  const wamURISynth = 'https://wam-4tt.pages.dev/Pro54/index.js';
+        //  const synth= await WamInitializer.getInstance().initWamInstance(wamURISynth)
+    
+        //  this.wamInstance.audioNode.connectEvents(synth.instanceId);
+        //  const builder = new Node3DBuilder();
+        // const audioOutput=  builder.create('audiooutput') //as Promise<Node3DInstance>;
+    
+        //   synth.audioNode.connect(this.context.audioCtx.destination);
+         
+        //  console.log("wam instance",this.wamInstance)
+        
+         // Create MIDI output connectable
+         const output = new MidiN3DConnectable.Output(
+           "midiOutput", 
+           [this.gui.midiOutput], 
+           "MIDI Output",
+           this.wamInstance.audioNode
+       );
+         // output.receive("connectMidi")
+         this.context.createConnectable(output);
+         this.started = true;
+        // this.startTime = performance.now() / 1000; // Convert to seconds
+        // this.gui.setStartStopButtonColor(true);
+        this.startTime = this.context.audioCtx.currentTime;
+        this.wamInstance.audioNode.scheduleEvents({
+          type: "wam-transport",
+          data: {
+            playing: true,
+            timeSigDenominator: 4,
+            timeSigNumerator: 4,
+            currentBar: 0,
+            currentBarStarted: this.context.audioCtx.currentTime,
+            tempo: this.tempo,
+          },
+        });
+        }
+
+
+        start(): void {
+            this.started = true;
+            this.startTime = this.context.audioCtx.currentTime;
+            this.wamInstance.audioNode.scheduleEvents({
+              type: "wam-transport",
+              data: {
+                playing: true,
+                timeSigDenominator: 4,
+                timeSigNumerator: 4,
+                currentBar: 0,
+                currentBarStarted: this.context.audioCtx.currentTime,
+                tempo: this.tempo,
+              },
+            });
+          }
+          
+          stop(): void {
+            this.started = false;
+            this.gui.playhead.position.x = this.gui.getStartX();
+            this.wamInstance.audioNode.scheduleEvents({
+              type: "wam-transport",
+              data: {
+                playing: false,
+                timeSigDenominator: 4,
+                timeSigNumerator: 4,
+                currentBar: 0,
+                currentBarStarted: this.context.audioCtx.currentTime,
+                tempo: this.tempo,
+              },
+            });
+          }
+
+          update(): void {
+            if (!this.started) return;
+          
+            const elapsed = this.context.audioCtx.currentTime - this.startTime;
+            const currentCell = (elapsed / this.cellDuration) % this.gui.cols;
+          
+            const x = (currentCell * (this.gui.buttonWidth + this.gui.buttonSpacing))
+                - ((this.gui.cols - 1) / 2 * (this.gui.buttonWidth + this.gui.buttonSpacing)) - this.gui.buttonWidth / 2;
+            this.gui.playhead.position.x = x;
+          
+            const currentCol = Math.floor(currentCell);
+            this.highlightActiveButtons(currentCol);
+          }
+          highlightActiveButtons(currentCol: number): void {
+            for (let row = 0; row < this.gui.rows; row++) {
+                const button = this.gui.getButton(row, currentCol);
+                
+                if (button && button.isActive) {
+                    button.material.diffuseColor = COLOR_PLAYING; // Green for active
+                    
+                    setTimeout(() => {
+                        if (button.isActive) {
+                            button.material.diffuseColor = button.isActive
+                                ? COLOR_ACTIVE // Red for active
+                                : COLOR_INACTIVE; // Blue for inactive
+                        }
+                    }, this.cellDuration * 1000);
+                }
+            }
+          }
+          
+
+          // helpers
+          convertNoteToMidi(note: string): number | null {
+            const noteRegex = /^([A-G])(#?)(\d)$/;
+            const semitoneOffsets: Record<string, number> = {
+              'C': 0, 'C#': 1, 'D': 2, 'D#': 3, 'E': 4,
+              'F': 5, 'F#': 6, 'G': 7, 'G#': 8, 'A': 9,
+              'A#': 10, 'B': 11
+            };
+        
+            const match = note.match(noteRegex);
+            if (!match) return null;
+            const [_, base, sharp, octaveStr] = match;
+            const key = base + (sharp || '');
+            const octave = parseInt(octaveStr, 10);
+            return 12 * (octave + 1) + semitoneOffsets[key];
+          }
+
+          //patterns
+          sendPatternToPianoRoll(): void {
+            const delegate = window?.WAMExtensions?.patterns?.getPatternViewDelegate(
+              this.wamInstance.audioNode.instanceId
+            );
+            if (!delegate) return;
+            delegate.setPatternState("default", this.pattern);
+            console.log("sendPatternToPianoRoll", this.pattern);
+          }
+          
+          updatePattern(row: number, col: number, isActive: boolean): void {
+            const note = this.notes[row];
+            const midi = this.convertNoteToMidi(note);
+            if (midi === null) return;
+          
+            const tick = col * this.ticksPerColumn;
+            const index = this.pattern.notes.findIndex(n => n.number === midi && n.tick === tick);
+          
+            if (isActive && index === -1) {
+              this.pattern.notes.push({ tick, number: midi, duration: 6, velocity: 100 });
+            } else if (!isActive && index !== -1) {
+              this.pattern.notes.splice(index, 1);
+            }
+          
+            this.sendPatternToPianoRoll();
+          
+            // send to network
+            // this._app.networkManager?.setPattern(this.id, this.pattern);
+          }
+          toggleNoteColor(row: number, col: number): void {
+            const button = this.gui.getButton(row, col);
+            if (!button) return;
+          
+            button.isActive = !button.isActive;
+            const material = button.material as B.StandardMaterial; // <-- Cast to StandardMaterial
+            material.diffuseColor = button.isActive
+                ? COLOR_ACTIVE // Red for active
+                : COLOR_INACTIVE; // Blue for inactive
+          
+            this.updatePattern(row, col, button.isActive);
+          }
+          public setPattern(pattern: Pattern): void {
+            this.pattern = pattern;
+          
+            // Reset grid
+            this.gui.buttons.forEach(row => row.forEach(btn => {
+              btn.isActive = false;
+              btn.material.diffuseColor = COLOR_INACTIVE;
+            }));
+          
+            // Apply new pattern
+            pattern.notes.forEach(note => {
+              const col = Math.floor(note.tick / this.ticksPerColumn);
+              const row = this.notes.findIndex(n => this.convertNoteToMidi(n) === note.number);
+              if (row >= 0 && col >= 0 && row < this.gui.rows && col < this.gui.cols) {
+                const btn = this.gui.getButton(row, col);
+                if (btn) {
+                  btn.isActive = true;
+                  (btn.material as B.StandardMaterial).diffuseColor = COLOR_ACTIVE;
+                }
+              }
+            });
+          
+            this.sendPatternToPianoRoll();
+          }
+          
+          
+          //action Manager
+          
+          initActions(): void {
+            for (let row = 0; row < this.gui.rows; row++) {
+                for (let col = 0; col < this.gui.cols; col++) {
+                    const button = this.gui.buttons[row][col];
+                    button.actionManager = new B.ActionManager(this.gui.context.scene);
+          
+                    button.actionManager.registerAction(new B.ExecuteCodeAction(
+                        B.ActionManager.OnPickTrigger,
+                        () => this.toggleNoteColor(row, col)
+                    ));
+                }
+            }
+          }
+          
     async setState(key: string, state: any): Promise<void> { }
 
     async getState(key: string): Promise<any> { }
