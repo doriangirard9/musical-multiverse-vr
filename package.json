@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host",
-    "build": "tsc && vite build",
+    "build": "tsc --noEmit --skipLibCheck && vite build",
+    "build:prod": "vite build --mode production --no-emptyOutDir",
     "preview": "vite preview"
   },
   "devDependencies": {
@@ -13,7 +14,7 @@
     "@types/uuid": "^10.0.0",
     "@webaudiomodules/api": "^2.0.0-alpha.6",
     "typescript": "^5.8.2",
-    "vite": "^6.2.2"
+    "vite": "6.3.4"
   },
   "dependencies": {
     "@babylonjs/core": "^7.54.0",

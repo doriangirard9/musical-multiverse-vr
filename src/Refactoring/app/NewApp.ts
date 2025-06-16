@@ -53,7 +53,7 @@ export class NewApp {
         {
             setTimeout(()=>Inspector.Show(scene,{}), 10000)
             // Mais qu'est ce donc ??? On peut rendre le magasin encore plus cool ????? J'ose pas mettre "true", c'est probablement TROP cool.
-            let mode_magasin_super_giga_cool = true
+            let mode_magasin_super_giga_cool = false
 
             const model = (await ImportMeshAsync(Node3DShop.SHOP_MODEL_URL, scene)).meshes[0]
             model.position.set(0, -2.65, 50)

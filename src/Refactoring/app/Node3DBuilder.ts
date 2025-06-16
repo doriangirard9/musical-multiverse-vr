@@ -14,7 +14,8 @@ import { LivePianoN3DFactory } from "../node3d/subs/LivePianoN3D.ts";
 import {NoteBoxN3DFactory} from "../node3d/subs/NoteBoxN3D.ts";
 
 
-const WAM_CONFIGS_URL: string = "http://localhost:3000";
+const WAM_CONFIGS_URL: string = "https://wamjamparty.i3s.univ-cotedazur.fr/config"//"http://localhost:3000";
+
 export type Node3DConfig = { name: string, wam3d: WAMGuiInitCode }
 
 export class Node3DBuilder {
