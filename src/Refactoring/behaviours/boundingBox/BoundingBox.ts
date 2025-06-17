@@ -50,7 +50,7 @@ export class BoundingBox {
         this.boundingBox.isVisible = true;
         this.boundingBox.visibility = 0;
         this.boundingBox.isPickable = true;
-        this.boundingBox.checkCollisions = true;
+        this.boundingBox.checkCollisions = false;
     }
 
     private setupBehaviors(): void {
