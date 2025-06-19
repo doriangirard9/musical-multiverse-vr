@@ -93,7 +93,7 @@ export class AxisInput {
     _registerXRObserver(motionController: WebXRAbstractMotionController): {remove(): void} {
         if(motionController.handness !== this.side) return { remove: () => {} }
         return motionController.getComponent("xr-standard-thumbstick")?.onAxisValueChangedObservable.add((event) => {
-            this._notify({ axis: this, x: event.x, y: event.y })
+            this._notify({ axis: this, x: event.x, y: -event.y })
         })
     }
 

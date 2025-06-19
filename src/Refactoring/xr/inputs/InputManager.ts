@@ -25,10 +25,10 @@ export class InputManager {
     readonly b_button = new ButtonInput("b-button", "right", "b")
     readonly on_button_change = new Observable<ButtonInputEvent>()
 
-    readonly left_trigger = new PressableInput("xr-standard-trigger", "left", "xr-standard-trigger")
-    readonly right_trigger = new PressableInput("xr-standard-trigger", "right", "xr-standard-trigger")
-    readonly left_squeeze = new PressableInput("xr-standard-squeeze", "left", "xr-standard-squeeze")
-    readonly right_squeeze = new PressableInput("xr-standard-squeeze", "right", "xr-standard-squeeze")
+    readonly left_trigger = new PressableInput("xr-standard-trigger", "left", "q")
+    readonly right_trigger = new PressableInput("xr-standard-trigger", "right", "s")
+    readonly left_squeeze = new PressableInput("xr-standard-squeeze", "left", "w")
+    readonly right_squeeze = new PressableInput("xr-standard-squeeze", "right", "x")
     readonly on_trigger_change = new Observable<PressableInputEvent>()
     readonly on_squeeze_change = new Observable<PressableInputEvent>()
     readonly on_pressable_change = new Observable<PressableInputEvent>()
@@ -98,7 +98,7 @@ export class InputManager {
 
             // A pointer movement caused by the mouse will deactivate the XR controllers movements
             if(!event.pickInfo?.originMesh) last_mouse_movement = Date.now()
-            else if(Date.now() - last_mouse_movement < 1000) return
+            else if(Date.now() - last_mouse_movement < 5000) return
 
             this.pointer_move.notifyObservers({ray: event.pickInfo?.ray!!})
         })

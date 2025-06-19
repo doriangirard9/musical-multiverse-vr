@@ -2,11 +2,12 @@ import {SceneManager} from "./SceneManager.ts";
 import {XRManager} from "../xr/XRManager.ts";
 import {Node3dManager} from "./Node3dManager.ts";
 import {AppOrchestrator} from "./AppOrchestrator.ts";
-import {CreateBox, ImportMeshAsync} from "@babylonjs/core";
+import {CreateBox, ImportMeshAsync, Quaternion, WebXRFeatureName} from "@babylonjs/core";
 import {Node3DShop} from "../world/Node3DShop.ts";
 import {Node3DBuilder} from "./Node3DBuilder.ts";
 import {HoldBehaviour} from "../behaviours/boundingBox/HoldBehavior.ts";
 import {XRControllerManager} from "../xr/XRControllerManager.ts";
+import { RotateBehaviour } from "../behaviours/boundingBox/RotateBehavior.ts";
 
 export class NewApp {
     private audioCtx: AudioContext | undefined;
@@ -47,9 +48,10 @@ export class NewApp {
         //await this.audioManager!!.createNode3d("notesbox")
         //await this.audioManager!!.createNode3d("audiooutput")
 
-        const mesh = CreateBox("box", {size: 1}, scene)
-        const behavior = new HoldBehaviour(scene, this.xrManager!!, XRControllerManager.Instance)
-        mesh.addBehavior(behavior)
+        //const mesh = CreateBox("box", {size: 1}, scene)
+        // const behavior = new HoldBehaviour(XRControllerManager.Instance)
+        // const behavior = new RotateBehaviour()
+        //mesh.addBehavior(behavior)
 
         const shared = this.audioManager?.builder?.shared!!
 
