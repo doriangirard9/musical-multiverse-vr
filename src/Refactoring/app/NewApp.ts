@@ -1,12 +1,12 @@
 import {SceneManager} from "./SceneManager.ts";
 import {XRManager} from "../xr/XRManager.ts";
 import {Node3dManager} from "./Node3dManager.ts";
-import { AppOrchestrator } from "./AppOrchestrator.ts";
-import { createStandCollection } from "../world/Node3DStand.ts";
-import { ImportMeshAsync } from "@babylonjs/core";
-import { Node3DShop } from "../world/Node3DShop.ts";
-import { Node3DBuilder } from "./Node3DBuilder.ts";
-import { Inspector } from "@babylonjs/inspector";
+import {AppOrchestrator} from "./AppOrchestrator.ts";
+import {CreateBox, ImportMeshAsync} from "@babylonjs/core";
+import {Node3DShop} from "../world/Node3DShop.ts";
+import {Node3DBuilder} from "./Node3DBuilder.ts";
+import {HoldBehaviour} from "../behaviours/boundingBox/HoldBehavior.ts";
+import {XRControllerManager} from "../xr/XRControllerManager.ts";
 
 export class NewApp {
     private audioCtx: AudioContext | undefined;
@@ -44,16 +44,21 @@ export class NewApp {
         this.sceneManager.start();
         await this.xrManager!!.init(this.sceneManager.getScene());
         
-        await this.audioManager!!.createNode3d("notesbox")
-        await this.audioManager!!.createNode3d("audiooutput")
+        //await this.audioManager!!.createNode3d("notesbox")
+        //await this.audioManager!!.createNode3d("audiooutput")
+
+        const mesh = CreateBox("box", {size: 1}, scene)
+        const behavior = new HoldBehaviour(scene, this.xrManager!!, XRControllerManager.Instance)
+        mesh.addBehavior(behavior)
 
         const shared = this.audioManager?.builder?.shared!!
 
+        // setTimeout(()=>Inspector.Show(scene,{}), 10000)
+
         //// LE SUPER MAGASIN ////
         {
-            setTimeout(()=>Inspector.Show(scene,{}), 10000)
             // Mais qu'est ce donc ??? On peut rendre le magasin encore plus cool ????? J'ose pas mettre "true", c'est probablement TROP cool.
-            let mode_magasin_super_giga_cool = true
+            let mode_magasin_super_giga_cool = false
 
             const model = (await ImportMeshAsync(Node3DShop.SHOP_MODEL_URL, scene)).meshes[0]
             model.position.set(0, -2.65, 50)

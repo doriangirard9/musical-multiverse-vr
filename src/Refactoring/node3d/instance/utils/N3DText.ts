@@ -1,4 +1,4 @@
-import { AbstractMesh, Axis, CreatePlane, Space, TransformNode } from "@babylonjs/core";
+import { AbstractMesh, CreatePlane } from "@babylonjs/core";
 import { AdvancedDynamicTexture, TextBlock } from "@babylonjs/gui";
 
 /**
@@ -10,8 +10,8 @@ export class N3DText{
     block
     texture
 
-    constructor(label:string, private root: TransformNode, private targets: AbstractMesh[]){
-        const plane = this.plane = CreatePlane(`${label} text plane`, { size: 1, width: 5 }, root.getScene())
+    constructor(label:string, private targets: AbstractMesh[]){
+        const plane = this.plane = CreatePlane(`${label} text plane`, { size: 1, width: 5 }, targets[0].getScene())
         plane.billboardMode = AbstractMesh.BILLBOARDMODE_ALL
         plane.setEnabled(false)
 

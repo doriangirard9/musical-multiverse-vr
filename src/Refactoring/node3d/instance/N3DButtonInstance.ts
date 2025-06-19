@@ -29,7 +29,7 @@ export class N3DButtonInstance {
 
         /* Parameter value text visual */
         // Gère l'affichage du texte de la valeur du paramètre
-        const text = this.text = new N3DText(`button ${config.id}`, root, config.meshes)
+        const text = this.text = new N3DText(`button ${config.id}`, config.meshes)
         /* */
 
 

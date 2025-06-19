@@ -54,7 +54,7 @@ export class N3DConnectionInstance{
     private cOutput = null as N3DConnectableInstance|null
     private cInput = null as N3DConnectableInstance|null
     private observables = [] as Observer<any>[]
-    private color = Color3.White().toColor4(1) //TODO: Gérer la couleur de la connexion
+    private color = Color3.White().toColor4(1)
     private buildTimeout?: any
 
     /**

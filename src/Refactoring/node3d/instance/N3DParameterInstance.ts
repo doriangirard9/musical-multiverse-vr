@@ -32,7 +32,7 @@ export class N3DParameterInstance {
 
         /* Parameter value text visual */
         // Gère l'affichage du texte de la valeur du paramètre
-        const text = this.text = new N3DText(`parameter ${config.id}`, root, config.meshes)
+        const text = this.text = new N3DText(`parameter ${config.id}`, config.meshes)
         /* */
 
 
