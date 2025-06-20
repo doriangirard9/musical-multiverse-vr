@@ -432,6 +432,9 @@ recalculateGridBoundaries(): void {
           new B.Vector3(0, 0.6, 0),
           this.root
         );
+        // position the button in the corner top right of the grid
+        this.menuButton.position.x = this.endX + (this.buttonWidth + this.buttonSpacing);
+        this.menuButton.position.z = -this.endZ - (this.buttonDepth + this.buttonSpacing);
   
         // // add click action to start stop button
         // this.menuButton.actionManager = new B.ActionManager(this.context.scene);
