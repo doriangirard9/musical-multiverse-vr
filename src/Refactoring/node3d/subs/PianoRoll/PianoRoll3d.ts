@@ -726,7 +726,7 @@ export class PianoRollN3D implements Node3D{
             material.diffuseColor = button.isActive
                 ? COLOR_ACTIVE // Red for active
                 : COLOR_INACTIVE; // Blue for inactive
-          
+           this.context.notifyStateChange('pattern');  // Triggers network sync
             this.updatePattern(row, col, button.isActive);
           }
           public setPattern(pattern: Pattern): void {
@@ -1016,18 +1016,27 @@ export class PianoRollN3D implements Node3D{
       
       
       
+        
+
+      async getState(key: string): Promise<any> {
+
+        if (key === 'pattern') {
+          return { pattern: this.pattern, timestamp: Date.now() };
+        }
+      }
       
-        
-    async setState(key: string, state: any): Promise<void> { }
-
-    async getState(key: string): Promise<any> { }
-
-    getStateKeys(): string[] { return []}
-
-    async dispose(): Promise<void> {
-        
-    }
-
+      async setState(key: string, state: any): Promise<void> {
+        if (key === 'pattern') {
+          this.setPattern(state.pattern);  // Apply remote pattern
+          
+        }
+      }
+      getStateKeys(): string[] { return ['pattern']}
+  
+      async dispose(): Promise<void> {
+          
+      }
+      
 }
 
 
