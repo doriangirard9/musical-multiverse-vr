@@ -95,7 +95,6 @@ export class RotateBoundingBox implements B.Behavior<B.AbstractMesh> {
             this._startRotation(controller);
 
         }
-
     }
 
     private _startRotation(controller: B.WebXRInputSource): void {

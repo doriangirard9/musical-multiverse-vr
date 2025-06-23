@@ -34,7 +34,7 @@ export class XRInputManager {
             }
         });
     }
-
+    
     /**
      * Configure les écouteurs pour les événements d'ajout et de suppression de contrôleurs
      */
