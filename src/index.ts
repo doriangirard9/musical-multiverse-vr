@@ -1,16 +1,19 @@
-import {App} from "./App.ts";
-import * as Tone from "tone";
+import {NewApp} from "./Refactoring/app/NewApp.ts";
 
 const audioCtx: AudioContext = new AudioContext();
 
-window.onload = (): void => {
-    Tone.setContext(audioCtx);
-    const app: App = App.getInstance(audioCtx);
-    app.startScene();
-};
+let onload = (): void => {
+    const newApp: NewApp = NewApp.getInstance(audioCtx);
+    newApp.start().then(() => {
+        console.log("NewApp started");
+    }).catch((error) => {
+        console.error("Error starting NewApp:", error);
+    });
+}
+
+if(document.readyState === "complete") onload()
+else window.addEventListener("load", onload)
 
 window.addEventListener('click', async (): Promise<void> => {
     await audioCtx.resume();
-    await Tone.start();
-    await Tone.Transport.context.resume();
 }, { once: true });
