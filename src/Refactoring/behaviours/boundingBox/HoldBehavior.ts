@@ -1,5 +1,5 @@
-import { Behavior, Quaternion, Ray, TransformNode, Vector3 } from "@babylonjs/core";
-import { InputManager } from "../../xr/inputs/InputManager";
+import { Behavior, Quaternion, TransformNode, Vector3 } from "@babylonjs/core";
+import { InputManager, PointerMovementEvent } from "../../xr/inputs/InputManager";
 
 /**
  * An object attached to this behavior will be moved around by the user with his controller.
@@ -10,10 +10,12 @@ import { InputManager } from "../../xr/inputs/InputManager";
 export class HoldBehaviour implements Behavior<TransformNode> {
   
   name = "HoldBehaviour"
-  distance = 5
+  distance = 4
   target!: TransformNode
-  ray!: Ray
+  pointer?: PointerMovementEvent
   oldRotation?: Quaternion
+
+  on_move: () => void = () => {}
 
   constructor(){}
 
@@ -25,8 +27,8 @@ export class HoldBehaviour implements Behavior<TransformNode> {
     const inputs = InputManager.getInstance()
 
     // Move around by dragging
-    const o = inputs.pointer_move.add(event => {
-      this.ray = event.ray
+    const o = inputs.pointer_move.add(new_pointer => {
+      this.pointer = new_pointer
       this.updatePos()
     })
 
@@ -47,17 +49,20 @@ export class HoldBehaviour implements Behavior<TransformNode> {
   detach!: () => void
 
   updatePos(){
-    const {origin,direction} = this.ray
-    const position = direction.clone() .scaleInPlace(this.distance) .addInPlace(origin)
+    if(!this.pointer) return // Ensure ray is initialized
+
+    const {origin, forward, up, right} = this.pointer
+    const position = forward.clone() .scaleInPlace(this.distance) .addInPlace(origin)
     this.target.position.copyFrom(position)
 
-    const newRotation = Quaternion.FromUnitVectorsToRef(Vector3.Forward(), direction.normalizeToNew(), new Quaternion())
+    const newRotation = Quaternion.FromLookDirectionRH(forward, up.negate())
     if(this.oldRotation){
       const delta = this.oldRotation.conjugate().multiply(newRotation)
       this.target.rotationQuaternion = null
       this.target.rotation = delta.multiply(this.target.rotation.toQuaternion()).toEulerAngles()
     }
     this.oldRotation = newRotation
+    this.on_move()
   }
 
 }

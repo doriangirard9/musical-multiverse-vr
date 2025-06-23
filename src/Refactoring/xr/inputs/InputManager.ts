@@ -1,10 +1,13 @@
-import { Observable, PointerEventTypes, Ray, Scene, WebXRDefaultExperience, WebXRInputSource } from "@babylonjs/core";
+import { Observable, PointerEventTypes, Scene, Vector3, WebXRDefaultExperience, WebXRInputSource } from "@babylonjs/core";
 import { ButtonInput, ButtonInputEvent } from "./ButtonInput";
 import { PressableInput, PressableInputEvent } from "./PressableInput";
 import { AxisInput, AxisInputEvent } from "./AxisInput";
 
 export interface PointerMovementEvent {
-    ray: Ray
+    origin: Vector3,
+    forward: Vector3,
+    up: Vector3,
+    right: Vector3,
 }
 
 export class InputManager {
@@ -100,7 +103,11 @@ export class InputManager {
             if(!event.pickInfo?.originMesh) last_mouse_movement = Date.now()
             else if(Date.now() - last_mouse_movement < 5000) return
 
-            this.pointer_move.notifyObservers({ray: event.pickInfo?.ray!!})
+            const origin = event.pickInfo?.ray?.origin!!
+            const forward = event.pickInfo?.ray?.direction?.normalize()!!
+            const right = forward.cross(Vector3.Up()).negateInPlace().normalize()
+            const up = right.cross(forward).normalize()
+            if(event.pickInfo)this.pointer_move.notifyObservers({origin, forward, up, right})
         })
     }
 }

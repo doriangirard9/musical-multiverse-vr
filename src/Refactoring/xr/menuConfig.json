@@ -21,7 +21,8 @@
           { "name": "Flute", "kind": "flute" },
           { "name": "Guitar", "kind": "guitar" },
           { "name": "Modal", "kind": "modal" },
-          { "name": "Tiny54", "kind": "tiny54" }
+          { "name": "Tiny54", "kind": "tiny54" },
+          { "name": "Drum", "kind": "drum" }
         ]
     },
     {

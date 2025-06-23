@@ -8,6 +8,7 @@ import {Node3DBuilder} from "./Node3DBuilder.ts";
 import {HoldBehaviour} from "../behaviours/boundingBox/HoldBehavior.ts";
 import {XRControllerManager} from "../xr/XRControllerManager.ts";
 import { RotateBehaviour } from "../behaviours/boundingBox/RotateBehavior.ts";
+import { TakableBehavior } from "../behaviours/boundingBox/TakableBehavior.ts";
 
 export class NewApp {
     private audioCtx: AudioContext | undefined;
@@ -45,13 +46,14 @@ export class NewApp {
         this.sceneManager.start();
         await this.xrManager!!.init(this.sceneManager.getScene());
         
-        //await this.audioManager!!.createNode3d("notesbox")
+        await this.audioManager!!.createNode3d("notesbox")
         //await this.audioManager!!.createNode3d("audiooutput")
 
-        //const mesh = CreateBox("box", {size: 1}, scene)
-        // const behavior = new HoldBehaviour(XRControllerManager.Instance)
-        // const behavior = new RotateBehaviour()
-        //mesh.addBehavior(behavior)
+        // const mesh = CreateBox("box", {size: 1}, scene)
+        // const behavior = new HoldBehaviour()
+        // mesh.addBehavior(behavior)
+        //behavior.setBoundingBoxes([mesh.getHierarchyBoundingVectors(true)])
+
 
         const shared = this.audioManager?.builder?.shared!!
 

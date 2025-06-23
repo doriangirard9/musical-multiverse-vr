@@ -3,11 +3,12 @@ import {Node3DGUIContext} from "../Node3DGUIContext";
 import {Node3DContext} from "../Node3DContext";
 import {TransformNode, Color3, Mesh, Color4} from "@babylonjs/core";
 import {Node3DButton} from "../Node3DButton";
+import { WamEvent } from "@webaudiomodules/api";
 
 interface MockWamNode {
     instanceId: string;
     context: AudioContext;
-    scheduleEvents: (event: any) => void;
+    scheduleEvents: (event: WamEvent[]) => void;
 }
 
 export class NoteBoxN3DGUI implements Node3DGUI {
@@ -185,7 +186,7 @@ export class NoteBoxN3D implements Node3D {
             instanceId: `note-box-${Date.now()}`,
             context: audioCtx,
 
-            scheduleEvents: (events: any) => {
+            scheduleEvents: (events: WamEvent[]) => {
                 const eventsArray = Array.isArray(events) ? events : [events];
                 for (const event of eventsArray) {
                     this.noteEvents.push(event);
@@ -215,6 +216,8 @@ export class NoteBoxN3D implements Node3D {
                         if (this.samples.length <= this.gui.pads.length) {
                             this.gui.updatePadColor(this.samples.length - 1, new Color3(0.2, 0.8, 0.2));
                         }
+                        
+                        this.context.notifyStateChange("all")
                     }
 
                     if (this.currentSample && this.samples.length <= this.maxSamples) {
@@ -257,13 +260,21 @@ export class NoteBoxN3D implements Node3D {
             this.forwardEventsToOutput(eventCopy);
         }
     }
+
     //@ts-ignore
-    async setState(key: string, state: any): Promise<void> {}
+    async setState(key: string, state: any): Promise<void> {
+        if(key!="all")return
+        this.samples = state
+    }
+
     //@ts-ignore
-    async getState(key: string): Promise<any> {}
+    async getState(key: string): Promise<any> {
+        if(key!="all")return null
+        return this.samples
+    }
 
     getStateKeys(): string[] {
-        return [];
+        return ["all"]
     }
 
     async dispose(): Promise<void> {
