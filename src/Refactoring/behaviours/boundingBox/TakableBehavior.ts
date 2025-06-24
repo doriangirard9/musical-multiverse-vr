@@ -1,4 +1,4 @@
-import { AbstractMesh, ActionManager, Behavior, CreateBox, ExecuteCodeAction, Mesh, PointerEventTypes, StandardMaterial, TransformNode, Vector3 } from "@babylonjs/core";
+import { AbstractMesh, ActionManager, Behavior, CreateBox, ExecuteCodeAction, Mesh, PointerEventTypes, Space, StandardMaterial, TransformNode, Vector3 } from "@babylonjs/core";
 import { HoldBehaviour } from "./HoldBehavior";
 
 
@@ -27,11 +27,11 @@ export class TakableBehavior implements Behavior<TransformNode> {
     }
 
     detach(): void {
-        this.target = undefined
         this.setBoundingBoxes()
     }
 
     setBoundingBoxes(boxes?: {min:Vector3, max: Vector3}[]): void{
+
         if(this.boundingMesh){
             this.boundingMesh.dispose()
             this.hovered = false
@@ -39,43 +39,47 @@ export class TakableBehavior implements Behavior<TransformNode> {
             this.update()
         }
 
-        const meshes = [] as Mesh[]
-        console.log(boxes)
-        for (const box of boxes) {
-            const max = box.max.clone().addInPlaceFromFloats(0.1, 0.1, 0.1)
-            const min = box.min.clone().subtractFromFloats(0.1, 0.1, 0.1)
-            const size = max.subtract(min)
-            const center = size.scale(0.5).addInPlace(min)
-            const mesh = CreateBox(`box`,{width: size.x, height: size.y, depth: size.z}, this.target!.getScene())
-            mesh.position.copyFrom(center)
-            meshes.push(mesh)
+        if(boxes){
+            const meshes = [] as Mesh[]
+
+            for (const box of boxes) {
+                const max = box.max.clone().addInPlaceFromFloats(0.1, 0.1, 0.1)
+                const min = box.min.clone().subtractFromFloats(0.1, 0.1, 0.1)
+                const size = max.subtract(min)
+                const center = size.scale(0.5).addInPlace(min)
+                const mesh = CreateBox(`box`,{width: size.x, height: size.y, depth: size.z}, this.target!.getScene())
+                mesh.position.copyFrom(center)
+                meshes.push(mesh)
+            }
+            
+            this.boundingMesh = Mesh.MergeMeshes(meshes, true)!!
+            this.boundingMesh.setPivotPoint(this.target.getAbsolutePosition(),Space.WORLD)
+            this.boundingMesh.visibility = 0.4
+
+            const action = this.boundingMesh.actionManager = new ActionManager(this.target!.getScene())
+            action.registerAction(new ExecuteCodeAction(ActionManager.OnPointerOverTrigger, ()=>{
+                this.hovered = true
+                this.update()
+            }))
+
+            action.registerAction(new ExecuteCodeAction(ActionManager.OnPointerOutTrigger, ()=>{
+                this.hovered = false
+                this.update()
+            }))
+
+            action.registerAction(new ExecuteCodeAction(ActionManager.OnPickDownTrigger, ()=>{
+                this.selected = true
+                this.update()
+                const o = this.target.getScene().onPointerObservable.add((evt) => {
+                    if(evt.type === PointerEventTypes.POINTERUP){ // PointerUp
+                        o.remove()
+                        this.selected = false
+                        this.update()
+                    }
+                })
+            }))
         }
-        
-        this.boundingMesh = Mesh.MergeMeshes(meshes, true)!!
-        this.boundingMesh.visibility = 0.4
 
-        const action = this.boundingMesh.actionManager = new ActionManager(this.target!.getScene())
-        action.registerAction(new ExecuteCodeAction(ActionManager.OnPointerOverTrigger, ()=>{
-            this.hovered = true
-            this.update()
-        }))
-
-        action.registerAction(new ExecuteCodeAction(ActionManager.OnPointerOutTrigger, ()=>{
-            this.hovered = false
-            this.update()
-        }))
-
-        action.registerAction(new ExecuteCodeAction(ActionManager.OnPickDownTrigger, ()=>{
-            this.selected = true
-            this.update()
-            const o = this.target.getScene().onPointerObservable.add((evt) => {
-                if(evt.type === PointerEventTypes.POINTERUP){ // PointerUp
-                    o.remove()
-                    this.selected = false
-                    this.update()
-                }
-            })
-        }))
     }
 
     private hovered = false
@@ -93,10 +97,14 @@ export class TakableBehavior implements Behavior<TransformNode> {
         // Hold
         if(this.selected && !this.holdBehavior){
             this.holdBehavior = new HoldBehaviour()
-            this.target.addBehavior(this.holdBehavior)
+            this.holdBehavior.on_move = ()=>{
+                this.target.setAbsolutePosition(this.boundingMesh.absolutePosition)
+                this.target.rotation = this.boundingMesh.rotation
+            } 
+            this.boundingMesh.addBehavior(this.holdBehavior)
         }
         else if(!this.selected && this.holdBehavior){
-            this.target.removeBehavior(this.holdBehavior)
+            this.boundingMesh.removeBehavior(this.holdBehavior)
             this.holdBehavior = undefined
         }
 

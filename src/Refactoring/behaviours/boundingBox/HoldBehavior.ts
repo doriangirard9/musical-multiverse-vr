@@ -10,7 +10,9 @@ import { InputManager, PointerMovementEvent } from "../../xr/inputs/InputManager
 export class HoldBehaviour implements Behavior<TransformNode> {
   
   name = "HoldBehaviour"
-  distance = 4
+  distance = -100
+  right_distance = 0
+  top_distance = 0
   target!: TransformNode
   pointer?: PointerMovementEvent
   oldRotation?: Quaternion
@@ -52,7 +54,20 @@ export class HoldBehaviour implements Behavior<TransformNode> {
     if(!this.pointer) return // Ensure ray is initialized
 
     const {origin, forward, up, right} = this.pointer
+
+    // Set initial distance
+    if(this.distance<0){
+      // Start with the distance the target already have with the pointer
+      this.distance = this.pointer.origin.subtract(this.target.position).length()
+      const next_position = forward.clone().scaleInPlace(this.distance).addInPlace(origin)
+      // Dont teleport the target instantly so it is centered on the pointer but keep the same offset
+      this.right_distance = -next_position.subtract(this.target.position).dot(right)
+      this.top_distance = -next_position.subtract(this.target.position).dot(up)
+    }
+
     const position = forward.clone() .scaleInPlace(this.distance) .addInPlace(origin)
+      .addInPlace(right.scale(this.right_distance))
+      .addInPlace(up.scale(this.top_distance))
     this.target.position.copyFrom(position)
 
     const newRotation = Quaternion.FromLookDirectionRH(forward, up.negate())

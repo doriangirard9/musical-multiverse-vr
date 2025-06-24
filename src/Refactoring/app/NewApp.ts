@@ -49,10 +49,10 @@ export class NewApp {
         await this.audioManager!!.createNode3d("notesbox")
         //await this.audioManager!!.createNode3d("audiooutput")
 
-        // const mesh = CreateBox("box", {size: 1}, scene)
-        // const behavior = new HoldBehaviour()
-        // mesh.addBehavior(behavior)
-        //behavior.setBoundingBoxes([mesh.getHierarchyBoundingVectors(true)])
+        const mesh = CreateBox("box", {size: 1}, scene)
+        const behavior = new TakableBehavior("test")
+        mesh.addBehavior(behavior)
+        behavior.setBoundingBoxes([mesh.getHierarchyBoundingVectors(true)])
 
 
         const shared = this.audioManager?.builder?.shared!!

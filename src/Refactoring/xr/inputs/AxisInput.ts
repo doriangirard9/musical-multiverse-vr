@@ -63,7 +63,7 @@ export class AxisInput {
         })
         return {
             remove: () => {
-                this.on_change.remove(o1)
+                o1.remove()
                 if(intervol) clearInterval(intervol)
             }
         }
@@ -152,6 +152,31 @@ export class AxisInput {
                 document.removeEventListener("keyup", onkeyup)
                 window.removeEventListener("blur", onblur)
             },
+        }
+    }
+
+    _registerMouseWheelObserver(): {remove(): void}{
+        const im = this
+
+        let intervol: any = null
+
+        const onscroll = (event: WheelEvent) => {
+            if(intervol)clearInterval(intervol)
+            im._notify({ axis: im, x: -Math.sign(event.deltaX), y: -Math.sign(event.deltaY)})
+            intervol = setInterval(()=>{
+                im._notify({ axis: im, x: 0, y: 0})
+                clearInterval(intervol)
+                intervol = null
+            },250)
+        }
+
+        document.addEventListener("wheel", onscroll)
+
+        return {
+            remove() {
+                document.removeEventListener("wheel", onscroll)
+                if(intervol) clearInterval(intervol)
+            }
         }
     }
 

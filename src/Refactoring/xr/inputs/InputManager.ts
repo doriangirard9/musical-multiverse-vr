@@ -70,6 +70,7 @@ export class InputManager {
             thumbstick._registerDocumentObserver()
             thumbstick.on_change.add((event) => im.on_thumbstick_change.notifyObservers(event))
         }
+        im.left_thumbstick._registerMouseWheelObserver()
 
         //// Notify the observers with the controllers inputs ////
         function initController(controller: WebXRInputSource){
