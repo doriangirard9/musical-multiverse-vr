@@ -51,7 +51,7 @@ export class NewApp {
 
         //// LE SUPER MAGASIN ////
         {
-            setTimeout(()=>Inspector.Show(scene,{}), 10000)
+            //setTimeout(()=>Inspector.Show(scene,{}), 10000)
             // Mais qu'est ce donc ??? On peut rendre le magasin encore plus cool ????? J'ose pas mettre "true", c'est probablement TROP cool.
             let mode_magasin_super_giga_cool = false
 
