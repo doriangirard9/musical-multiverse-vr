@@ -140,6 +140,10 @@ export const LivePianoN3DFactory: Node3DFactory<LivePianoN3DGUI,LivePianoN3D> = 
 
     label: "LivePiano",
 
+    description: "A simple live piano keyboard that can be used to play notes in 3D space.",
+
+    tags: ["piano", "midi", "generator", "live_instrument", "keyboard"],
+
     createGUI: async (context) => {
         const ret = new LivePianoN3DGUI(context)
         return ret

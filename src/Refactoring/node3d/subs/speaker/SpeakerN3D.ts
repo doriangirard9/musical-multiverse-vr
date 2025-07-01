@@ -114,6 +114,10 @@ export const SpeakerN3DFactory: Node3DFactory<SpeakerN3DGUI,SpeakerN3D> = {
 
     label: "Audio Output",
 
+    description: "A simple 3D speaker that can be used to output audio in 3D space.",
+
+    tags: ["speaker", "audio", "consumer", "audio_output"],
+
     createGUI: async (context) =>{
         const it = new SpeakerN3DGUI()
         await it.init(context)

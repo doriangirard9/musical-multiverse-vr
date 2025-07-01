@@ -298,7 +298,12 @@ export class NoteBoxN3D implements Node3D {
 }
 
 export const NoteBoxN3DFactory : Node3DFactory<NoteBoxN3DGUI, NoteBoxN3D> = {
+    
     label : "NoteBox",
+
+    description: "A simple note box that can be used to record and replay MIDI notes in 3D space. Useful to share a live performance with others players.",
+
+    tags: ["notebox", "midi", "generator", "live_instrument", "recorder", "player"],
 
     createGUI: async (context: Node3DGUIContext) : Promise<NoteBoxN3DGUI> => {
         return new NoteBoxN3DGUI(context);

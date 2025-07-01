@@ -19,6 +19,22 @@ export class AxisInput {
     /** Observable that notifies when the value of the pressable input changes.  */
     readonly on_value_change = new Observable<AxisInputEvent>()
 
+    /** Observable that notifies when the axis input is moved to right.  */
+    readonly on_right_down = new Observable<AxisInputEvent>()
+    readonly on_right_up = new Observable<AxisInputEvent>()
+
+    /** Observable that notifies when the axis input is moved to left.  */
+    readonly on_left_down = new Observable<AxisInputEvent>()
+    readonly on_left_up = new Observable<AxisInputEvent>()
+
+    /** Observable that notifies when the axis input is moved up.  */
+    readonly on_up_down = new Observable<AxisInputEvent>()
+    readonly on_up_up = new Observable<AxisInputEvent>()
+
+    /** Observable that notifies when the axis input is moved down.  */
+    readonly on_down_down = new Observable<AxisInputEvent>()
+    readonly on_down_up = new Observable<AxisInputEvent>()
+
     /**
      * Get the position of the axis input on the x-axis.
      * This is typically a value between -1 and 1, where 0 is the center position.
@@ -72,7 +88,7 @@ export class AxisInput {
 
     constructor(readonly side: "left"|"right", readonly keys: [string,string,string,string]){}
 
-    private state = {x:0, y:0}
+    private state = {x:0, y:0, direction: null as "left"|"right"|"up"|"down"|null}
 
     /**
      * Send a notification about the pressable input state change.
@@ -80,9 +96,40 @@ export class AxisInput {
      */
     _notify(event: AxisInputEvent){
         this.on_change.notifyObservers(event)
+
+        // On down and up
+        let side = null as "left"|"right"|"up"|"down"|null
+        const absx = Math.abs(event.x)
+        const absy = Math.abs(event.y)
+        if(absx+absy>0.5){
+            if(absx>absy){
+                if(event.x > 0) side = "right"
+                else side = "left"
+            }
+            else{
+                if(event.y > 0) side = "up"
+                else side = "down"
+            }
+        }
+
+        if(this.state.direction!=side){
+            if(this.state.direction === "left") this.on_left_up.notifyObservers(event)
+            if(this.state.direction === "right") this.on_right_up.notifyObservers(event)
+            if(this.state.direction === "up") this.on_up_up.notifyObservers(event)
+            if(this.state.direction === "down") this.on_down_up.notifyObservers(event)
+
+            if(side === "left") this.on_left_down.notifyObservers(event)
+            if(side === "right") this.on_right_down.notifyObservers(event)
+            if(side === "up") this.on_up_down.notifyObservers(event)
+            if(side === "down") this.on_down_down.notifyObservers(event)
+        }
+
+        // On value change
         if(event.x!==this.state.x || event.y!==this.state.y) { this.on_value_change.notifyObservers(event)}
+
         this.state.x = event.x
         this.state.y = event.y
+        this.state.direction = side
     }
 
 

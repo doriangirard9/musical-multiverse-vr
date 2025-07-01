@@ -97,6 +97,10 @@ export const OscillatorN3DFactory: Node3DFactory<OscillatorN3DGUI,OscillatorN3D>
 
     label: "Oscillator",
 
+    description: "A simple oscillator that can be used to generate an sinusoidal wave.",
+
+    tags: ["oscillator", "audio", "generator", "sinus"],
+
     createGUI: async (context) => new OscillatorN3DGUI(context),
 
     create: async (context, gui) => new OscillatorN3D(context,gui),

@@ -28,12 +28,7 @@ export class Node3DBuilder {
         ...Object.keys(examples).map(k => `wam3d-${k}`),
     ]
 
-    /**
-     * Get a Node3DFactory from it kind name.
-     * @param kind The kind of Node3D, correspond to the name of its config file.
-     * @returns 
-     */
-    public async getFactory(kind: string): Promise<Node3DFactory<Node3DGUI,Node3D>|null> {
+    private async createFactories(kind: string): Promise<Node3DFactory<Node3DGUI,Node3D>|null> {
         // Builtin
         if(kind=="audiooutput") return SpeakerN3DFactory
         if(kind=="sequencer") return SequencerN3DFactory
@@ -46,7 +41,7 @@ export class Node3DBuilder {
         if(kind.startsWith("wam3d-")) {
             const config = (examples as Record<string,WAMGuiInitCode>)[kind.substring(6)]
             if(!config) return null
-            return new Wam3DGeneratorN3DFactory(kind.substring(6), config)
+            return await Wam3DGeneratorN3DFactory.create(config)
         }
 
         // Configs
@@ -56,13 +51,28 @@ export class Node3DBuilder {
                 const config = await response.json() as Node3DConfig
 
                 // Wam3DGenerator
-                if("wam3d" in config)return new Wam3DGeneratorN3DFactory(config.name, config.wam3d)
+                if("wam3d" in config)return await Wam3DGeneratorN3DFactory.create(config.wam3d)
             }
             
         }
 
         
         return null
+    }
+
+    private factories = new Map<string,Node3DFactory<Node3DGUI,Node3D>>()
+
+    /**
+     * Get a Node3DFactory from it kind name.
+     * @param kind The kind of Node3D, correspond to the name of its config file.
+     * @returns 
+     */
+    public async getFactory(kind: string): Promise<Node3DFactory<Node3DGUI,Node3D>|null> {
+        if(!this.factories.has(kind)){
+            const factory = await this.createFactories(kind)
+            if(factory)this.factories.set(kind, factory)
+        }
+        return this.factories.get(kind) ?? null
     }
 
     /**

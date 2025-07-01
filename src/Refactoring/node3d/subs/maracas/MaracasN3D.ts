@@ -103,6 +103,10 @@ export const MaracasN3DFactory: Node3DFactory<MaracasN3DGUI,MaracasN3D> = {
 
     label: "Maracas",
 
+    description: "A simple maracars that can be dragged like a parameter to be shaken.",
+
+    tags: ["maracas", "midi", "generator", "live_instrument", "shake"],
+
     createGUI: async (context) => {
         const ret = new MaracasN3DGUI()
         await ret.init(context)

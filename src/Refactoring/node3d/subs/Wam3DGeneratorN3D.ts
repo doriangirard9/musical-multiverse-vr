@@ -3,6 +3,7 @@ import type { Node3D, Node3DFactory, Node3DGUI } from "../Node3D";
 import type { Node3DGUIContext } from "../Node3DGUIContext";
 import type { Node3DContext } from "../Node3DContext";
 import { AbstractMesh } from "@babylonjs/core";
+import { WamDescriptor } from "@webaudiomodules/api";
 
 
 class Wam3DGeneratorN3DGui implements Node3DGUI{
@@ -130,8 +131,24 @@ export class Wam3DGeneratorN3DFactory implements Node3DFactory<Wam3DGeneratorN3D
 
     constructor(
         readonly label: string,
+        readonly description: string,
+        readonly tags: string[],
         private code: WAMGuiInitCode
     ){}
+
+    static async create(code: WAMGuiInitCode){
+        const {wam_url} = code
+        const descriptor_url = wam_url.substring(0,wam_url.lastIndexOf("/"))+"/descriptor.json"
+        const descriptor = (await(await fetch(descriptor_url)).json()) as WamDescriptor
+        const tags = new Set<string>(descriptor.keywords.map(k=>k.toLowerCase()))
+        if(descriptor.isInstrument) tags.add("instrument")
+        return new Wam3DGeneratorN3DFactory(
+            descriptor.name,
+            descriptor.description,
+            [...tags],
+            code
+        )
+    }
 
     async createGUI(context: Node3DGUIContext): Promise<Wam3DGeneratorN3DGui> {
         const gui = new Wam3DGeneratorN3DGui(context)

@@ -28,6 +28,13 @@ export class N3DHighlighter{
         for(const child of node.getChildren()) this.unhighlight(child)
     }
 
+    binded(){
+        return {
+            highlight: this.highlight.bind(this),
+            unhighlight: this.unhighlight.bind(this),
+        }
+    }
+
     dispose(){
         for(const mesh of this.highlighteds) this.layer.removeMesh(mesh)
         this.highlighteds.clear()

@@ -11,7 +11,7 @@ export function withTimeout<T>(
     fallbackValue?: T,
     timeoutMessage: string = "Operation timed out"
 ): Promise<T> {
-    let timeoutId: NodeJS.Timeout;
+    let timeoutId: number
 
     const timeoutPromise = new Promise<T>((resolve, reject) => {
         timeoutId = setTimeout(() => {

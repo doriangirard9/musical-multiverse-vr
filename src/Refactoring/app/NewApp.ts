@@ -2,13 +2,11 @@ import {SceneManager} from "./SceneManager.ts";
 import {XRManager} from "../xr/XRManager.ts";
 import {Node3dManager} from "./Node3dManager.ts";
 import {AppOrchestrator} from "./AppOrchestrator.ts";
-import {CreateBox, ImportMeshAsync, Quaternion, WebXRFeatureName} from "@babylonjs/core";
-import {Node3DShop} from "../world/Node3DShop.ts";
+import {CreateBox, ImportMeshAsync} from "@babylonjs/core";
+import {N3DShop, N3DShopOptions} from "../world/shop/N3DShop.ts";
 import {Node3DBuilder} from "./Node3DBuilder.ts";
-import {HoldBehaviour} from "../behaviours/boundingBox/HoldBehavior.ts";
-import {XRControllerManager} from "../xr/XRControllerManager.ts";
-import { RotateBehaviour } from "../behaviours/boundingBox/RotateBehavior.ts";
 import { TakableBehavior } from "../behaviours/boundingBox/TakableBehavior.ts";
+import { InputManager } from "../xr/inputs/InputManager.ts";
 
 export class NewApp {
     private audioCtx: AudioContext | undefined;
@@ -57,6 +55,10 @@ export class NewApp {
 
         const shared = this.audioManager?.builder?.shared!!
 
+        window.addEventListener("keydown",e=>{
+            if(e.key=="y")XRManager.getInstance().xrHelper.baseExperience.camera.position.set(0, 1.6, 0)
+        })
+
         // setTimeout(()=>Inspector.Show(scene,{}), 10000)
 
         //// LE SUPER MAGASIN ////
@@ -64,12 +66,31 @@ export class NewApp {
             // Mais qu'est ce donc ??? On peut rendre le magasin encore plus cool ????? J'ose pas mettre "true", c'est probablement TROP cool.
             let mode_magasin_super_giga_cool = false
 
-            const model = (await ImportMeshAsync(Node3DShop.SHOP_MODEL_URL, scene)).meshes[0]
-            model.position.set(0, -2.65, 50)
+            let shopOptions: N3DShopOptions
+            if(mode_magasin_super_giga_cool) shopOptions = {
+                kinds: Node3DBuilder.FACTORY_KINDS,
+            }
+            else shopOptions = N3DShop.BASE_OPTIONS
+
+            const model = (await ImportMeshAsync(N3DShop.SHOP_MODEL_URL, scene)).meshes[0]
+            model.position.set(0, -2.65, 60)
             model.scaling.scaleInPlace(.6)
-            const shop = new Node3DShop(model, {order:"random"})
-            let kinds = mode_magasin_super_giga_cool ? Node3DBuilder.FACTORY_KINDS : Node3DShop.SHOP_KINDS
-            await shop.initialize(shared, Node3dManager.getInstance(), kinds)
+            const shop = new N3DShop(
+                model,
+                shared,
+                Node3dManager.getInstance(),
+                InputManager.getInstance(),
+                N3DShop.BASE_OPTIONS,
+            )
+            shop.showZone("default")
+            window.addEventListener("keydown", async e=>{
+                if(e.key=="s"){
+                    console.log("zones", shop.zones)
+                    const zone = shop.zones[Math.floor(Math.random()*shop.zones.length)]
+                    console.log("Showing zone", zone)
+                    await shop.showZone(zone)
+                }
+            })
         }
     }
 

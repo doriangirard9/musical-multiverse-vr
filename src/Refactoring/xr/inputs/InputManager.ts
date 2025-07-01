@@ -49,7 +49,7 @@ export class InputManager {
         scene: Scene,
     ){
         const im = this
-
+        
         for(const button of [im.x_button, im.y_button, im.a_button, im.b_button]) {
             button._registerDocumentObserver()
             button.on_change.add((event) => im.on_button_change.notifyObservers(event))
