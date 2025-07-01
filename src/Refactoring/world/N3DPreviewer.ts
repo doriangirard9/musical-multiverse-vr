@@ -18,6 +18,7 @@ export class N3DPreviewer{
     gui!: Node3DGUI
     highlighter!: N3DHighlighter
     drag!: PointerDragBehavior
+    text!: N3DText
     on_start_drag?: ()=>void
     on_drop?: (node3d:Node3DInstance)=>void
     on_no_drop?: ()=>void
@@ -48,7 +49,7 @@ export class N3DPreviewer{
         hitbox.visibility = .3
 
         // Create a text display
-        const text = new N3DText(`n3preview ${this.kind} name`, [hitbox])
+        const text = this.text = new N3DText(`n3preview ${this.kind} name`, [hitbox])
         text.set(factory.label)
 
         gui.root.parent = hitbox
@@ -103,5 +104,6 @@ export class N3DPreviewer{
         this.highlighter.dispose()
         this.gui.dispose()
         this.root.dispose()
+        this.text.dispose()
     }
 }
