@@ -15,8 +15,9 @@ export class WamInitializer {
         console.log("[*] WamInitializer Initialized");
         this._wamExtensionSetup();
     }
-    public static getInstance(audioCtx: AudioContext): WamInitializer {
+    public static getInstance(audioCtx?: AudioContext): WamInitializer {
         if (!WamInitializer.instance) {
+            //@ts-ignore
             WamInitializer.instance = new WamInitializer(audioCtx);
         }
         return WamInitializer.instance;
