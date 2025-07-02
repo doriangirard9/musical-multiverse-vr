@@ -5,6 +5,7 @@ import { N3DShopPreviewer } from "./N3DShopPreviewer";
 import { N3DShopCamera } from "./N3DShopCamera";
 import { InputManager } from "../../xr/inputs/InputManager";
 import { N3DPreviewer } from "../N3DPreviewer";
+import { parallel } from "../../utils/utils";
 
 export interface N3DShopOptions{
     kinds?: string[],
@@ -189,7 +190,15 @@ export class N3DShop {
         }
     }
 
-    static SHOP_MODEL_URL: string
+    static LARGE_SHOP_MODEL_URL: string
+    static BASE_SHOP_MODEL_URL: string
 }
 
-N3DShop.SHOP_MODEL_URL = (await import("./music_shop.glb?url")).default
+await parallel(
+    async()=>{
+        N3DShop.LARGE_SHOP_MODEL_URL = (await import("./large_music_shop.glb?url")).default
+    },
+    async()=>{
+        N3DShop.BASE_SHOP_MODEL_URL = (await import("./base_music_shop.glb?url")).default
+    },
+)

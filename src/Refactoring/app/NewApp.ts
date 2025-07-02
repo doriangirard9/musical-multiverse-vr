@@ -62,34 +62,35 @@ export class NewApp {
 
         //// LE SUPER MAGASIN ////
         {
-            // Mais qu'est ce donc ??? On peut rendre le magasin encore plus cool ????? J'ose pas mettre "true", c'est probablement TROP cool.
-            let mode_magasin_super_giga_cool = false
-
-            let shopOptions: N3DShopOptions
-            if(mode_magasin_super_giga_cool) shopOptions = {
-                kinds: Node3DBuilder.FACTORY_KINDS,
+            // Le magasin fixe, remplie entièrement, et accessible en marchant
+            {
+                const model = (await ImportMeshAsync(N3DShop.LARGE_SHOP_MODEL_URL, scene)).meshes[0]
+                model.position.set(0, -1.5, 20)
+                model.scaling.scaleInPlace(.6)
+                const shop = new N3DShop(
+                    model,
+                    shared,
+                    Node3dManager.getInstance(),
+                    InputManager.getInstance(),
+                    N3DShop.BASE_OPTIONS,
+                )
+                for(const zone of shop.zones.sort()) shop.showZone(zone,["camera"])
             }
-            else shopOptions = N3DShop.BASE_OPTIONS
 
-            const model = (await ImportMeshAsync(N3DShop.SHOP_MODEL_URL, scene)).meshes[0]
-            model.position.set(0, -2.65, 60)
-            model.scaling.scaleInPlace(.6)
-            const shop = new N3DShop(
-                model,
-                shared,
-                Node3dManager.getInstance(),
-                InputManager.getInstance(),
-                N3DShop.BASE_OPTIONS,
-            )
-            shop.showZone("default")
-            window.addEventListener("keydown", async e=>{
-                if(e.key=="s"){
-                    console.log("zones", shop.zones)
-                    const zone = shop.zones[Math.floor(Math.random()*shop.zones.length)]
-                    console.log("Showing zone", zone)
-                    await shop.showZone(zone)
-                }
-            })
+            // Le magasin-menu, accessible via un bouton et dont les WAM sont chargé et déchargé dynamiquement
+            {
+                const model = (await ImportMeshAsync(N3DShop.BASE_SHOP_MODEL_URL, scene)).meshes[0]
+                model.position.set(0, -1.5, 60)
+                model.scaling.scaleInPlace(.6)
+                const shop = new N3DShop(
+                    model,
+                    shared,
+                    Node3dManager.getInstance(),
+                    InputManager.getInstance(),
+                    N3DShop.BASE_OPTIONS,
+                )
+                shop.showZone("default")
+            }
         }
     }
 

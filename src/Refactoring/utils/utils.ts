@@ -35,3 +35,11 @@ export function withTimeout<T>(
         timeoutPromise
     ]);
 }
+
+
+/**
+ * Execute plusieurs method async en parallèle et retourne une promesse qui se résout quand toutes sont terminées.
+ */
+export function parallel<T>(...promises: (() => Promise<T>)[]): Promise<T[]> {
+    return Promise.all(promises.map(p => p()))
+}
