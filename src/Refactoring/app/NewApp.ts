@@ -1,12 +1,14 @@
 import {SceneManager} from "./SceneManager.ts";
 import {XRManager} from "../xr/XRManager.ts";
 import {Node3dManager} from "./Node3dManager.ts";
-import { AppOrchestrator } from "./AppOrchestrator.ts";
-import { createStandCollection } from "../world/Node3DStand.ts";
-import { ImportMeshAsync } from "@babylonjs/core";
-import { Node3DShop } from "../world/Node3DShop.ts";
-import { Node3DBuilder } from "./Node3DBuilder.ts";
-import { Inspector } from "@babylonjs/inspector";
+import {AppOrchestrator} from "./AppOrchestrator.ts";
+import {CreateBox, ImportMeshAsync, Quaternion, WebXRFeatureName} from "@babylonjs/core";
+import {Node3DShop} from "../world/Node3DShop.ts";
+import {Node3DBuilder} from "./Node3DBuilder.ts";
+import {HoldBehaviour} from "../behaviours/boundingBox/HoldBehavior.ts";
+import {XRControllerManager} from "../xr/XRControllerManager.ts";
+import { RotateBehaviour } from "../behaviours/boundingBox/RotateBehavior.ts";
+import { TakableBehavior } from "../behaviours/boundingBox/TakableBehavior.ts";
 
 export class NewApp {
     private audioCtx: AudioContext | undefined;
@@ -51,7 +53,6 @@ export class NewApp {
 
         //// LE SUPER MAGASIN ////
         {
-            //setTimeout(()=>Inspector.Show(scene,{}), 10000)
             // Mais qu'est ce donc ??? On peut rendre le magasin encore plus cool ????? J'ose pas mettre "true", c'est probablement TROP cool.
             let mode_magasin_super_giga_cool = false
 

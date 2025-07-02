@@ -2,7 +2,6 @@ import { AbstractMesh, TransformNode } from "@babylonjs/core";
 import type { Node3D, Node3DFactory, Node3DGUI } from "../../Node3D";
 import type { Node3DContext } from "../../Node3DContext";
 import type { Node3DGUIContext } from "../../Node3DGUIContext";
-import { off } from "process";
 
 const MARACAS_URL = (await import("./maracas.glb?url")).default
 

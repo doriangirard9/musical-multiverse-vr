@@ -1,6 +1,7 @@
 import {XRInputManager} from "./XRInputManager.ts";
 import * as B from "@babylonjs/core";
 import {withTimeout} from "../utils/utils.ts";
+import { InputManager } from "./inputs/InputManager.ts";
 
 
 
@@ -36,9 +37,12 @@ export class XRManager {
                 "WebXR experience initialization timed out"
             );
 
+            InputManager.create(this.xrHelper, this._scene)
+
             this._initXRFeatures();
 
             this.xrInputManager = new XRInputManager(this.xrHelper);
+
 
             this.xrHelper.baseExperience.camera.checkCollisions = true;
             this.xrHelper.baseExperience.camera.applyGravity = true;

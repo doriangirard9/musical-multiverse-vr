@@ -134,7 +134,9 @@ export class SceneManager {
 
         // Create hemispheric light
         const hemisphericLight = new B.HemisphericLight("hemisphericLight", new B.Vector3(0, 1, 0), this.scene);
-        hemisphericLight.intensity = 0.5;
+        const light2 = new B.HemisphericLight("light2", new B.Vector3(0, -1, 0), this.scene);
+        hemisphericLight.intensity = 0.6;
+        light2.intensity = 0.5;
 
         return ground;
     }
