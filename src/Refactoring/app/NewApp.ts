@@ -6,6 +6,7 @@ import {CreateBox, ImportMeshAsync} from "@babylonjs/core";
 import {N3DShop, N3DShopOptions} from "../world/shop/N3DShop.ts";
 import { TakableBehavior } from "../behaviours/boundingBox/TakableBehavior.ts";
 import { InputManager } from "../xr/inputs/InputManager.ts";
+import { parallel } from "../utils/utils.ts";
 
 export class NewApp {
     private audioCtx: AudioContext | undefined;
@@ -61,56 +62,60 @@ export class NewApp {
 
         //// LE SUPER MAGASIN ////
         {
-            // Le magasin fixe, remplie entièrement, et accessible en marchant
-            {
-                const model = (await ImportMeshAsync(N3DShop.LARGE_SHOP_MODEL_URL, scene)).meshes[0]
-                model.position.set(0, -1.5, 20)
-                model.scaling.scaleInPlace(.6)
-                const shop = new N3DShop(
-                    model,
-                    shared,
-                    Node3dManager.getInstance(),
-                    InputManager.getInstance(),
-                    N3DShop.BASE_OPTIONS,
-                )
-                for(const zone of shop.zones.sort()) shop.showZone(zone,["camera"])
-            }
-
-            // Construire les options du magasin
-            const builder = this.audioManager?.builder!!
-            const categories: Record<string, Set<string>> = {}
-            const kinds = new Set<string>()
-            await Promise.all(builder.FACTORY_KINDS.map(async kind => {
-                try{
-                    const factory = await builder.getFactory(kind)
-                    if(!factory) return
-                    kinds.add(kind)
-                    for(const tag of factory.tags){
-                        categories[tag] ??= new Set<string>()
-                        categories[tag].add(kind)
+            await parallel(
+                // Le magasin fixe, remplie entièrement, et accessible en marchant
+                async()=>{
+                    const model = (await ImportMeshAsync(N3DShop.LARGE_SHOP_MODEL_URL, scene)).meshes[0]
+                    model.position.set(0, -1.5, 20)
+                    model.scaling.scaleInPlace(.6)
+                    const shop = new N3DShop(
+                        model,
+                        shared,
+                        Node3dManager.getInstance(),
+                        InputManager.getInstance(),
+                        N3DShop.BASE_OPTIONS,
+                    )
+                    console.log("---",shop.zones)
+                    for(const zone of shop.zones.sort()){
+                        console.log(" > ",zone)
+                        await shop.showZone(zone,["camera"])
                     }
-                }catch(e){}
-            }))
-            const options: N3DShopOptions = {
-                categories: Object.fromEntries(Object.entries(categories).map(([key, value]) => [key, [...value]])),
-                kinds: [...kinds]
-            }
-            console.log("Shop options:", options)
+                },
+                // Le magasin-menu, accessible via un bouton et dont les WAM sont chargé et déchargé dynamiquement
+                async()=>{
+                    const builder = this.audioManager?.builder!!
+                    const categories: Record<string, Set<string>> = {}
+                    const kinds = new Set<string>()
+                    await Promise.all(builder.FACTORY_KINDS.map(async kind => {
+                        try{
+                            const factory = await builder.getFactory(kind)
+                            if(!factory) return
+                            kinds.add(kind)
+                            for(const tag of factory.tags){
+                                categories[tag] ??= new Set<string>()
+                                categories[tag].add(kind)
+                            }
+                        }catch(e){}
+                    }))
+                    const options: N3DShopOptions = {
+                        categories: Object.fromEntries(Object.entries(categories).map(([key, value]) => [key, [...value]])),
+                        kinds: [...kinds]
+                    }
+                    console.log("Shop options:", options)
 
-            // Le magasin-menu, accessible via un bouton et dont les WAM sont chargé et déchargé dynamiquement
-            {
-                const model = (await ImportMeshAsync(N3DShop.BASE_SHOP_MODEL_URL, scene)).meshes[0]
-                model.position.set(0, -1.5, 60)
-                model.scaling.scaleInPlace(.6)
-                const shop = new N3DShop(
-                    model,
-                    shared,
-                    Node3dManager.getInstance(),
-                    InputManager.getInstance(),
-                    options,
-                )
-                shop.showZone("default")
-            }
+                    const model = (await ImportMeshAsync(N3DShop.BASE_SHOP_MODEL_URL, scene)).meshes[0]
+                    model.position.set(0, -1.5, 60)
+                    model.scaling.scaleInPlace(.6)
+                    const shop = new N3DShop(
+                        model,
+                        shared,
+                        Node3dManager.getInstance(),
+                        InputManager.getInstance(),
+                        options,
+                    )
+                    shop.showZone("default")
+                }
+            )
         }
     }
 
