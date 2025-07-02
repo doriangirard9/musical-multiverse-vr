@@ -1044,6 +1044,10 @@ export class PianoRollN3D implements Node3D{
 export const PianoRollN3DFactory: Node3DFactory<PianoRollN3DGUI,PianoRollN3D> = {
 
     label: "pianoroll",
+
+    description: "A 3D Piano Roll for Node3D",
+
+    tags: ["sequencer", "midi", "generator", "pattern", "piano_roll"],
     
     async createGUI(context) { return new PianoRollN3DGUI(context) },
 

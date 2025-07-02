@@ -1,7 +1,6 @@
 import { Node3DInstance } from "../node3d/instance/Node3DInstance.ts";
 import { Node3D, Node3DFactory, Node3DGUI } from "../node3d/Node3D.ts";
 import { OscillatorN3DFactory } from "../node3d/subs/OscillatorN3D.ts";
-import { AudioOutputN3DFactory } from "../node3d/subs/AudioOutputN3D.ts";
 import { Node3dManager } from "./Node3dManager.ts";
 import { SceneManager } from "./SceneManager.ts";
 import { WamInitializer } from "./WamInitializer.ts";
@@ -24,7 +23,7 @@ export class Node3DBuilder {
     /**
      * Some of the valid kinds of Node3D.
      */
-    static FACTORY_KINDS = [
+    FACTORY_KINDS = [
         "audiooutput", "sequencer", "oscillator", "maracas", "livepiano", "notesbox","pianoroll",
         ...Object.keys(examples).map(k => `wam3d-${k}`),
     ]

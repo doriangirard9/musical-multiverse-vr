@@ -4,7 +4,6 @@ import {Node3dManager} from "./Node3dManager.ts";
 import {AppOrchestrator} from "./AppOrchestrator.ts";
 import {CreateBox, ImportMeshAsync} from "@babylonjs/core";
 import {N3DShop, N3DShopOptions} from "../world/shop/N3DShop.ts";
-import {Node3DBuilder} from "./Node3DBuilder.ts";
 import { TakableBehavior } from "../behaviours/boundingBox/TakableBehavior.ts";
 import { InputManager } from "../xr/inputs/InputManager.ts";
 
@@ -77,6 +76,27 @@ export class NewApp {
                 for(const zone of shop.zones.sort()) shop.showZone(zone,["camera"])
             }
 
+            // Construire les options du magasin
+            const builder = this.audioManager?.builder!!
+            const categories: Record<string, Set<string>> = {}
+            const kinds = new Set<string>()
+            await Promise.all(builder.FACTORY_KINDS.map(async kind => {
+                try{
+                    const factory = await builder.getFactory(kind)
+                    if(!factory) return
+                    kinds.add(kind)
+                    for(const tag of factory.tags){
+                        categories[tag] ??= new Set<string>()
+                        categories[tag].add(kind)
+                    }
+                }catch(e){}
+            }))
+            const options: N3DShopOptions = {
+                categories: Object.fromEntries(Object.entries(categories).map(([key, value]) => [key, [...value]])),
+                kinds: [...kinds]
+            }
+            console.log("Shop options:", options)
+
             // Le magasin-menu, accessible via un bouton et dont les WAM sont chargé et déchargé dynamiquement
             {
                 const model = (await ImportMeshAsync(N3DShop.BASE_SHOP_MODEL_URL, scene)).meshes[0]
@@ -87,7 +107,7 @@ export class NewApp {
                     shared,
                     Node3dManager.getInstance(),
                     InputManager.getInstance(),
-                    N3DShop.BASE_OPTIONS,
+                    options,
                 )
                 shop.showZone("default")
             }

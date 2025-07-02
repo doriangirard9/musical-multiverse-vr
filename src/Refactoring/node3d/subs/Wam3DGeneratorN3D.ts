@@ -137,17 +137,38 @@ export class Wam3DGeneratorN3DFactory implements Node3DFactory<Wam3DGeneratorN3D
     ){}
 
     static async create(code: WAMGuiInitCode){
-        const {wam_url} = code
-        const descriptor_url = wam_url.substring(0,wam_url.lastIndexOf("/"))+"/descriptor.json"
-        const descriptor = (await(await fetch(descriptor_url)).json()) as WamDescriptor
-        const tags = new Set<string>(descriptor.keywords.map(k=>k.toLowerCase()))
-        if(descriptor.isInstrument) tags.add("instrument")
-        return new Wam3DGeneratorN3DFactory(
-            descriptor.name,
-            descriptor.description,
-            [...tags],
-            code
-        )
+        try{
+            const {wam_url} = code
+            const descriptor_url = wam_url.substring(0,wam_url.lastIndexOf("/"))+"/descriptor.json"
+            const descriptor = (await(await fetch(descriptor_url)).json()) as WamDescriptor
+            const tags = new Set<string>(descriptor.keywords.map(k=>k.toLowerCase()))
+
+            if(descriptor.hasAudioInput && descriptor.hasAudioOutput && !descriptor.hasMidiInput && !descriptor.hasMidiOutput){
+                tags.add("audio")
+                tags.add("effect")
+            }
+
+            if(!descriptor.hasAudioInput && descriptor.hasAudioOutput && descriptor.hasMidiInput && !descriptor.hasMidiOutput){
+                tags.add("audio")
+                tags.add("midi")
+                tags.add("instrument")
+            }
+
+            if(!descriptor.hasAudioInput && !descriptor.hasAudioOutput && !descriptor.hasMidiInput && descriptor.hasMidiOutput){
+                tags.add("midi")
+                tags.add("generator")
+            }
+
+            if(descriptor.isInstrument) tags.add("instrument")
+            return new Wam3DGeneratorN3DFactory(
+                descriptor.name,
+                descriptor.description,
+                [...tags],
+                code
+            )
+        }catch(e){
+            return null
+        }
     }
 
     async createGUI(context: Node3DGUIContext): Promise<Wam3DGeneratorN3DGui> {
