@@ -729,28 +729,85 @@ export class PianoRollN3D implements Node3D{
            this.context.notifyStateChange('pattern');  // Triggers network sync
             this.updatePattern(row, col, button.isActive);
           }
-          public setPattern(pattern: Pattern): void {
+          setPattern(pattern: Pattern): void {
             this.pattern = pattern;
           
-            // Reset grid
-            this.gui.buttons.forEach(row => row.forEach(btn => {
-              btn.isActive = false;
-              btn.material.diffuseColor = COLOR_INACTIVE;
-            }));
+            /*  reset buttons & old borders  */
+            this.gui.buttons.flat().forEach(btn => {
+              btn.isActive  = false;
+              btn.mode      = "normal";
+              (btn.material as B.StandardMaterial).diffuseColor = COLOR_INACTIVE;
+            });
+            Object.values(this.rowControlBorders).flat().forEach(m => m.dispose());
+            this.rowControlBorders = {};
           
-            // Apply new pattern
+            /*  apply every note  */
             pattern.notes.forEach(note => {
-              const col = Math.floor(note.tick / this.ticksPerColumn);
-              const row = this.gui.notes.findIndex(n => this.convertNoteToMidi(n) === note.number);
-              if (row >= 0 && col >= 0 && row < this.gui.rows && col < this.gui.cols) {
-                const btn = this.gui.getButton(row, col);
-                if (btn) {
-                  btn.isActive = true;
-                  (btn.material as B.StandardMaterial).diffuseColor = COLOR_ACTIVE;
-                }
+              const row = this.gui.notes.findIndex(
+                n => this.convertNoteToMidi(n) === note.number
+              );
+              if (row < 0) return;
+          
+              const startCol = Math.floor(note.tick / this.ticksPerColumn);
+              const nCols    = Math.max(
+                1,
+                Math.round(note.duration / this.ticksPerColumn)
+              );
+          
+              /* 1 ─ colour **all** covered cells */
+              for (let c = startCol; c < startCol + nCols && c < this.gui.cols; c++) {
+                const btn = this.gui.getButton(row, c);
+                if (!btn) continue;
+                btn.isActive = true;
+                btn.mode     = nCols > 1 ? "control" : "normal";
+                (btn.material as B.StandardMaterial).diffuseColor =
+                    nCols > 1 ? COLOR_LONG_PLAYING : COLOR_ACTIVE;
+              }
+          
+              /* 2 ─ draw the translucent yellow border if it is a long note */
+              if (nCols > 1) {
+                    const border = B.MeshBuilder.CreateBox(
+                        `groupBorder_${row}_${startCol}`,          // ① use SAME prefix as local
+                  {
+                    width : this.gui.buttonWidth  * nCols +
+                            this.gui.buttonSpacing * (nCols - 1),
+                    height: 0.3,
+                    depth : this.gui.buttonDepth
+                  },
+                  this.gui.context.scene
+                );
+
+                border.isPickable = true;
+                border.actionManager = new B.ActionManager(this.gui.context.scene);
+                border.actionManager.registerAction(
+                  new B.ExecuteCodeAction(
+                    B.ActionManager.OnPickTrigger,
+                    () => this.deleteControlSequence(row, startCol)
+                  )
+                );
+                const mat = new B.StandardMaterial(
+                  `mat_border_${row}_${startCol}`,
+                  this.gui.context.scene
+                );
+                mat.emissiveColor   = B.Color3.Yellow();
+                mat.disableLighting = true;
+                mat.alpha           = 0.5;
+                border.material     = mat;
+                border.parent       = this.gui.root;
+
+                const centerCol = startCol + (nCols - 1) / 2;
+                border.position.x =
+                  (centerCol - (this.gui.cols - 1) / 2) *
+                  (this.gui.buttonWidth + this.gui.buttonSpacing);
+                border.position.y = this.gui.buttonHeight / 2;
+                border.position.z = this.gui.getButton(row, startCol)!.position.z;
+          
+                if (!this.rowControlBorders[row]) this.rowControlBorders[row] = [];
+                this.rowControlBorders[row].push(border);
               }
             });
           
+            /*  forward to local WAM piano-roll  */
             this.sendPatternToPianoRoll();
           }
           
@@ -775,6 +832,7 @@ export class PianoRollN3D implements Node3D{
               return;
             }
             this.expandControlSequence(row, seq.startCol, col);
+            this.context.notifyStateChange('pattern');  // Triggers network sync
           }
         }
         private rowControlBorders: { [row: number]: B.Mesh[] } = {};
@@ -832,6 +890,8 @@ export class PianoRollN3D implements Node3D{
           border.actionManager.registerAction(
             new B.ExecuteCodeAction(B.ActionManager.OnPickTrigger, () => this.deleteControlSequence(row, col))
           );
+          this.sendPatternToPianoRoll();      // local UI
+          // this.context.notifyStateChange('pattern'); 
         }
         private expandControlSequence(row: number, startCol: number, currentCol: number): void {
           if (currentCol < startCol || !this.currentControlSequence) return;
@@ -862,18 +922,28 @@ export class PianoRollN3D implements Node3D{
           seq.borderMesh.scaling.x = widthCols + (widthCols - 1) * spacingRatio;
           seq.borderMesh.position.x =
             (centerCol - (this.gui.cols - 1) / 2) * (this.gui.buttonWidth + this.gui.buttonSpacing);
+            this.sendPatternToPianoRoll();      // local UI
         }
 
         
         private deleteControlSequence(row: number, startCol: number): void {
           const midiNumber = this.convertNoteToMidi(this.gui.notes[row]);
           const tick = startCol * this.ticksPerColumn;
-          const idx  = this.pattern.notes.findIndex(n => n.number === midiNumber && n.tick === tick);
-          if (idx !== -1) this.pattern.notes.splice(idx, 1);
-        
-          const border = this.gui.context.scene.getMeshByName(`groupBorder_${row}_${startCol}`) as B.Mesh;
-          if (border) {
-            const widthCols = Math.round(border.scaling.x);
+            const idx = this.pattern.notes.findIndex(
+                          n => n.number === midiNumber && n.tick === tick);
+          
+            /* 1 ─ figure out how wide the sequence really is */
+            const widthCols = idx !== -1
+                ? Math.round(this.pattern.notes[idx].duration / this.ticksPerColumn)
+                : 1;
+          
+            /* 2 ─ remove the note from the pattern */
+            if (idx !== -1) this.pattern.notes.splice(idx, 1);
+          
+            /* 3 ─ dispose border mesh */
+            const border = this.gui.context.scene.getMeshByName(
+                             `groupBorder_${row}_${startCol}`) as B.Mesh;
+            if (border) {
             for (let c = startCol; c < startCol + widthCols; c++) {
               const btn = this.getButton(row, c);
               if (btn) {
@@ -892,6 +962,7 @@ export class PianoRollN3D implements Node3D{
           }
           this.currentControlSequence = null;
           this.sendPatternToPianoRoll();
+          this.context.notifyStateChange('pattern'); // Triggers network sync
         }
 
 
