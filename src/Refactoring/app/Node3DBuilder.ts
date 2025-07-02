@@ -13,6 +13,7 @@ import { MaracasN3DFactory } from "../node3d/subs/maracas/MaracasN3D.ts";
 import { LivePianoN3DFactory } from "../node3d/subs/LivePianoN3D.ts";
 import {NoteBoxN3DFactory} from "../node3d/subs/NoteBoxN3D.ts";
 import { SpeakerN3DFactory } from "../node3d/subs/speaker/SpeakerN3D.ts";
+import {PianoRollN3DFactory} from "../node3d/subs/PianoRoll/PianoRoll3d.ts";
 
 
 const WAM_CONFIGS_URL: string = "http://localhost:3000";
@@ -24,7 +25,7 @@ export class Node3DBuilder {
      * Some of the valid kinds of Node3D.
      */
     static FACTORY_KINDS = [
-        "audiooutput", "sequencer", "oscillator", "maracas", "livepiano", "notesbox",
+        "audiooutput", "sequencer", "oscillator", "maracas", "livepiano", "notesbox","pianoroll",
         ...Object.keys(examples).map(k => `wam3d-${k}`),
     ]
 
@@ -36,7 +37,8 @@ export class Node3DBuilder {
         if(kind=="maracas") return MaracasN3DFactory
         if(kind=="livepiano") return LivePianoN3DFactory
         if(kind=="notesbox") return NoteBoxN3DFactory
-        
+        if(kind=="pianoroll") return PianoRollN3DFactory
+
         // Wam3DGenerator examples
         if(kind.startsWith("wam3d-")) {
             const config = (examples as Record<string,WAMGuiInitCode>)[kind.substring(6)]
@@ -53,10 +55,10 @@ export class Node3DBuilder {
                 // Wam3DGenerator
                 if("wam3d" in config)return await Wam3DGeneratorN3DFactory.create(config.wam3d)
             }
-            
+
         }
 
-        
+
         return null
     }
 

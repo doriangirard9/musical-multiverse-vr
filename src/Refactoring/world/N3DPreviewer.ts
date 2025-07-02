@@ -4,7 +4,6 @@ import { Node3DGUI } from "../node3d/Node3D";
 import { N3DHighlighter } from "../node3d/instance/utils/N3DHighlighter";
 import { Node3dManager } from "../app/Node3dManager";
 import { Node3DInstance } from "../node3d/instance/Node3DInstance";
-import { HoldBehaviour } from "../behaviours/boundingBox/HoldBehavior";
 import { N3DText } from "../node3d/instance/utils/N3DText";
 
 

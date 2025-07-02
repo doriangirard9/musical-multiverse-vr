@@ -11,6 +11,7 @@ export class SpeakerN3DGUI implements Node3DGUI{
     audioInput!: Mesh
     speaker!: AbstractMesh
     root!: TransformNode
+    falloffSphere!: Mesh
 
     get worldSize(){ return 2 }
 
@@ -28,6 +29,25 @@ export class SpeakerN3DGUI implements Node3DGUI{
         MeshUtils.setColor(this.audioInput, new B.Color4(0,1,0,1))
         this.audioInput.parent = this.root
         this.audioInput.position.set(-0.5,0,0)
+
+        /* FallOff selon l'idée de michel, il veut que ça soit tout le temps visible,
+           au départ je voulais afficher uniquement si on drag puis uniquement si on est a l'extérieur
+           mais de ce qu'il ma dit en visio c'est plus un truc comme ça qu'il imagine (même
+           si ça rend très moche je trouve 3 outputs dans le monde = horrible)
+         */
+        this.falloffSphere = B.CreateSphere("audio output falloff", {diameter:50}, context.scene)
+        this.falloffSphere.setEnabled(false)
+        const material = new B.StandardMaterial("falloffSphereMaterial", context.scene)
+        material.diffuseColor = new B.Color3(1, 0, 0)
+        material.alpha = 0.1 // transparence
+        material.backFaceCulling = false // permet de garder la sphere visible si on est à l'intérieur
+        this.falloffSphere.material = material // besoin de créé un autre mat sinon je ne peux pas accéder à BackfaceCulling
+        this.falloffSphere.isPickable = false
+        this.falloffSphere.parent = this.root
+    }
+
+    doShowFalloff(shown: boolean){
+        this.falloffSphere.setEnabled(shown)
     }
 
     async dispose(){ }
@@ -43,6 +63,8 @@ export class SpeakerN3D implements Node3D{
     constructor(context: Node3DContext, gui: SpeakerN3DGUI){
         const {tools:{AudioN3DConnectable}, audioCtx} = context
 
+        gui.doShowFalloff(true)
+
         this.audioCtx = audioCtx
 
         context.addToBoundingBox(gui.speaker)
@@ -52,7 +74,7 @@ export class SpeakerN3D implements Node3D{
         pannerNode.panningModel = 'HRTF'
         pannerNode.distanceModel = 'inverse'
         pannerNode.refDistance = 1 // Distance de référence pour réduire le volume
-        pannerNode.maxDistance = 100 // Distance maximale à laquelle le son sera réduit, passé cette distance le son ne sera pas réduit
+        pannerNode.maxDistance = 50 // Distance maximale à laquelle le son sera réduit, passé cette distance le son ne sera pas réduit
         pannerNode.rolloffFactor = 0.5 // Vitesse de décroissance du volume en fonction de la distance
 
         // TODO: audioCtx.listener ne devrait pas être changé par un Node3d car c'est un paramètre général

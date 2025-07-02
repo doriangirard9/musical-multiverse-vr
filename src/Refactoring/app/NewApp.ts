@@ -52,7 +52,6 @@ export class NewApp {
         mesh.addBehavior(behavior)
         behavior.setBoundingBoxes([mesh.getHierarchyBoundingVectors(true)])
 
-
         const shared = this.audioManager?.builder?.shared!!
 
         window.addEventListener("keydown",e=>{
