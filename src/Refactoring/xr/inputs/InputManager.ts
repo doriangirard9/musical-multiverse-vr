@@ -8,6 +8,7 @@ export interface PointerMovementEvent {
     forward: Vector3,
     up: Vector3,
     right: Vector3,
+    target: Vector3,
 }
 
 export class InputManager {
@@ -106,9 +107,10 @@ export class InputManager {
 
             const origin = event.pickInfo?.ray?.origin!!
             const forward = event.pickInfo?.ray?.direction?.normalize()!!
+            const target = event.pickInfo?.pickedPoint ?? origin.add(forward.scale(5))
             const right = forward.cross(Vector3.Up()).negateInPlace().normalize()
             const up = right.cross(forward).normalize()
-            if(event.pickInfo)this.pointer_move.notifyObservers({origin, forward, up, right})
+            if(event.pickInfo)this.pointer_move.notifyObservers({origin, forward, up, right, target})
         })
     }
 }

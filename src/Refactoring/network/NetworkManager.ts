@@ -3,6 +3,7 @@ import {PlayerManager} from "../app/PlayerManager.ts";
 import {PlayerNetwork} from "./PlayerNetwork.ts";
 import {Node3DNetwork} from "./Node3DNetwork.ts";
 import { ConnectionManager } from './ConnectionManager.ts';
+import { VisualNetwork } from './VisualNetwork.ts';
 
 
 /**
@@ -15,6 +16,7 @@ export class NetworkManager {
     private readonly playerId: string
 
     readonly connection
+    readonly visual
     readonly player
     readonly node3d
 
@@ -27,6 +29,7 @@ export class NetworkManager {
         this.connection = new ConnectionManager(this.doc,this.playerId)
         this.player = new PlayerNetwork(this.doc, this.playerId)
         this.node3d = new Node3DNetwork(this.doc)
+        this.visual = new VisualNetwork(this.doc)
 
         console.log("Current player id:", this.playerId)
     }

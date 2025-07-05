@@ -5,6 +5,8 @@ import { RandomUtils } from "../node3d/tools/utils/RandomUtils.ts";
 import { N3DConnectionInstance } from "../node3d/instance/N3DConnectionInstance.ts";
 import { SceneManager } from "../app/SceneManager.ts";
 import { UIManager } from "../app/UIManager.ts";
+import { VisualTube } from "../visual/VisualTube.ts";
+import { InputManager } from "../xr/inputs/InputManager.ts";
 
 export class ConnectionManager {
     private currentPort: N3DConnectableInstance|null = null;
@@ -13,6 +15,7 @@ export class ConnectionManager {
     private network = NetworkManager.getInstance().node3d
     private scene = SceneManager.getInstance().getScene()
     private ui = UIManager.getInstance()
+    private disposePreview: (() => void) | null = null;
 
     private constructor() {
         console.log("[IOManager] POMME IOManager initialized");
@@ -31,7 +34,7 @@ export class ConnectionManager {
 
 
     private onIOEvent(): void {
-        this.ioEventBus.on('IO_CONNECT', payload => this.commonHandler(payload))
+        this.ioEventBus.on('IO_CONNECT', payload => this.connectHandler(payload))
     }
 
 
@@ -39,16 +42,29 @@ export class ConnectionManager {
      * Réinitialise l'état de la connexion en cours et annule l'aperçu.
      */
     private _cancelAndResetConnection(): void {
+        this.disposePreview?.()
+        this.disposePreview = null
         this.currentPort = null
     }
 
-    private commonHandler(data: IOEventPayload['IO_CONNECT']) {
+    private connectHandler(data: IOEventPayload['IO_CONNECT']) {
         const {pickType} = data
 
         console.log(`[IOManager] Pick type: ${pickType} | ${data}`)
         switch (pickType) {
             case "down":
                 this.currentPort = data.connectable
+                const tube = new VisualTube(this.scene, NetworkManager.getInstance().visual.tubes)
+                tube.setColor(this.currentPort!!.config.color.toColor4(1))
+                NetworkManager.getInstance().visual.tubes.add(RandomUtils.randomID(), tube)
+                const o = InputManager.getInstance().pointer_move.add((event)=>{
+                    const pos = event.target
+                    tube.move(this.currentPort!!.config.meshes[0].absolutePosition, pos)
+                })
+                this.disposePreview = () => {
+                    InputManager.getInstance().pointer_move.remove(o)
+                    tube.dispose()
+                }
                 //this.connectionManager.startConnectionPreview(this.currentPort.nodeid, this.currentPort.meshes[0], this.currentPort.id)
                 break
 
