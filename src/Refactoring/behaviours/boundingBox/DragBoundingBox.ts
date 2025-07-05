@@ -4,6 +4,7 @@ import {PlayerManager} from "../../app/PlayerManager.ts";
 import {XRManager} from "../../xr/XRManager.ts";
 import {XRControllerManager} from "../../xr/XRControllerManager.ts";
 import { RandomUtils } from "../../node3d/tools/utils/RandomUtils.ts";
+import { InputManager } from "../../xr/inputs/InputManager.ts";
 
 
 export class DragBoundingBox implements B.Behavior<B.AbstractMesh> {
@@ -26,7 +27,6 @@ export class DragBoundingBox implements B.Behavior<B.AbstractMesh> {
 
     constructor() {
         this.drag = new B.PointerDragBehavior({ dragPlaneNormal: new B.Vector3(0, 1, 0) })
-
         this.drag.useObjectOrientationForDragging = false;
         this.drag.onDragObservable.add(() => {
             if (this.selected) {
@@ -67,8 +67,7 @@ export class DragBoundingBox implements B.Behavior<B.AbstractMesh> {
         this.selected = target
 
         if (this.selected) {
-            try { XRManager.getInstance().xrFeaturesManager.disableFeature(B.WebXRFeatureName.MOVEMENT) }
-            catch (e) { console.warn("Could not disable XR movement:", e) }
+            XRManager.getInstance().setMovement(["translation"])
 
             this.selected.visibility = 0.5;
             this.selected.addBehavior(this.drag);
@@ -91,19 +90,7 @@ export class DragBoundingBox implements B.Behavior<B.AbstractMesh> {
     release() {
         if (!this.selected) return;
 
-        try {
-            XRManager.getInstance().xrFeaturesManager.enableFeature(
-                B.WebXRFeatureName.MOVEMENT,
-                "latest",
-                {
-                    xrInput: XRManager.getInstance().xrHelper.input,
-                    movementSpeed: 0.2,
-                    rotationSpeed: 0.3
-                }
-            );
-        } catch (e) {
-            console.warn("Could not re-enable XR movement:", e);
-        }
+        XRManager.getInstance().setMovement(["translation","rotation"])
 
         this.selected.visibility = 0;
         if (this.selected.behaviors && this.selected.behaviors.includes(this.drag)) {
@@ -148,14 +135,7 @@ export class DragBoundingBox implements B.Behavior<B.AbstractMesh> {
         this.observerHandle = SceneManager.getInstance().getScene().onBeforeRenderObservable.add(() => {
             if (!this.selected) return;
 
-            const controller = XRManager.getInstance().xrInputManager.rightController;
-            if (!controller || !controller.motionController) return;
-
-            const thumbstick = controller.motionController.getComponent("xr-standard-thumbstick");
-            if (!thumbstick) return
-
-            const x = thumbstick.axes.x
-            const y = thumbstick.axes.y
+            const {x, y} = InputManager.getInstance().left_thumbstick
 
             if (Math.abs(x) >= 0.2 || Math.abs(y) >= 0.2) {
                 if (this.selected.behaviors && this.selected.behaviors.includes(this.drag)) {
@@ -174,7 +154,7 @@ export class DragBoundingBox implements B.Behavior<B.AbstractMesh> {
             ).normalize();
 
             const right = new B.Vector3(forward.z, 0, -forward.x).normalize()
-            const forwardMove = forward.scale(-y * this.HORIZONTAL_SPEED)
+            const forwardMove = forward.scale(y * this.HORIZONTAL_SPEED)
             const rightMove = right.scale(x * this.HORIZONTAL_SPEED)
 
             this.selected.position.addInPlace(forwardMove)

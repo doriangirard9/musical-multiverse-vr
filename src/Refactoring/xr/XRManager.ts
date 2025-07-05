@@ -109,12 +109,18 @@ export class XRManager {
     }
 
     private _initXRFeatures(): void {
-        const featuresManager: B.WebXRFeaturesManager = this.xrHelper.baseExperience.featuresManager;
-        featuresManager.disableFeature(B.WebXRFeatureName.TELEPORTATION);
+        const featuresManager: B.WebXRFeaturesManager = this.xrHelper.baseExperience.featuresManager
+        featuresManager.disableFeature(B.WebXRFeatureName.TELEPORTATION)
+        this.setMovement(["rotation", "translation"])
+    }
+
+    setMovement(features: ("rotation"|"translation")[]){
+        const featuresManager: B.WebXRFeaturesManager = this.xrHelper.baseExperience.featuresManager
+        try{ featuresManager.disableFeature(B.WebXRFeatureName.MOVEMENT) }catch(e){}
         featuresManager.enableFeature(B.WebXRFeatureName.MOVEMENT, "latest", {
             xrInput: this.xrHelper.input,
-            movementSpeed: 0.2,
-            rotationSpeed: 0.3,
-        });
+            movementSpeed: features.includes("translation") ? 0.2 : 0.0,
+            rotationSpeed: features.includes("rotation") ? 0.3 : 0.0,
+        })
     }
 }
