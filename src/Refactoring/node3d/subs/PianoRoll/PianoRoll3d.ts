@@ -244,7 +244,8 @@ this.block = this.createBox(
         "pianoRollBlock",  {
             width: (this.endX - this.startX ) + (this.keyboardWidth * 2 + this.buttonSpacing) + (this.keyboardWidth + this.buttonSpacing*2) ,//+this.keyboardWidth , 
             height: 0.2,
-            depth: this.endZ - this.startZ + this.buttonDepth+ this.buttonSpacing + (this.buttonDepth+this.buttonSpacing) * 2 // for scrolling buttons
+            // depth: this.endZ - this.startZ + this.buttonDepth+ this.buttonSpacing + ( for scrolling buttons) + (more spacing on the edges top and bottom)
+            depth: this.endZ - this.startZ + this.buttonDepth+ this.buttonSpacing + (this.buttonDepth+this.buttonSpacing) * 2 + 0.8 // for scrolling buttons
         }, COLOR_BASE_MESH
         , new B.Vector3(0,0,0),this.root)
 
