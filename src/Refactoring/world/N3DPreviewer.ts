@@ -4,6 +4,8 @@ import { Node3DGUI } from "../node3d/Node3D";
 import { N3DHighlighter } from "../node3d/instance/utils/N3DHighlighter";
 import { Node3dManager } from "../app/Node3dManager";
 import { Node3DInstance } from "../node3d/instance/Node3DInstance";
+import {SpeakerN3DGUI} from "../node3d/subs/speaker/SpeakerN3D.ts";
+import {N3DText} from "../node3d/instance/utils/N3DText.ts";
 
 
 /**
@@ -15,6 +17,7 @@ export class N3DPreviewer{
     root
     gui!: Node3DGUI
     highlighter!: N3DHighlighter
+    private text: N3DText;
 
     constructor(
         private shared: N3DShared,
@@ -54,6 +57,7 @@ export class N3DPreviewer{
         gui.root.parent = hitbox
         hitbox.parent = this.root
 
+        if (gui instanceof SpeakerN3DGUI) gui.falloffSphere.visibility = 0;
         // On drag, create a new node3D
         const drag_behaviour = new PointerDragBehavior()
         hitbox.addBehavior(drag_behaviour)
@@ -86,10 +90,22 @@ export class N3DPreviewer{
         const action = hitbox.actionManager ??= new ActionManager()
         action.registerAction(new ExecuteCodeAction(ActionManager.OnPointerOverTrigger, ()=>{
             this.shared.highlightLayer.addMesh(hitbox, Color3.Green())
+
+            const text = this.text = new N3DText(this.kind, [hitbox])
+            text.set(this.kind)
+            text.updatePosition()
+            text.plane.position.y -= 0.5
+            text.show()
+
         }))!!
         
         action.registerAction(new ExecuteCodeAction(ActionManager.OnPointerOutTrigger, ()=>{
             this.shared.highlightLayer.removeMesh(hitbox)
+            if(this.text){
+                this.text.hide()
+                this.text.dispose()
+                this.text = undefined as any
+            }
         }))!!
     }
 

@@ -32,7 +32,7 @@ export class N3DParameterInstance {
 
         /* Parameter value text visual */
         // Gère l'affichage du texte de la valeur du paramètre
-        const text = this.text = new N3DText(`parameter ${config.id}`, root, config.meshes)
+        const text = this.text = new N3DText(`parameter ${config.id}`, config.meshes)
         /* */
 
 
@@ -101,7 +101,6 @@ export class N3DParameterInstance {
             drag.onDragStartObservable.add(() => {
                 visual.offset(1)
                 
-                startingValue = getValue()
                 const stepCount = getStepCount()
                 if(stepCount<=1){
                     stepSize = 0.001
@@ -111,6 +110,7 @@ export class N3DParameterInstance {
                     stepSize = 1/(stepCount-1)
                     changeFactor = stepSize*4
                 }
+                startingValue = getValue() + stepSize/2
 
                 // If stepCount is 2, the value is directly changed
                 if(stepSize==1)setValue(getValue()<.5 ? 1 : 0)

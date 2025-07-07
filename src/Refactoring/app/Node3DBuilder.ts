@@ -12,6 +12,7 @@ import { N3DShared } from "../node3d/instance/N3DShared.ts";
 import { MaracasN3DFactory } from "../node3d/subs/maracas/MaracasN3D.ts";
 import { LivePianoN3DFactory } from "../node3d/subs/LivePianoN3D.ts";
 import {NoteBoxN3DFactory} from "../node3d/subs/NoteBoxN3D.ts";
+import { SpeakerN3DFactory } from "../node3d/subs/speaker/SpeakerN3D.ts";
 import {PianoRollN3DFactory} from "../node3d/subs/PianoRoll/PianoRoll3d.ts";
 
 
@@ -35,7 +36,7 @@ export class Node3DBuilder {
      */
     public async getFactory(kind: string): Promise<Node3DFactory<Node3DGUI,Node3D>|null> {
         // Builtin
-        if(kind=="audiooutput") return AudioOutputN3DFactory
+        if(kind=="audiooutput") return SpeakerN3DFactory
         if(kind=="sequencer") return SequencerN3DFactory
         if(kind=="oscillator") return OscillatorN3DFactory
         if(kind=="maracas") return MaracasN3DFactory
