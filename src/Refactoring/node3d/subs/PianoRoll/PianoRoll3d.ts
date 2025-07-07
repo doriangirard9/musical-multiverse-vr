@@ -81,9 +81,9 @@ class PianoRollN3DGUI implements Node3DGUI {
     buttonHeight = 0.2;
     buttonDepth = 0.5;
     buttonSpacing = 0.2;
-
+    keyboardWidth = 3; 
     // Scrolling properties
-    visibleRowCount: number = 7;
+    visibleRowCount: number = 14;
     private _startRowIndex: number = 0;
     
     // grid buttons(buttons: blue keys,colorBoxes: black and white keys)
@@ -179,7 +179,7 @@ isBlackKeyFromNoteName(note: string): boolean {
 private _createColorBox(row: number, isBlack: boolean): B.Mesh {
     const positionZ = (row - (this.rows - 1) / 2) * (this.buttonDepth + this.buttonSpacing);
     const position = new B.Vector3(
-      this.startX - (this.buttonWidth + this.buttonSpacing),
+      this.startX - (this.keyboardWidth + this.buttonSpacing),
       this.buttonHeight / 2,
       positionZ
     );
@@ -188,7 +188,7 @@ private _createColorBox(row: number, isBlack: boolean): B.Mesh {
   
     return this._createBox(
       `color_box_${row}`,
-      { width: this.buttonWidth, height: this.buttonHeight, depth: this.buttonDepth },
+      { width: this.keyboardWidth, height: this.buttonHeight, depth: this.buttonDepth },
       color,
       position,
       this.root
@@ -242,7 +242,7 @@ private _createNoteButton(row: number, col: number, z: number): NoteButtonMesh {
 
 this.block = this._createBox(
         "pianoRollBlock",  {
-            width: (this.endX - this.startX ) + (this.buttonWidth * 2 + this.buttonSpacing) + (this.buttonWidth + this.buttonSpacing*2) , 
+            width: (this.endX - this.startX ) + (this.keyboardWidth * 2 + this.buttonSpacing) + (this.keyboardWidth + this.buttonSpacing*2) ,//+this.keyboardWidth , 
             height: 0.2,
             depth: this.endZ - this.startZ + this.buttonDepth+ this.buttonSpacing + (this.buttonDepth+this.buttonSpacing) * 2 // for scrolling buttons
         }, COLOR_BASE_MESH
