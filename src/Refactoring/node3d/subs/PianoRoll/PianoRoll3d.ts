@@ -69,7 +69,7 @@ class PianoRollN3DGUI implements Node3DGUI {
 
     // Grid properties
     rows: number= 88;
-    cols: number= 16;
+    cols: number= 32;
 
     // grid edges
     startX!: number;
@@ -83,8 +83,8 @@ class PianoRollN3DGUI implements Node3DGUI {
     buttonSpacing = 0.2;
     keyboardWidth = 3; 
     // Scrolling properties
-    visibleRowCount: number = 14;
-    private _startRowIndex: number = 0;
+    visibleRowCount: number = 7;
+    private _startRowIndex: number = 44;
     
     // grid buttons(buttons: blue keys,colorBoxes: black and white keys)
     buttons: NoteButtonMesh[][] = [];
@@ -186,7 +186,7 @@ private _createColorBox(row: number, isBlack: boolean): B.Mesh {
   
     const color = isBlack ? COLOR_BLACK_KEY : COLOR_WHITE_KEY;
   
-    return this._createBox(
+    return this.createBox(
       `color_box_${row}`,
       { width: this.keyboardWidth, height: this.buttonHeight, depth: this.buttonDepth },
       color,
@@ -201,7 +201,7 @@ private _createNoteButton(row: number, col: number, z: number): NoteButtonMesh {
     const positionX = (col - (this.cols - 1) / 2) * (this.buttonWidth + this.buttonSpacing);
     const position = new B.Vector3(positionX, this.buttonHeight / 2, z);
   
-    const button = this._createBox(
+    const button = this.createBox(
       `button${row}_${col}`,
       { width: this.buttonWidth, height: this.buttonHeight, depth: this.buttonDepth },
       COLOR_INACTIVE,
@@ -216,7 +216,7 @@ private _createNoteButton(row: number, col: number, z: number): NoteButtonMesh {
   }
   
 
-  private _createBox(
+  public createBox(
     name: string,
     size: { width: number; height: number; depth: number },
     color: B.Color3,
@@ -240,7 +240,7 @@ private _createNoteButton(row: number, col: number, z: number): NoteButtonMesh {
 
     private _createBaseMesh()    {
 
-this.block = this._createBox(
+this.block = this.createBox(
         "pianoRollBlock",  {
             width: (this.endX - this.startX ) + (this.keyboardWidth * 2 + this.buttonSpacing) + (this.keyboardWidth + this.buttonSpacing*2) ,//+this.keyboardWidth , 
             height: 0.2,
@@ -267,7 +267,7 @@ this.block = this._createBox(
 
 
   createPlayhead(): void {
-    this.playhead = this._createBox(
+    this.playhead = this.createBox(
       "playhead",
       { width: 0.1, height: 0.2, depth: this.endZ - this.startZ + this.buttonDepth },
       COLOR_PLAYING,
@@ -290,7 +290,7 @@ this.block = this._createBox(
     };
   
     // Create scroll up button
-    this._btnScrollUp = this._createBox(
+    this._btnScrollUp = this.createBox(
       "btnScrollUp",
       size,
       scrollColor,
@@ -302,7 +302,7 @@ this.block = this._createBox(
     this._btnScrollUp.position.z = scrollUpZ;
   
     // Create scroll down button
-    this._btnScrollDown = this._createBox(
+    this._btnScrollDown = this.createBox(
       "btnScrollDown",
       size,
       scrollColor,
@@ -414,7 +414,7 @@ recalculateGridBoundaries(): void {
   }
   
   public startStopButton(): void {
-    this.btnStartStop = this._createBox(
+    this.btnStartStop = this.createBox(
       "startStopButton",
       { width: 2, height: 0.6, depth: 0.4 },
       B.Color3.Green(),
@@ -425,7 +425,7 @@ recalculateGridBoundaries(): void {
 
       // create box that can be clicked to show a menu
   public createMenuButton(): void {
-        this.menuButton = this._createBox(
+        this.menuButton = this.createBox(
           "menuButton",
           { width: 2, height: 0.6, depth: 0.4 },
           B.Color3.Black(),
@@ -521,7 +521,7 @@ export class PianoRollN3D implements Node3D{
             this.currentControlSequence = null;     // reset
           }
         });
-
+        this.createBars()
     }
     private getButton(row: number, col: number) {
       return this.gui.getButton(row, col);
@@ -1084,7 +1084,29 @@ export class PianoRollN3D implements Node3D{
         this.start()
         // this.sendPatternToPianoRoll();
       }
+
       
+public createBars() {
+  for (let col = 0; col <= this.gui.cols; col++) {
+    const isBar  = col % (this.timeSignatureNumerator * this.timeSignatureDenominator) === 0;
+    const isBeat = col % this.timeSignatureDenominator === 0;
+    if (!isBar && !isBeat) continue;
+
+    // size, colour, position
+    const size      = { width: 0.1, height: 0.19, depth: this.gui.endZ - this.gui.startZ + this.gui.buttonWidth };
+    const colour    = isBar ?  new B.Color3(0,0, 0) : new B.Color3(1, 1, 1);
+    const posX      = (col - (this.gui.cols - 1) / 2) *
+                      (this.gui.buttonWidth + this.gui.buttonSpacing) -
+                      (this.gui.buttonWidth + this.gui.buttonSpacing) / 2;
+    const position  = new B.Vector3(posX, 0.2, 0);
+
+    // create the divider line with the shared helper
+    const line = this.gui.createBox(`divider_${col}`, size, colour, position, this.gui.root);
+    line.isPickable = false;      // purely visual
+  }
+}
+
+
       
       
         
