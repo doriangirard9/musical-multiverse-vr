@@ -194,7 +194,8 @@ export class Node3DInstance implements Synchronized{
         }, this.shared.scene)
         size.scaleInPlace(.5)
         this.bounding_mesh.position.subtractInPlace(bounds.min).subtractInPlace(size)
-        this.bounding_mesh.isVisible = false
+        //this.bounding_mesh.isVisible = false
+        this.bounding_mesh.visibility = 0.5
 
         this.root_transform.parent = this.bounding_mesh
 
@@ -212,7 +213,7 @@ export class Node3DInstance implements Synchronized{
         }
 
         shake.on_stop = () => MeshUtils.setColor(this.bounding_box?.boundingBox!!, Color3.White().toColor4())
-
+        
 
         // On position change
         this.set_state("position")

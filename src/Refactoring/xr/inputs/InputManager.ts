@@ -117,7 +117,6 @@ export class InputManager {
             let forward!: Vector3
             let right!: Vector3
             let up!: Vector3
-            let target!: Vector3
             if(event.pickInfo?.aimTransform){
                 origin = event.pickInfo.aimTransform.position
                 forward = event.pickInfo.aimTransform.forward
@@ -126,10 +125,11 @@ export class InputManager {
             } else if(event.pickInfo?.ray) {
                 origin = event.pickInfo?.ray?.origin!!
                 forward = event.pickInfo?.ray?.direction?.normalize()!!
-                target = event.pickInfo?.pickedPoint ?? origin.add(forward.scale(5))
                 right = forward.cross(Vector3.Up()).negateInPlace().normalize()
                 up = right.cross(forward).scaleInPlace(-1).normalize()
             }
+            const target = event.pickInfo?.pickedPoint ?? origin.add(forward.scale(5))
+
             const pointer_event = {origin, forward, up, right, target}
             this.current_pointer = pointer_event
             if(event.pickInfo)this.pointer_move.notifyObservers(pointer_event)
