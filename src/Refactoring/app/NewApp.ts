@@ -2,11 +2,12 @@ import {SceneManager} from "./SceneManager.ts";
 import {XRManager} from "../xr/XRManager.ts";
 import {Node3dManager} from "./Node3dManager.ts";
 import {AppOrchestrator} from "./AppOrchestrator.ts";
-import {CreateBox, ImportMeshAsync} from "@babylonjs/core";
+import {CreateBox, ImportMeshAsync, TransformNode} from "@babylonjs/core";
 import {N3DShop, N3DShopOptions} from "../world/shop/N3DShop.ts";
 import { TakableBehavior } from "../behaviours/boundingBox/TakableBehavior.ts";
 import { InputManager } from "../xr/inputs/InputManager.ts";
 import { parallel } from "../utils/utils.ts";
+import { HoldableBehaviour } from "../behaviours/boundingBox/HoldableBehaviour.ts";
 
 export class NewApp {
     private audioCtx: AudioContext | undefined;
@@ -48,9 +49,10 @@ export class NewApp {
         //await this.audioManager!!.createNode3d("audiooutput")
 
         const mesh = CreateBox("box", {size: 1}, scene)
-        const behavior = new TakableBehavior("test")
+        mesh.rotation.x = Math.PI / 3
+        mesh.bakeCurrentTransformIntoVertices()
+        const behavior = new HoldableBehaviour()
         mesh.addBehavior(behavior)
-        behavior.setBoundingBoxes([mesh.getHierarchyBoundingVectors(true)])
 
         const shared = this.audioManager?.builder?.shared!!
 
@@ -75,9 +77,7 @@ export class NewApp {
                         InputManager.getInstance(),
                         N3DShop.BASE_OPTIONS,
                     )
-                    console.log("---",shop.zones)
                     for(const zone of shop.zones.sort()){
-                        console.log(" > ",zone)
                         await shop.showZone(zone,["camera"])
                     }
                 },

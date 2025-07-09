@@ -43,6 +43,14 @@ export class InputManager {
 
     readonly pointer_move = new Observable<PointerMovementEvent>()
 
+    public current_pointer: PointerMovementEvent = {
+        origin: Vector3.Zero(),
+        forward: Vector3.Forward(),
+        up: Vector3.Up(),
+        right: Vector3.Right(),
+        target: Vector3.Forward(),
+    }
+
 
 
     private constructor(
@@ -105,12 +113,26 @@ export class InputManager {
             if(!event.pickInfo?.originMesh) last_mouse_movement = Date.now()
             else if(Date.now() - last_mouse_movement < 5000) return
 
-            const origin = event.pickInfo?.ray?.origin!!
-            const forward = event.pickInfo?.ray?.direction?.normalize()!!
-            const target = event.pickInfo?.pickedPoint ?? origin.add(forward.scale(5))
-            const right = forward.cross(Vector3.Up()).negateInPlace().normalize()
-            const up = right.cross(forward).normalize()
-            if(event.pickInfo)this.pointer_move.notifyObservers({origin, forward, up, right, target})
+            let origin!: Vector3
+            let forward!: Vector3
+            let right!: Vector3
+            let up!: Vector3
+            let target!: Vector3
+            if(event.pickInfo?.aimTransform){
+                origin = event.pickInfo.aimTransform.position
+                forward = event.pickInfo.aimTransform.forward
+                right = event.pickInfo.aimTransform.right
+                up = event.pickInfo.aimTransform.up
+            } else if(event.pickInfo?.ray) {
+                origin = event.pickInfo?.ray?.origin!!
+                forward = event.pickInfo?.ray?.direction?.normalize()!!
+                target = event.pickInfo?.pickedPoint ?? origin.add(forward.scale(5))
+                right = forward.cross(Vector3.Up()).negateInPlace().normalize()
+                up = right.cross(forward).scaleInPlace(-1).normalize()
+            }
+            const pointer_event = {origin, forward, up, right, target}
+            this.current_pointer = pointer_event
+            if(event.pickInfo)this.pointer_move.notifyObservers(pointer_event)
         })
     }
 }

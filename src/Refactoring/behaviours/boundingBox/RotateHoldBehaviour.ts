@@ -7,9 +7,10 @@ import { InputManager, PointerMovementEvent } from "../../xr/inputs/InputManager
  * The object will rotate to match the controller's direction.
  * Using the left thumbstick, the user can rotate the object around its local axes.
  */
-export class RotateBehaviour implements Behavior<TransformNode> {
+export class RotateHoldBehaviour implements Behavior<TransformNode> {
   
-  name = "RotateBehaviour"
+  name = RotateHoldBehaviour.name
+
   target!: TransformNode
   pointer!: PointerMovementEvent
   oldRotation?: Quaternion
@@ -26,6 +27,7 @@ export class RotateBehaviour implements Behavior<TransformNode> {
     const inputs = InputManager.getInstance()
 
     const o = inputs.pointer_move.add(new_pointer => {
+      if(!this.pointer)this.pointer = new_pointer // Initialize pointer if not set yet
       if(this.pointer.forward.equals(new_pointer.forward) && this.pointer.origin.equals(new_pointer.origin)) return // Ignore if ray didn't change
       this.pointer = new_pointer
       
@@ -37,6 +39,7 @@ export class RotateBehaviour implements Behavior<TransformNode> {
         this.target.rotation = delta.multiply(this.target.rotation.toQuaternion()).toEulerAngles()
       }
       this.oldRotation = newRotation
+      this.on_rotate()
 
     })
 
@@ -62,11 +65,14 @@ export class RotateBehaviour implements Behavior<TransformNode> {
   detach!: () => void
 
   rotate(x: number, y: number){
-    const side = this.pointer.forward.applyRotationQuaternion(Quaternion.FromEulerAngles(0, Math.PI/2, 0))
-    this.target.rotate(Vector3.Up(), x * 0.01, Space.WORLD)
-    this.target.rotate(side, y * 0.01, Space.WORLD)
-    this.target.rotation = this.target.rotationQuaternion!!.toEulerAngles()
+    const pointer = InputManager.getInstance().current_pointer
+
+    const rotate_x = Quaternion.RotationAxis(pointer.up, x/50)
+    const rotate_y = Quaternion.RotationAxis(pointer.right, y/50)
+    const rotation = rotate_y.multiplyInPlace(rotate_x)
+
     this.target.rotationQuaternion = null
+    this.target.rotation = rotation.multiply(this.target.rotation.toQuaternion()).toEulerAngles()
     this.on_rotate()
   }
 

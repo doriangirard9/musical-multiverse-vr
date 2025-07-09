@@ -5,6 +5,7 @@ import { N3DHighlighter } from "../node3d/instance/utils/N3DHighlighter";
 import { Node3dManager } from "../app/Node3dManager";
 import { Node3DInstance } from "../node3d/instance/Node3DInstance";
 import { N3DText } from "../node3d/instance/utils/N3DText";
+import { HoldableBehaviour } from "../behaviours/boundingBox/HoldableBehaviour";
 
 
 /**
@@ -16,7 +17,7 @@ export class N3DPreviewer{
     root
     gui!: Node3DGUI
     highlighter!: N3DHighlighter
-    drag!: PointerDragBehavior
+    drag!: HoldableBehaviour
     text!: N3DText
     on_start_drag?: ()=>void
     on_drop?: (node3d:Node3DInstance)=>void
@@ -55,34 +56,34 @@ export class N3DPreviewer{
         hitbox.parent = this.root
 
         // On drag, create a new node3D
-        const drag_behaviour = this.drag = new PointerDragBehavior()
+        const drag_behaviour = this.drag = new HoldableBehaviour()
         hitbox.addBehavior(drag_behaviour)
 
-        drag_behaviour.onDragStartObservable.add(async()=>{
+        drag_behaviour.onGrabObservable.add(async()=>{
             this.on_start_drag?.()
             setTimeout(function timefn(){
-                if(drag_behaviour.dragging){
+                if(drag_behaviour.isDragging){
                     hitbox.scaling.setAll(hitbox.scaling.y*.9+gui.worldSize*Node3DInstance.SIZE_MULTIPLIER*.1)
                     setTimeout(timefn,20)
                 }
             },20)
         })
 
-        drag_behaviour.onDragEndObservable.add(async()=>{
+        drag_behaviour.onReleaseObservable.add(async()=>{
             const dragDistance = hitbox.position.length()
-            if(dragDistance>4){
-                console.log(dragDistance)
-                console.log("node3dManager",this.node3DManager)
+            if(dragDistance>hitbox.getBoundingInfo().boundingBox.extendSizeWorld.x*2){
                 const new_node3d = await this.node3DManager.createNode3d(this.kind)
                 if(new_node3d!=null){
                     new_node3d.boundingBoxMesh.setAbsolutePosition(hitbox.absolutePosition.clone())
+                    new_node3d.boundingBoxMesh.rotationQuaternion = hitbox.absoluteRotationQuaternion
                     this.on_drop?.(new_node3d)
                 }
                 else this.on_no_drop?.()
             }
             else this.on_no_drop?.()
-            drag_behaviour.dragging = false
             hitbox.position.setAll(0)
+            hitbox.rotationQuaternion?.set(0,0,0,1)
+            hitbox.rotation.setAll(0)
             if(!this.inWorldSize)hitbox.scaling.setAll(1)
         })
 
