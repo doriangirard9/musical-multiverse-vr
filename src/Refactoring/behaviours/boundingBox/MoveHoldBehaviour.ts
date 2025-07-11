@@ -77,13 +77,8 @@ export class MoveHoldBehaviour implements Behavior<TransformNode> {
     // Rotate
     const newRotation = Quaternion.FromLookDirectionRH(forward, up)
     if(this.oldRotation){
-      const delta = newRotation.multiply(this.oldRotation.conjugate())//.toEulerAngles()
-      //console.log("Delta:", delta.toEulerAngles().asArray().map(it=>Math.round(it*1000)))
-      console.log("Delta:",up.asArray())
-      // OLD FORMULA THAT NOT ONLY CHANGE PITCH AND YAW BUT ALSO ROLL
+      const delta = newRotation.multiply(this.oldRotation.conjugate())
       setAbsoluteRotation(this.target, delta.multiply(getAbsoluteRotation(this.target)))
-      //this.target.rotation.x += delta.x
-      //this.target.rotation.y += delta.y
     }
     this.oldRotation = newRotation
     this.on_move()

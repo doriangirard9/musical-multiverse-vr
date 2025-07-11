@@ -26,14 +26,15 @@ export class RotateHoldBehaviour implements Behavior<TransformNode> {
 
     const inputs = InputManager.getInstance()
 
-    console.log("Register event")
-    const o = inputs.pointer_move.add(new_pointer => {
-            console.log("Rotate1")
+    const o = inputs.pointer_move.add(() => {
+      const new_pointer = inputs.current_pointer
+      console.log("Rotate",new_pointer.forward.asArray())
       if(!this.pointer)this.pointer = new_pointer // Initialize pointer if not set yet
+      console.log(" Pointer", this.pointer.forward.asArray(), new_pointer.forward.asArray())
       if(this.pointer.forward.equals(new_pointer.forward) && this.pointer.origin.equals(new_pointer.origin)) return // Ignore if ray didn't change
       this.pointer = new_pointer
+      console.log(" Then rotate")
 
-      console.log("Rotate")
       
       // Rotate by rotating hand
       const newRotation = Quaternion.FromLookDirectionRH(new_pointer.forward, new_pointer.up)

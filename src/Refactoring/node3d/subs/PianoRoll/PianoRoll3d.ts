@@ -314,8 +314,8 @@ this.block = this._createBox(
     this._btnScrollDown.position.z = scrollDownZ;
   
     // Add click actions
-    this._btnScrollUp.actionManager = new B.ActionManager(this.context.scene);
-    this._btnScrollDown.actionManager = new B.ActionManager(this.context.scene);
+    this._btnScrollUp.actionManager ??= new B.ActionManager(this.context.scene);
+    this._btnScrollDown.actionManager ??= new B.ActionManager(this.context.scene);
   
     this._btnScrollUp.actionManager.registerAction(
       new B.ExecuteCodeAction(B.ActionManager.OnPickTrigger, () => this._scrollUp())
@@ -437,7 +437,7 @@ recalculateGridBoundaries(): void {
         this.menuButton.position.z = -this.endZ - (this.buttonDepth + this.buttonSpacing);
   
         // // add click action to start stop button
-        // this.menuButton.actionManager = new B.ActionManager(this.context.scene);
+        // this.menuButton.actionManager ??= new B.ActionManager(this.context.scene);
         // this.menuButton.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickTrigger, () => {
         //   this.menu.show();
         // }));
@@ -636,7 +636,7 @@ export class PianoRollN3D implements Node3D{
           }
           toggleStartStopBtn(): void {
             if(!this.gui.btnStartStop.actionManager)
-            this.gui.btnStartStop.actionManager = new B.ActionManager(this.gui.context.scene);
+            this.gui.btnStartStop.actionManager ??= new B.ActionManager(this.gui.context.scene);
             this.gui.btnStartStop.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickTrigger, () => {
                 const mat = this.gui.btnStartStop.material as B.StandardMaterial;
                 if (this.isBtnStartStop) {
@@ -828,7 +828,7 @@ export class PianoRollN3D implements Node3D{
           this.currentControlSequence = { row, startCol: col, startTick: tick, midiNumber, borderMesh: border };
           console.log("currentSequence",this.currentControlSequence)
           // 5. Border click deletes the sequence
-          border.actionManager = new B.ActionManager(this.gui.context.scene);
+          border.actionManager ??= new B.ActionManager(this.gui.context.scene);
           border.actionManager.registerAction(
             new B.ExecuteCodeAction(B.ActionManager.OnPickTrigger, () => this.deleteControlSequence(row, col))
           );
@@ -903,7 +903,7 @@ export class PianoRollN3D implements Node3D{
             for (let row = 0; row < this.gui.rows; row++) {
                 for (let col = 0; col < this.gui.cols; col++) {
                     const button = this.gui.buttons[row][col];
-                    button.actionManager = new B.ActionManager(this.gui.context.scene);
+                    button.actionManager ??= new B.ActionManager(this.gui.context.scene);
           
                     button.actionManager.registerAction(
                       new B.ExecuteCodeAction(B.ActionManager.OnPickTrigger, () => {
@@ -919,7 +919,7 @@ export class PianoRollN3D implements Node3D{
             }
 
             // Menu action Manager
-            this.gui.menuButton.actionManager = new B.ActionManager(this.gui.context.scene);
+            this.gui.menuButton.actionManager ??= new B.ActionManager(this.gui.context.scene);
             this.gui.menuButton.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickTrigger, () => {
               this.menu.show();
             }));

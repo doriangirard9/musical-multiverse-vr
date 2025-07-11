@@ -2,9 +2,8 @@ import {SceneManager} from "./SceneManager.ts";
 import {XRManager} from "../xr/XRManager.ts";
 import {Node3dManager} from "./Node3dManager.ts";
 import {AppOrchestrator} from "./AppOrchestrator.ts";
-import {CreateBox, ImportMeshAsync, TransformNode} from "@babylonjs/core";
+import {CreateBox, ImportMeshAsync} from "@babylonjs/core";
 import {N3DShop, N3DShopOptions} from "../world/shop/N3DShop.ts";
-import { TakableBehavior } from "../behaviours/boundingBox/TakableBehavior.ts";
 import { InputManager } from "../xr/inputs/InputManager.ts";
 import { parallel } from "../utils/utils.ts";
 import { HoldableBehaviour } from "../behaviours/boundingBox/HoldableBehaviour.ts";
@@ -101,7 +100,6 @@ export class NewApp {
                         categories: Object.fromEntries(Object.entries(categories).map(([key, value]) => [key, [...value]])),
                         kinds: [...kinds]
                     }
-                    console.log("Shop options:", options)
 
                     const model = (await ImportMeshAsync(N3DShop.BASE_SHOP_MODEL_URL, scene)).meshes[0]
                     model.position.set(0, -1.5, 60)

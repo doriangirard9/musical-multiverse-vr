@@ -33,6 +33,7 @@ export class HoldableBehaviour implements Behavior<AbstractMesh> {
         // On grab
         const action = target.actionManager ??= new ActionManager(target.getScene())
 
+        this.target.isPickable = true
         const onPickDown = new ExecuteCodeAction(ActionManager.OnPickDownTrigger, ()=>{
             this.grab()
             const o = this.target.getScene().onPointerObservable.add((evt) => {

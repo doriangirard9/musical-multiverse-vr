@@ -3,8 +3,14 @@
 // see: https://github.com/yjs/y-webrtc
 
 import { WebSocketServer } from 'ws'
-import http from 'http'
+import https from 'https'
 import * as map from 'lib0/map'
+import fs from 'fs'
+
+const credentials = {
+    key: fs.readFileSync('../localhost.key', 'utf8'),
+    cert: fs.readFileSync('../localhost.crt', 'utf8')
+}
 
 const wsReadyStateConnecting = 0
 const wsReadyStateOpen = 1
@@ -16,7 +22,7 @@ const pingTimeout = 30000
 const port = process.env.PORT || 443
 const wss = new WebSocketServer({ noServer: true })
 
-const server = http.createServer((request, response) => {
+const server = https.createServer(credentials,(request, response) => {
     response.writeHead(200, { 'Content-Type': 'text/plain' })
     response.end('okay')
 })

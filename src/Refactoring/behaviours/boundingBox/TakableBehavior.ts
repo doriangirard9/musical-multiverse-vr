@@ -62,7 +62,7 @@ export class TakableBehavior implements Behavior<TransformNode> {
             this.boundingMesh.visibility = 0.4
 
             // Hovering
-            const action = this.boundingMesh.actionManager = new ActionManager(this.target!.getScene())
+            const action = this.boundingMesh.actionManager ??= new ActionManager(this.target!.getScene())
             action.registerAction(new ExecuteCodeAction(ActionManager.OnPointerOverTrigger, ()=>{
                 this.hovered = true
                 this.update()

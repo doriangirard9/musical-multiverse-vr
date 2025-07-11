@@ -1,14 +1,14 @@
-import { Observable, PointerEventTypes, Scene, Vector3, WebXRDefaultExperience, WebXRInputSource } from "@babylonjs/core";
+import { Immutable, Observable, PointerEventTypes, Scene, Vector3, WebXRDefaultExperience, WebXRInputSource } from "@babylonjs/core";
 import { ButtonInput, ButtonInputEvent } from "./ButtonInput";
 import { PressableInput, PressableInputEvent } from "./PressableInput";
 import { AxisInput, AxisInputEvent } from "./AxisInput";
 
 export interface PointerMovementEvent {
-    origin: Vector3,
-    forward: Vector3,
-    up: Vector3,
-    right: Vector3,
-    target: Vector3,
+    origin: Immutable<Vector3>,
+    forward: Immutable<Vector3>,
+    up: Immutable<Vector3>,
+    right: Immutable<Vector3>,
+    target: Immutable<Vector3>,
 }
 
 export class InputManager {
@@ -118,13 +118,13 @@ export class InputManager {
             let right!: Vector3
             let up!: Vector3
             if(event.pickInfo?.aimTransform){
-                origin = event.pickInfo.aimTransform.position
-                forward = event.pickInfo.aimTransform.forward
-                right = event.pickInfo.aimTransform.right
-                up = event.pickInfo.aimTransform.up
+                origin = event.pickInfo.aimTransform.position.clone()
+                forward = event.pickInfo.aimTransform.forward.clone()
+                right = event.pickInfo.aimTransform.right.clone()
+                up = event.pickInfo.aimTransform.up.clone()
             } else if(event.pickInfo?.ray) {
-                origin = event.pickInfo?.ray?.origin!!
-                forward = event.pickInfo?.ray?.direction?.normalize()!!
+                origin = event.pickInfo?.ray?.origin!!.clone()
+                forward = event.pickInfo?.ray?.direction?.normalizeToNew()!!
                 right = forward.cross(Vector3.Up()).negateInPlace().normalize()
                 up = right.cross(forward).scaleInPlace(-1).normalize()
             }

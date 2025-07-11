@@ -48,7 +48,7 @@ export class BoundingBox {
             else boundingBox.visibility = 0
         }
 
-        const action = this.boundingBox.actionManager = new B.ActionManager(this.scene)
+        const action = this.boundingBox.actionManager ??= new B.ActionManager(this.scene)
         action.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPointerOverTrigger, ()=>{
             hover = true
             updateVisibility()
