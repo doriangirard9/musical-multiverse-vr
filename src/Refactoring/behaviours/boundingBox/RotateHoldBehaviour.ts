@@ -1,5 +1,6 @@
 import { Behavior, Matrix, Quaternion, Space, TransformNode, Vector3 } from "@babylonjs/core";
 import { InputManager, PointerMovementEvent } from "../../xr/inputs/InputManager";
+import { XRManager } from "../../xr/XRManager";
 
 /**
  * An object attached to this behavior will be rotated by the user with his controller.
@@ -25,6 +26,8 @@ export class RotateHoldBehaviour implements Behavior<TransformNode> {
     this.target = target
 
     const inputs = InputManager.getInstance()
+
+    XRManager.getInstance().setMovement(["translation"])
 
     const o = inputs.pointer_move.add(() => {
       const new_pointer = inputs.current_pointer
@@ -60,6 +63,7 @@ export class RotateHoldBehaviour implements Behavior<TransformNode> {
     this.detach = ()=>{
       o.remove()
       o2.remove()
+      XRManager.getInstance().setMovement(["translation","rotation"])
     }
 
   }
