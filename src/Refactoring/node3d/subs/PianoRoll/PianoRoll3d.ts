@@ -77,14 +77,14 @@ class PianoRollN3DGUI implements Node3DGUI {
     startZ!: number;
     endZ!: number;
 
-    buttonWidth = 2;
+    buttonWidth = 0.5;
     buttonHeight = 0.2;
     buttonDepth = 0.5;
     buttonSpacing = 0.2;
     keyboardWidth = 3; 
     // Scrolling properties
-    visibleRowCount: number = 7;
-    private _startRowIndex: number = 44;
+    visibleRowCount: number = 14;
+    private _startRowIndex: number = 30;
     
     // grid buttons(buttons: blue keys,colorBoxes: black and white keys)
     buttons: NoteButtonMesh[][] = [];
@@ -174,6 +174,19 @@ createGrid(): void {
 
 isBlackKeyFromNoteName(note: string): boolean {
   return note.includes("#") || note.includes("b");
+}
+
+blockerMesh(){
+  const blocker= this.createBox("mesh_blocker",{
+    width: (this.endX - this.startX) + (this.keyboardWidth + this.buttonSpacing * 2), // + this.keyboardWidth,
+    height: 0.1,
+    depth: this.endZ - this.startZ + this.buttonDepth + this.buttonSpacing + (this.buttonDepth + this.buttonSpacing) * 2 // for scrolling buttons
+  },new B.Color3(0,0,0),new B.Vector3(0,0.1,0),this.root)
+  // make the blocker transparent
+  blocker.isPickable = true; // Prevent interaction with the blocker mesh
+  blocker.material = new B.StandardMaterial("blocker_material", this.context.scene);
+  blocker.material.alpha = 0.01; // Set alpha to make it transparent
+
 }
 
 private _createColorBox(row: number, isBlack: boolean): B.Mesh {
@@ -422,6 +435,7 @@ recalculateGridBoundaries(): void {
       new B.Vector3(this.startX - (this.buttonWidth + this.buttonSpacing), 0.2, this.endZ + (this.buttonDepth + this.buttonSpacing)),
       this.root
     ); 
+    this.btnStartStop.isVisible= false
   }
 
       // create box that can be clicked to show a menu
