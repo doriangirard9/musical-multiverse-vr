@@ -25,7 +25,6 @@ import { AbstractMesh, ActionEvent, ActionManager, Behavior, ExecuteCodeAction, 
         this.actions.push(target.actionManager!!.registerAction(new ExecuteCodeAction(ActionManager.OnPickOutTrigger, this.endDrag.bind(this)))!!)
 
         function startDragging(event: B.ActionEvent){
-            console.log(event)
             textValuePlane.setEnabled(true)
             textValuePlane.setAbsolutePosition(target.getAbsolutePosition())
             textValuePlane.position.y += target.getBoundingInfo().boundingBox.extendSize.y/2

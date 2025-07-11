@@ -28,12 +28,9 @@ export class RotateHoldBehaviour implements Behavior<TransformNode> {
 
     const o = inputs.pointer_move.add(() => {
       const new_pointer = inputs.current_pointer
-      console.log("Rotate",new_pointer.forward.asArray())
       if(!this.pointer)this.pointer = new_pointer // Initialize pointer if not set yet
-      console.log(" Pointer", this.pointer.forward.asArray(), new_pointer.forward.asArray())
       if(this.pointer.forward.equals(new_pointer.forward) && this.pointer.origin.equals(new_pointer.origin)) return // Ignore if ray didn't change
       this.pointer = new_pointer
-      console.log(" Then rotate")
 
       
       // Rotate by rotating hand

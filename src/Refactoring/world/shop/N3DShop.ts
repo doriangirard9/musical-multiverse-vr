@@ -133,7 +133,6 @@ export class N3DShop {
             await this.hideZone(zone)
             await chain
             const z = this.zoneMap[zone]
-            console.log(z)
             const disposers = await Promise.all(z.objects.map(async(object)=>{
                 if(deactivateds.includes(object.type)) return async()=>{}
 

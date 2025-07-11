@@ -104,7 +104,6 @@ export class LivePianoN3D implements Node3D{
                 meshes: [mesh],
                 press() {
                     mesh.scaling.y = .6
-                    console.log(`Note ${note} pressed`)
                     output.connections.forEach(conn => {
                         const t =  conn.context.currentTime
                         conn.scheduleEvents({type:"wam-midi", time:t, data:{bytes:[0x90, note, 127]}})
@@ -112,7 +111,6 @@ export class LivePianoN3D implements Node3D{
                 },
                 release() {
                     mesh.scaling.y = 1
-                    console.log(`Note ${note} released`)
                     output.connections.forEach(conn => {
                         const t =  conn.context.currentTime
                         conn.scheduleEvents({type:"wam-midi", time:t, data:{bytes:[0x90, note, 0]}})

@@ -142,7 +142,6 @@ export class N3DConnectionInstance{
 
         const connection = this
         function movetube(){
-            console.log("[N3DConnectionInstance] Move tube")
             if(!connection.buildTimeout)connection.buildTimeout = setTimeout(()=>{
                 // Some calculations
                 const offset = inputMesh.absolutePosition.subtract(outputMesh.absolutePosition)
@@ -240,7 +239,6 @@ export class N3DConnectionInstance{
         this.on_dispose()
         this.disconnect()
         this.tube.dispose()
-        console.log("[N3DConnectionInstance] Disposed")
     }
 
     remove(){

@@ -74,7 +74,6 @@ export class MaracasN3D implements Node3D{
 
         if(this.last_offset*offset<0){
             this.output.connections.forEach(conn => {
-                            console.log("flop")
                 const t =  conn.context.currentTime
                 const note = Math.floor(10+100*value)
                 conn.scheduleEvents({type:"wam-midi", time:t, data:{bytes:[0x90, note, 127]}})

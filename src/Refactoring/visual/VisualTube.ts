@@ -76,7 +76,6 @@ export class VisualTube{
         this.on_dispose()
         if(this.buildTimeout) clearTimeout(this.buildTimeout)
         this.tube.dispose()
-        console.log("[VisualTube] Disposed")
     }
 
     //// Synchronization ////

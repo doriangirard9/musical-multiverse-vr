@@ -13,7 +13,6 @@ export class N3DShopPreviewer implements N3DShopType {
 
         // Get a kinds
         let kind = null as string|null
-        console.log(options)
         if(options.kind){
             kind = options.kind
         }
@@ -47,7 +46,6 @@ export class N3DShopPreviewer implements N3DShopType {
         if((await node3DManager.builder.getFactory(kind))==null)return async()=>{}
 
         // Show it
-        console.log("show kind ", kind)
         const preview = new N3DPreviewer(shared, kind, node3DManager, false)
         await preview.initialize()
         preview.root.parent = location.parent
