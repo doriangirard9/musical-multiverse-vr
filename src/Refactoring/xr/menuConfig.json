@@ -4,6 +4,8 @@
       "name": "Generator",
       "plugins": [
         { "name": "Oscillator", "kind": "oscillator" },
+        { "name":  "Live Piano", "kind":  "livepiano"},
+        { "name": "Piano Roll", "kind": "pianoroll" },
         { "name": "Sequencer", "kind": "sequencer" }
       ]
     },
@@ -12,7 +14,10 @@
       "plugins": [
         { "name": "Disto Machine", "kind": "disto_machine" },
         { "name": "Vox Amp 30", "kind": "voxamp" },
-        { "name": "KVerb", "kind": "kverb" }
+        { "name": "KVerb", "kind": "kverb" },
+        { "name": "Big Muff", "kind": "wam3d-Big Muff"},
+        { "name": "Grey Hole", "kind": "wam3d-Grey Hole"},
+        { "name": "Ping Pong Delay", "kind": "wam3d-Ping Pong Delay"}
       ]
     },
     {
@@ -22,7 +27,8 @@
           { "name": "Guitar", "kind": "guitar" },
           { "name": "Modal", "kind": "modal" },
           { "name": "Tiny54", "kind": "tiny54" },
-          { "name": "Drum", "kind": "drum" }
+          { "name": "Drum", "kind": "drum" },
+          { "name": "Tiny Synth", "kind": "wam3d-Tiny Synth"}
         ]
     },
     {

@@ -181,6 +181,17 @@ export class NoteBoxN3D implements Node3D {
         });
     }
 
+    updateSample(index: number){
+        // Is sample saved
+        if (index<this.samples.length) {
+            this.gui.updatePadColor(index, new Color3(0.2, 0.8, 0.2))
+        }
+        // Sample not saved
+        else {
+            this.gui.updatePadColor(index, new Color3(0.5, 0.5, 0.5))
+        }
+    }
+
     private createMockWamNode(audioCtx: AudioContext): MockWamNode {
         return {
             instanceId: `note-box-${Date.now()}`,
@@ -213,9 +224,7 @@ export class NoteBoxN3D implements Node3D {
                          * TODO : Ajouter une bb ou un drag + shake behavior sur les capsules pour pouvoir delete un sample
                          *      Supprimer sample + capsule + reset le pad. réorganiser les samples ?
                          */
-                        if (this.samples.length <= this.gui.pads.length) {
-                            this.gui.updatePadColor(this.samples.length - 1, new Color3(0.2, 0.8, 0.2));
-                        }
+                        this.updateSample(this.samples.length-1)
                         
                         this.context.notifyStateChange("all")
                     }
@@ -265,6 +274,7 @@ export class NoteBoxN3D implements Node3D {
     async setState(key: string, state: any): Promise<void> {
         if(key!="all")return
         this.samples = state
+        for(let i=0; i<this.gui.pads.length; i++) this.updateSample(i)
     }
 
     //@ts-ignore

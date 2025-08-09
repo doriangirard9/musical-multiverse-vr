@@ -26,7 +26,7 @@ export class BoundingBox {
         this.rotationBehavior = new RotateBoundingBox();
         this.squeezeListenerId = `squeeze`;
         this.createBoundingBox();
-        this.boundingBox.rotation.x = -Math.PI / 6;
+        this.boundingBox.rotation.x = -Math.PI / 6-0.5;
         this.attachControllerBehaviors();
         this.dragBehavior.on_move = ()=>this.on_move()
         this.rotationBehavior.on_move = ()=>this.on_move()
