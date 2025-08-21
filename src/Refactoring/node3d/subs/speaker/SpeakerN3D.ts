@@ -75,7 +75,7 @@ export class SpeakerN3D implements Node3D{
         context.addToBoundingBox(gui.speaker)
         const node = this.node = audioCtx.createGain()
         const source = this.source = await audioEngine.createSoundSourceAsync("speaker", node, {
-            spatialMaxDistance: 50,
+            spatialMaxDistance: 25
         })
         source.spatial.attach(gui.root)
 
