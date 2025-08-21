@@ -16,14 +16,14 @@
     "vite": "^6.2.2"
   },
   "dependencies": {
-    "@babylonjs/core": "^7.54.0",
-    "@babylonjs/gui": "^7.54.0",
-    "@babylonjs/inspector": "^7.54.0",
-    "@babylonjs/loaders": "^7.54.0",
+    "@babylonjs/core": "^8.24.0",
+    "@babylonjs/gui": "^8.24.0",
+    "@babylonjs/inspector": "^8.24.0",
+    "@babylonjs/loaders": "^8.24.0",
     "@webaudiomodules/sdk": "^0.0.12",
     "tone": "^15.0.4",
     "uuid": "^11.1.0",
-    "wam3dgenerator": "github:Jempasam/3d_wam_editor#semver:0.0.2",
+    "wam3dgenerator": "github:Jempasam/3d_wam_editor#semver:0.0.3",
     "ws": "^8.18.1",
     "y-webrtc": "^10.3.0",
     "yjs": "^13.6.24"

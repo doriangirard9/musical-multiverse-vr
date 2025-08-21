@@ -35,6 +35,7 @@ export class ShakeBehavior implements Behavior<AbstractMesh> {
 
     private last_position: Vector3 = Vector3.Zero()
     private last_movement: Vector3 = Vector3.Zero()
+    private last_distance = 0
 
     private interval : any = null
 
@@ -77,10 +78,15 @@ export class ShakeBehavior implements Behavior<AbstractMesh> {
             const current_position = this.target!.absolutePosition.clone();
             const current_movement = current_position.subtract(this.last_position).normalize();
             if (current_movement.length() != 0) {
+                const distance = current_position.subtract(this.last_position).length();
                 const dot = Vector3.Dot(current_movement, this.last_movement);
 
                 // Shake movement detected
-                if (dot < -.2) this.setShakePower(this.shake_power+1)
+                if (dot < -.2){
+                    if(this.last_distance>.5)this.setShakePower(this.shake_power+1)
+                    this.last_distance = 0
+                }
+                else this.last_distance += distance
 
                 this.last_movement = current_movement
                 this.last_position = current_position

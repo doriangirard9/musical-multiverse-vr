@@ -83,6 +83,7 @@ export class Node3DInstance implements Synchronized{
         // Node related things
         this.node = await this.node_factory.create({
             audioCtx: this.shared.audioContext,
+            audioEngine: this.shared.audioEngine,
             groupId: this.shared.groupId,
             tools,
 

@@ -26,6 +26,11 @@ export interface Node3DContext{
     readonly audioCtx: AudioContext
 
     /**
+     * Le moteur audio de babylon.js.
+     */
+    readonly audioEngine: BABYLON.AudioEngineV2
+
+    /**
      * Le group id du host Web Audio Module.
      */
     readonly groupId: string

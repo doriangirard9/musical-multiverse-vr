@@ -1,9 +1,13 @@
+import { CreateAudioEngineAsync } from "@babylonjs/core";
 import {NewApp} from "./Refactoring/app/NewApp.ts";
 
 const audioCtx: AudioContext = new AudioContext();
 
+const audioEngine = await CreateAudioEngineAsync({audioContext:audioCtx})
+await audioEngine.unlockAsync();
+
 let onload = (): void => {
-    const newApp: NewApp = NewApp.getInstance(audioCtx);
+    const newApp: NewApp = NewApp.getInstance(audioCtx, audioEngine);
     newApp.start().then(() => {
         console.log("NewApp started");
     }).catch((error) => {

@@ -2,6 +2,7 @@ import {XRInputManager} from "./XRInputManager.ts";
 import * as B from "@babylonjs/core";
 import {withTimeout} from "../utils/utils.ts";
 import { InputManager } from "./inputs/InputManager.ts";
+import { AppOrchestrator } from "../app/AppOrchestrator.ts";
 
 
 
@@ -26,7 +27,7 @@ export class XRManager {
     /**
      * Initialize the WebXR experience, XRInputs and XR features
      */
-    public async init(scene: B.Scene): Promise<void> {
+    public async init(scene: B.Scene, audioEngine: B.AudioEngineV2): Promise<void> {
         this._scene = scene;
 
         try {
@@ -65,6 +66,9 @@ export class XRManager {
                         break;
                 }
             });
+
+            audioEngine.listener.attach(scene.activeCamera)
+
         } catch (error) {
             console.error("XR initialization failed:", error);
         }

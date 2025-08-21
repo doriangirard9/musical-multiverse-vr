@@ -2,7 +2,7 @@ import {SceneManager} from "./SceneManager.ts";
 import {XRManager} from "../xr/XRManager.ts";
 import {Node3dManager} from "./Node3dManager.ts";
 import {AppOrchestrator} from "./AppOrchestrator.ts";
-import {CreateBox, ImportMeshAsync} from "@babylonjs/core";
+import {AudioEngineV2, CreateAudioEngineAsync, CreateBox, ImportMeshAsync} from "@babylonjs/core";
 import {N3DShop, N3DShopOptions} from "../world/shop/N3DShop.ts";
 import { InputManager } from "../xr/inputs/InputManager.ts";
 import { parallel } from "../utils/utils.ts";
@@ -10,16 +10,18 @@ import { HoldableBehaviour } from "../behaviours/boundingBox/HoldableBehaviour.t
 
 export class NewApp {
     private audioCtx: AudioContext | undefined;
+    private audioEngine!: AudioEngineV2
     private sceneManager: SceneManager;
     private xrManager: XRManager | null = null;
     private audioManager: Node3dManager | null = null;
 
-    private constructor(audioContext?: AudioContext) {
+    private constructor(audioContext?: AudioContext, audioEngine?: AudioEngineV2) {
         const canvas: HTMLCanvasElement = document.getElementById('renderCanvas') as HTMLCanvasElement;
         this.sceneManager = SceneManager.getInstance(canvas);
         if (audioContext !== undefined) {
             this.audioCtx = audioContext;
-            this.audioManager = Node3dManager.getInstance(this.audioCtx);
+            this.audioEngine = audioEngine!!;
+            this.audioManager = Node3dManager.getInstance(this.audioCtx, this.audioEngine);
             this.xrManager = XRManager.getInstance();
             AppOrchestrator.getInstance()
         }
@@ -28,12 +30,12 @@ export class NewApp {
 
     private static instance?: NewApp
 
-    public static getInstance(audioContext? : AudioContext): NewApp {
+    public static getInstance(audioContext? : AudioContext, audioEngine?: AudioEngineV2): NewApp {
         if (!NewApp.instance) {
             if (!audioContext) {
                 throw new Error("AudioContext is required for first instantiation");
             }
-            NewApp.instance = new NewApp(audioContext);
+            NewApp.instance = new NewApp(audioContext, audioEngine);
         }
         return NewApp.instance;
     }
@@ -42,7 +44,7 @@ export class NewApp {
         const scene = this.sceneManager.getScene()
         
         this.sceneManager.start();
-        await this.xrManager!!.init(this.sceneManager.getScene());
+        await this.xrManager!!.init(this.sceneManager.getScene(), this.audioEngine);
         
         await this.audioManager!!.createNode3d("notesbox")
         //await this.audioManager!!.createNode3d("audiooutput")
