@@ -21,6 +21,16 @@ export class ShakeBehavior implements Behavior<AbstractMesh> {
     on_stop: (power: number, counter: number) => void = () => {}
 
     /**
+     * Called when the mesh is picked up.
+     */
+    on_pick: () => void = () => {}
+
+    /**
+     * Called when the mesh is dropped.
+     */
+    on_drop: () => void = () => {}
+
+    /**
      * The minium shake power to consider it as a shake.
      */
     shake_threshold = 3
@@ -65,6 +75,7 @@ export class ShakeBehavior implements Behavior<AbstractMesh> {
     
         // When the mesh is picked up, we start detecting shakes.
         this.dragger.onDragStartObservable.add(() => {
+            this.on_pick()
             this.shake_power = 0
             this.interval = setInterval(() => {
                 this.setShakePower(Math.floor(this.shake_power * 0.9))
@@ -95,6 +106,7 @@ export class ShakeBehavior implements Behavior<AbstractMesh> {
         // When the mesh is released, we stop detecting shakes and reset the shake power.
         this.dragger.onDragEndObservable.add(() => {
             this.setShakePower(0)
+            this.on_drop()
             clearInterval(this.interval)
         })
     }
