@@ -1,3 +1,4 @@
+
 import { Color3, Matrix, Vector3 } from "@babylonjs/core";
 import type { Node3D, Node3DFactory, Node3DGUI } from "../../Node3D";
 import type { Node3DGUIContext } from "../../Node3DGUIContext";
@@ -8,83 +9,74 @@ import { WebAudioModule } from "@webaudiomodules/api";
 import { WamInitializer } from "../../../app/WamInitializer";
 import { PianoRollSettingsMenu } from "./PianoRollSettingsMenu";
 import { XRManager } from "../../../xr/XRManager";
+import { WamTransportManager } from "./WamTransportManager"; // <-- NEW
+
 interface PatternNote {
-    tick: number;
-    number: number;
-    duration: number;
-    velocity: number;
-  }
-  
-  interface Pattern {
-    length: number;
-    notes: PatternNote[];
-  }
-  
-  interface ControlSequence {
-    row: number;
-    startCol: number;
-    startTick: number;
-    midiNumber: number;
-    borderMesh: B.Mesh;
-  }
-  
-  interface NoteButtonMesh extends B.Mesh {
-    isActive: boolean;
-    isPlaying: boolean;
-    material: B.StandardMaterial; 
-    mode?: "normal" | "control" | "none";
-  }
-  interface ControlSequence {
-    row: number;
-    startCol: number;
-    startTick: number;
-    midiNumber: number;
-    borderMesh: B.Mesh;
+  tick: number;
+  number: number;
+  duration: number;
+  velocity: number;
 }
 
+interface Pattern {
+  length: number;
+  notes: PatternNote[];
+}
 
-// colors 
-  // Color Constants
-  const COLOR_ACTIVE = new B.Color3(1, 0, 0);         // Red
-  const COLOR_INACTIVE = new B.Color3(0.2, 0.6, 0.8); // Blue
-  const COLOR_PLAYING = new B.Color3(0, 1, 0);        // Green
-  const COLOR_LONG_PLAYING = new B.Color3(0.6588, 0.2, 0.8); // Purple
-  const COLOR_BLACK_KEY = new B.Color3(0.1, 0.1, 0.1);
-  const COLOR_WHITE_KEY = new B.Color3(1, 1, 1);
-  const COLOR_DISABLED = new B.Color3(0.2, 0.2, 0.2);
-  const COLOR_BASE_MESH = new B.Color3(0.5, 0.2, 0.2);
-  const COLOR_MENU_BUTTON = new B.Color3(0, 0, 0);
+interface ControlSequence {
+  row: number;
+  startCol: number;
+  startTick: number;
+  midiNumber: number;
+  borderMesh: B.Mesh;
+}
 
+interface NoteButtonMesh extends B.Mesh {
+  isActive: boolean;
+  isPlaying: boolean;
+  material: B.StandardMaterial;
+  mode?: "normal" | "control" | "none";
+}
 
+// Color Constants
+const COLOR_ACTIVE = new B.Color3(1, 0, 0);         // Red
+const COLOR_INACTIVE = new B.Color3(0.2, 0.6, 0.8); // Blue
+const COLOR_PLAYING = new B.Color3(0, 1, 0);        // Green
+const COLOR_LONG_PLAYING = new B.Color3(0.6588, 0.2, 0.8); // Purple
+const COLOR_BLACK_KEY = new B.Color3(0.1, 0.1, 0.1);
+const COLOR_WHITE_KEY = new B.Color3(1, 1, 1);
+const COLOR_DISABLED = new B.Color3(0.2, 0.2, 0.2);
+const COLOR_BASE_MESH = new B.Color3(0.5, 0.2, 0.2);
+const COLOR_MENU_BUTTON = new B.Color3(0, 0, 0);
 
 class PianoRollN3DGUI implements Node3DGUI {
-    root
-    public tool
-    block!: B.AbstractMesh;
-    playhead!: B.Mesh
-    menuButton!: B.Mesh
-    scrollUpButton!: B.Mesh
-    scrollDownButton!: B.Mesh
-    midiOutput!: B.Mesh;
+  root
+  public tool
+  block!: B.AbstractMesh;
+  playhead!: B.Mesh
+  menuButton!: B.Mesh
+  scrollUpButton!: B.Mesh
+  scrollDownButton!: B.Mesh
+  midiOutput!: B.Mesh;
 
-    // Grid properties
-    rows: number= 88;
-    cols: number= 32;
+  // Grid properties
+  rows: number = 88;
+  cols: number = 32;
 
-    // grid edges
-    startX!: number;
-    endX!: number;
-    startZ!: number;
-    endZ!: number;
+  // grid edges
+  startX!: number;
+  endX!: number;
+  startZ!: number;
+  endZ!: number;
 
-    buttonWidth = 0.5;
-    buttonHeight = 0.2;
-    buttonDepth = 0.5;
-    buttonSpacing = 0.2;
-    keyboardWidth = 3; 
-    // Scrolling properties
-    visibleRowCount: number = 14;
-    private _startRowIndex: number = 30;
+  buttonWidth = 0.5;
+  buttonHeight = 0.2;
+  buttonDepth = 0.5;
+  buttonSpacing = 0.2;
+  keyboardWidth = 3;
+  // Scrolling properties
+  visibleRowCount: number = 14;
+  private _startRowIndex: number = 30;
 
   // Thin instances
   private noteCell!: B.Mesh;
@@ -96,11 +88,8 @@ class PianoRollN3DGUI implements Node3DGUI {
   keyBoard: B.Mesh[] = [];
   private _btnScrollUp!: B.Mesh;
   private _btnScrollDown!: B.Mesh;
-    
-  //menu
-  // private menu!  : PianoRollSettingsMenu;
 
-    public btnStartStop!: B.Mesh;
+  public btnStartStop!: B.Mesh;
 
   // Complete 88-note list (added "F#5")
   notes: string[] = [
@@ -115,45 +104,41 @@ class PianoRollN3DGUI implements Node3DGUI {
     "C8"
   ];
 
-    constructor(public context: Node3DGUIContext) {
-        const {babylon:B,tools:T} = context
-        this.tool= T;
-        this.root = new B.TransformNode("pianoroll root", context.scene)
-        this.root.scaling.setAll(0.1);
+  constructor(public context: Node3DGUIContext) {
+    const { babylon: B, tools: T } = context
+    this.tool = T;
+    this.root = new B.TransformNode("pianoroll root", context.scene)
+    this.root.scaling.setAll(0.1);
 
     if (this.rows < this.visibleRowCount) this.visibleRowCount = this.rows;
     this.instantiate()
   }
 
+  public async instantiate(): Promise<void> {
+    this.recalculateGridBoundaries()
+    this.createGrid();
+    this._createBaseMesh();
+    this.createPlayhead();
+    this._createScrollButtons();
+    this.updateRowVisibility();
+    this.recalculateGridBoundaries()
+    this.createMenuButton();
 
-    public async instantiate(): Promise<void> {
+    // output position
+    const baseY = this.block.position.y;
+    const baseZ = this.block.position.z;
+    const baseLength = this.block.getBoundingInfo().boundingBox.extendSize.x;
 
-      this.recalculateGridBoundaries()
-      this.createGrid();
-        this._createBaseMesh();
-          this.createPlayhead();
-          this._createScrollButtons();
-          this.updateRowVisibility();
-          this.recalculateGridBoundaries()
-         this.createMenuButton();
+    this.midiOutput = B.CreateIcoSphere("piano roll midi output", { radius: this.buttonWidth * 2 }, this.context.scene);
 
-          // output position
-          const baseY = this.block.position.y;
-          const baseZ = this.block.position.z;
-    
-          const baseLength = this.block.getBoundingInfo().boundingBox.extendSize.x;
+    this.tool.MeshUtils.setColor(this.midiOutput, MidiN3DConnectable.OutputColor.toColor4())
+    this.midiOutput.position.set(baseLength, baseY, baseZ + 1)
+    this.midiOutput.scaling.setAll(0.5);
+    this.midiOutput.parent = this.root;
 
-          this.midiOutput = B.CreateIcoSphere("piano roll midi output", { radius: this.buttonWidth * 2 }, this.context.scene);
-
-          this.tool.MeshUtils.setColor(this.midiOutput, MidiN3DConnectable.OutputColor.toColor4())
-          this.midiOutput.position.set(baseLength, baseY, baseZ+1)
-          this.midiOutput.scaling.setAll(0.5);
-          this.midiOutput.parent = this.root;
-
-          this.startStopButton();
-          // this.menu = new PianoRollSettingsMenu(this.context.scene, this);
-
-      }
+    this.startStopButton();
+    // this.menu = new PianoRollSettingsMenu(this.context.scene, this);
+  }
 
   createGrid(): void {
     this.keyBoard = Array.from({ length: this.rows }, () => undefined as unknown as B.Mesh);
@@ -181,7 +166,6 @@ class PianoRollN3DGUI implements Node3DGUI {
 
     const material = new B.StandardMaterial("noteCellMaterial", this.context.scene);
     material.diffuseColor = new B.Color3(1, 1, 1);
-    // If you disable lighting, also set: material.emissiveColor = B.Color3.White();
     this.noteCell.material = material;
     this.noteCell.parent = this.root;
 
@@ -261,9 +245,9 @@ class PianoRollN3DGUI implements Node3DGUI {
     }
   }
 
-  // NEW: repaint all currently visible cells from the controller state
+  // repaint visible from controller state
   public repaintVisibleFromState(): void {
-    const owner = (this as any).owner as { getCellVisualColor?: (r:number,c:number)=>B.Color3 } | undefined;
+    const owner = (this as any).owner as { getCellVisualColor?: (r: number, c: number) => B.Color3 } | undefined;
     if (!owner?.getCellVisualColor) return;
 
     for (const [idx, cell] of this.visibleCellMap.entries()) {
@@ -280,7 +264,6 @@ class PianoRollN3DGUI implements Node3DGUI {
   public refreshVisibleWindow(): void {
     this._fillVisibleWindowBuffers();
     this.noteCell.thinInstanceBufferUpdated("matrix");
-    // After matrices are rebuilt, repaint colors from authoritative state
     this.repaintVisibleFromState();
   }
 
@@ -302,29 +285,27 @@ class PianoRollN3DGUI implements Node3DGUI {
     return note.includes("#") || note.includes("b");
   }
 
-blockerMesh(){
-  const blocker= this.createBox("mesh_blocker",{
-    width: (this.endX - this.startX) + (this.keyboardWidth + this.buttonSpacing * 2), // + this.keyboardWidth,
-    height: 0.1,
-    depth: this.endZ - this.startZ + this.buttonDepth + this.buttonSpacing + (this.buttonDepth + this.buttonSpacing) * 2 // for scrolling buttons
-  },new B.Color3(0,0,0),new B.Vector3(0,0.1,0),this.root)
-  // make the blocker transparent
-  blocker.isPickable = true; // Prevent interaction with the blocker mesh
-  blocker.material = new B.StandardMaterial("blocker_material", this.context.scene);
-  blocker.material.alpha = 0.01; // Set alpha to make it transparent
+  blockerMesh() {
+    const blocker = this.createBox("mesh_blocker", {
+      width: (this.endX - this.startX) + (this.keyboardWidth + this.buttonSpacing * 2),
+      height: 0.1,
+      depth: this.endZ - this.startZ + this.buttonDepth + this.buttonSpacing + (this.buttonDepth + this.buttonSpacing) * 2
+    }, new B.Color3(0, 0, 0), new B.Vector3(0, 0.1, 0), this.root)
+    blocker.isPickable = true;
+    blocker.material = new B.StandardMaterial("blocker_material", this.context.scene);
+    (blocker.material as B.StandardMaterial).alpha = 0.01;
+  }
 
-}
-
-private _createColorBox(row: number, isBlack: boolean): B.Mesh {
+  private _createColorBox(row: number, isBlack: boolean): B.Mesh {
     const positionZ = (row - (this.rows - 1) / 2) * (this.buttonDepth + this.buttonSpacing);
     const position = new B.Vector3(
       this.startX - (this.keyboardWidth + this.buttonSpacing),
       this.buttonHeight / 2,
       positionZ
     );
-  
+
     const color = isBlack ? COLOR_BLACK_KEY : COLOR_WHITE_KEY;
-  
+
     return this.createBox(
       `color_box_${row}`,
       { width: this.keyboardWidth, height: this.buttonHeight, depth: this.buttonDepth },
@@ -342,11 +323,11 @@ private _createColorBox(row: number, isBlack: boolean): B.Mesh {
     parent?: B.Node
   ): B.Mesh {
     const box = B.MeshBuilder.CreateBox(name, size, this.context.scene);
-  
+
     const material = new B.StandardMaterial(`${name}_mat`, this.context.scene);
     material.diffuseColor = color;
     box.material = material;
-  
+
     box.position = position.clone();
     if (parent) box.parent = parent;
     return box;
@@ -370,13 +351,12 @@ private _createColorBox(row: number, isBlack: boolean): B.Mesh {
       new B.Vector3(this.getStartX(), 0.2, 0),
       this.root
     );
-    
   }
+
   getStartX(): number {
     return -((this.cols - 1) / 2) * (this.buttonWidth + this.buttonSpacing) - this.buttonWidth / 2;
   }
 
-  
   private _createScrollButtons(): void {
     const scrollColor = COLOR_INACTIVE;
     const size = {
@@ -384,69 +364,63 @@ private _createColorBox(row: number, isBlack: boolean): B.Mesh {
       height: this.buttonHeight,
       depth: this.buttonDepth,
     };
-  
+
     // Create scroll up button
     this._btnScrollUp = this.createBox(
       "btnScrollUp",
       size,
       scrollColor,
-      new B.Vector3(0, 0.2, 0), // Temporary z, will be adjusted next
+      new B.Vector3(0, 0.2, 0),
       this.root
     );
     const scrollUpZ = this.startZ - this.buttonSpacing - this._btnScrollUp.getBoundingInfo().boundingBox.extendSize.z * 2;
     this._btnScrollUp.position.z = scrollUpZ;
-  
+
     // Create scroll down button
     this._btnScrollDown = this.createBox(
       "btnScrollDown",
       size,
       scrollColor,
-      new B.Vector3(0, 0.2, 0), // Temporary z, will be adjusted next
+      new B.Vector3(0, 0.2, 0),
       this.root
     );
-  
+
     const scrollDownZ = this.endZ + this.buttonSpacing + this._btnScrollUp.getBoundingInfo().boundingBox.extendSize.z * 2;
     this._btnScrollDown.position.z = scrollDownZ;
-  
+
     // Add click actions
     this._btnScrollUp.actionManager = new B.ActionManager(this.context.scene);
     this._btnScrollDown.actionManager = new B.ActionManager(this.context.scene);
-  
+
     this._btnScrollUp.actionManager.registerAction(
       new B.ExecuteCodeAction(B.ActionManager.OnPickTrigger, () => this._scrollUp())
     );
-  
+
     this._btnScrollDown.actionManager.registerAction(
       new B.ExecuteCodeAction(B.ActionManager.OnPickTrigger, () => this._scrollDown())
     );
   }
-  
+
   private _scrollUp(): void {
-    // Scroll up if we're not already at the top
     if (this._startRowIndex > 0) {
       this._startRowIndex--;
       this.updateRowVisibility();
     }
   }
   private _scrollDown(): void {
-    // Scroll down if we're not already at the bottom
     if (this._startRowIndex + this.visibleRowCount < this.rows) {
       this._startRowIndex++;
       this.updateRowVisibility();
     }
   }
+
   updateRowVisibility(): void {
-    // end row (exclusive)
     const endRowIndex = Math.min(this._startRowIndex + this.visibleRowCount, this.rows);
-
-    // helper for centring rows in the visible window
     const visibleRangeCenter = (this.visibleRowCount - 1) / 2;
-
-    // a link back to PianoRollN3D so we can reach rowControlBorders
     const owner = (this as any).owner as { rowControlBorders?: { [row: number]: B.Mesh[] } };
 
     for (let row = 0; row < this.rows; row++) {
-        const isVisible = row >= this._startRowIndex && row < endRowIndex;
+      const isVisible = row >= this._startRowIndex && row < endRowIndex;
 
       const colorBox = this.keyBoard[row];
       if (colorBox) {
@@ -460,14 +434,13 @@ private _createColorBox(row: number, isBlack: boolean): B.Mesh {
         }
       }
 
-      // Long-note borders (yellow bars) 
       if (owner?.rowControlBorders?.[row]) {
         const visualRowIndex = row - this._startRowIndex;
         const centeredZ = (visualRowIndex - visibleRangeCenter) * (this.buttonDepth + this.buttonSpacing);
         owner.rowControlBorders[row].forEach(bar => {
-          bar.position.z = centeredZ; // follow the keys
+          bar.position.z = centeredZ;
           bar.position.y = this.buttonHeight / 2;
-          bar.isVisible = isVisible;// hide / show
+          bar.isVisible = isVisible;
         });
       }
     }
@@ -477,21 +450,18 @@ private _createColorBox(row: number, isBlack: boolean): B.Mesh {
     const matUp = this._btnScrollUp.material as B.StandardMaterial;
     const matDown = this._btnScrollDown.material as B.StandardMaterial;
 
-    matUp.diffuseColor   = this._startRowIndex > 0                                   ? COLOR_INACTIVE : COLOR_DISABLED;
-    matDown.diffuseColor = this._startRowIndex + this.visibleRowCount < this.rows    ? COLOR_INACTIVE : COLOR_DISABLED;
-}
+    matUp.diffuseColor = this._startRowIndex > 0 ? COLOR_INACTIVE : COLOR_DISABLED;
+    matDown.diffuseColor = this._startRowIndex + this.visibleRowCount < this.rows ? COLOR_INACTIVE : COLOR_DISABLED;
+  }
 
-
-recalculateGridBoundaries(): void {
-    // Horizontal (X axis)
+  recalculateGridBoundaries(): void {
     this.startX = -((this.cols - 1) / 2) * (this.buttonWidth + this.buttonSpacing);
     this.endX = ((this.cols - 1) / 2) * (this.buttonWidth + this.buttonSpacing);
-  
-    // Vertical (Z axis) for rows
+
     this.startZ = -((this.visibleRowCount - 1) / 2) * (this.buttonDepth + this.buttonSpacing);
     this.endZ = ((this.visibleRowCount - 1) / 2) * (this.buttonDepth + this.buttonSpacing);
   }
-  
+
   public startStopButton(): void {
     this.btnStartStop = this.createBox(
       "startStopButton",
@@ -499,11 +469,10 @@ recalculateGridBoundaries(): void {
       B.Color3.Green(),
       new B.Vector3(this.startX - (this.buttonWidth + this.buttonSpacing), 0.2, this.endZ + (this.buttonDepth + this.buttonSpacing)),
       this.root
-    ); 
-    this.btnStartStop.isVisible= false
+    );
+    this.btnStartStop.isVisible = true
   }
 
-      // create box that can be clicked to show a menu
   public createMenuButton(): void {
     this.menuButton = this.createBox(
       "menuButton",
@@ -512,7 +481,6 @@ recalculateGridBoundaries(): void {
       new B.Vector3(0, 0.6, 0),
       this.root
     );
-    // position the button in the corner top right of the grid
     this.menuButton.position.x = this.endX + (this.buttonWidth + this.buttonSpacing);
     this.menuButton.position.z = -this.endZ - (this.buttonDepth + this.buttonSpacing);
   }
@@ -532,15 +500,12 @@ export class PianoRollN3D implements Node3D {
   private wamInstance!: WebAudioModule;
   private pattern: Pattern;
   private tempo: number = 120;
-  private started: boolean = false;
-  private startTime: number = 0;
   private ticksPerColumn: number = 6;
   private beatDuration: number;
   private cellDuration: number;
   private timeSignatureNumerator = 4;
   private timeSignatureDenominator = 4;
   private context;
-  private isBtnStartStop: boolean = true;
   private menu!: PianoRollSettingsMenu;
   private currentControlSequence: ControlSequence | null = null;
   private isAKeyPressed = false;
@@ -548,6 +513,9 @@ export class PianoRollN3D implements Node3D {
   private isActive: boolean[][] = [];
   private mode: ("normal" | "control" | "none")[][] = [];
   private rowControlBorders: { [row: number]: B.Mesh[] } = {};
+
+  private transport: WamTransportManager; // <-- NEW
+  private unsubscribeTransport?: () => void; // <-- NEW
 
   constructor(context: Node3DContext, private gui: PianoRollN3DGUI) {
     const { tools: T } = context
@@ -565,8 +533,16 @@ export class PianoRollN3D implements Node3D {
     const midi_output = new T.MidiN3DConnectable.ListOutput("midioutput", [gui.midiOutput], "MIDI Output")
     context.createConnectable(midi_output)
 
-    this.wamInitializer();
+    // ---- Shared Transport ----
+    this.transport = WamTransportManager.getInstance(context.audioCtx);
 
+    // Update play button color on transport changes
+    this.unsubscribeTransport = this.transport.onChange(() => {
+      const mat = this.gui.btnStartStop.material as B.StandardMaterial;
+      mat.diffuseColor = this.transport.getPlaying() ? B.Color3.Green() : B.Color3.Red();
+    });
+
+    // Scene render loop
     const scene = gui.context.scene;
     if (scene && scene.onBeforeRenderObservable) {
       scene.onBeforeRenderObservable.add(() => this.update());
@@ -584,7 +560,13 @@ export class PianoRollN3D implements Node3D {
         this.currentControlSequence = null;
       }
     });
+
     this.createBars()
+    this.wamInitializer();
+
+    // Initialize button color to current transport state
+    const mat = this.gui.btnStartStop.material as B.StandardMaterial;
+    mat.diffuseColor = this.transport.getPlaying() ? B.Color3.Green() : B.Color3.Red();
   }
 
   // Expose intended display color (used by GUI repaint)
@@ -604,77 +586,31 @@ export class PianoRollN3D implements Node3D {
     this.wamInstance = await WamInitializer.getInstance().initWamInstance("https://www.webaudiomodules.com/community/plugins/burns-audio/pianoroll/index.js");
 
     const output = new MidiN3DConnectable.Output(
-      "midiOutput", 
-      [this.gui.midiOutput], 
+      "midiOutput",
+      [this.gui.midiOutput],
       "MIDI Output",
       this.wamInstance.audioNode
-  );
+    );
+    this.context.createConnectable(output);
 
-  this.context.createConnectable(output);
-    this.started = true;
+    // Register plugin node with the shared transport (sends current state immediately)
+    this.transport.register(this.wamInstance.audioNode);
+  }
 
-   this.startTime = this.context.audioCtx.currentTime;
-   this.wamInstance.audioNode.scheduleEvents({
-     type: "wam-transport",
-     data: {
-       playing: true,
-       timeSigDenominator: 4,
-       timeSigNumerator: 4,
-       currentBar: 0,
-       currentBarStarted: this.context.audioCtx.currentTime,
-       tempo: this.tempo,
-     },
-   });
-   }
+  // Drive playhead from the shared elapsed time
+  update(): void {
+    if (!this.gui?.playhead) return;
 
+    const elapsed = this.transport.getElapsedSeconds();
+    const currentCell = (elapsed / this.cellDuration) % this.gui.cols;
 
-   start(): void {
-       this.started = true;
-       this.startTime = this.context.audioCtx.currentTime;
-       this.wamInstance.audioNode.scheduleEvents({
-         type: "wam-transport",
-         data: {
-           playing: true,
-           timeSigDenominator: 4,
-           timeSigNumerator: 4,
-           currentBar: 0,
-           currentBarStarted: this.context.audioCtx.currentTime,
-           tempo: this.tempo,
-         },
-       });
-     }
-     
-     stop(): void {
-       this.started = false;
-       this.gui.playhead.position.x = this.gui.getStartX();
-       this.wamInstance.audioNode.scheduleEvents({
-         type: "wam-transport",
-         data: {
-           playing: false,
-           timeSigDenominator: 4,
-           timeSigNumerator: 4,
-           currentBar: 0,
-           currentBarStarted: this.context.audioCtx.currentTime,
-           tempo: this.tempo,
-         },
-       });
-     }
+    const x = (currentCell * (this.gui.buttonWidth + this.gui.buttonSpacing))
+      - ((this.gui.cols - 1) / 2 * (this.gui.buttonWidth + this.gui.buttonSpacing)) - this.gui.buttonWidth / 2;
+    this.gui.playhead.position.x = x;
 
-     update(): void {
-       if (!this.started) return;
-     
-       const elapsed = this.context.audioCtx.currentTime - this.startTime;
-       const currentCell = (elapsed / this.cellDuration) % this.gui.cols;
-     
-       const x = (currentCell * (this.gui.buttonWidth + this.gui.buttonSpacing))
-           - ((this.gui.cols - 1) / 2 * (this.gui.buttonWidth + this.gui.buttonSpacing)) - this.gui.buttonWidth / 2;
-       this.gui.playhead.position.x = x;
-     
-       const currentCol = Math.floor(currentCell);
-       this.highlightActiveButtons(currentCol);
-     }
-
-
+    const currentCol = Math.floor(currentCell);
+    this.highlightActiveButtons(currentCol);
+  }
 
   highlightActiveButtons(currentCol: number): void {
     for (let row = 0; row < this.gui.rows; row++) {
@@ -690,56 +626,44 @@ export class PianoRollN3D implements Node3D {
     }
   }
 
+  // Start/Stop button now controls the shared transport
   toggleStartStopBtn(): void {
-    if(!this.gui.btnStartStop.actionManager)
-    this.gui.btnStartStop.actionManager = new B.ActionManager(this.gui.context.scene);
-    this.gui.btnStartStop.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickTrigger, () => {
-        const mat = this.gui.btnStartStop.material as B.StandardMaterial;
-        if (this.isBtnStartStop) {
-            this.stop()
-            
-            this.isBtnStartStop = false;
-            mat.diffuseColor = B.Color3.Red();
-            // textBlock.text = "Stop";
-        } else {
-            this.start()
-            
-            this.isBtnStartStop = true;
-            mat.diffuseColor = B.Color3.Green();
-            // textBlock.text = "Start";
-        }
-    }));
-    };
+    if (!this.gui.btnStartStop.actionManager)
+      this.gui.btnStartStop.actionManager = new B.ActionManager(this.gui.context.scene);
 
-          // helpers
-          convertNoteToMidi(note: string): number | null {
-            // Matches notes like C4, C#4, Db4, A#10, etc.
-            const noteRegex = /^([A-Ga-g])(#|b)?(\d{1,2})$/;
-          
-            const semitoneOffsets: Record<string, number> = {
-              'C': 0,  'C#': 1,  'Db': 1,
-              'D': 2,  'D#': 3,  'Eb': 3,
-              'E': 4,  'Fb': 4,  // Fb is enharmonic to E
-              'E#': 5, 'F': 5,   // E# is enharmonic to F
-              'F#': 6, 'Gb': 6,
-              'G': 7,  'G#': 8,  'Ab': 8,
-              'A': 9,  'A#': 10, 'Bb': 10,
-              'B': 11, 'Cb': 11, // Cb is enharmonic to B
-              'B#': 0,           // B# is enharmonic to C
-            };
-          
-            const match = note.match(noteRegex);
-            if (!match) return null;
-          
-            const [, base, accidental, octaveStr] = match;
-            const key = base.toUpperCase() + (accidental || '');
-            const octave = parseInt(octaveStr, 10);
-          
-            const offset = semitoneOffsets[key];
-            if (offset === undefined) return null;
-          
-            return 12 * (octave + 1) + offset;
-          }
+    this.gui.btnStartStop.actionManager.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickTrigger, () => {
+      this.transport.toggle();
+      const mat = this.gui.btnStartStop.material as B.StandardMaterial;
+      mat.diffuseColor = this.transport.getPlaying() ? B.Color3.Green() : B.Color3.Red();
+    }));
+  }
+
+  // helpers
+  convertNoteToMidi(note: string): number | null {
+    const noteRegex = /^([A-Ga-g])(#|b)?(\d{1,2})$/;
+    const semitoneOffsets: Record<string, number> = {
+      'C': 0, 'C#': 1, 'Db': 1,
+      'D': 2, 'D#': 3, 'Eb': 3,
+      'E': 4, 'Fb': 4,
+      'E#': 5, 'F': 5,
+      'F#': 6, 'Gb': 6,
+      'G': 7, 'G#': 8, 'Ab': 8,
+      'A': 9, 'A#': 10, 'Bb': 10,
+      'B': 11, 'Cb': 11,
+      'B#': 0,
+    };
+    const match = note.match(noteRegex);
+    if (!match) return null;
+
+    const [, base, accidental, octaveStr] = match;
+    const key = base.toUpperCase() + (accidental || '');
+    const octave = parseInt(octaveStr, 10);
+
+    const offset = semitoneOffsets[key];
+    if (offset === undefined) return null;
+
+    return 12 * (octave + 1) + offset;
+  }
 
   sendPatternToPianoRoll(): void {
     const delegate = (window as any)?.WAMExtensions?.patterns?.getPatternViewDelegate(
@@ -747,27 +671,23 @@ export class PianoRollN3D implements Node3D {
     );
     if (!delegate) return;
     delegate.setPatternState("default", this.pattern);
-
   }
 
-    updatePattern(row: number, col: number, isActive: boolean): void {
+  updatePattern(row: number, col: number, isActive: boolean): void {
     const note = this.gui.notes[row];
     const midi = this.convertNoteToMidi(note);
     if (midi === null) return;
-  
+
     const tick = col * this.ticksPerColumn;
     const index = this.pattern.notes.findIndex(n => n.number === midi && n.tick === tick);
-  
+
     if (isActive && index === -1) {
       this.pattern.notes.push({ tick, number: midi, duration: 6, velocity: 100 });
     } else if (!isActive && index !== -1) {
       this.pattern.notes.splice(index, 1);
     }
-  
+
     this.sendPatternToPianoRoll();
-  
-    // send to network
-    // this._app.networkManager?.setPattern(this.id, this.pattern);
   }
 
   toggleNoteColor(row: number, col: number): void {
@@ -805,31 +725,30 @@ export class PianoRollN3D implements Node3D {
         const border = B.MeshBuilder.CreateBox(
           `groupBorder_${row}_${startCol}`,
           {
-            width: this.gui.buttonWidth * nCols +
-              this.gui.buttonSpacing * (nCols - 1),
+            width: this.gui.buttonWidth * nCols + this.gui.buttonSpacing * (nCols - 1),
             height: 0.3,
             depth: this.gui.buttonDepth
           },
           this.gui.context.scene
         );
 
-                border.isPickable = true;
-                border.actionManager = new B.ActionManager(this.gui.context.scene);
-                border.actionManager.registerAction(
-                  new B.ExecuteCodeAction(
-                    B.ActionManager.OnPickTrigger,
-                    () => this.deleteControlSequence(row, startCol)
-                  )
-                );
-                const mat = new B.StandardMaterial(
-                  `mat_border_${row}_${startCol}`,
-                  this.gui.context.scene
-                );
-                mat.emissiveColor   = B.Color3.Yellow();
-                mat.disableLighting = true;
-                mat.alpha           = 0.5;
-                border.material     = mat;
-                border.parent       = this.gui.root;
+        border.isPickable = true;
+        border.actionManager = new B.ActionManager(this.gui.context.scene);
+        border.actionManager.registerAction(
+          new B.ExecuteCodeAction(
+            B.ActionManager.OnPickTrigger,
+            () => this.deleteControlSequence(row, startCol)
+          )
+        );
+        const mat = new B.StandardMaterial(
+          `mat_border_${row}_${startCol}`,
+          this.gui.context.scene
+        );
+        mat.emissiveColor = B.Color3.Yellow();
+        mat.disableLighting = true;
+        mat.alpha = 0.5;
+        border.material = mat;
+        border.parent = this.gui.root;
 
         const centerCol = startCol + (nCols - 1) / 2; // fractional center
         const p = this.gui.getCellLocalPosition(row, centerCol);
@@ -841,13 +760,12 @@ export class PianoRollN3D implements Node3D {
     });
 
     this.sendPatternToPianoRoll();
-    // Optional: repaint visible to ensure immediate consistency
     this.gui.repaintVisibleFromState();
   }
 
   toggleNoteColorwithControl(row: number, col: number): void {
     if (!this.isAKeyPressed) return;
-    
+
     if (!this.currentControlSequence) {
       this.startNewControlSequence(row, col);
     } else {
@@ -864,29 +782,28 @@ export class PianoRollN3D implements Node3D {
     this.mode[row][col] = "control";
     this.gui._setVisibleCellColor(row, col, COLOR_LONG_PLAYING);
 
-          // 2. Create a single-tick note in the pattern
-          const midiNumber = this.convertNoteToMidi(this.gui.notes[row]);
-          if (midiNumber == null) return;
-          const tick = col * this.ticksPerColumn;
-          this.pattern.notes.push({ tick, number: midiNumber, duration: this.ticksPerColumn, velocity: 100 });
-          this.sendPatternToPianoRoll();
+    const midiNumber = this.convertNoteToMidi(this.gui.notes[row]);
+    if (midiNumber == null) return;
+    const tick = col * this.ticksPerColumn;
+    this.pattern.notes.push({ tick, number: midiNumber, duration: this.ticksPerColumn, velocity: 100 });
+    this.sendPatternToPianoRoll();
 
-          const border = B.MeshBuilder.CreateBox(
-            `groupBorder_${row}_${col}`,
-            {
-            width : this.gui.buttonWidth,// * 1.2,
-            height:0.3,//this.gui.root.scaling.y,  // compensate Y-scale
-            depth : this.gui.buttonDepth //* 1.25,
-            },
-            this.gui.context.scene
-            );
-            const mat = new B.StandardMaterial(`borderMat_${row}_${col}`, this.gui.context.scene);
-            mat.emissiveColor   = B.Color3.Yellow();
-            mat.disableLighting = true;
-            mat.alpha           = 0.5;
-            border.material     = mat;
-            border.isPickable   = true;
-            border.parent       = this.gui.root;
+    const border = B.MeshBuilder.CreateBox(
+      `groupBorder_${row}_${col}`,
+      {
+        width: this.gui.buttonWidth,
+        height: 0.3,
+        depth: this.gui.buttonDepth
+      },
+      this.gui.context.scene
+    );
+    const mat = new B.StandardMaterial(`borderMat_${row}_${col}`, this.gui.context.scene);
+    mat.emissiveColor = B.Color3.Yellow();
+    mat.disableLighting = true;
+    mat.alpha = 0.5;
+    border.material = mat;
+    border.isPickable = true;
+    border.parent = this.gui.root;
 
     const p = this.gui.getCellLocalPosition(row, col);
     border.position.copyFrom(p);
@@ -920,7 +837,7 @@ export class PianoRollN3D implements Node3D {
       this.sendPatternToPianoRoll();
     }
 
-    const centerCol = (startCol + currentCol) / 2; // fractional center (no rounding)
+    const centerCol = (startCol + currentCol) / 2; // fractional center
     const widthCols = currentCol - startCol + 1;
     const spacingRatio = this.gui.buttonSpacing / this.gui.buttonWidth;
 
@@ -937,12 +854,11 @@ export class PianoRollN3D implements Node3D {
     const midiNumber = this.convertNoteToMidi(this.gui.notes[row]);
     const tick = startCol * this.ticksPerColumn;
     const idx = this.pattern.notes.findIndex(n => n.number === midiNumber && n.tick === tick);
-    /* 1 ─ figure out how wide the sequence really is */
+
     const widthCols = idx !== -1 ? Math.round(this.pattern.notes[idx].duration / this.ticksPerColumn) : 1;
 
-  /* 2 ─ remove the note from the pattern */
-    if (idx !== -1) this.pattern.notes.splice(idx, 1);  
-    /* 3 ─ dispose border mesh */
+    if (idx !== -1) this.pattern.notes.splice(idx, 1);
+
     const border = this.gui.context.scene.getMeshByName(`groupBorder_${row}_${startCol}`) as B.Mesh;
     if (border) {
       for (let c = startCol; c < startCol + widthCols; c++) {
@@ -1022,11 +938,12 @@ export class PianoRollN3D implements Node3D {
   }
 
   setTempo(bpm: number): void {
+    // Update local timing constants first (UI/step grid speed)
     this.tempo = bpm;
     this.beatDuration = 60 / this.tempo;
-    this.cellDuration = this.beatDuration / this.timeSignatureNumerator;
-    this.stop()
-    this.start()
+    this.cellDuration = this.beatDuration / this.timeSignatureDenominator;
+    // Broadcast to the shared transport (keeps musical position)
+    this.transport.setTempo(bpm);
   }
 
   public createBars() {
@@ -1054,7 +971,10 @@ export class PianoRollN3D implements Node3D {
     if (key === 'pattern') this.setPattern(state.pattern);
   }
   getStateKeys(): string[] { return ['pattern'] }
-  async dispose(): Promise<void> { }
+  async dispose(): Promise<void> {
+    if (this.unsubscribeTransport) this.unsubscribeTransport();
+    if (this.wamInstance?.audioNode) this.transport.unregister(this.wamInstance.audioNode);
+  }
 }
 
 export const PianoRollN3DFactory: Node3DFactory<PianoRollN3DGUI, PianoRollN3D> = {
