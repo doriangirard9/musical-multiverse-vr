@@ -1,4 +1,3 @@
-
 import { Color3, Matrix, Vector3 } from "@babylonjs/core";
 import type { Node3D, Node3DFactory, Node3DGUI } from "../../Node3D";
 import type { Node3DGUIContext } from "../../Node3DGUIContext";
@@ -9,7 +8,7 @@ import { WebAudioModule } from "@webaudiomodules/api";
 import { WamInitializer } from "../../../app/WamInitializer";
 import { PianoRollSettingsMenu } from "./PianoRollSettingsMenu";
 import { XRManager } from "../../../xr/XRManager";
-import { WamTransportManager } from "./WamTransportManager"; // <-- NEW
+import { WamTransportManager } from "./WamTransportManager"; // <-- shared transport
 
 interface PatternNote {
   tick: number;
@@ -17,12 +16,10 @@ interface PatternNote {
   duration: number;
   velocity: number;
 }
-
 interface Pattern {
   length: number;
   notes: PatternNote[];
 }
-
 interface ControlSequence {
   row: number;
   startCol: number;
@@ -30,7 +27,6 @@ interface ControlSequence {
   midiNumber: number;
   borderMesh: B.Mesh;
 }
-
 interface NoteButtonMesh extends B.Mesh {
   isActive: boolean;
   isPlaying: boolean;
@@ -39,15 +35,14 @@ interface NoteButtonMesh extends B.Mesh {
 }
 
 // Color Constants
-const COLOR_ACTIVE = new B.Color3(1, 0, 0);         // Red
-const COLOR_INACTIVE = new B.Color3(0.2, 0.6, 0.8); // Blue
-const COLOR_PLAYING = new B.Color3(0, 1, 0);        // Green
-const COLOR_LONG_PLAYING = new B.Color3(0.6588, 0.2, 0.8); // Purple
+const COLOR_ACTIVE = new B.Color3(1, 0, 0);               // Red
+const COLOR_INACTIVE = new B.Color3(0.2, 0.6, 0.8);       // Blue
+const COLOR_PLAYING = new B.Color3(0, 1, 0);              // Green
+const COLOR_LONG_PLAYING = new B.Color3(0.6588, 0.2, 0.8);// Purple
 const COLOR_BLACK_KEY = new B.Color3(0.1, 0.1, 0.1);
 const COLOR_WHITE_KEY = new B.Color3(1, 1, 1);
 const COLOR_DISABLED = new B.Color3(0.2, 0.2, 0.2);
 const COLOR_BASE_MESH = new B.Color3(0.5, 0.2, 0.2);
-const COLOR_MENU_BUTTON = new B.Color3(0, 0, 0);
 
 class PianoRollN3DGUI implements Node3DGUI {
   root
@@ -74,6 +69,7 @@ class PianoRollN3DGUI implements Node3DGUI {
   buttonDepth = 0.5;
   buttonSpacing = 0.2;
   keyboardWidth = 3;
+
   // Scrolling properties
   visibleRowCount: number = 14;
   private _startRowIndex: number = 30;
@@ -91,7 +87,7 @@ class PianoRollN3DGUI implements Node3DGUI {
 
   public btnStartStop!: B.Mesh;
 
-  // Complete 88-note list (added "F#5")
+  // 88-key list
   notes: string[] = [
     "A0", "A#0", "B0",
     "C1", "C#1", "D1", "D#1", "E1", "F1", "F#1", "G1", "G#1", "A1", "A#1", "B1",
@@ -130,7 +126,6 @@ class PianoRollN3DGUI implements Node3DGUI {
     const baseLength = this.block.getBoundingInfo().boundingBox.extendSize.x;
 
     this.midiOutput = B.CreateIcoSphere("piano roll midi output", { radius: this.buttonWidth * 2 }, this.context.scene);
-
     this.tool.MeshUtils.setColor(this.midiOutput, MidiN3DConnectable.OutputColor.toColor4())
     this.midiOutput.position.set(baseLength, baseY, baseZ + 1)
     this.midiOutput.scaling.setAll(0.5);
@@ -178,7 +173,7 @@ class PianoRollN3DGUI implements Node3DGUI {
 
     this._fillVisibleWindowBuffers();
 
-    // Updatable buffers (isStatic = false)
+    // Updatable buffers
     this.noteCell.thinInstanceSetBuffer("matrix", this.thinInstanceMatrices, 16, false);
     this.noteCell.thinInstanceSetBuffer("color", this.thinInstanceColors, 4, false);
 
@@ -283,17 +278,6 @@ class PianoRollN3DGUI implements Node3DGUI {
   isBlackKeyFromNoteName(note?: string): boolean {
     if (!note) return false;
     return note.includes("#") || note.includes("b");
-  }
-
-  blockerMesh() {
-    const blocker = this.createBox("mesh_blocker", {
-      width: (this.endX - this.startX) + (this.keyboardWidth + this.buttonSpacing * 2),
-      height: 0.1,
-      depth: this.endZ - this.startZ + this.buttonDepth + this.buttonSpacing + (this.buttonDepth + this.buttonSpacing) * 2
-    }, new B.Color3(0, 0, 0), new B.Vector3(0, 0.1, 0), this.root)
-    blocker.isPickable = true;
-    blocker.material = new B.StandardMaterial("blocker_material", this.context.scene);
-    (blocker.material as B.StandardMaterial).alpha = 0.01;
   }
 
   private _createColorBox(row: number, isBlack: boolean): B.Mesh {
@@ -514,8 +498,14 @@ export class PianoRollN3D implements Node3D {
   private mode: ("normal" | "control" | "none")[][] = [];
   private rowControlBorders: { [row: number]: B.Mesh[] } = {};
 
-  private transport: WamTransportManager; // <-- NEW
-  private unsubscribeTransport?: () => void; // <-- NEW
+  private transport: WamTransportManager;
+
+  // --- NEW: readiness / queue ---
+  private ready!: Promise<void>;
+  private isReady = false;
+  private pendingPattern: Pattern | null = null;
+
+  private unsubscribeTransport?: () => void;
 
   constructor(context: Node3DContext, private gui: PianoRollN3DGUI) {
     const { tools: T } = context
@@ -561,8 +551,19 @@ export class PianoRollN3D implements Node3D {
       }
     });
 
-    this.createBars()
-    this.wamInitializer();
+    this.createBars();
+
+    // --- NEW: Initialize WAM with a ready-gate and flush ---
+    this.ready = this.wamInitializer()
+      .then(() => {
+        this.isReady = true;
+        if (this.pendingPattern) {
+          this._applyPattern(this.pendingPattern);
+          this.pendingPattern = null;
+          this._safeSendPatternToPianoRoll();
+        }
+      })
+      .catch((e) => console.error("WAM init failed:", e));
 
     // Initialize button color to current transport state
     const mat = this.gui.btnStartStop.material as B.StandardMaterial;
@@ -583,7 +584,8 @@ export class PianoRollN3D implements Node3D {
   }
 
   private async wamInitializer() {
-    this.wamInstance = await WamInitializer.getInstance().initWamInstance("https://www.webaudiomodules.com/community/plugins/burns-audio/pianoroll/index.js");
+    this.wamInstance = await WamInitializer.getInstance()
+      .initWamInstance("https://www.webaudiomodules.com/community/plugins/burns-audio/pianoroll/index.js");
 
     const output = new MidiN3DConnectable.Output(
       "midiOutput",
@@ -593,7 +595,7 @@ export class PianoRollN3D implements Node3D {
     );
     this.context.createConnectable(output);
 
-    // Register plugin node with the shared transport (sends current state immediately)
+    // Register plugin node with the shared transport
     this.transport.register(this.wamInstance.audioNode);
   }
 
@@ -626,7 +628,7 @@ export class PianoRollN3D implements Node3D {
     }
   }
 
-  // Start/Stop button now controls the shared transport
+  // Start/Stop button controls the shared transport
   toggleStartStopBtn(): void {
     if (!this.gui.btnStartStop.actionManager)
       this.gui.btnStartStop.actionManager = new B.ActionManager(this.gui.context.scene);
@@ -665,40 +667,28 @@ export class PianoRollN3D implements Node3D {
     return 12 * (octave + 1) + offset;
   }
 
-  sendPatternToPianoRoll(): void {
-    const delegate = (window as any)?.WAMExtensions?.patterns?.getPatternViewDelegate(
-      this.wamInstance.audioNode.instanceId
-    );
-    if (!delegate) return;
-    delegate.setPatternState("default", this.pattern);
-  }
+  // --- NEW: guarded delegate sender
+  private _safeSendPatternToPianoRoll(): void {
+    try {
+      if (!this.wamInstance?.audioNode) return;
 
-  updatePattern(row: number, col: number, isActive: boolean): void {
-    const note = this.gui.notes[row];
-    const midi = this.convertNoteToMidi(note);
-    if (midi === null) return;
+      const instanceId = (this.wamInstance.audioNode as any).instanceId;
+      if (!instanceId) return;
 
-    const tick = col * this.ticksPerColumn;
-    const index = this.pattern.notes.findIndex(n => n.number === midi && n.tick === tick);
-
-    if (isActive && index === -1) {
-      this.pattern.notes.push({ tick, number: midi, duration: 6, velocity: 100 });
-    } else if (!isActive && index !== -1) {
-      this.pattern.notes.splice(index, 1);
+      const delegate = (window as any)?.WAMExtensions?.patterns?.getPatternViewDelegate(instanceId);
+      if (!delegate) {
+        // try again soon; avoids crashing if extension not yet registered
+        queueMicrotask(() => this._safeSendPatternToPianoRoll());
+        return;
+      }
+      delegate.setPatternState("default", this.pattern);
+    } catch (e) {
+      console.warn("sendPatternToPianoRoll deferred:", e);
     }
-
-    this.sendPatternToPianoRoll();
   }
 
-  toggleNoteColor(row: number, col: number): void {
-    this.isActive[row][col] = !this.isActive[row][col];
-    const color = this.isActive[row][col] ? COLOR_ACTIVE : COLOR_INACTIVE;
-    this.gui._setVisibleCellColor(row, col, color);
-    this.context.notifyStateChange('pattern');
-    this.updatePattern(row, col, this.isActive[row][col]);
-  }
-
-  setPattern(pattern: Pattern): void {
+  // --- NEW: UI/state apply only (no plugin calls)
+  private _applyPattern(pattern: Pattern): void {
     this.pattern = pattern;
 
     this.isActive = Array.from({ length: this.gui.rows }, () => Array(this.gui.cols).fill(false));
@@ -759,8 +749,49 @@ export class PianoRollN3D implements Node3D {
       }
     });
 
-    this.sendPatternToPianoRoll();
     this.gui.repaintVisibleFromState();
+  }
+
+  // --- UPDATED: public setter uses queue/ready-gate
+  setPattern(pattern: Pattern): void {
+    if (!this.isReady) {
+      this.pendingPattern = pattern;     // keep latest desired pattern
+      this._applyPattern(pattern);        // update UI immediately
+      return;
+    }
+    this._applyPattern(pattern);
+    this._safeSendPatternToPianoRoll();
+  }
+
+  // Keep this convenience for external callers if ever needed
+  public forceSyncPatternToPlugin(): void {
+    if (!this.isReady) return;
+    this._safeSendPatternToPianoRoll();
+  }
+
+  updatePattern(row: number, col: number, isActive: boolean): void {
+    const note = this.gui.notes[row];
+    const midi = this.convertNoteToMidi(note);
+    if (midi === null) return;
+
+    const tick = col * this.ticksPerColumn;
+    const index = this.pattern.notes.findIndex(n => n.number === midi && n.tick === tick);
+
+    if (isActive && index === -1) {
+      this.pattern.notes.push({ tick, number: midi, duration: 6, velocity: 100 });
+    } else if (!isActive && index !== -1) {
+      this.pattern.notes.splice(index, 1);
+    }
+
+    this._safeSendPatternToPianoRoll();
+  }
+
+  toggleNoteColor(row: number, col: number): void {
+    this.isActive[row][col] = !this.isActive[row][col];
+    const color = this.isActive[row][col] ? COLOR_ACTIVE : COLOR_INACTIVE;
+    this.gui._setVisibleCellColor(row, col, color);
+    this.context.notifyStateChange('pattern');
+    this.updatePattern(row, col, this.isActive[row][col]);
   }
 
   toggleNoteColorwithControl(row: number, col: number): void {
@@ -786,7 +817,7 @@ export class PianoRollN3D implements Node3D {
     if (midiNumber == null) return;
     const tick = col * this.ticksPerColumn;
     this.pattern.notes.push({ tick, number: midiNumber, duration: this.ticksPerColumn, velocity: 100 });
-    this.sendPatternToPianoRoll();
+    this._safeSendPatternToPianoRoll();
 
     const border = B.MeshBuilder.CreateBox(
       `groupBorder_${row}_${col}`,
@@ -817,7 +848,7 @@ export class PianoRollN3D implements Node3D {
     border.actionManager.registerAction(
       new B.ExecuteCodeAction(B.ActionManager.OnPickTrigger, () => this.deleteControlSequence(row, col))
     );
-    this.sendPatternToPianoRoll();
+    this._safeSendPatternToPianoRoll();
     this.gui.repaintVisibleFromState();
   }
 
@@ -834,7 +865,7 @@ export class PianoRollN3D implements Node3D {
     const noteObj = this.pattern.notes.find(n => n.number === seq.midiNumber && n.tick === seq.startTick);
     if (noteObj) {
       noteObj.duration = (currentCol - startCol + 1) * this.ticksPerColumn;
-      this.sendPatternToPianoRoll();
+      this._safeSendPatternToPianoRoll();
     }
 
     const centerCol = (startCol + currentCol) / 2; // fractional center
@@ -846,7 +877,7 @@ export class PianoRollN3D implements Node3D {
     const p = this.gui.getCellLocalPosition(row, centerCol);
     seq.borderMesh.position.copyFrom(p);
 
-    this.sendPatternToPianoRoll();
+    this._safeSendPatternToPianoRoll();
     this.gui.repaintVisibleFromState();
   }
 
@@ -874,7 +905,7 @@ export class PianoRollN3D implements Node3D {
       }
     }
     this.currentControlSequence = null;
-    this.sendPatternToPianoRoll();
+    this._safeSendPatternToPianoRoll();
     this.context.notifyStateChange('pattern');
     this.gui.repaintVisibleFromState();
   }
@@ -882,7 +913,7 @@ export class PianoRollN3D implements Node3D {
   public setColumns(newColumnCount: number): void {
     this.pattern.notes = [];
     this.pattern.length = newColumnCount * this.ticksPerColumn;
-    this.sendPatternToPianoRoll();
+    this._safeSendPatternToPianoRoll();
 
     this.gui.cols = newColumnCount;
 
@@ -971,6 +1002,7 @@ export class PianoRollN3D implements Node3D {
     if (key === 'pattern') this.setPattern(state.pattern);
   }
   getStateKeys(): string[] { return ['pattern'] }
+
   async dispose(): Promise<void> {
     if (this.unsubscribeTransport) this.unsubscribeTransport();
     if (this.wamInstance?.audioNode) this.transport.unregister(this.wamInstance.audioNode);
