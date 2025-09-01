@@ -341,7 +341,7 @@ class PianoRollN3DGUI implements Node3DGUI {
     return -((this.cols - 1) / 2) * (this.buttonWidth + this.buttonSpacing) - this.buttonWidth / 2;
   }
 
-  private _createScrollButtons(): void {
+  private _createScrollButtonsV2(): void {
     const scrollColor = COLOR_INACTIVE;
     const size = {
       width: this.endX - this.startX,
@@ -384,6 +384,112 @@ class PianoRollN3DGUI implements Node3DGUI {
       new B.ExecuteCodeAction(B.ActionManager.OnPickTrigger, () => this._scrollDown())
     );
   }
+  createUpArrowMesh(
+    scene : B.Scene,
+    name  = "upArrow",
+    width = 1,
+    height= 1.2,
+    depth = 0.2
+): B.Mesh {
+    // ── 1.   2-D outline (counter-clockwise, XY plane) ──────────────────────────
+    const w  = width  * 0.5;          // half width
+    const r  = width  * 0.25;         // rectangle half-width
+    const hH = height * 0.6;          // rectangle height
+    const pts: B.Vector2[] = [
+        new B.Vector2(-r, 0),         // bottom-left of tail
+        new B.Vector2(-r, hH),        // top-left  of tail
+        new B.Vector2(-w, hH),        // left corner of head base
+        new B.Vector2( 0, height),    // arrow tip
+        new B.Vector2( w, hH),        // right corner of head base
+        new B.Vector2( r, hH),        // top-right  of tail
+        new B.Vector2( r, 0)          // bottom-right of tail
+    ];
+
+    // ── 2.   Build & extrude ────────────────────────────────────────────────────
+    const builder = new B.PolygonMeshBuilder(`${name}Triangulation`, pts, scene);
+    const mesh    = builder.build(false, depth);          // depth extrudes along +Z
+
+    // Centre the mesh around (0,0,0) and orient it so that the arrow points +Z.
+    mesh.bakeCurrentTransformIntoVertices();              // freeze pivot at origin
+    mesh.rotation.x = Math.PI;                        // XY → XZ plane
+
+    return mesh;
+}
+
+/**
+ * Identical shape but rotated 180 ° so that it points “down”.
+ */
+ createDownArrowMesh(
+    scene : B.Scene,
+    name  = "downArrow",
+    width = 1,
+    height= 1.2,
+    depth = 0.2
+): B.Mesh {
+    const arrow = this.createUpArrowMesh(scene, name, width, height, depth);
+    // arrow.rotation.z = Math.PI;       // flip upside-down
+    arrow.rotation.x = Math.PI*2;       // flip upside-down
+
+    return arrow;
+}
+
+private _createScrollButtons(): void {
+    // build arrow heads
+    const upArrow   = this.createUpArrowMesh(this.context.scene, "btnScrollUp");
+    const downArrow = this.createDownArrowMesh(this.context.scene, "btnScrollDown");
+
+    // give them the same material you used before
+    const mat = new B.StandardMaterial("scrollMat", this.context.scene);
+    mat.diffuseColor = COLOR_INACTIVE;
+    upArrow.material   = mat;
+    downArrow.material = mat.clone("scrollMatDown");
+
+    // position
+    upArrow.position.set(this.endX + 2,  -0.2,  -this.endZ/3);
+    downArrow.position.set(this.endX+2,  0.2,  +this.endZ/3);
+
+    // click handlers
+    upArrow.actionManager   = new B.ActionManager(this.context.scene);
+    downArrow.actionManager = new B.ActionManager(this.context.scene);
+
+    upArrow.actionManager.registerAction(
+        new B.ExecuteCodeAction(B.ActionManager.OnPickTrigger, () => this._scrollUp())
+    );
+    downArrow.actionManager.registerAction(
+        new B.ExecuteCodeAction(B.ActionManager.OnPickTrigger, () => this._scrollDown())
+    );
+    upArrow.parent   = this.root;
+    downArrow.parent = this.root;
+    upArrow.scaling.setAll(2);
+    downArrow.scaling.setAll(2);
+
+    // ────────────────────────────── highlight on hover
+    const highlightLayer = new B.HighlightLayer("highlightScrollButtons", this.context.scene);
+
+    const addHighlight    = (m: B.Mesh) => highlightLayer.addMesh(m, B.Color3.Yellow());
+    const removeHighlight = (m: B.Mesh) => highlightLayer.removeMesh(m);
+
+    [upArrow, downArrow].forEach(mesh => {
+      // make absolutely sure an ActionManager exists
+      if (!mesh.actionManager) {
+        mesh.actionManager = new B.ActionManager(this.context.scene);
+      }
+
+      mesh.actionManager.registerAction(
+        new B.ExecuteCodeAction(B.ActionManager.OnPointerOverTrigger, () => addHighlight(mesh))
+      );
+      mesh.actionManager.registerAction(
+        new B.ExecuteCodeAction(B.ActionManager.OnPointerOutTrigger, () => removeHighlight(mesh))
+      );
+    });
+
+
+    this._btnScrollUp = upArrow;
+    this._btnScrollDown = downArrow;
+}
+
+  
+  
 
   private _scrollUp(): void {
     if (this._startRowIndex > 0) {
