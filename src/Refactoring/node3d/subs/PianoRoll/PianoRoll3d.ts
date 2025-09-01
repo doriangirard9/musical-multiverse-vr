@@ -1,4 +1,4 @@
-import { Color3, Matrix, Vector3 } from "@babylonjs/core";
+import { Matrix } from "@babylonjs/core";
 import type { Node3D, Node3DFactory, Node3DGUI } from "../../Node3D";
 import type { Node3DGUIContext } from "../../Node3DGUIContext";
 import { MidiN3DConnectable } from "../../tools";
@@ -7,7 +7,6 @@ import * as B from "@babylonjs/core";
 import { WebAudioModule } from "@webaudiomodules/api";
 import { WamInitializer } from "../../../app/WamInitializer";
 import { PianoRollSettingsMenu } from "./PianoRollSettingsMenu";
-import { XRManager } from "../../../xr/XRManager";
 import { WamTransportManager } from "./WamTransportManager"; // <-- shared transport
 
 interface PatternNote {
@@ -27,12 +26,15 @@ interface ControlSequence {
   midiNumber: number;
   borderMesh: B.Mesh;
 }
+/* cleanup ?
 interface NoteButtonMesh extends B.Mesh {
   isActive: boolean;
   isPlaying: boolean;
   material: B.StandardMaterial;
   mode?: "normal" | "control" | "none";
 }
+
+ */
 
 // Color Constants
 const COLOR_ACTIVE = new B.Color3(1, 0, 0);               // Red
@@ -52,7 +54,7 @@ class PianoRollN3DGUI implements Node3DGUI {
   menuButton!: B.Mesh
   scrollUpButton!: B.Mesh
   scrollDownButton!: B.Mesh
-  midiOutput!: B.Mesh;
+  output!: B.Mesh;
 
   // Grid properties
   rows: number = 88;
@@ -125,11 +127,11 @@ class PianoRollN3DGUI implements Node3DGUI {
     const baseZ = this.block.position.z;
     const baseLength = this.block.getBoundingInfo().boundingBox.extendSize.x;
 
-    this.midiOutput = B.CreateIcoSphere("piano roll midi output", { radius: this.buttonWidth * 2 }, this.context.scene);
-    this.tool.MeshUtils.setColor(this.midiOutput, MidiN3DConnectable.OutputColor.toColor4())
-    this.midiOutput.position.set(baseLength, baseY, baseZ + 1)
-    this.midiOutput.scaling.setAll(0.5);
-    this.midiOutput.parent = this.root;
+    this.output = B.CreateIcoSphere("piano roll midi output", { radius: this.buttonWidth * 2 }, this.context.scene);
+    this.tool.MeshUtils.setColor(this.output, MidiN3DConnectable.OutputColor.toColor4())
+    this.output.position.set(baseLength, baseY, baseZ + 1)
+    this.output.scaling.setAll(0.5);
+    this.output.parent = this.root;
 
     this.startStopButton();
     // this.menu = new PianoRollSettingsMenu(this.context.scene, this);
@@ -501,6 +503,7 @@ export class PianoRollN3D implements Node3D {
   private transport: WamTransportManager;
 
   // --- NEW: readiness / queue ---
+  //@ts-ignore
   private ready!: Promise<void>;
   private isReady = false;
   private pendingPattern: Pattern | null = null;
@@ -508,7 +511,7 @@ export class PianoRollN3D implements Node3D {
   private unsubscribeTransport?: () => void;
 
   constructor(context: Node3DContext, private gui: PianoRollN3DGUI) {
-    const { tools: T } = context
+    //const { tools: T } = context
     this.context = context;
     this.beatDuration = 60 / this.tempo;
     this.cellDuration = this.beatDuration / this.timeSignatureDenominator;
@@ -520,8 +523,8 @@ export class PianoRollN3D implements Node3D {
     (this.gui as any).owner = this;
     context.addToBoundingBox(gui.block)
 
-    const midi_output = new T.MidiN3DConnectable.ListOutput("midioutput", [gui.midiOutput], "MIDI Output")
-    context.createConnectable(midi_output)
+    //const output = new T.MidiN3DConnectable.ListOutput("midioutput", [gui.output], "MIDI Output")
+    //context.createConnectable(output)
 
     // ---- Shared Transport ----
     this.transport = WamTransportManager.getInstance(context.audioCtx);
@@ -587,9 +590,10 @@ export class PianoRollN3D implements Node3D {
     this.wamInstance = await WamInitializer.getInstance()
       .initWamInstance("https://www.webaudiomodules.com/community/plugins/burns-audio/pianoroll/index.js");
 
+
     const output = new MidiN3DConnectable.Output(
       "midiOutput",
-      [this.gui.midiOutput],
+      [this.gui.output],
       "MIDI Output",
       this.wamInstance.audioNode
     );
@@ -934,7 +938,7 @@ export class PianoRollN3D implements Node3D {
     const baseY = this.gui.block.position.y;
     const baseZ = this.gui.block.position.z;
     const baseLength = this.gui.block.getBoundingInfo().boundingBox.extendSize.x;
-    this.gui.midiOutput.position.set(baseLength, baseY, baseZ + 1)
+    this.gui.output.position.set(baseLength, baseY, baseZ + 1)
     if (this.gui.playhead) this.gui.playhead.position.x = this.gui.getStartX();
 
     this.gui.menuButton.actionManager = new B.ActionManager(this.gui.context.scene);
@@ -1011,6 +1015,8 @@ export class PianoRollN3D implements Node3D {
 
 export const PianoRollN3DFactory: Node3DFactory<PianoRollN3DGUI, PianoRollN3D> = {
   label: "pianoroll",
+  description : "3D Piano Roll Sequencer, sources WAM from sequencer.party",
+  tags: ["wam", "midi", "sequencer", "piano roll"],
   async createGUI(context) { return new PianoRollN3DGUI(context) },
   async create(context, gui) { return new PianoRollN3D(context, gui) },
 }
