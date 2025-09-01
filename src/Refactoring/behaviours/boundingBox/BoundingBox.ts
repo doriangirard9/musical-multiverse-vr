@@ -32,6 +32,8 @@ export class BoundingBox {
 
         this.boundingBox.rotation.x = -Math.PI / 6
 
+        this.boundingBox.rotationQuaternion = B.Quaternion.FromEulerVector(this.boundingBox.rotation)
+
         // Holdable behaviour
         this.holdable = new HoldableBehaviour()
         this.holdable.onMoveObservable.add(()=>this.on_move())
