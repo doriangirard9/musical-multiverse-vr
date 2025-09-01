@@ -7,6 +7,7 @@ import {N3DShop, N3DShopOptions} from "../world/shop/N3DShop.ts";
 import { InputManager } from "../xr/inputs/InputManager.ts";
 import { parallel } from "../utils/utils.ts";
 import { HoldableBehaviour } from "../behaviours/boundingBox/HoldableBehaviour.ts";
+import { ShakeBehavior } from "../behaviours/ShakeBehavior.ts";
 
 export class NewApp {
     private audioCtx: AudioContext | undefined;
@@ -52,8 +53,15 @@ export class NewApp {
         const mesh = CreateBox("box", {size: 1}, scene)
         mesh.rotation.x = Math.PI / 3
         mesh.bakeCurrentTransformIntoVertices()
-        const behavior = new HoldableBehaviour()
+        const behavior = new ShakeBehavior()
         mesh.addBehavior(behavior)
+        behavior.on_shake = (p,c)=>{
+            console.log(c)
+            mesh.visibility = Math.max(0,1-p/10)
+        }
+        behavior.on_stop = (p,c)=>{
+            mesh.visibility = 1
+        }
 
         const shared = this.audioManager?.builder?.shared!!
 

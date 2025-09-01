@@ -84,9 +84,9 @@ export class SyncLink implements Synchronized{
         if(key=="border"){
             const {fromid,toid} = value as {fromid:string, toid:string}
             console.log("PathId ",fromid," to ",toid)
-            console.log("PathNow ", this.blocks.getInstanceNow(fromid), " to ", this.blocks.getInstanceNow(toid))
-            const from = await this.blocks.getInstance(fromid) ?? null
-            const to = await this.blocks.getInstance(toid) ?? null
+            console.log("PathNow ", this.blocks.getNow(fromid), " to ", this.blocks.getNow(toid))
+            const from = await this.blocks.get(fromid) ?? null
+            const to = await this.blocks.get(toid) ?? null
             console.log("Path ",from," to ",to)
             this.set_path(from,to)
         }

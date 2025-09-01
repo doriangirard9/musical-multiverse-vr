@@ -6,6 +6,7 @@ import { SyncSerializable } from "../../network/sync/SyncSerializable"
 import { Doc } from "yjs"
 import { UIManager } from "../../app/UIManager"
 import { MeshUtils } from "../tools"
+import { ShakeBehavior } from "../../behaviours/ShakeBehavior"
 
 /**
  * Une connection entre deux connectable de deux Node3D.
@@ -14,6 +15,7 @@ import { MeshUtils } from "../tools"
 export class N3DConnectionInstance{
 
     private tube
+    private shake
     private arrow?: AbstractMesh
     public on_dispose = ()=>{}
 
@@ -28,6 +30,23 @@ export class N3DConnectionInstance{
             diameter: .25,
             tessellation: 6
         },this.scene)
+
+        this.shake = new ShakeBehavior()
+        this.tube.addBehavior(this.shake)
+        this.shake.on_shake = (power, counter) => {
+            this.tube.visibility = Math.max(0, 1 - power / 10)
+            if(counter>5) connections.remove(this)
+        }
+        this.shake.on_stop = (power, counter) => {
+            this.tube.visibility = .8
+        }
+        this.shake.on_pick = () => {
+            this.tube.visibility = .8
+        }
+        this.shake.on_drop = () => {
+            this.tube.visibility = 1
+        }
+
     }
 
     // Public API
@@ -215,8 +234,8 @@ export class N3DConnectionInstance{
     async setState(key: string, value: SyncSerializable) {
         if(key=="connectables"){
             const {fromId,fromPortId,toId,toPortId} = value as {fromId:string, fromPortId:string, toId:string, toPortId:string}
-            const from = await this.nodes.getInstance(fromId) ?? null
-            const to = await this.nodes.getInstance(toId) ?? null
+            const from = await this.nodes.get(fromId) ?? null
+            const to = await this.nodes.get(toId) ?? null
             const fromConnectable = from?.connectables?.get(fromPortId)
             const toConnectable = to?.connectables?.get(toPortId)
             this.disconnect()
