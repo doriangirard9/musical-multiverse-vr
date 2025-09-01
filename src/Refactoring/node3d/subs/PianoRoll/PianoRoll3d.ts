@@ -119,6 +119,7 @@ class PianoRollN3DGUI implements Node3DGUI {
     this.updateRowVisibility();
     this.recalculateGridBoundaries()
     this.createMenuButton();
+    this.preventClickBetweenNotes()
 
     // output position
     const baseY = this.block.position.y;
@@ -336,6 +337,21 @@ class PianoRollN3DGUI implements Node3DGUI {
       this.root
     );
   }
+
+  private preventClickBetweenNotes() {
+    const box = this.createBox(
+      "noDragBox", {
+      width: (this.endX - this.startX)+ ( this.buttonWidth),
+      height: 0.3,
+      depth: this.endZ - this.startZ + this.buttonDepth ,
+    },  B.Color3.Black()
+      , new B.Vector3(0, 0, 0), this.root)
+      // add material to box with black color
+    box.isPickable = true;
+    box.visibility = 0;
+   
+  }
+  
 
   getStartX(): number {
     return -((this.cols - 1) / 2) * (this.buttonWidth + this.buttonSpacing) - this.buttonWidth / 2;
