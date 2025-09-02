@@ -46,7 +46,7 @@ export class SyncManager<
         this.on_add = options.on_add
         this.on_remove = options.on_remove
         this.send_interval = options.send_interval ?? 100
-        this.get_timeout = options.get_timeout ?? 1000
+        this.get_timeout = options.get_timeout ?? 10_000
         this.shared_state =  options.doc.getMap<Y.Map<SyncSerializable>>()
         this.shared_data = options.doc.getMap<{data:D}>(options.name)
         this.shared_data.observe(this.add_from_network.bind(this))
@@ -195,43 +195,42 @@ export class SyncManager<
     private async add_from_network(event: Y.YMapEvent<{data:D}>){
         if(event.transaction.origin==this)return
 
-        for(const [id,{action,oldValue}] of event.keys){
-            if(action=="delete"){
+        // Sort by add and delete
+        let deletes = [...event.keys] .filter(it=>it[1].action=="delete")
+        let adds = [...event.keys] .filter(it=>it[1].action=="add")
 
-                // Remove the instance
-                const instance = this.instances.get(id)!! //TODO: Peut être mettre une vérification plutôt que ça.
-                instance.disposeSync()
-                this.instances.delete(id)
-                this.reverse_instances.delete(instance)
+        // Add
+        await Promise.all(adds.map(async([id,{}])=>{
+            const new_shared_state = this.shared_state.get(id)!!
+            const new_shared = this.shared_data.get(id)!!
 
-                // Clear pending state change
-                this.pendingStateChange.delete(id)
+            // Create instance
+            const instance = await this.create(id, new_shared_state, new_shared.data)
+            this.instances.set(id,instance)
+            this.reverse_instances.set(instance,id)
+            await this.initialize(id,instance,new_shared_state)
+            await Promise.all([...new_shared_state.entries()].map(([key,value])=>{
+                return instance.setState(key as string,value as SyncSerializable)
+            }))
+            const resolve = this.get_resolver(id)
+            resolve(instance)
+        }))
 
-                // Get share data
-                const {data,state} = oldValue as {data:D, state: Y.Map<SyncSerializable>}
-                this.on_remove?.(instance!!, state, data)
-            }
-            else if(action=="add"){
-                const resolve = this.get_resolver(id)
+        // Delete
+        await Promise.all(deletes.map(async([id,{oldValue}])=>{
+            // Remove the instance
+            const instance = this.instances.get(id)!! //TODO: Peut être mettre une vérification plutôt que ça.
+            instance.disposeSync()
+            this.instances.delete(id)
+            this.reverse_instances.delete(instance)
 
-                const new_shared_state = this.shared_state.get(id)!!
-                const new_shared = this.shared_data.get(id)!!
+            // Clear pending state change
+            this.pendingStateChange.delete(id)
 
-                // Create instance
-                const instance = await this.create(id, new_shared_state, new_shared.data)
-                this.instances.set(id,instance)
-                this.reverse_instances.set(instance,id)
-                await this.initialize(id,instance,new_shared_state)
-                await Promise.all([...new_shared_state.entries()].map(([key,value])=>{
-                    return instance.setState(key as string,value as SyncSerializable)
-                }))
-
-                resolve(instance)
-            }
-            else{
-                console.warn(`SyncManager : New instance with same id is not allowed`)
-            }
-        }
+            // Get share data
+            const {data,state} = oldValue as {data:D, state: Y.Map<SyncSerializable>}
+            this.on_remove?.(instance!!, state, data)
+        }))
     }
 
 
