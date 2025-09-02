@@ -56,7 +56,7 @@ class PianoRollN3DGUI implements Node3DGUI {
 
   // Grid properties
   rows: number = 88;
-  cols: number = 32;
+  cols: number = 16;
 
   // grid edges
   startX!: number;
@@ -64,14 +64,14 @@ class PianoRollN3DGUI implements Node3DGUI {
   startZ!: number;
   endZ!: number;
 
-  buttonWidth = 0.5;
+  buttonWidth = 2;
   buttonHeight = 0.2;
   buttonDepth = 0.5;
   buttonSpacing = 0.2;
   keyboardWidth = 3;
 
   // Scrolling properties
-  visibleRowCount: number = 14;
+  visibleRowCount: number = 20;
   private _startRowIndex: number = 30;
 
   // Thin instances
@@ -135,8 +135,98 @@ class PianoRollN3DGUI implements Node3DGUI {
     this.startStopButton();
     // this.menu = new PianoRollSettingsMenu(this.context.scene, this);
   }
+  private _createKeyLabel(row: number, text: string): B.Mesh {
+    // Plane sized to be readable even with root scaling (you scale root to 0.1)
+    const plane = B.MeshBuilder.CreatePlane(`keyLabel_${row}`, { width: 2.2, height: 0.7 }, this.context.scene);
+    plane.parent = this.root;
+    plane.isPickable = false;
+    plane.billboardMode = B.AbstractMesh.BILLBOARDMODE_Y; // face camera around Y
+  
+    // high-res dynamic texture so the text stays crisp
+    const dt = new B.DynamicTexture(`keyLabelDT_${row}`, { width: 512, height: 256 }, this.context.scene, true);
+    dt.hasAlpha = true;
+  
+    const mat = new B.StandardMaterial(`keyLabelMat_${row}`, this.context.scene);
+    mat.disableLighting = true;
+    mat.emissiveTexture = dt;
+    mat.opacityTexture = dt;
+    // make the plane invisible except for the text
+    // mat.diffuseColor = new B.Color3(0, 0, 0);
+    // mat.alpha = 0; 
+    if(text.includes("#")) {
+      mat.emissiveColor = new B.Color3(1, 1, 1);
+    }
+    plane.material = mat;
+  
+    this._drawKeyLabel(dt, text);
+  
+    // Initial position (we’ll keep X fixed, Z follows scrolling)
+    // Keyboard color boxes are at: x = startX - (keyboardWidth + buttonSpacing)
+    // Put the label a bit further left so it doesn’t overlap the key box
+    const labelX = this.startX - (this.keyboardWidth + this.buttonSpacing)// - 1.4;
+    const visibleRangeCenter = (this.visibleRowCount - 1) / 2;
+    const vRow = row - this._startRowIndex;
+    const z = (vRow - visibleRangeCenter) * (this.buttonDepth + this.buttonSpacing);
+    plane.position.set(labelX, this.buttonHeight * 1.1, z);
+    plane.rotation.x = Math.PI / 2;   // rotate so the plane is upright in XZ
+    plane.billboardMode = B.AbstractMesh.BILLBOARDMODE_NONE; // (optional) if you don’t want them to face camera
+    
+    return plane;
+  }
+  labelUsesMidiNumber = false;       // optional: flip to show MIDI instead of note name
 
+  private _drawKeyLabel(dt: B.DynamicTexture, text: string): void {
+    // You can adjust font/align as you like
+    const ctx = dt.getContext();
+    const W = dt.getSize().width;
+    const H = dt.getSize().height;
+    ctx.clearRect(0, 0, W, H);
+  
+    // rounded white pill background for readability (optional)
+    const pad = 24;
+    const r = 26;
+    ctx.fillStyle = "rgba(255,255,255,0)";
+    ctx.beginPath();
+    ctx.moveTo(pad + r, pad);
+    ctx.lineTo(W - pad - r, pad);
+    ctx.quadraticCurveTo(W - pad, pad, W - pad, pad + r);
+    ctx.lineTo(W - pad, H - pad - r);
+    ctx.quadraticCurveTo(W - pad, H - pad, W - pad - r, H - pad);
+    ctx.lineTo(pad + r, H - pad);
+    ctx.quadraticCurveTo(pad, H - pad, pad, H - pad - r);
+    ctx.lineTo(pad, pad + r);
+    ctx.quadraticCurveTo(pad, pad, pad + r, pad);
+    ctx.fill();
+  
+    ctx.font = "bold 140px sans-serif";
+    ctx.fillStyle = "#000";
+    //@ts-ignore
+    ctx.textAlign = "center";
+    //@ts-ignore
+    ctx.textBaseline = "middle";
+    // if text contain # use white color else use black
+    if(text.includes("#")) {
+      ctx.fillStyle = "#fff";
+      
+    }
+
+    ctx.fillText(text, W / 2, H / 2);
+  
+    dt.update();
+  }
+  
+  // Convenience to compute what text to show
+  private _labelTextForRow(row: number): string {
+    if (!this.labelUsesMidiNumber) return this.notes[row] ?? "";
+    // Show MIDI number instead of note name
+    const note = this.notes[row] ?? "";
+    const midi = (this as any).owner?.convertNoteToMidi?.(note);
+    return midi != null ? String(midi) : note;
+  }
+  keyLabels: B.Mesh[] = []; 
   createGrid(): void {
+    this.keyLabels.forEach(l => l.dispose());
+    this.keyLabels = [];
     this.keyBoard = Array.from({ length: this.rows }, () => undefined as unknown as B.Mesh);
 
     // Keyboard color boxes (plain meshes for now)
@@ -145,6 +235,8 @@ class PianoRollN3DGUI implements Node3DGUI {
       const colorBox = this._createColorBox(row, isBlackKey);
       colorBox.parent = this.root;
       this.keyBoard[row] = colorBox;
+      const label = this._createKeyLabel(row, this._labelTextForRow(row));
+      this.keyLabels[row] = label;
     }
 
     // Note grid via thin instances
@@ -524,19 +616,27 @@ private _createScrollButtons(): void {
     const endRowIndex = Math.min(this._startRowIndex + this.visibleRowCount, this.rows);
     const visibleRangeCenter = (this.visibleRowCount - 1) / 2;
     const owner = (this as any).owner as { rowControlBorders?: { [row: number]: B.Mesh[] } };
-
+    
     for (let row = 0; row < this.rows; row++) {
       const isVisible = row >= this._startRowIndex && row < endRowIndex;
-
+      const visualRowIndex = row - this._startRowIndex;
+      const centeredZ = (visualRowIndex - visibleRangeCenter) * (this.buttonDepth + this.buttonSpacing);
+      
       const colorBox = this.keyBoard[row];
       if (colorBox) {
         if (isVisible) {
-          const visualRowIndex = row - this._startRowIndex;
-          const centeredZ = (visualRowIndex - visibleRangeCenter) * (this.buttonDepth + this.buttonSpacing);
           colorBox.position.z = centeredZ;
           colorBox.isVisible = true;
         } else {
           colorBox.isVisible = false;
+        }
+      }
+      const label = this.keyLabels[row];
+      if (label) {
+        label.isVisible = isVisible;
+        if (isVisible) {
+          label.position.z = centeredZ;
+          label.position.y = this.buttonHeight * 1.1;
         }
       }
 
