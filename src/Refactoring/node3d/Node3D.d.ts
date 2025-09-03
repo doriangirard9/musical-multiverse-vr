@@ -80,6 +80,26 @@ export interface Node3DFactory<G extends Node3DGUI, T extends Node3D>{
     label: string
 
     /**
+     * Une description du Node3D.
+     */
+    description: string
+
+    /**
+     * Des tags pour catégoriser le Node3D.
+     * Ces tags doivent être au singulier et tout en minuscules, sans accents, sans espace (utilisé des _) et en anglais.
+     * Par exemple : "instrument", "effect", "generator", "midi", "audio", "synthetiser", "delay", "reverb", "live_instrument"
+     * Des tags standards:
+     *  "instrument": Un node3D qui prend en entrée du MIDI et qui produit du son.
+     *  "generator": Un node3D qui produit du son, ou du midi sans entrée.
+     *  "effect": Un node3D qui prend en entrée du son ou du midi et qui le modifie et le renvoie en sortie.
+     *  "consumer": Un node3D qui consomme du son ou du midi et ne renvoie rien en sortie.
+     *  "live_instrument": Un "generator" qui produit du son grâce à des intéractions en temps réel, comme un instrument de musique. (exemple: clavier)
+     *  "midi": Un node3D qui produit ou consomme du MIDI.
+     *  "audio": Un node3D qui produit ou consomme de l'audio
+     */
+    tags: string[]
+
+    /**
      * Crée l'interface graphique seule, peut être utilisée comme migniature d'un bouton.
      */
     createGUI(context: Node3DGUIContext): Promise<G>

@@ -2,6 +2,10 @@ import { Synchronized } from "./Synchronized";
 import { SyncSerializable } from "./SyncSerializable";
 import * as Y from "yjs";
 
+/**
+ * The SyncManager maintains a list of synchronized objects and automatically synchronizes them.
+ * It works as an object registry, but its main purpose is to keep the objects in sync across different clients.
+ */
 export class SyncManager<
     T extends Synchronized,
     D extends SyncSerializable|undefined = undefined
@@ -17,13 +21,23 @@ export class SyncManager<
     private send_interval
     private get_timeout
 
+    /**
+     * 
+     */
     constructor(options: {
+            /** The registry name */
             name: string,
+            /** The YJS document */
             doc: Y.Doc,
+            /** Factory function used to create an object instance. Notably used when an object is created by an online collaborator */
             create: (id:string, state: {get(key:string):SyncSerializable|undefined}, data: D) => Promise<T>,
+            /** Function called when an instance is added, whether by an online collaborator or locally */
             on_add?: (instance: T, state: {get(key:string):SyncSerializable|undefined}, data: D) => Promise<void>,
+            /** Function called when an instance is removed, whether by an online collaborator or locally. Useful for cleanup/dispose */
             on_remove?: (instance: T, state: {get(key:string):SyncSerializable|undefined}, data: D) => Promise<void>,
+            /** Interval for sending updates (debounce) */
             send_interval?: number,
+            /** Delay before the asynchronous {@link get} function considers the requested object to not exist. See {@link get} */
             get_timeout?: number,
         },
     ){
@@ -32,7 +46,7 @@ export class SyncManager<
         this.on_add = options.on_add
         this.on_remove = options.on_remove
         this.send_interval = options.send_interval ?? 100
-        this.get_timeout = options.get_timeout ?? 1000
+        this.get_timeout = options.get_timeout ?? 10_000
         this.shared_state =  options.doc.getMap<Y.Map<SyncSerializable>>()
         this.shared_data = options.doc.getMap<{data:D}>(options.name)
         this.shared_data.observe(this.add_from_network.bind(this))
@@ -43,9 +57,9 @@ export class SyncManager<
 
     /**
      * Add a new instance to the registry.
-     * @param id 
-     * @param instance 
-     * @param data 
+     * @param id The unique id of the instance
+     * @param instance The instance to add
+     * @param data Additional data that will be synchronized too.
      */
     async add(id:string, instance: undefined extends D ? T : never): Promise<void>;
     async add(id:string, instance: T, data: D): Promise<void>;
@@ -83,9 +97,7 @@ export class SyncManager<
 
     /**
      * Remove an instance from the registry.
-     * @param id
-     * @param instance
-     * @param data
+     * @param id_or_instance The unique id of the instance or the instance itself
      */
     async remove(id_or_instance:string|T){
         const id = typeof id_or_instance == "string" ? id_or_instance : this.reverse_instances.get(id_or_instance)
@@ -121,50 +133,104 @@ export class SyncManager<
             this.shared_data.delete(id)
         },this)
     }
+    
+    /**
+     * Get an instance from its ID, synchronously now or undefined if the instance does not exit. (This function can return null if an object exists but is not
+     * synchronized yet). You should probably use {@link get} instead.
+     * @param id R The id of the instance
+     * @returns The instane with this id or undefined if it does not exist
+     */
+    public getNow(id: string): T | undefined {
+        return this.instances.get(id)
+    }
 
+    /**
+     * Get the id of an instance
+     * @param instance The instance
+     * @returns The id of the instance
+     */
+    public getId(instance: T){
+        return this.reverse_instances.get(instance)
+    }
+
+    /**
+     * Get an instance from its ID asynchronously, if the instance does not exit, it wait some time for the instance
+     * to be registred.
+     * @param id The id of the instance to get
+     * @param timeout
+     * @returns 
+     */
+    public async get(id: string, timeout?: number): Promise<T | undefined> {
+        const final_timeout = timeout ?? this.get_timeout
+
+        // Get it now
+        const instance = this.getNow(id)
+        if(instance!=undefined)return instance
+
+        // Wait till its loaded
+        let resolve!: (value:T|undefined)=>void
+        const promise = new Promise<T|undefined>((resolveFn) => {
+            resolve = resolveFn
+        })
+
+        const timeoutfn = setTimeout(()=>{
+            this.pendingGet.get(id)?.delete(entry)
+            if(this.pendingGet.size==0) this.pendingGet.delete(id)
+
+            const instance = this.getNow(id)
+            resolve(instance)
+        },final_timeout)
+
+        const entry = {resolve, timeout:timeoutfn}
+
+        const list = this.pendingGet.get(id) ?? new Set<{resolve:(value:T|undefined)=>void, timeout:any}>()
+        this.pendingGet.set(id, list)
+        list.add(entry)
+
+        return promise
+    }
 
 
     //// From Network ////
     private async add_from_network(event: Y.YMapEvent<{data:D}>){
         if(event.transaction.origin==this)return
 
-        for(const [id,{action,oldValue}] of event.keys){
-            if(action=="delete"){
+        // Sort by add and delete
+        let deletes = [...event.keys] .filter(it=>it[1].action=="delete")
+        let adds = [...event.keys] .filter(it=>it[1].action=="add")
 
-                // Remove the instance
-                const instance = this.instances.get(id)!! //TODO: Peut être mettre une vérification plutôt que ça.
-                instance.disposeSync()
-                this.instances.delete(id)
-                this.reverse_instances.delete(instance)
+        // Add
+        await Promise.all(adds.map(async([id,{}])=>{
+            const new_shared_state = this.shared_state.get(id)!!
+            const new_shared = this.shared_data.get(id)!!
 
-                // Clear pending state change
-                this.pendingStateChange.delete(id)
+            // Create instance
+            const instance = await this.create(id, new_shared_state, new_shared.data)
+            this.instances.set(id,instance)
+            this.reverse_instances.set(instance,id)
+            await this.initialize(id,instance,new_shared_state)
+            await Promise.all([...new_shared_state.entries()].map(([key,value])=>{
+                return instance.setState(key as string,value as SyncSerializable)
+            }))
+            const resolve = this.get_resolver(id)
+            resolve(instance)
+        }))
 
-                // Get share data
-                const {data,state} = oldValue as {data:D, state: Y.Map<SyncSerializable>}
-                this.on_remove?.(instance!!, state, data)
-            }
-            else if(action=="add"){
-                const resolve = this.get_resolver(id)
+        // Delete
+        await Promise.all(deletes.map(async([id,{oldValue}])=>{
+            // Remove the instance
+            const instance = this.instances.get(id)!! //TODO: Peut être mettre une vérification plutôt que ça.
+            instance.disposeSync()
+            this.instances.delete(id)
+            this.reverse_instances.delete(instance)
 
-                const new_shared_state = this.shared_state.get(id)!!
-                const new_shared = this.shared_data.get(id)!!
+            // Clear pending state change
+            this.pendingStateChange.delete(id)
 
-                // Create instance
-                const instance = await this.create(id, new_shared_state, new_shared.data)
-                this.instances.set(id,instance)
-                this.reverse_instances.set(instance,id)
-                await this.initialize(id,instance,new_shared_state)
-                await Promise.all([...new_shared_state.entries()].map(([key,value])=>{
-                    return instance.setState(key as string,value as SyncSerializable)
-                }))
-
-                resolve(instance)
-            }
-            else{
-                console.warn(`SyncManager : New instance with same id is not allowed`)
-            }
-        }
+            // Get share data
+            const {data,state} = oldValue as {data:D, state: Y.Map<SyncSerializable>}
+            this.on_remove?.(instance!!, state, data)
+        }))
     }
 
 
@@ -295,64 +361,8 @@ export class SyncManager<
         }
     }
 
-
-    //// Getters ////
     private pendingGet = new Map<string, Set<{resolve:(value:T|undefined)=>void, timeout:any}>>()
 
-    /**
-     * Get an instance from its ID, synchronously now or undefinid if the instance does not exit
-     * @param id R The id of the instance
-     * @returns The instane with this id or undefined if it does not exist
-     */
-    public getInstanceNow(id: string): T | undefined {
-        return this.instances.get(id)
-    }
-
-    /**
-     * Get the id of an instance
-     * @param instance The instance
-     * @returns The id of the instance
-     */
-    public getId(instance: T){
-        return this.reverse_instances.get(instance)
-    }
-
-    /**
-     * Get an instance from its ID asynchronously, if the instance does not exit, it wait some time for the instance
-     * to be registred.
-     * @param id The id of the instance to get
-     * @param timeout
-     * @returns 
-     */
-    public async getInstance(id: string, timeout?: number): Promise<T | undefined> {
-        const final_timeout = timeout ?? this.get_timeout
-
-        // Get it now
-        const instance = this.getInstanceNow(id)
-        if(instance!=undefined)return instance
-
-        // Wait till its loaded
-        let resolve!: (value:T|undefined)=>void
-        const promise = new Promise<T|undefined>((resolveFn) => {
-            resolve = resolveFn
-        })
-
-        const timeoutfn = setTimeout(()=>{
-            this.pendingGet.get(id)?.delete(entry)
-            if(this.pendingGet.size==0) this.pendingGet.delete(id)
-
-            const instance = this.getInstanceNow(id)
-            resolve(instance)
-        },final_timeout)
-
-        const entry = {resolve, timeout:timeoutfn}
-
-        const list = this.pendingGet.get(id) ?? new Set<{resolve:(value:T|undefined)=>void, timeout:any}>()
-        this.pendingGet.set(id, list)
-        list.add(entry)
-
-        return promise
-    }
 
     private get_resolver(id: string): (instance:T|undefined)=>void {
         const list = this.pendingGet.get(id)

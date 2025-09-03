@@ -2,26 +2,25 @@ import {SceneManager} from "./SceneManager.ts";
 import {XRManager} from "../xr/XRManager.ts";
 import {Node3dManager} from "./Node3dManager.ts";
 import {AppOrchestrator} from "./AppOrchestrator.ts";
-import {CreateBox, ImportMeshAsync, Quaternion, WebXRFeatureName} from "@babylonjs/core";
-import {Node3DShop} from "../world/Node3DShop.ts";
-import {Node3DBuilder} from "./Node3DBuilder.ts";
-import {HoldBehaviour} from "../behaviours/boundingBox/HoldBehavior.ts";
-import {XRControllerManager} from "../xr/XRControllerManager.ts";
-import { RotateBehaviour } from "../behaviours/boundingBox/RotateBehavior.ts";
-import { TakableBehavior } from "../behaviours/boundingBox/TakableBehavior.ts";
-
+import {AudioEngineV2, CreateBox, ImportMeshAsync} from "@babylonjs/core";
+import {N3DShop, N3DShopOptions} from "../world/shop/N3DShop.ts";
+import { InputManager } from "../xr/inputs/InputManager.ts";
+import { parallel } from "../utils/utils.ts";
+import { ShakeBehavior } from "../behaviours/ShakeBehavior.ts";
 export class NewApp {
     private audioCtx: AudioContext | undefined;
+    private audioEngine!: AudioEngineV2
     private sceneManager: SceneManager;
     private xrManager: XRManager | null = null;
     private audioManager: Node3dManager | null = null;
 
-    private constructor(audioContext?: AudioContext) {
+    private constructor(audioContext?: AudioContext, audioEngine?: AudioEngineV2) {
         const canvas: HTMLCanvasElement = document.getElementById('renderCanvas') as HTMLCanvasElement;
         this.sceneManager = SceneManager.getInstance(canvas);
         if (audioContext !== undefined) {
             this.audioCtx = audioContext;
-            this.audioManager = Node3dManager.getInstance(this.audioCtx);
+            this.audioEngine = audioEngine!!;
+            this.audioManager = Node3dManager.getInstance(this.audioCtx, this.audioEngine);
             this.xrManager = XRManager.getInstance();
             AppOrchestrator.getInstance()
         }
@@ -30,12 +29,12 @@ export class NewApp {
 
     private static instance?: NewApp
 
-    public static getInstance(audioContext? : AudioContext): NewApp {
+    public static getInstance(audioContext? : AudioContext, audioEngine?: AudioEngineV2): NewApp {
         if (!NewApp.instance) {
             if (!audioContext) {
                 throw new Error("AudioContext is required for first instantiation");
             }
-            NewApp.instance = new NewApp(audioContext);
+            NewApp.instance = new NewApp(audioContext, audioEngine);
         }
         return NewApp.instance;
     }
@@ -44,24 +43,86 @@ export class NewApp {
         const scene = this.sceneManager.getScene()
         
         this.sceneManager.start();
-        await this.xrManager!!.init(this.sceneManager.getScene());
+        await this.xrManager!!.init(this.sceneManager.getScene(), this.audioEngine);
         
-        //await this.audioManager!!.createNode3d("notesbox")
-        await this.audioManager!!.createNode3d("audiooutput")
+        await this.audioManager!!.createNode3d("notesbox")
+        //await this.audioManager!!.createNode3d("audiooutput")
+
+        const mesh = CreateBox("box", {size: 1}, scene)
+        mesh.rotation.x = Math.PI / 3
+        mesh.bakeCurrentTransformIntoVertices()
+        const behavior = new ShakeBehavior()
+        mesh.addBehavior(behavior)
+        behavior.on_shake = (p,c)=>{
+            mesh.visibility = Math.max(0,1-p/10)
+        }
+        behavior.on_stop = (p,c)=>{
+            mesh.visibility = 1
+        }
 
         const shared = this.audioManager?.builder?.shared!!
 
+        window.addEventListener("keydown",e=>{
+            if(e.key=="y")XRManager.getInstance().xrHelper.baseExperience.camera.position.set(0, 1.6, 0)
+        })
+
+        // setTimeout(()=>Inspector.Show(scene,{}), 10000)
+
         //// LE SUPER MAGASIN ////
         {
-            // Mais qu'est ce donc ??? On peut rendre le magasin encore plus cool ????? J'ose pas mettre "true", c'est probablement TROP cool.
-            let mode_magasin_super_giga_cool = false
+            await parallel(
+                // Le magasin fixe, remplie entièrement, et accessible en marchant
+                async()=>{
+                    const model = (await ImportMeshAsync(N3DShop.LARGE_SHOP_MODEL_URL, scene)).meshes[0]
+                    model.position.set(0, -1.5, 20)
+                    model.scaling.scaleInPlace(.6)
+                    const shop = new N3DShop(
+                        model,
+                        shared,
+                        Node3dManager.getInstance(),
+                        InputManager.getInstance(),
+                        N3DShop.BASE_OPTIONS,
+                    )
+                    for(const zone of shop.zones.sort()){
+                        await shop.showZone(zone,["camera"])
+                    }
+                },
+                // Le magasin-menu, accessible via un bouton et dont les WAM sont chargé et déchargé dynamiquement
+                async()=>{
+                    const builder = this.audioManager?.builder!!
+                    const categories: Record<string, Set<string>> = {}
+                    const kinds = new Set<string>()
+                    await Promise.all(builder.FACTORY_KINDS.map(async kind => {
+                        try{
+                            const factory = await builder.getFactory(kind)
+                            if(!factory) return
+                            kinds.add(kind)
+                            for(const tag of factory.tags){
+                                categories[tag] ??= new Set<string>()
+                                categories[tag].add(kind)
+                            }
+                        }catch(e){}
+                    }))
+                    const options: N3DShopOptions = {
+                        categories: Object.fromEntries(Object.entries(categories).map(([key, value]) => [key, [...value]])),
+                        kinds: [...kinds]
+                    }
 
-            const model = (await ImportMeshAsync(Node3DShop.SHOP_MODEL_URL, scene)).meshes[0]
-            model.position.set(0, -2.65, 50)
-            model.scaling.scaleInPlace(.6)
-            const shop = new Node3DShop(model, {order:"random"})
-            let kinds = mode_magasin_super_giga_cool ? Node3DBuilder.FACTORY_KINDS : Node3DShop.SHOP_KINDS
-            await shop.initialize(shared, Node3dManager.getInstance(), kinds)
+                    const model = (await ImportMeshAsync(N3DShop.BASE_SHOP_MODEL_URL, scene)).meshes[0]
+                    model.position.set(0, -1.5, 60)
+                    model.scaling.scaleInPlace(.6)
+                    const shop = new N3DShop(
+                        model,
+                        shared,
+                        Node3dManager.getInstance(),
+                        InputManager.getInstance(),
+                        options,
+                    )
+                    shop.showZone("default")
+
+
+                }
+            )
         }
     }
 
