@@ -234,10 +234,16 @@ export class N3DConnectionInstance{
     async setState(key: string, value: SyncSerializable) {
         if(key=="connectables"){
             const {fromId,fromPortId,toId,toPortId} = value as {fromId:string, fromPortId:string, toId:string, toPortId:string}
+            
+            console.log("TRET Wait for node "+fromId)
             const from = await this.nodes.get(fromId) ?? null
+            console.log(`TRET  ${this.connections.getId(this)}: ${from} -> *`)
             const to = await this.nodes.get(toId) ?? null
+            console.log(`TRET ${this.connections.getId(this)}: * -> ${to}`)
+
             const fromConnectable = from?.connectables?.get(fromPortId)
             const toConnectable = to?.connectables?.get(toPortId)
+            
             this.disconnect()
             if(fromConnectable && toConnectable) this.connect(fromConnectable,toConnectable)
         }

@@ -58,7 +58,6 @@ export class NewApp {
         const behavior = new ShakeBehavior()
         mesh.addBehavior(behavior)
         behavior.on_shake = (p,c)=>{
-            console.log(c)
             mesh.visibility = Math.max(0,1-p/10)
         }
         behavior.on_stop = (p,c)=>{
