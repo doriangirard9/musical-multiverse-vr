@@ -127,7 +127,7 @@ class PianoRollN3DGUI implements Node3DGUI {
     const baseZ = this.block.position.z;
     const baseLength = this.block.getBoundingInfo().boundingBox.extendSize.x;
 
-    this.output = B.CreateIcoSphere("piano roll midi output", { radius: this.buttonWidth * 2 }, this.context.scene);
+    this.output = B.CreateIcoSphere("piano roll midi output", { radius: this.buttonWidth * 4 }, this.context.scene);
     this.tool.MeshUtils.setColor(this.output, MidiN3DConnectable.OutputColor.toColor4())
     this.output.position.set(baseLength, baseY, baseZ + 1)
     this.output.scaling.setAll(0.5);

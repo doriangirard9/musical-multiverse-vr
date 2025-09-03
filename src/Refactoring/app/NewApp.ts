@@ -2,15 +2,11 @@ import {SceneManager} from "./SceneManager.ts";
 import {XRManager} from "../xr/XRManager.ts";
 import {Node3dManager} from "./Node3dManager.ts";
 import {AppOrchestrator} from "./AppOrchestrator.ts";
-import {AudioEngineV2, CreateBox, ImportMeshAsync, Nullable, TmpVectors, Vector3} from "@babylonjs/core";
+import {AudioEngineV2, CreateBox, ImportMeshAsync} from "@babylonjs/core";
 import {N3DShop, N3DShopOptions} from "../world/shop/N3DShop.ts";
 import { InputManager } from "../xr/inputs/InputManager.ts";
 import { parallel } from "../utils/utils.ts";
-import { HoldableBehaviour } from "../behaviours/boundingBox/HoldableBehaviour.ts";
 import { ShakeBehavior } from "../behaviours/ShakeBehavior.ts";
-import {MenuConfig, SimpleMenu} from "../menus/SimpleMenu.ts";
-import {GazeBehavior} from "../behaviours/GazeBehavior.ts";
-import {UIManager} from "./UIManager.ts";
 export class NewApp {
     private audioCtx: AudioContext | undefined;
     private audioEngine!: AudioEngineV2
@@ -124,88 +120,7 @@ export class NewApp {
                     )
                     shop.showZone("default")
 
-                    const xrManager = XRManager.getInstance();
 
-
-                    let leftController = xrManager.xrInputManager.leftController;
-                    if (!leftController) {
-                        console.error("Left controller not found");
-                        return;
-                    }
-
-                    const testCube = CreateBox("test-cube", {size: 0.1}, scene);
-                    testCube.isVisible = true;
-                    testCube.parent = leftController.pointer;
-
-                    let gazeMenu: Nullable<SimpleMenu> = null;
-                    const gazeBehavior = new GazeBehavior();
-                    gazeBehavior.activationDelay = 500;
-
-                    gazeBehavior.onCustomCheck = () => {
-                        const controllerNode = leftController.pointer;
-                        const camera = scene.activeCamera;
-
-                        if (!controllerNode || !camera) {
-                            return false;
-                        }
-
-                        const controllerUpLocal = TmpVectors.Vector3[0];
-                        controllerUpLocal.set(0, 1, 0);
-
-                        const controllerMatrix = controllerNode.getWorldMatrix();
-                        const controllerUpWorld = TmpVectors.Vector3[1];
-                        Vector3.TransformNormalToRef(controllerUpLocal, controllerMatrix, controllerUpWorld);
-
-                        const toCameraDirection = TmpVectors.Vector3[2];
-                        camera.globalPosition.subtractToRef(controllerNode.getAbsolutePosition(), toCameraDirection);
-                        toCameraDirection.normalize();
-
-                        const dotProduct = Vector3.Dot(controllerUpWorld, toCameraDirection);
-
-                        const alignmentThreshold = 0.5;
-
-                        return dotProduct > alignmentThreshold;
-                    };
-
-                    gazeBehavior.onGazeActivated = () => {
-                        console.log("Gaze Activated");
-                        if (!gazeMenu) {
-                            gazeMenu = new SimpleMenu("gaze-menu", UIManager.getInstance().getGui3DManager());
-                            const config: MenuConfig = {
-                                label: "HandMenu",
-                                buttons: [
-                                    {
-                                        label: "Start",
-                                        action: () => {
-                                            console.log("GAZE BUTTON START");
-                                        }
-                                    },
-                                    {
-                                        label: "Stop",
-                                        action: () => {
-                                            if(gazeMenu){
-                                                console.log("GAZE BUTTON STOP");
-                                            }
-                                        }
-                                    }
-                                ]
-                            };
-                            gazeMenu.setConfig(config);
-                        }
-
-                        const pos = testCube.getAbsolutePosition().add(new Vector3(0, 0.5, 0));
-                        gazeMenu.menuNode.position = pos;
-                        gazeMenu.menuNode.isVisible = true;
-                    };
-
-                    gazeBehavior.onGazeStop = () => {
-                        if(gazeMenu){
-                            console.log("Gaze Stopped");
-                            gazeMenu.menuNode.isVisible = false;
-                        }
-                    };
-
-                    testCube.addBehavior(gazeBehavior);
                 }
             )
         }

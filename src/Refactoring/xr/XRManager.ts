@@ -2,8 +2,8 @@ import {XRInputManager} from "./XRInputManager.ts";
 import * as B from "@babylonjs/core";
 import {withTimeout} from "../utils/utils.ts";
 import { InputManager } from "./inputs/InputManager.ts";
-import { AppOrchestrator } from "../app/AppOrchestrator.ts";
-
+import {HandMenu} from "../menus/HandMenu.ts";
+import {Nullable} from "@babylonjs/core";
 
 
 export class XRManager {
@@ -14,6 +14,7 @@ export class XRManager {
     public xrFeaturesManager!: B.WebXRFeaturesManager;
     private _controllersInitialized: boolean = false;
 
+    private handmenu : Nullable<HandMenu>;
     private constructor() {
     }
 
@@ -57,12 +58,15 @@ export class XRManager {
                         console.log('[*] XR STATE - In XR...');
                         // Besoin d'attendre qu'on soit en VR avant d'initialiser les contrôleurs
                         this._initControllersAfterXREntry();
+                        this.handmenu = new HandMenu()
                         break;
                     case B.WebXRState.EXITING_XR:
                         console.log("[*] XR STATE - Exiting XR...");
+                        this.handmenu = null
                         break;
                     case B.WebXRState.NOT_IN_XR:
                         console.log("[*] XR STATE - Not in XR...");
+                        this.handmenu = null
                         break;
                 }
             });

@@ -143,9 +143,9 @@ export class GazeBehavior implements Behavior<AbstractMesh> {
 
         const gazeRay = camera.getForwardRay();
 
-        // Censé ignorer les objets non visibles ou non pickables pour gagner en performance.
+        // Censé ignorer les objets non pickables pour gagner en performance.
         const predicate = (mesh: AbstractMesh): boolean => {
-            return mesh.isVisible && mesh.isPickable;
+            return mesh.isPickable;
         };
 
         const pickInfo = this._scene.pickWithRay(gazeRay, predicate);
@@ -157,4 +157,5 @@ export class GazeBehavior implements Behavior<AbstractMesh> {
             this._isCurrentlyGazing = false;
         }
     }
+
 }
