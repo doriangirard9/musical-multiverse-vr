@@ -6,6 +6,10 @@ import { AbstractSoundSource } from "@babylonjs/core/AudioV2/abstractAudio/abstr
 
 const SPEAKER_URL = (await import("./speaker.glb?url")).default
 
+/*
+    AJOUTER UN PARAM GAIN AVEC UN PARAMETRE CYLINDRE ROTATIF POUR GERER LE SON
+    SPATIALISATION NE FONCTIONNE PLUS, PEUT ETRE PARAM BABYLON A AJOUTER ?
+*/
 
 export class SpeakerN3DGUI implements Node3DGUI{
     
@@ -33,8 +37,7 @@ export class SpeakerN3DGUI implements Node3DGUI{
 
         /* FallOff selon l'idée de michel, il veut que ça soit tout le temps visible,
            au départ je voulais afficher uniquement si on drag puis uniquement si on est a l'extérieur
-           mais de ce qu'il ma dit en visio c'est plus un truc comme ça qu'il imagine (même
-           si ça rend très moche je trouve 3 outputs dans le monde = horrible)
+           mais de ce qu'il ma dit en visio c'est plus un truc comme ça qu'il imagine
          */
         
         this.falloffSphere = B.CreateSphere("audio output falloff", {diameter:50}, context.scene)
