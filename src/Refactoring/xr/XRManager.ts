@@ -2,7 +2,8 @@ import {XRInputManager} from "./XRInputManager.ts";
 import * as B from "@babylonjs/core";
 import {withTimeout} from "../utils/utils.ts";
 import { InputManager } from "./inputs/InputManager.ts";
-
+import {HandMenu} from "../menus/HandMenu.ts";
+import {Nullable} from "@babylonjs/core";
 
 
 export class XRManager {
@@ -13,6 +14,8 @@ export class XRManager {
     public xrFeaturesManager!: B.WebXRFeaturesManager;
     private _controllersInitialized: boolean = false;
 
+    //@ts-ignore
+    private handmenu : Nullable<HandMenu>;
     private constructor() {
     }
 
@@ -26,7 +29,7 @@ export class XRManager {
     /**
      * Initialize the WebXR experience, XRInputs and XR features
      */
-    public async init(scene: B.Scene): Promise<void> {
+    public async init(scene: B.Scene, audioEngine: B.AudioEngineV2): Promise<void> {
         this._scene = scene;
 
         try {
@@ -59,12 +62,17 @@ export class XRManager {
                         break;
                     case B.WebXRState.EXITING_XR:
                         console.log("[*] XR STATE - Exiting XR...");
+                        //this.handmenu = null
                         break;
                     case B.WebXRState.NOT_IN_XR:
                         console.log("[*] XR STATE - Not in XR...");
+                        //this.handmenu = null
                         break;
                 }
             });
+
+            audioEngine.listener.attach(scene.activeCamera)
+
         } catch (error) {
             console.error("XR initialization failed:", error);
         }
@@ -84,7 +92,7 @@ export class XRManager {
                 undefined,
                 "Controller initialization timed out after XR entry"
             );
-
+            this.handmenu = new HandMenu()
             this._controllersInitialized = true;
         } catch (err) {
             console.warn("Controller initialization error after XR entry, running in degraded mode:", err);
@@ -109,12 +117,18 @@ export class XRManager {
     }
 
     private _initXRFeatures(): void {
-        const featuresManager: B.WebXRFeaturesManager = this.xrHelper.baseExperience.featuresManager;
-        featuresManager.disableFeature(B.WebXRFeatureName.TELEPORTATION);
+        const featuresManager: B.WebXRFeaturesManager = this.xrHelper.baseExperience.featuresManager
+        featuresManager.disableFeature(B.WebXRFeatureName.TELEPORTATION)
+        this.setMovement(["rotation", "translation"])
+    }
+
+    setMovement(features: ("rotation"|"translation")[]){
+        const featuresManager: B.WebXRFeaturesManager = this.xrHelper.baseExperience.featuresManager
+        try{ featuresManager.disableFeature(B.WebXRFeatureName.MOVEMENT) }catch(e){}
         featuresManager.enableFeature(B.WebXRFeatureName.MOVEMENT, "latest", {
             xrInput: this.xrHelper.input,
-            movementSpeed: 0.2,
-            rotationSpeed: 0.3,
-        });
+            movementSpeed: features.includes("translation") ? 0.2 : 0.0,
+            rotationSpeed: features.includes("rotation") ? 0.3 : 0.0,
+        })
     }
 }

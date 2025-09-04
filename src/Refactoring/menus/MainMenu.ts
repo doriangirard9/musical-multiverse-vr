@@ -72,7 +72,6 @@ export class MainMenu extends AbstractMenu {
         // Plugins
         this._menuConfig.categories[categoryIndex].plugins.forEach((plugin): void => {
             const button = new GUI.TouchHolographicButton(plugin.name);
-            console.log(plugin.kind)
             /**
              * Pas beau, permet d'avoir des images pour les boutons import des img en haut du fichier
              */

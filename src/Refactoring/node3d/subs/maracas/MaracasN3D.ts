@@ -74,7 +74,6 @@ export class MaracasN3D implements Node3D{
 
         if(this.last_offset*offset<0){
             this.output.connections.forEach(conn => {
-                            console.log("flop")
                 const t =  conn.context.currentTime
                 const note = Math.floor(10+100*value)
                 conn.scheduleEvents({type:"wam-midi", time:t, data:{bytes:[0x90, note, 127]}})
@@ -102,6 +101,10 @@ export class MaracasN3D implements Node3D{
 export const MaracasN3DFactory: Node3DFactory<MaracasN3DGUI,MaracasN3D> = {
 
     label: "Maracas",
+
+    description: "A simple maracars that can be dragged like a parameter to be shaken.",
+
+    tags: ["maracas", "midi", "generator", "live_instrument", "shake"],
 
     createGUI: async (context) => {
         const ret = new MaracasN3DGUI()

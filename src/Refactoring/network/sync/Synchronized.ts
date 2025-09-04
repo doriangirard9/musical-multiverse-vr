@@ -5,9 +5,9 @@ export interface Synchronized{
 
     /**
      * Initialize the synchronizable object.
-     * @param id 
-     * @param set_state 
-     * @param remove_state 
+     * @param id The unique identifier of the synchronizable object.
+     * @param set_state A function to called when a state is modified or a new state is added.
+     * @param remove_state A function to called when a state is removed.
      */
     initSync(
         id: string,
@@ -22,7 +22,7 @@ export interface Synchronized{
 
     /**
      * Ask the synchronizable object to initialize its states.
-     * The synchronizable objet should call setState for each state it has.
+     * The synchronizable objet should call set_state for each state it has. Used for the initial synchronization.
      */
     askStates(): void
 

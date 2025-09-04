@@ -21,26 +21,36 @@ export class ShakeBehavior implements Behavior<AbstractMesh> {
     on_stop: (power: number, counter: number) => void = () => {}
 
     /**
+     * Called when the mesh is picked up.
+     */
+    on_pick: () => void = () => {}
+
+    /**
+     * Called when the mesh is dropped.
+     */
+    on_drop: () => void = () => {}
+
+    /**
      * The minium shake power to consider it as a shake.
      */
     shake_threshold = 3
 
     name = "shakeBehavior";
 
-    private sixOnDrag : PointerDragBehavior
+    private dragger : PointerDragBehavior
     private target : AbstractMesh | null = null
 
     private shake_power = 0
     private shake_counter = 0
 
-    private last_position: Vector3 = Vector3.Zero()
-    private last_movement: Vector3 = Vector3.Zero()
+    private last_delta: Vector3 = Vector3.Zero()
+    private last_distance = 0
 
     private interval : any = null
 
     constructor() {
-        this.sixOnDrag = new PointerDragBehavior()
-        this.sixOnDrag.moveAttached = false
+        this.dragger = new PointerDragBehavior()
+        this.dragger.moveAttached = false
     }
 
     private setShakePower(power: number) {
@@ -61,10 +71,11 @@ export class ShakeBehavior implements Behavior<AbstractMesh> {
     attach(target: AbstractMesh): void {
         this.target = target;
 
-        target.addBehavior(this.sixOnDrag);
+        target.addBehavior(this.dragger);
     
         // When the mesh is picked up, we start detecting shakes.
-        this.sixOnDrag.onDragStartObservable.add(() => {
+        this.dragger.onDragStartObservable.add(() => {
+            this.on_pick()
             this.shake_power = 0
             this.interval = setInterval(() => {
                 this.setShakePower(Math.floor(this.shake_power * 0.9))
@@ -73,30 +84,35 @@ export class ShakeBehavior implements Behavior<AbstractMesh> {
         })
 
         // When the mesh is being dragged, we calculate the shake power based on the movement.
-        this.sixOnDrag.onDragObservable.add(() => {
-            const current_position = this.target!.absolutePosition.clone();
-            const current_movement = current_position.subtract(this.last_position).normalize();
-            if (current_movement.length() != 0) {
-                const dot = Vector3.Dot(current_movement, this.last_movement);
+        this.dragger.onDragObservable.add(({delta}) => {
+            const current_delta = delta.normalizeToNew()
+
+            if (current_delta.length() != 0) {
+                const dot = Vector3.Dot(current_delta, this.last_delta);
+
 
                 // Shake movement detected
-                if (dot < -.2) this.setShakePower(this.shake_power+1)
+                if (dot < -.2){
+                    if(this.last_distance>.5)this.setShakePower(this.shake_power+1)
+                    this.last_distance = 0
+                }
+                else this.last_distance += delta.length()
 
-                this.last_movement = current_movement
-                this.last_position = current_position
+                this.last_delta = current_delta
             }
             if(this.shake_power>=this.shake_threshold) this.on_shake(this.shake_power, this.shake_counter)
         })
 
         // When the mesh is released, we stop detecting shakes and reset the shake power.
-        this.sixOnDrag.onDragEndObservable.add(() => {
+        this.dragger.onDragEndObservable.add(() => {
             this.setShakePower(0)
+            this.on_drop()
             clearInterval(this.interval)
         })
     }
 
     detach(): void {
-        this.target?.removeBehavior(this.sixOnDrag);
+        this.target?.removeBehavior(this.dragger);
     }
 
     init(): void { }

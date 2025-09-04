@@ -83,6 +83,7 @@ export class Node3DInstance implements Synchronized{
         // Node related things
         this.node = await this.node_factory.create({
             audioCtx: this.shared.audioContext,
+            audioEngine: this.shared.audioEngine,
             groupId: this.shared.groupId,
             tools,
 
@@ -194,7 +195,8 @@ export class Node3DInstance implements Synchronized{
         }, this.shared.scene)
         size.scaleInPlace(.5)
         this.bounding_mesh.position.subtractInPlace(bounds.min).subtractInPlace(size)
-        this.bounding_mesh.isVisible = false
+        //this.bounding_mesh.isVisible = false
+        this.bounding_mesh.visibility = 0.1
 
         this.root_transform.parent = this.bounding_mesh
 
@@ -212,7 +214,7 @@ export class Node3DInstance implements Synchronized{
         }
 
         shake.on_stop = () => MeshUtils.setColor(this.bounding_box?.boundingBox!!, Color3.White().toColor4())
-
+        
 
         // On position change
         this.set_state("position")
@@ -245,7 +247,7 @@ export class Node3DInstance implements Synchronized{
     public async getState(key: string): Promise<any> {
         if(key=="position") return {
             position: this.bounding_box?.boundingBox.position.asArray(),
-            rotation: this.bounding_box?.boundingBox.rotation.asArray(),
+            rotation: this.bounding_box?.boundingBox.rotationQuaternion?.asArray()??[],
         }
         else return this.node.getState(key)
     }
@@ -253,7 +255,7 @@ export class Node3DInstance implements Synchronized{
     public async setState(key: string, value: any): Promise<void> {
         if(key=="position"){
             this.bounding_box?.boundingBox.position.fromArray(value.position) 
-            this.bounding_box?.boundingBox.rotation.fromArray(value.rotation)
+            this.bounding_box?.boundingBox.rotationQuaternion?.fromArray(value.rotation)
         } else if (key === "delete") {
             if(this.disposed) return
             await this.dispose()
