@@ -2,11 +2,10 @@ import {SceneManager} from "./SceneManager.ts";
 import {XRManager} from "../xr/XRManager.ts";
 import {Node3dManager} from "./Node3dManager.ts";
 import {AppOrchestrator} from "./AppOrchestrator.ts";
-import {AudioEngineV2, CreateBox, ImportMeshAsync} from "@babylonjs/core";
+import {AudioEngineV2, ImportMeshAsync} from "@babylonjs/core";
 import {N3DShop, N3DShopOptions} from "../world/shop/N3DShop.ts";
 import { InputManager } from "../xr/inputs/InputManager.ts";
 import { parallel } from "../utils/utils.ts";
-import { ShakeBehavior } from "../behaviours/ShakeBehavior.ts";
 export class NewApp {
     private audioCtx: AudioContext | undefined;
     private audioEngine!: AudioEngineV2
@@ -46,6 +45,7 @@ export class NewApp {
         await this.xrManager!!.init(this.sceneManager.getScene(), this.audioEngine);
         
         await this.audioManager!!.createNode3d("notesbox")
+        /*
         //await this.audioManager!!.createNode3d("audiooutput")
 
         const mesh = CreateBox("box", {size: 1}, scene)
@@ -58,7 +58,7 @@ export class NewApp {
         }
         behavior.on_stop = (p,c)=>{
             mesh.visibility = 1
-        }
+        }*/
 
         const shared = this.audioManager?.builder?.shared!!
 
