@@ -1,4 +1,4 @@
-import { AbstractMesh, CreateSoundAsync, Vector3, type Mesh, type TransformNode } from "@babylonjs/core";
+import { AbstractMesh, type Mesh, type TransformNode } from "@babylonjs/core";
 import { Node3D, Node3DFactory, Node3DGUI } from "../../Node3D";
 import { Node3DContext } from "../../Node3DContext";
 import { Node3DGUIContext } from "../../Node3DGUIContext";
