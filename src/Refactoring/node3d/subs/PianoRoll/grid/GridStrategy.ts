@@ -19,4 +19,7 @@ export interface GridStrategy {
 
   /** Optional: per-row base color (fallback to white/black scheme if not provided) */
   getRowBaseColor?(row: number): B.Color3;
+  
+  apply?(gui: any): void;
+  dispose?(gui: any): void;
 }

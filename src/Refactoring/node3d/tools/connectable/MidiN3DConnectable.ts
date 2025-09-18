@@ -117,6 +117,7 @@ export class MidiN3DConnectable{
         disconnect(_: (value: any) => void): void { }
 
         receive(value: any): void {
+            console.log("ayoub connection value",value)
             if(typeof value === "object"){
                 if("connectMidi" in value){
                     this.wamNode.connectEvents((value.connectMidi as WamNode).instanceId)

@@ -115,9 +115,13 @@ class PianoRollN3DGUI implements Node3DGUI {
 
   constructor(
     public context: Node3DGUIContext,
-    strategy: GridStrategy = new Piano88Strategy()
-    // strategy: DrumPadsStrategy = new DrumPadsStrategy()
+    s1: GridStrategy = new Piano88Strategy(),
+    s2: DrumPadsStrategy = new DrumPadsStrategy()
   ) {
+    const strategy = s2;
+    // setTimeout(() => {
+    //   this.setStrategy(s2)
+    // }, 3000);
     this.strategy = strategy;
 
     const { babylon: _B, tools: T } = context;
@@ -880,18 +884,19 @@ export class PianoRollN3D implements Node3D {
     
     // connect to drump
       // Example with a web assembly instrument (Pro24 synth) WAM compiled from C-Major code)
-    const wamInstanceDrum = await WamInitializer.getInstance()
-  .initWamInstance('https://www.webaudiomodules.com/community/plugins/burns-audio/drumsampler/index.js');
-  this.wamInstance.audioNode.connectEvents(wamInstanceDrum.instanceId);
+  //   const wamInstanceDrum = await WamInitializer.getInstance()
+  // .initWamInstance('https://www.webaudiomodules.com/community/plugins/burns-audio/drumsampler/index.js');
+  // this.wamInstance.audioNode.connectEvents(wamInstanceDrum.instanceId);
 
     
-  // For the notes extension. Register the mapping
-  if(window.WAMExtensions.notes)
-  window.WAMExtensions.notes.addMapping(this.wamInstance.audioNode.instanceId, [wamInstanceDrum.instanceId]);
+  // // For the notes extension. Register the mapping
+  // if(window.WAMExtensions.notes)
+  // window.WAMExtensions.notes.addMapping(this.wamInstance.audioNode.instanceId, [wamInstanceDrum.instanceId]);
   
     // Check if note extension exists
     this.registerNoteListHandler();
 	
+
 	
   }
 
