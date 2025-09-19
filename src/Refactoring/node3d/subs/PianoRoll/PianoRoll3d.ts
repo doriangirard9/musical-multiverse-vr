@@ -4,7 +4,7 @@ import type { Node3DGUIContext } from "../../Node3DGUIContext";
 import { MidiN3DConnectable } from "../../tools";
 import { Node3DContext } from "../../Node3DContext";
 import * as B from "@babylonjs/core";
-import { WebAudioModule } from "@webaudiomodules/api";
+import { WamNode, WebAudioModule } from "@webaudiomodules/api";
 import { WamInitializer } from "../../../app/WamInitializer";
 import { PianoRollSettingsMenu } from "./PianoRollSettingsMenu";
 import { XRManager } from "../../../xr/XRManager";
@@ -776,9 +776,29 @@ export class PianoRollN3D implements Node3D {
     context.addToBoundingBox(gui.block);
 
     // Expose a connectable “MIDI Output” node in your tools graph (sphere in GUI)
-    const listOut = new MidiN3DConnectable.ListOutput("midioutput", [gui.midiOutput], "MIDI Output");
+    const listOut = new MidiN3DConnectable.ListOutput("midioutput", [gui.midiOutput], "MIDI Output",
+                  // Callback when instrument connects
+                  (wamNode: WamNode) => {
+                    console.log(`Instrument connected: ${wamNode.instanceId}`);
+                    // if instanceid contains "drumsampler" switch to drum pads strategy 
+                    if (wamNode.instanceId.includes("drum"))
+                                        this.gui.setStrategy(new DrumPadsStrategy());
+                  else this.gui.setStrategy(new Piano88Strategy());
+                    this.onInstrumentConnected(wamNode);
+                },
+                // Callback when instrument disconnects
+                (wamNode: WamNode) => {
+                    console.log(`Instrument disconnected: ${wamNode.instanceId}`);
+                    this.onInstrumentDisconnected(wamNode);
+                }
+    );
     context.createConnectable(listOut);
+    
+    // call console each 5s
+    setInterval(() => {
+listOut.connections.forEach(c => console.log("ayoub",c)) ;
 
+    }, 5000);
     // ---- Shared Transport ----
     this.transport = WamTransportManager.getInstance(context.audioCtx);
 
@@ -830,6 +850,15 @@ export class PianoRollN3D implements Node3D {
     const mat = this.gui.btnStartStop.material as B.StandardMaterial;
     mat.diffuseColor = this.transport.getPlaying() ? B.Color3.Green() : B.Color3.Red();
   }
+
+  private onInstrumentConnected(wamNode: WamNode) {
+    // Handle new instrument connection
+    // You can check wamNode.moduleId to determine instrument type
+}
+
+private onInstrumentDisconnected(wamNode: WamNode) {
+    // Handle instrument disconnection
+}
 
   // ───────────────────────────────────────────────────────────────────────────
   // GUI ↔ Controller contract
