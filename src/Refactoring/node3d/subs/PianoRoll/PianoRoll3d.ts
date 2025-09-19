@@ -1,7 +1,7 @@
 import { Color3, Matrix, Vector3 } from "@babylonjs/core";
 import type { Node3D, Node3DFactory, Node3DGUI } from "../../Node3D";
 import type { Node3DGUIContext } from "../../Node3DGUIContext";
-import { MidiN3DConnectable } from "../../tools";
+import { MidiN3DConnectable } from "../../tools"; // Ensure this is a value export
 import { Node3DContext } from "../../Node3DContext";
 import * as B from "@babylonjs/core";
 import { WamNode, WebAudioModule } from "@webaudiomodules/api";
@@ -749,6 +749,7 @@ export class PianoRollN3D implements Node3D {
   private ready!: Promise<void>;
   private isReady = false;
   private pendingPattern: Pattern | null = null;
+  private midiOutputConnectable: InstanceType<typeof MidiN3DConnectable.ListOutput>;
 
   constructor(context: Node3DContext, gui: PianoRollN3DGUI) {
     this.context = context;
@@ -775,30 +776,42 @@ export class PianoRollN3D implements Node3D {
     // bounding volume
     context.addToBoundingBox(gui.block);
 
-    // Expose a connectable “MIDI Output” node in your tools graph (sphere in GUI)
-    const listOut = new MidiN3DConnectable.ListOutput("midioutput", [gui.midiOutput], "MIDI Output",
-                  // Callback when instrument connects
-                  (wamNode: WamNode) => {
-                    console.log(`Instrument connected: ${wamNode.instanceId}`);
-                    // if instanceid contains "drumsampler" switch to drum pads strategy 
-                    if (wamNode.instanceId.includes("drum"))
-                                        this.gui.setStrategy(new DrumPadsStrategy());
-                  else this.gui.setStrategy(new Piano88Strategy());
-                    this.onInstrumentConnected(wamNode);
-                },
-                // Callback when instrument disconnects
-                (wamNode: WamNode) => {
-                    console.log(`Instrument disconnected: ${wamNode.instanceId}`);
-                    this.onInstrumentDisconnected(wamNode);
-                }
+    this.midiOutputConnectable = new this.context.tools.MidiN3DConnectable.ListOutput(
+      "midioutput", 
+      [gui.midiOutput], 
+      "MIDI Output",
+      // Callback when instrument connects
+      (wamNode: WamNode) => {
+          console.log(`Instrument connected: ${wamNode.instanceId}`);
+          
+          // Connect to WAM instance if it exists
+          if (this.wamInstance?.audioNode) {
+              this.wamInstance.audioNode.connectEvents(wamNode.instanceId);
+          }
+          
+          if (wamNode.instanceId.includes("drum")) {
+              this.gui.setStrategy(new DrumPadsStrategy());
+          } else {
+              this.gui.setStrategy(new Piano88Strategy());
+          }
+          this.onInstrumentConnected(wamNode);
+      },
+      // Callback when instrument disconnects
+      (wamNode: WamNode) => {
+          console.log(`Instrument disconnected: ${wamNode.instanceId}`);
+          
+          // Disconnect from WAM instance if it exists
+          if (this.wamInstance?.audioNode) {
+              this.wamInstance.audioNode.disconnectEvents(wamNode.instanceId);
+          }
+          
+          this.onInstrumentDisconnected(wamNode);
+      }
     );
-    context.createConnectable(listOut);
-    
-    // call console each 5s
-    setInterval(() => {
-listOut.connections.forEach(c => console.log("ayoub",c)) ;
 
-    }, 5000);
+    context.createConnectable(this.midiOutputConnectable);
+
+
     // ---- Shared Transport ----
     this.transport = WamTransportManager.getInstance(context.audioCtx);
 
@@ -899,14 +912,20 @@ private onInstrumentDisconnected(wamNode: WamNode) {
     this.wamInstance = await WamInitializer.getInstance()
       .initWamInstance("https://www.webaudiomodules.com/community/plugins/burns-audio/pianoroll/index.js");
 
-    // Expose a MIDI Output tied to the plugin’s AudioNode (for your patchbay)
-    const output = new MidiN3DConnectable.Output(
-      "midiOutput",
-      [this.gui.midiOutput],
-      "MIDI Output",
-      this.wamInstance.audioNode
-    );
-    this.context.createConnectable(output);
+    // // Expose a MIDI Output tied to the plugin’s AudioNode (for your patchbay)
+    // const output = new MidiN3DConnectable.Output(
+    //   "midiOutput",
+    //   [this.gui.midiOutput],
+    //   "MIDI Output",
+    //   this.wamInstance.audioNode
+    // );
+    // this.context.createConnectable(output);
+    // Set the WamNode for the existing connectable
+        // Connect any existing connections to the WAM instance
+        this.midiOutputConnectable.connections.forEach(wamNode => {
+          this.wamInstance.audioNode.connectEvents(wamNode.instanceId);
+      });
+  
 
     // Join shared transport group
     this.transport.register(this.wamInstance.audioNode);

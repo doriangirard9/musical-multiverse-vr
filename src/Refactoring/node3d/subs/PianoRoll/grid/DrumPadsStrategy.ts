@@ -4,17 +4,17 @@ import { GridStrategy } from "./GridStrategy";
 
 /** Top→bottom labels + MIDI per GM-ish convention. Adjust to your sampler. */
 const PADS = [
-  { label: "Crash",   midi: 36 },
-  { label: "Ride",    midi: 37 },
-  { label: "HH Open", midi: 38 },
-  { label: "HH Cl",   midi: 39 },
-  { label: "Tom Hi",  midi: 41 },
-  { label: "Tom Mid", midi: 42 },
-  { label: "Tom Lo",  midi: 43 },
-  { label: "Clap",    midi: 46 },
-  { label: "Rim",     midi: 47 },
-  { label: "Snare 2", midi: 49 },
-  { label: "Snare",   midi: 51 },
+  { label: "Kick", midi: 36 },
+  { label: "Rimshot", midi: 37 },
+  { label: "Snare", midi: 38 },
+  { label: "Clap", midi: 39 },
+  { label: "Low Tom", midi: 41 },
+  { label: "CH", midi: 42 },
+  { label: "High Tom", midi: 43 },
+  { label: "OH", midi: 46 },
+  { label: "Mid Tom", midi: 47 },
+  { label: "Crash", midi: 49 },
+  { label: "Ride", midi: 51 },
 
 ];
 
