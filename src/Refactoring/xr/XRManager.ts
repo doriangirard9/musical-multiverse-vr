@@ -67,7 +67,7 @@ export class XRManager {
                 }
             });
 
-            audioEngine.listener.attach(scene.activeCamera)
+            audioEngine.listener.attach(this.xrHelper.baseExperience.camera ?? scene.activeCamera)
 
         } catch (error) {
             console.error("XR initialization failed:", error);
