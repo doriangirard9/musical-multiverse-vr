@@ -217,4 +217,6 @@ export const WamSamplerN3DFactory: Node3DFactory<WamSamplerN3DGUI, WamSamplerN3D
     await node.init();                 // ← ensure meshes/ports exist before Node3DInstance touches them
     return node;
   },
+  description: "Minimal 3D WAM Sampler block (e.g., Burns Audio DrumSampler)",
+  tags: ["drum", "sampler", "midi", "audio","wam","instrument"]
 };
