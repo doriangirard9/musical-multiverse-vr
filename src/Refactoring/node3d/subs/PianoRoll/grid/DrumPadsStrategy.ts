@@ -2,7 +2,7 @@
 import * as B from "@babylonjs/core";
 import { GridStrategy } from "./GridStrategy";
 
-/** Top→bottom labels + MIDI per GM-ish convention. Adjust to your sampler. */
+// looks like hardcoded but it's match the mapping comming from the drum instrument
 const PADS = [
   { label: "Kick", midi: 36 },
   { label: "Rimshot", midi: 37 },

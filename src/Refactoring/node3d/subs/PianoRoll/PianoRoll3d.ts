@@ -118,10 +118,7 @@ class PianoRollN3DGUI implements Node3DGUI {
     s1: GridStrategy = new Piano88Strategy(),
     s2: DrumPadsStrategy = new DrumPadsStrategy()
   ) {
-    const strategy = s2;
-    // setTimeout(() => {
-    //   this.setStrategy(s2)
-    // }, 3000);
+    const strategy = s1;
     this.strategy = strategy;
 
     const { babylon: _B, tools: T } = context;
