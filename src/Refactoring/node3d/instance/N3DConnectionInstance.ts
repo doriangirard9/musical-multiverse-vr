@@ -7,6 +7,7 @@ import { Doc } from "yjs"
 import { UIManager } from "../../app/UIManager"
 import { MeshUtils } from "../tools"
 import { ShakeBehavior } from "../../behaviours/ShakeBehavior"
+import { SceneManager } from "../../app/SceneManager"
 
 /**
  * Une connection entre deux connectable de deux Node3D.
@@ -30,6 +31,8 @@ export class N3DConnectionInstance{
             diameter: .25,
             tessellation: 6
         },this.scene)
+
+        SceneManager.getInstance().getShadowGenerator().addShadowCaster(this.tube, false)
 
         this.shake = new ShakeBehavior()
         this.tube.addBehavior(this.shake)

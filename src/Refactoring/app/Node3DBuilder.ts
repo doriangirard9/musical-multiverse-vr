@@ -99,6 +99,7 @@ export class Node3DBuilder {
 
         const shared = this.shared ??= new N3DShared(
             SceneManager.getInstance().getScene(),
+            SceneManager.getInstance().getShadowGenerator(),
             Node3dManager.getInstance().getAudioContext(),
             Node3dManager.getInstance().getAudioEngine(),
             (await WamInitializer.getInstance(Node3dManager.getInstance().getAudioContext()).getHostGroupId())[0]
