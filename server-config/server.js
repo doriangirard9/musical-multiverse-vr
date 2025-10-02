@@ -2,8 +2,14 @@ const express = require('express')
 const path = require("path");
 const cors = require('cors')
 const fs = require('node:fs');
+const https = require('https');
 
 const app = express()
+
+const credentials = {
+    key: fs.readFileSync('../localhost.key', 'utf8'),
+    cert: fs.readFileSync('../localhost.crt', 'utf8')
+}
 
 
 const port = 3000
@@ -49,6 +55,7 @@ app.get('/wamsConfig/:name', (req, res) => {
       });
  })
 
-app.listen(port, () => {
-  console.log(`Example app listening on port ${port}`)
+const httpsServer = https.createServer(credentials, app)
+httpsServer.listen(port, () => {
+  console.log(`HTTPS Server running on port ${port}`);
 })

@@ -18,7 +18,6 @@ export class NodeMenu {
 
     constructor(menuJson: MenuConfig) {
         this._menuJson = menuJson;
-        console.log(this._menuJson)
         this._manager = UIManager.getInstance().getGui3DManager()
     }
 
@@ -85,7 +84,6 @@ export class NodeMenu {
 
         // plugins
         this._menuJson.categories[categoryIndex].plugins.forEach((plugin): void => {
-            console.log(plugin.kind)
             const button = new GUI.TouchHolographicButton(plugin.name);
             button.text = plugin.name;
             button.onPointerUpObservable.add(async () => await Node3dManager.getInstance().createAudioNode3D(uuid(), plugin.kind));
@@ -124,7 +122,6 @@ export class NodeMenu {
      */
     public hide(): void {
         if (!this._menu) return;
-        console.log("hide menu")
         this.isMenuOpen = false;
         this._menu.dispose();
     }

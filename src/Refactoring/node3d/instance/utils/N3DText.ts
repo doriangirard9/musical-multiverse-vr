@@ -48,7 +48,7 @@ export class N3DText{
 
         const position = target.getBoundingInfo().boundingBox.centerWorld.clone()
         position.y += target.getBoundingInfo().boundingBox.extendSizeWorld.y/2
-        position.y += this.plane.getBoundingInfo().boundingBox.extendSizeWorld.y*2
+        position.y += this.plane.getBoundingInfo().boundingBox.extendSizeWorld.y
         this.plane.setAbsolutePosition(position)
     }
 

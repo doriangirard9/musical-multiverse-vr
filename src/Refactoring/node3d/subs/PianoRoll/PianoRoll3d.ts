@@ -1,4 +1,4 @@
-import { Color3, Matrix, Vector3 } from "@babylonjs/core";
+import { Matrix } from "@babylonjs/core";
 import type { Node3D, Node3DFactory, Node3DGUI } from "../../Node3D";
 import type { Node3DGUIContext } from "../../Node3DGUIContext";
 import { MidiN3DConnectable } from "../../tools"; // Ensure this is a value export
@@ -7,7 +7,6 @@ import * as B from "@babylonjs/core";
 import { WamNode, WebAudioModule } from "@webaudiomodules/api";
 import { WamInitializer } from "../../../app/WamInitializer";
 import { PianoRollSettingsMenu } from "./PianoRollSettingsMenu";
-import { XRManager } from "../../../xr/XRManager";
 import { WamTransportManager } from "./WamTransportManager"; // <-- shared transport
 // strategies
 import { GridStrategy } from "./grid/GridStrategy";
@@ -31,6 +30,7 @@ interface ControlSequence {
   midiNumber: number;
   borderMesh: B.Mesh;
 }
+/* cleanup ?
 interface NoteButtonMesh extends B.Mesh {
   isActive: boolean;
   isPlaying: boolean;
@@ -50,6 +50,8 @@ interface NoteButtonMesh extends B.Mesh {
   material: B.StandardMaterial;
   mode?: "normal" | "control" | "none";
 }
+ */
+
 // Color Constants
 const COLOR_ACTIVE = new B.Color3(1, 0, 0);               // Red
 const COLOR_INACTIVE = new B.Color3(0.2, 0.6, 0.8);       // Blue
@@ -1383,6 +1385,8 @@ private onInstrumentDisconnected(wamNode: WamNode) {
 
 export const PianoRollN3DFactory: Node3DFactory<PianoRollN3DGUI, PianoRollN3D> = {
   label: "pianoroll",
+  description : "3D Piano Roll Sequencer, sources WAM from sequencer.party",
+  tags: ["wam", "midi", "sequencer", "piano roll"],
   async createGUI(context) { return new PianoRollN3DGUI(context) },
   async create(context, gui) { return new PianoRollN3D(context, gui) },
 }

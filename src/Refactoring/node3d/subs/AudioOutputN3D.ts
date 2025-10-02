@@ -111,6 +111,10 @@ export const AudioOutputN3DFactory: Node3DFactory<AudioOutputN3DGUI,AudioOutputN
 
     label: "Audio Output",
 
+    description: "A simple 3D audio output that can be used to output audio in 3D space.",
+
+    tags: ["audio", "consumer", "audio_output"],
+
     createGUI: async (context) => new AudioOutputN3DGUI(context),
 
     create: async (context, gui) => new AudioOutputN3D(context,gui),

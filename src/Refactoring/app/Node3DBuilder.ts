@@ -1,7 +1,6 @@
 import { Node3DInstance } from "../node3d/instance/Node3DInstance.ts";
 import { Node3D, Node3DFactory, Node3DGUI } from "../node3d/Node3D.ts";
 import { OscillatorN3DFactory } from "../node3d/subs/OscillatorN3D.ts";
-import { AudioOutputN3DFactory } from "../node3d/subs/AudioOutputN3D.ts";
 import { Node3dManager } from "./Node3dManager.ts";
 import { SceneManager } from "./SceneManager.ts";
 import { WamInitializer } from "./WamInitializer.ts";
@@ -18,7 +17,7 @@ import { WamSamplerN3DFactory } from "../node3d/subs/drumSampler.ts";
 
 
 
-const WAM_CONFIGS_URL: string = "http://localhost:3000";
+const WAM_CONFIGS_URL: string = `https://${window.location.hostname}:3000`;
 export type Node3DConfig = { name: string, wam3d: WAMGuiInitCode }
 
 export class Node3DBuilder {
@@ -31,12 +30,7 @@ export class Node3DBuilder {
         ...Object.keys(examples).map(k => `wam3d-${k}`),
     ]
 
-    /**
-     * Get a Node3DFactory from it kind name.
-     * @param kind The kind of Node3D, correspond to the name of its config file.
-     * @returns
-     */
-    public async getFactory(kind: string): Promise<Node3DFactory<Node3DGUI,Node3D>|null> {
+    private async createFactories(kind: string): Promise<Node3DFactory<Node3DGUI,Node3D>|null> {
         // Builtin
         if(kind=="audiooutput") return SpeakerN3DFactory
         if(kind=="sequencer") return SequencerN3DFactory
@@ -51,7 +45,7 @@ export class Node3DBuilder {
         if(kind.startsWith("wam3d-")) {
             const config = (examples as Record<string,WAMGuiInitCode>)[kind.substring(6)]
             if(!config) return null
-            return new Wam3DGeneratorN3DFactory(kind.substring(6), config)
+            return await Wam3DGeneratorN3DFactory.create(config)
         }
 
         // Configs
@@ -61,13 +55,28 @@ export class Node3DBuilder {
                 const config = await response.json() as Node3DConfig
 
                 // Wam3DGenerator
-                if("wam3d" in config)return new Wam3DGeneratorN3DFactory(config.name, config.wam3d)
+                if("wam3d" in config)return await Wam3DGeneratorN3DFactory.create(config.wam3d)
             }
 
         }
 
 
         return null
+    }
+
+    private factories = new Map<string,Node3DFactory<Node3DGUI,Node3D>>()
+
+    /**
+     * Get a Node3DFactory from it kind name.
+     * @param kind The kind of Node3D, correspond to the name of its config file.
+     * @returns 
+     */
+    public async getFactory(kind: string): Promise<Node3DFactory<Node3DGUI,Node3D>|null> {
+        if(!this.factories.has(kind)){
+            const factory = await this.createFactories(kind)
+            if(factory)this.factories.set(kind, factory)
+        }
+        return this.factories.get(kind) ?? null
     }
 
     /**
@@ -91,6 +100,7 @@ export class Node3DBuilder {
         const shared = this.shared ??= new N3DShared(
             SceneManager.getInstance().getScene(),
             Node3dManager.getInstance().getAudioContext(),
+            Node3dManager.getInstance().getAudioEngine(),
             (await WamInitializer.getInstance(Node3dManager.getInstance().getAudioContext()).getHostGroupId())[0]
         )
 
