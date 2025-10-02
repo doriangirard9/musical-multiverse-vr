@@ -149,7 +149,7 @@ export class GazeBehavior implements Behavior<AbstractMesh> {
         };
 
         const pickInfo = this._scene.pickWithRay(gazeRay, predicate);
-
+        console.log("PICKED MESH:", pickInfo?.pickedMesh?.name);
         // Vérifier si le mesh ramassé est celui auquel nous sommes attachés.
         if (pickInfo && pickInfo.hit && pickInfo.pickedMesh === this._attachedNode) {
             this._isCurrentlyGazing = true;

@@ -14,6 +14,7 @@ export class XRManager {
     public xrFeaturesManager!: B.WebXRFeaturesManager;
     private _controllersInitialized: boolean = false;
 
+    //@ts-ignore
     private handmenu : Nullable<HandMenu>;
     private constructor() {
     }
@@ -58,15 +59,14 @@ export class XRManager {
                         console.log('[*] XR STATE - In XR...');
                         // Besoin d'attendre qu'on soit en VR avant d'initialiser les contrôleurs
                         this._initControllersAfterXREntry();
-                        this.handmenu = new HandMenu()
                         break;
                     case B.WebXRState.EXITING_XR:
                         console.log("[*] XR STATE - Exiting XR...");
-                        this.handmenu = null
+                        //this.handmenu = null
                         break;
                     case B.WebXRState.NOT_IN_XR:
                         console.log("[*] XR STATE - Not in XR...");
-                        this.handmenu = null
+                        //this.handmenu = null
                         break;
                 }
             });
@@ -92,7 +92,7 @@ export class XRManager {
                 undefined,
                 "Controller initialization timed out after XR entry"
             );
-
+            this.handmenu = new HandMenu()
             this._controllersInitialized = true;
         } catch (err) {
             console.warn("Controller initialization error after XR entry, running in degraded mode:", err);

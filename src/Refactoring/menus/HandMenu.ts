@@ -26,9 +26,9 @@ export class HandMenu {
             return;
         }
 
-        this.baseCube = CreateBox("hand-menu-base-cube", {size:0.1}, this.scene);
-        this.baseCube.isVisible = false;
-        this.baseCube.parent = leftController.pointer;
+        this.baseCube = CreateBox("hand-menu-base-cube", {size:0.15}, this.scene);
+        this.baseCube.isVisible = true;
+        this.baseCube.parent = leftController.grip || leftController.pointer;
 
         let gazeMenu: Nullable<SimpleMenu> = null
 
@@ -43,7 +43,7 @@ export class HandMenu {
             }
 
             const controllerUpLocal = TmpVectors.Vector3[0];
-            controllerUpLocal.set(0, 1, 0);
+            controllerUpLocal.set(0, 0, -1);
 
             const controllerMatrix = controllerNode.getWorldMatrix();
             const controllerUpWorld = TmpVectors.Vector3[1];
@@ -55,7 +55,7 @@ export class HandMenu {
 
             const dotProduct = Vector3.Dot(controllerUpWorld, toCameraDirection);
 
-            const alignmentThreshold = 0.5;
+            const alignmentThreshold = 0.3;
 
             return dotProduct > alignmentThreshold;
         };

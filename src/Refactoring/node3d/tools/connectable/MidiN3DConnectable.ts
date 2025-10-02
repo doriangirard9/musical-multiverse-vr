@@ -118,8 +118,14 @@ export class MidiN3DConnectable{
 
         receive(value: any): void {
             if(typeof value === "object"){
-                if("connectMidi" in value) this.wamNode.connectEvents((value.connectMidi as WamNode).instanceId)
-                else if("disconnectMidi" in value) this.wamNode.disconnectEvents((value.disconnectMidi as WamNode).instanceId)
+                if("connectMidi" in value){
+                    this.wamNode.connectEvents((value.connectMidi as WamNode).instanceId)
+                    window.WAMExtensions.notes?.addMapping(this.wamNode.instanceId, [(value.connectMidi as WamNode).instanceId])
+                }
+                else if("disconnectMidi" in value){
+                    this.wamNode.disconnectEvents((value.disconnectMidi as WamNode).instanceId)
+                    window.WAMExtensions.notes?.addMapping(this.wamNode.instanceId)
+                }
             }
         }
     }
