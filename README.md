@@ -15,5 +15,6 @@ npm run dev
 ```
 Server
 ```
-PORT=4444 node ./bin/server.js
+cd server-config
+PORT=4444 node ./server.js
 ```

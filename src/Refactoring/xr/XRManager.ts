@@ -70,8 +70,7 @@ export class XRManager {
                         break;
                 }
             });
-
-            audioEngine.listener.attach(scene.activeCamera)
+            audioEngine.listener.attach(this.xrHelper.baseExperience.camera);
 
         } catch (error) {
             console.error("XR initialization failed:", error);
