@@ -114,6 +114,7 @@ class PianoRollN3DGUI implements Node3DGUI {
 
   // Label options
   public labelUsesMidiNumber = false; // optional: show MIDI instead of text label
+  public btnClearPattern!: B.Mesh;
 
   constructor(
     public context: Node3DGUIContext,
@@ -176,6 +177,7 @@ class PianoRollN3DGUI implements Node3DGUI {
     this.recalculateGridBoundaries();
     this.createMenuButton();
     this.preventClickBetweenNotes();
+    this.clearPatternButton()
 
     // Output port (position it at the right side of the base block)
     const baseY = this.block.position.y;
@@ -195,6 +197,117 @@ class PianoRollN3DGUI implements Node3DGUI {
     this.startStopButton();
   }
 
+  // Add this inside the PianoRollN3DGUI class (same section as the other label helpers)
+
+  /**
+   * Create a text label and attach it to a single mesh.
+   * - Uses DynamicTexture (same approach as keyboard labels).
+   * - By default, positions slightly above the mesh center on Y.
+   */
+  public createLabelForMesh(
+    target: B.Mesh,
+    text: string,
+    options?: {
+      textColor?: string;
+      background?: string;
+      // If not provided, the plane will auto-fit the mesh top face (X/Z)
+      width?: number;    // plane width in target local space (maps to X when rotated flat)
+      height?: number;   // plane height in target local space (maps to Z when rotated flat)
+      font?: string;     // base font family/weight, size will be auto-fit
+      offset?: B.Vector3;
+      textureSize?: { width: number; height: number };
+      rotateFlatLikeKeyboard?: boolean; // default true
+      padding?: number;  // padding on plane in local units (applied on X/Z)
+      textPaddingPx?: number; // padding inside the texture in pixels
+    }
+  ): B.Mesh {
+    const scene = this.context.scene;
+  
+    // Local half-extents of target (X, Y, Z) in target space
+    const bi = target.getBoundingInfo();
+    const ext = bi?.boundingBox.extendSize ?? new B.Vector3(0.5, 0.5, 0.5);
+  
+    // Plane should cover the top face: width -> X, height -> Z (since we rotate it flat)
+    const padding = options?.padding ?? 0.02;
+    const planeWidth  = options?.width  ?? Math.max(0.05, ext.x * 2 - padding * 2);
+    const planeHeight = options?.height ?? Math.max(0.05, ext.z * 2 - padding * 2);
+  
+    const dtSize = options?.textureSize ?? { width: 1024, height: 512 }; // higher res to keep text crisp
+    const dt = new B.DynamicTexture(`meshLabelDT_${target.name}_${Date.now()}`, dtSize, scene, true);
+    dt.hasAlpha = true;
+  
+    const mat = new B.StandardMaterial(`meshLabelMat_${target.name}_${Date.now()}`, scene);
+    mat.disableLighting = true;
+    mat.emissiveTexture = dt;
+    mat.opacityTexture  = dt;
+  
+    const plane = B.MeshBuilder.CreatePlane(
+      `meshLabel_${target.name}_${Date.now()}`,
+      { width: planeWidth, height: planeHeight },
+      scene
+    );
+    plane.material   = mat;
+    plane.isPickable = false;
+  
+    // Attach to mesh and place just above the top surface
+    plane.parent = target;
+    const defaultOffset = new B.Vector3(0, ext.y + 0.001, 0); // tiny lift to avoid z-fighting
+    plane.position.copyFrom(options?.offset ?? defaultOffset);
+  
+    // Match keyboard behavior: fixed to mesh, lying flat
+    plane.billboardMode = B.AbstractMesh.BILLBOARDMODE_NONE;
+    if (options?.rotateFlatLikeKeyboard !== false) {
+      plane.rotation.x = Math.PI / 2;
+    }
+  
+    // Draw text and auto-fit inside the texture with padding
+    const ctx = dt.getContext();
+    const W = dt.getSize().width;
+    const H = dt.getSize().height;
+    const textPadding = options?.textPaddingPx ?? Math.floor(Math.min(W, H) * 0.08);
+    const availW = W - textPadding * 2;
+    const availH = H - textPadding * 2;
+  
+    ctx.clearRect(0, 0, W, H);
+    ctx.fillStyle = options?.background ?? "rgba(255,255,255,0)";
+    ctx.fillRect(0, 0, W, H);
+  
+    // Auto-fit font size to available width/height
+    const baseFont = options?.font ?? "bold 300px sans-serif";
+    const fitFontSize = (maxW: number, maxH: number): number => {
+      // quick binary search for font size
+      let lo = 10, hi = 400, best = 10;
+      while (lo <= hi) {
+        const mid = Math.floor((lo + hi) / 2);
+        ctx.font = baseFont.replace(/\d+px/, `${mid}px`);
+        const m = ctx.measureText(text);
+        const textW = m.width;
+        // approximate text height via metrics if available; fallback to mid
+        // @ts-expect-error metrics may not exist in TS lib
+        const textH = (m.actualBoundingBoxAscent ?? mid) + (m.actualBoundingBoxDescent ?? mid * 0.25);
+        if (textW <= maxW && textH <= maxH) {
+          best = mid;
+          lo = mid + 1;
+        } else {
+          hi = mid - 1;
+        }
+      }
+      return best;
+    };
+  
+    const fontPx = fitFontSize(availW, availH);
+    ctx.font = baseFont.replace(/\d+px/, `${fontPx}px`);
+    ctx.fillStyle = options?.textColor ?? "#000";
+    // @ts-expect-error canvas types
+    ctx.textAlign = "center";
+    // @ts-expect-error canvas types
+    ctx.textBaseline = "middle";
+    ctx.fillText(text, W / 2, H / 2);
+  
+    dt.update();
+  
+    return plane;
+  }
   // ───────────────────────────────────────────────────────────────────────────
   // GRID + KEYBOARD
 
@@ -526,6 +639,24 @@ class PianoRollN3DGUI implements Node3DGUI {
     box.isPickable = true;
     box.visibility = 0;
   }
+
+  private clearPatternButton(){
+    this.btnClearPattern = this.createBox(
+      "clearPatternButton",
+      { width: 5, height: 0.2, depth: 0.8 },
+      B.Color3.Black(),
+      new B.Vector3(
+        this.startX + (this.buttonWidth + this.buttonSpacing),
+        0.2,
+        this.endZ + (this.buttonDepth + this.buttonSpacing)
+      ),
+      this.root
+    );
+    this.btnClearPattern.isVisible = true;
+    this.btnClearPattern.actionManager = new B.ActionManager(this.context.scene);
+    this.createLabelForMesh(this.btnClearPattern,"Clear Notes",{textColor:"#fff"})
+  }
+
 
   // ───────────────────────────────────────────────────────────────────────────
   // Scroll buttons
@@ -861,6 +992,7 @@ export class PianoRollN3D implements Node3D {
     // Initialize button color to transport state
     const mat = this.gui.btnStartStop.material as B.StandardMaterial;
     mat.diffuseColor = this.transport.getPlaying() ? B.Color3.Green() : B.Color3.Red();
+    this.handleClearPattern();
   }
 
   private onInstrumentConnected(wamNode: WamNode) {
@@ -1008,6 +1140,22 @@ private onInstrumentDisconnected(wamNode: WamNode) {
   // ───────────────────────────────────────────────────────────────────────────
   // Pattern delegate (safe / deferred)
 
+  private handleClearPattern(){
+    this.gui.btnClearPattern.actionManager = new B.ActionManager(this.gui.context.scene);
+    this.gui.btnClearPattern.actionManager.registerAction(
+      new B.ExecuteCodeAction(B.ActionManager.OnPickTrigger, () => {
+        this.pattern.notes = [];
+        this.isActive = this.isActive.map(row => row.map(() => false));
+        this.mode = this.mode.map(row => row.map(() => "normal"));
+        Object.values(this.rowControlBorders).flat().forEach(m => m.dispose());
+        this.rowControlBorders = {};
+        this.gui.repaintVisibleFromState();
+        this.context.notifyStateChange("pattern");
+        this._safeSendPatternToPianoRoll();
+      })
+    );
+
+  }
   private _safeSendPatternToPianoRoll(): void {
     try {
       if (!this.wamInstance?.audioNode) return;
