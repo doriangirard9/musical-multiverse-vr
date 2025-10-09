@@ -12,7 +12,7 @@ import { WamTransportManager } from "./WamTransportManager"; // <-- shared trans
 import { GridStrategy } from "./grid/GridStrategy";
 import { Piano88Strategy } from "./grid/Piano88Strategy";
 import { DrumPadsStrategy } from "./grid/DrumPadsStrategy";
-
+import { InputManager } from "../../../xr/inputs/InputManager";
 interface PatternNote {
   tick: number;
   number: number;
@@ -973,6 +973,18 @@ export class PianoRollN3D implements Node3D {
         this.currentControlSequence = null;
       }
     });
+    
+
+// Right grip (squeeze) acts like holding "A" for long-note editing
+InputManager.getInstance().right_squeeze.on_change.add((event) => {
+  const active = (event.value ?? 0) > 0 || !!event.pressed; // optional: change 0 -> 0.1 as deadzone
+  if (active) {
+    this.isAKeyPressed = true;
+  } else {
+    this.isAKeyPressed = false;
+    this.currentControlSequence = null;
+  }
+});
 
     // Bar/beat divider lines
     this.createBars();
