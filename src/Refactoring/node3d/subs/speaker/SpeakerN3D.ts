@@ -120,6 +120,8 @@ export class SpeakerPannerNodeN3D implements Node3D{
 
         this.audioCtx = audioCtx
 
+        context.addToBoundingBox(gui.speaker)
+
         const pannerNode = this.pannerNode = audioCtx.createPanner()
         
         // Configuration du PannerNode pour une spatialisation correcte en VR
@@ -128,6 +130,8 @@ export class SpeakerPannerNodeN3D implements Node3D{
         pannerNode.refDistance = 1 // Distance de référence pour réduire le volume
         pannerNode.maxDistance = 100 // Distance maximale à laquelle le son sera réduit, passé cette distance le son ne sera pas réduit
         pannerNode.rolloffFactor = 0.5 // Vitesse de décroissance du volume en fonction de la distance
+
+        pannerNode.connect(audioCtx.destination)
 
         // TODO: audioCtx.listener ne devrait pas être changé par un Node3d car c'est un paramètre général
         // Il faut déplacer ça dehors.
