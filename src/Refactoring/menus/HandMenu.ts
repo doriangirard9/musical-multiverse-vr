@@ -1,5 +1,5 @@
 import {XRManager} from "../xr/XRManager.ts";
-import {CreateBox, Mesh, Nullable, TmpVectors, Vector3} from "@babylonjs/core";
+import {ActionManager, Color3, CreateBox, ExecuteCodeAction, Mesh, Nullable, StandardMaterial, TmpVectors, Vector3} from "@babylonjs/core";
 import {SceneManager} from "../app/SceneManager.ts";
 import {MenuConfig, SimpleMenu} from "./SimpleMenu.ts";
 import {GazeBehavior} from "../behaviours/GazeBehavior.ts";
@@ -13,8 +13,10 @@ export class HandMenu {
     private scene = SceneManager.getInstance().getScene();
     private audioCtx = Node3dManager.getInstance().getAudioContext();
     private gazeBehavior = new GazeBehavior();
+    private transport!: WamTransportManager;
 
     constructor() {
+        this.transport = WamTransportManager.getInstance(this.audioCtx);
         this.init();
         console.log("[HandMenu] - Initialized");
     }
@@ -26,9 +28,13 @@ export class HandMenu {
             return;
         }
 
-        this.baseCube = CreateBox("hand-menu-base-cube", {size:0.15}, this.scene);
+        this.baseCube = CreateBox("hand-menu-base-cube", {    width: 0.05,
+    height: 0.005,
+    depth: 0.1}, this.scene);
         this.baseCube.isVisible = true;
         this.baseCube.parent = leftController.grip || leftController.pointer;
+        this.baseCube.position.y += 0.02;
+        this.baseCube.position.z -= 0.05;
 
         let gazeMenu: Nullable<SimpleMenu> = null
 
@@ -89,7 +95,8 @@ export class HandMenu {
                 gazeMenu.setConfig(config);
             }
 
-            const pos = this.baseCube!.getAbsolutePosition().add(new Vector3(0, 0.5, 0));
+            const pos = this.baseCube!.getAbsolutePosition().add(new Vector3(0, -0.5, 0));
+            // pos.z -= 1;
             gazeMenu.menuNode.position = pos;
             gazeMenu.menuNode.isVisible = true;
         };
@@ -102,7 +109,41 @@ export class HandMenu {
 
         this.baseCube!.addBehavior(this.gazeBehavior);
 
+        this.btnStartStopMenu();
+
     }
+
+    private btnStartStopMenu() {
+        console.log("Start/Stop button pressed");
+        // create small btn mesh for the this.handmenu as parent of the menu
+        const btn = CreateBox("hand-menu-btn", {    
+            width: 0.02,
+            height: 0.006,
+            depth: 0.01
+        }, 
+            this.scene);
+        if (!this.baseCube) return;
+        btn.parent = this.baseCube;
+        // add red color to btn
+        const mat = new StandardMaterial("hand-menu-btn-mat", this.scene);
+        mat.diffuseColor.set(1, 0, 0);
+        btn.material = mat;
+        
+        // add action to button to toggle a behavior on the this.handmenu
+        btn.actionManager = new ActionManager(this.scene);
+          if (!btn.actionManager)
+              btn.actionManager = new ActionManager(this.scene);
+        
+          btn.actionManager.registerAction(
+              new ExecuteCodeAction(ActionManager.OnPickTrigger, () => {
+                this.transport.toggle();
+                const mat = btn.material as StandardMaterial;
+                mat.diffuseColor = this.transport.getPlaying() ? Color3.Green() : Color3.Red();
+              })
+            );
+
+    }
+
 
     public dispose() {
         if (this.baseCube) {
