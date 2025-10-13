@@ -14,6 +14,7 @@ import { Piano88Strategy } from "./grid/Piano88Strategy";
 import { DrumPadsStrategy } from "./grid/DrumPadsStrategy";
 import { InputManager } from "../../../xr/inputs/InputManager";
 import { XRManager } from "../../../xr/XRManager";
+import { SceneManager } from "../../../app/SceneManager";
 
 interface PatternNote {
   tick: number;
@@ -74,6 +75,7 @@ class PianoRollN3DGUI implements Node3DGUI {
   public menuButton!: B.Mesh;
   public midiOutput!: B.Mesh;
   public btnStartStop!: B.Mesh;
+  public preventClickBetweenNotesMesh!: B.Mesh;
 
   // Scroll arrows
   private _btnScrollUp!: B.Mesh;
@@ -628,7 +630,7 @@ class PianoRollN3DGUI implements Node3DGUI {
   }
 
   private preventClickBetweenNotes() {
-    const box = this.createBox(
+    this.preventClickBetweenNotesMesh = this.createBox(
       "noDragBox",
       {
         width: (this.endX - this.startX) + (this.buttonWidth),
@@ -639,8 +641,8 @@ class PianoRollN3DGUI implements Node3DGUI {
       new B.Vector3(0, 0, 0),
       this.root
     );
-    box.isPickable = true;
-    box.visibility = 0;
+    this.preventClickBetweenNotesMesh.isPickable = true;
+    this.preventClickBetweenNotesMesh.visibility = 0;
   }
 
   private clearPatternButton(){
@@ -1029,7 +1031,8 @@ let isScrolling = false;
 // Helper function to get the piano roll instance from a mesh
 const getPianoRollFromMesh = (mesh: B.AbstractMesh): PianoRollN3D | null => {
   // Check if the mesh is part of this piano roll's GUI
-  if (mesh === this.gui.block || 
+  if (mesh === this.gui.preventClickBetweenNotesMesh || 
+    mesh === this.gui.block || 
       mesh === this.gui.playhead || 
       mesh === this.gui.menuButton || 
       mesh === this.gui.midiOutput ||
@@ -1068,40 +1071,51 @@ const getPointedPianoRoll = (): PianoRollN3D | null => {
   return null;
 };
 
-// Simple step scrolling on threshold-based events
-im.left_thumbstick.on_up_down.add(() => {
-  const pointedPianoRoll = getPointedPianoRoll();
-  if (pointedPianoRoll === this) { // Only scroll if pointing at THIS piano roll
-    if (!isScrolling) {
-      isScrolling = true;
-      // Disable camera rotation while scrolling
-      xrManager.setMovement(["translation"]); // Only allow translation, no rotation
-    }
-    this.gui.scrollByRows(-1);   // up = show higher rows
-  }
-});
+// Continuous scrolling while thumbstick is held
+let scrollInterval: NodeJS.Timeout | null = null;
+const scrollSpeed = 200; // milliseconds between scroll steps
 
-im.left_thumbstick.on_down_down.add(() => {
+const startScrolling = (direction: number) => {
+  if (scrollInterval) return; // Already scrolling
+  
   const pointedPianoRoll = getPointedPianoRoll();
-  if (pointedPianoRoll === this) { // Only scroll if pointing at THIS piano roll
-    if (!isScrolling) {
-      isScrolling = true;
-      // Disable camera rotation while scrolling
-      xrManager.setMovement(["translation"]); // Only allow translation, no rotation
-    }
-    this.gui.scrollByRows(1);  // down = show lower rows
+  if (pointedPianoRoll === this) {
+    isScrolling = true;
+    xrManager.setMovement(["translation"]);
+    
+    // Start continuous scrolling
+    scrollInterval = setInterval(() => {
+      this.gui.scrollByRows(direction);
+    }, scrollSpeed);
   }
-});
+};
 
-// Re-enable camera rotation when thumbstick is released
+const stopScrolling = () => {
+  if (scrollInterval) {
+    clearInterval(scrollInterval);
+    scrollInterval = null;
+  }
+  if (isScrolling) {
+    isScrolling = false;
+    xrManager.setMovement(["rotation", "translation"]);
+  }
+};
+
+// Start scrolling when thumbstick is pushed
+im.left_thumbstick.on_up_down.add(() => startScrolling(-1));
+im.left_thumbstick.on_down_down.add(() => startScrolling(1));
+
+// Stop scrolling when thumbstick is released
+im.left_thumbstick.on_up_up.add(() => stopScrolling());
+im.left_thumbstick.on_down_up.add(() => stopScrolling());
+
+// Also stop when thumbstick returns to center
 im.left_thumbstick.on_value_change.add(({ x, y }) => {
   const deadzone = 0.1;
   const isInDeadzone = Math.abs(x) < deadzone && Math.abs(y) < deadzone;
   
-  if (isScrolling && isInDeadzone) {
-    isScrolling = false;
-    // Re-enable both rotation and translation
-    xrManager.setMovement(["rotation", "translation"]);
+  if (isInDeadzone) {
+    stopScrolling();
   }
 });
   }
