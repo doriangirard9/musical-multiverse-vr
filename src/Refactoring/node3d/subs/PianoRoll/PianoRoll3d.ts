@@ -1023,7 +1023,7 @@ InputManager.getInstance().right_squeeze.on_change.add((event) => {
 // initialize input managers
 const im = InputManager.getInstance();
 const xrManager = XRManager.getInstance();
-// const scene = SceneManager.getInstance().getScene();
+const t = SceneManager.getInstance().getScene();
 
 // Track if we're currently scrolling to prevent camera movement
 let isScrolling = false;
@@ -1061,7 +1061,7 @@ const getPointedPianoRoll = (): PianoRollN3D | null => {
   
   // Create ray from controller
   const ray = new B.Ray(leftController.pointer.position, leftController.pointer.forward, 100);
-  const pickResult = scene.pickWithRay(ray);
+  const pickResult = t.pickWithRay(ray);
   
   if (pickResult?.hit && pickResult.pickedMesh) {
     // Check if the picked mesh belongs to this piano roll
@@ -1081,7 +1081,8 @@ const startScrolling = (direction: number) => {
   const pointedPianoRoll = getPointedPianoRoll();
   if (pointedPianoRoll === this) {
     isScrolling = true;
-    xrManager.setMovement(["translation"]);
+    // Completely disable movement features to prevent camera rotation
+    xrManager.setMovement([]);
     
     // Start continuous scrolling
     scrollInterval = setInterval(() => {
@@ -1097,6 +1098,7 @@ const stopScrolling = () => {
   }
   if (isScrolling) {
     isScrolling = false;
+    // Re-enable both rotation and translation
     xrManager.setMovement(["rotation", "translation"]);
   }
 };
