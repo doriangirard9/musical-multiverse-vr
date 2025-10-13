@@ -13,6 +13,8 @@ import { GridStrategy } from "./grid/GridStrategy";
 import { Piano88Strategy } from "./grid/Piano88Strategy";
 import { DrumPadsStrategy } from "./grid/DrumPadsStrategy";
 import { InputManager } from "../../../xr/inputs/InputManager";
+import { XRManager } from "../../../xr/XRManager";
+
 interface PatternNote {
   tick: number;
   number: number;
@@ -99,7 +101,7 @@ class PianoRollN3DGUI implements Node3DGUI {
   private _startRowIndex: number = 30;
 
   // Thin instances for note cells
-  private noteCell!: B.Mesh;
+  public noteCell!: B.Mesh;
   private thinInstanceMatrices!: Float32Array;
   private thinInstanceColors!: Float32Array;
   private visibleCellMap: Map<number, VisibleCell> = new Map();
@@ -142,6 +144,7 @@ class PianoRollN3DGUI implements Node3DGUI {
     // Default starting index clamped to rows
     this._startRowIndex = Math.min(this._startRowIndex, Math.max(0, this.rows - this.visibleRowCount));
 
+   
     // Build
     void this.instantiate();
   }
@@ -722,6 +725,14 @@ class PianoRollN3DGUI implements Node3DGUI {
       this.updateRowVisibility();
     }
   }
+  public scrollByRows(delta: number): void {
+    const maxStart = Math.max(0, this.rows - this.visibleRowCount);
+    const next = Math.min(maxStart, Math.max(0, this._startRowIndex + delta));
+    if (next !== this._startRowIndex) {
+      this._startRowIndex = next;
+      this.updateRowVisibility();
+    }
+  }
 
   // ───────────────────────────────────────────────────────────────────────────
   // Layout helpers
@@ -1005,6 +1016,94 @@ InputManager.getInstance().right_squeeze.on_change.add((event) => {
     const mat = this.gui.btnStartStop.material as B.StandardMaterial;
     mat.diffuseColor = this.transport.getPlaying() ? B.Color3.Green() : B.Color3.Red();
     this.handleClearPattern();
+    
+
+// initialize input managers
+const im = InputManager.getInstance();
+const xrManager = XRManager.getInstance();
+// const scene = SceneManager.getInstance().getScene();
+
+// Track if we're currently scrolling to prevent camera movement
+let isScrolling = false;
+
+// Helper function to get the piano roll instance from a mesh
+const getPianoRollFromMesh = (mesh: B.AbstractMesh): PianoRollN3D | null => {
+  // Check if the mesh is part of this piano roll's GUI
+  if (mesh === this.gui.block || 
+      mesh === this.gui.playhead || 
+      mesh === this.gui.menuButton || 
+      mesh === this.gui.midiOutput ||
+      mesh === this.gui.btnStartStop ||
+      mesh === this.gui.btnClearPattern ||
+      this.gui.keyBoard.includes(mesh as B.Mesh) ||
+      this.gui.keyLabels.includes(mesh as B.Mesh) ||
+      mesh === this.gui.noteCell) {
+        console.log("Piano roll found");
+    return this; // This is our piano roll instance
+  }
+  
+  // Check if it's a thin instance of our note cell
+  if (mesh === this.gui.noteCell) {
+    console.log("Note cell found");
+    return this;
+  }
+  
+  return null;
+};
+
+// Helper function to perform raycast and get pointed piano roll
+const getPointedPianoRoll = (): PianoRollN3D | null => {
+  const leftController = xrManager.xrInputManager.leftController;
+  if (!leftController) return null;
+  
+  // Create ray from controller
+  const ray = new B.Ray(leftController.pointer.position, leftController.pointer.forward, 100);
+  const pickResult = scene.pickWithRay(ray);
+  
+  if (pickResult?.hit && pickResult.pickedMesh) {
+    // Check if the picked mesh belongs to this piano roll
+    return getPianoRollFromMesh(pickResult.pickedMesh);
+  }
+  
+  return null;
+};
+
+// Simple step scrolling on threshold-based events
+im.left_thumbstick.on_up_down.add(() => {
+  const pointedPianoRoll = getPointedPianoRoll();
+  if (pointedPianoRoll === this) { // Only scroll if pointing at THIS piano roll
+    if (!isScrolling) {
+      isScrolling = true;
+      // Disable camera rotation while scrolling
+      xrManager.setMovement(["translation"]); // Only allow translation, no rotation
+    }
+    this.gui.scrollByRows(-1);   // up = show higher rows
+  }
+});
+
+im.left_thumbstick.on_down_down.add(() => {
+  const pointedPianoRoll = getPointedPianoRoll();
+  if (pointedPianoRoll === this) { // Only scroll if pointing at THIS piano roll
+    if (!isScrolling) {
+      isScrolling = true;
+      // Disable camera rotation while scrolling
+      xrManager.setMovement(["translation"]); // Only allow translation, no rotation
+    }
+    this.gui.scrollByRows(1);  // down = show lower rows
+  }
+});
+
+// Re-enable camera rotation when thumbstick is released
+im.left_thumbstick.on_value_change.add(({ x, y }) => {
+  const deadzone = 0.1;
+  const isInDeadzone = Math.abs(x) < deadzone && Math.abs(y) < deadzone;
+  
+  if (isScrolling && isInDeadzone) {
+    isScrolling = false;
+    // Re-enable both rotation and translation
+    xrManager.setMovement(["rotation", "translation"]);
+  }
+});
   }
 
   private onInstrumentConnected(wamNode: WamNode) {

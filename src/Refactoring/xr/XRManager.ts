@@ -92,7 +92,7 @@ export class XRManager {
                 undefined,
                 "Controller initialization timed out after XR entry"
             );
-            this.handmenu = new HandMenu()
+           //  this.handmenu = new HandMenu() // TODO: activate hand menu when ready
             this._controllersInitialized = true;
         } catch (err) {
             console.warn("Controller initialization error after XR entry, running in degraded mode:", err);
