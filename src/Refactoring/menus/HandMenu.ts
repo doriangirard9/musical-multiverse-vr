@@ -71,33 +71,24 @@ export class HandMenu {
                 gazeMenu = new SimpleMenu("gaze-menu", UIManager.getInstance().getGui3DManager());
                 gazeMenu.menuNode.margin = 0.1;
                 gazeMenu.menuNode.backPlateMargin = 0.5;
-                console.log(gazeMenu.menuNode.mesh)
                 const wamTransportManager = WamTransportManager.getInstance(this.audioCtx!);
                 const config: MenuConfig = {
                     label: "HandMenu",
                     buttons: [
-                        {
-                            label: "Start",
-                            action: () => {
-                                wamTransportManager.start();
-                            }
-                        },
-                        {
-                            label: "Stop",
-                            action: () => {
-                                if(gazeMenu){
-                                    wamTransportManager.stop();
-                                }
-                            }
-                        }
+                        { label: "Start", action: () => wamTransportManager.start() },
+                        { label: "Stop", action: () => wamTransportManager.stop() }
                     ]
                 };
                 gazeMenu.setConfig(config);
+
+                // disable follow and parent to controller
+                gazeMenu.menuNode.defaultBehavior.followBehavior.detach();
+                gazeMenu.menuNode.mesh!.parent = this.baseCube!;
+                // local offset relative to controller
+                gazeMenu.menuNode.position.set(0, -0.05, -0.15);
             }
 
-            const pos = this.baseCube!.getAbsolutePosition().add(new Vector3(0, -0.5, 0));
-            // pos.z -= 1;
-            gazeMenu.menuNode.position = pos;
+            // ensure visible each activation
             gazeMenu.menuNode.isVisible = true;
         };
 

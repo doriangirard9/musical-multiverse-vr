@@ -62,11 +62,17 @@ export class XRManager {
                         break;
                     case B.WebXRState.EXITING_XR:
                         console.log("[*] XR STATE - Exiting XR...");
-                        //this.handmenu = null
+                        // Dispose hand menu and reset flags on exit
+                        this.handmenu?.dispose();
+                        this.handmenu = null;
+                        this._controllersInitialized = false;
                         break;
                     case B.WebXRState.NOT_IN_XR:
                         console.log("[*] XR STATE - Not in XR...");
-                        //this.handmenu = null
+                        // Ensure cleanup when not in XR
+                        this.handmenu?.dispose();
+                        this.handmenu = null;
+                        this._controllersInitialized = false;
                         break;
                 }
             });
