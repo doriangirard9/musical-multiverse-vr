@@ -145,7 +145,11 @@ export class N3DShop {
                     if(!type) return async()=>{}
                 }
 
-                return await type.create(object,this)
+                try{
+                    return await type.create(object,this)
+                }catch(e){
+                    console.error(e)
+                }
             }))
             z.dispose = async()=>{
                 await Promise.all(disposers.map(d=>d?.()))

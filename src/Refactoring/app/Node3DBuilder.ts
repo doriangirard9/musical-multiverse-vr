@@ -25,7 +25,7 @@ export class Node3DBuilder {
     /**
      * Some of the valid kinds of Node3D.
      */
-    static FACTORY_KINDS = [
+    FACTORY_KINDS = [
         "audiooutput", "sequencer", "oscillator", "maracas", "livepiano", "notesbox","pianoroll","drumsampler",
         ...Object.keys(examples).map(k => `wam3d-${k}`),
     ]
@@ -99,6 +99,7 @@ export class Node3DBuilder {
 
         const shared = this.shared ??= new N3DShared(
             SceneManager.getInstance().getScene(),
+            SceneManager.getInstance().getShadowGenerator(),
             Node3dManager.getInstance().getAudioContext(),
             Node3dManager.getInstance().getAudioEngine(),
             (await WamInitializer.getInstance(Node3dManager.getInstance().getAudioContext()).getHostGroupId())[0]

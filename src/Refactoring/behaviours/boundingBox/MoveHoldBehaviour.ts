@@ -29,6 +29,7 @@ export class MoveHoldBehaviour implements Behavior<TransformNode> {
 
     // Move around by dragging
     const o = inputs.pointer_move.add(() => this.updatePos())
+    this.updatePos()
 
     // Move forward and backward
     let power = 1 
