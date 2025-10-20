@@ -64,9 +64,11 @@ export class NewApp {
         /*const menu = new Menu2(scene, {
             label: "Main",
             buttons: []
-        })*/
+        })
 
-        menu.plane.position.set(0, 1.5, 1)
+        menu.plane.position.set(0, 1.5, 1)*/
+
+        await (await this.audioManager!!.createNode3d("notesbox"))?.dispose()
 
         const shared = this.audioManager?.builder?.shared!!
 
