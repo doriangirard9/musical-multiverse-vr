@@ -73,16 +73,19 @@ export class SceneManager {
     }
 
     public getShadowGenerator(): B.ShadowGenerator {
-        return this.shadowGenerator;
+        return this.shadowGenerator
     }
 
 
     private initializeShadowGenerator(): B.ShadowGenerator {
-        const light = new B.DirectionalLight("dir01", new B.Vector3(0, -1, 0), this.scene);
-        light.position = new B.Vector3(0, 60, 0);
-        light.intensity = 0.2;
+        const light = new B.DirectionalLight("dir01", new B.Vector3(0, -1, 0), this.scene)
+        light.position = new B.Vector3(0, 60, 0)
+        light.intensity = 0.2
 
-        return new B.ShadowGenerator(1024, light);
+        const caster = new B.ShadowGenerator(1024, light)
+        caster.transparencyShadow = true
+
+        return caster
     }
 
     private createGround(): B.Mesh {

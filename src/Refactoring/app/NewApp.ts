@@ -6,6 +6,7 @@ import {AudioEngineV2, ImportMeshAsync} from "@babylonjs/core";
 import {N3DShop, N3DShopOptions} from "../world/shop/N3DShop.ts";
 import { InputManager } from "../xr/inputs/InputManager.ts";
 import { parallel } from "../utils/utils.ts";
+import { Menu2 } from "../menus/Menu2.ts";
 export class NewApp {
     private audioCtx: AudioContext | undefined;
     private audioEngine!: AudioEngineV2
@@ -44,7 +45,7 @@ export class NewApp {
         this.sceneManager.start();
         await this.xrManager!!.init(this.sceneManager.getScene(), this.audioEngine);
         
-        await this.audioManager!!.createNode3d("notesbox")
+        //await this.audioManager!!.createNode3d("notesbox")
         /*
         //await this.audioManager!!.createNode3d("audiooutput")
 
@@ -59,6 +60,15 @@ export class NewApp {
         behavior.on_stop = (p,c)=>{
             mesh.visibility = 1
         }*/
+
+        /*const menu = new Menu2(scene, {
+            label: "Main",
+            buttons: []
+        })
+
+        menu.plane.position.set(0, 1.5, 1)*/
+
+        await (await this.audioManager!!.createNode3d("notesbox"))?.dispose()
 
         const shared = this.audioManager?.builder?.shared!!
 

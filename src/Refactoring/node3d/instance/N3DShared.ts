@@ -8,6 +8,7 @@ export class N3DShared{
 
     constructor(
         readonly scene: Scene,
+        readonly shadowGenerator: babylonjs.ShadowGenerator,
         readonly audioContext: AudioContext,
         readonly audioEngine: babylonjs.AudioEngineV2,
         readonly groupId: string,

@@ -125,6 +125,7 @@ export class Node3DInstance implements Synchronized{
             // En attendant la bounding box est une boite qui les englobes
             addToBoundingBox(mesh: AbstractMesh){
                 instance.boxes.push(mesh)
+                
                 instance.updateBoundingBox()
             },
             removeFromBoundingBox(mesh: AbstractMesh){
@@ -178,6 +179,7 @@ export class Node3DInstance implements Synchronized{
     private updateBoundingBoxNow(){
         if(this.disposed)return
 
+        if(this.bounding_mesh) this.shared.shadowGenerator.removeShadowCaster(this.bounding_mesh)
         this.bounding_box?.dispose()
         this.bounding_mesh?.dispose()
 
@@ -197,6 +199,7 @@ export class Node3DInstance implements Synchronized{
         this.bounding_mesh.position.subtractInPlace(bounds.min).subtractInPlace(size)
         //this.bounding_mesh.isVisible = false
         this.bounding_mesh.visibility = 0.1
+        this.bounding_mesh.receiveShadows
 
         this.root_transform.parent = this.bounding_mesh
 
@@ -219,6 +222,9 @@ export class Node3DInstance implements Synchronized{
         // On position change
         this.set_state("position")
         this.bounding_box.on_move = ()=>this.set_state("position")
+
+        // Shadow Generator
+        this.shared.shadowGenerator.addShadowCaster(this.bounding_mesh, false)
     }
 
     private updateBoundingBox(){

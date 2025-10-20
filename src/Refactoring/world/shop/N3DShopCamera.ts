@@ -1,8 +1,11 @@
 import { Vector3, WebXRFeatureName } from "@babylonjs/core";
 import { XRManager } from "../../xr/XRManager";
 import { N3DShop, N3DShopObject, N3DShopType } from "./N3DShop";
+import { SceneManager } from "../../app/SceneManager";
 
 const TRANSITION_TIME = 250 // ms
+
+const ANIMATED_TRANSITION = false
 
 export class N3DShopCamera implements N3DShopType {
 
@@ -95,6 +98,8 @@ export class N3DShopCamera implements N3DShopType {
             fromRotation = this.cameras[this.selected].location.absoluteRotation
         }
 
+        console.log("after calc from")
+
         // To position and rotation
         let toPosition: Vector3
         let toRotation: Vector3
@@ -122,24 +127,35 @@ export class N3DShopCamera implements N3DShopType {
         if(newShown!=null) await this.shop.showZone(newShown)
 
         // Animate
-        const startTime = Date.now()
-        await new Promise<void>(resolve => {
-            requestAnimationFrame(function animfn(){
-                const advancement = Math.min(1, (Date.now() - startTime) / TRANSITION_TIME)
-                camera.position.copyFrom(Vector3.Lerp(fromPosition, toPosition, advancement))
-                camera.rotation.copyFrom(Vector3.Lerp(fromRotation, toRotation, advancement))
-                camera.rotationQuaternion = camera.rotation.toQuaternion()
-                if(advancement<1) requestAnimationFrame(animfn)
-                else resolve()
-            })  
-        })
-
+        if(ANIMATED_TRANSITION){
+            const startTime = Date.now()
+            await new Promise<void>(resolve => {
+                let observer = camera.getScene().onAfterAnimationsObservable.add(()=>{
+                    const advancement = Math.min(1, (Date.now() - startTime) / TRANSITION_TIME)
+                    camera.position.copyFrom(Vector3.Lerp(fromPosition, toPosition, advancement))
+                    camera.rotation.copyFrom(Vector3.Lerp(fromRotation, toRotation, advancement))
+                    camera.rotationQuaternion = camera.rotation.toQuaternion()
+                    if(advancement>=1){
+                        observer.remove()
+                        resolve()
+                    }
+                })  
+            })
+        }
+        else{
+            camera.position.copyFrom(toPosition)
+            camera.rotation.copyFrom(toRotation)
+            camera.rotationQuaternion = camera.rotation.toQuaternion()
+        }
+        
         // Manage unloads
         if(this.shown) this.to_unloads.add(this.shown)
         if(newShown) this.to_unloads.delete(newShown)
 
         this.shown = newShown
         this.selected = index
+
+        console.log("after switch")
     }
 
     async unload(){
