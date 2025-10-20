@@ -13,6 +13,7 @@ export class XRManager {
     private _scene!: B.Scene;
     public xrFeaturesManager!: B.WebXRFeaturesManager;
     private _controllersInitialized: boolean = false;
+    private _leftControllerObserver?: B.Observer<B.WebXRInputSource>;
 
     //@ts-ignore
     private handmenu : Nullable<HandMenu>;
@@ -66,6 +67,10 @@ export class XRManager {
                         this.handmenu?.dispose();
                         this.handmenu = null;
                         this._controllersInitialized = false;
+                        if (this._leftControllerObserver) {
+                            this.xrHelper.input.onControllerAddedObservable.remove(this._leftControllerObserver);
+                            this._leftControllerObserver = undefined;
+                        }
                         break;
                     case B.WebXRState.NOT_IN_XR:
                         console.log("[*] XR STATE - Not in XR...");
@@ -73,6 +78,10 @@ export class XRManager {
                         this.handmenu?.dispose();
                         this.handmenu = null;
                         this._controllersInitialized = false;
+                        if (this._leftControllerObserver) {
+                            this.xrHelper.input.onControllerAddedObservable.remove(this._leftControllerObserver);
+                            this._leftControllerObserver = undefined;
+                        }
                         break;
                 }
             });
@@ -98,12 +107,31 @@ export class XRManager {
                 undefined,
                 "Controller initialization timed out after XR entry"
             );
-            this.handmenu = new HandMenu() // TODO: activate hand menu when ready
+            // Create hand menu only when left controller is available
+            if (this.xrInputManager.leftController && this.xrInputManager.leftController.motionController) {
+                this._createHandMenu();
+            } else {
+                // Wait for left controller to be added
+                this._leftControllerObserver = this.xrHelper.input.onControllerAddedObservable.add((controller) => {
+                    if (controller.inputSource.handedness === 'left' && controller.motionController) {
+                        this._createHandMenu();
+                        if (this._leftControllerObserver) {
+                            this.xrHelper.input.onControllerAddedObservable.remove(this._leftControllerObserver);
+                            this._leftControllerObserver = undefined;
+                        }
+                    }
+                });
+            }
             this._controllersInitialized = true;
         } catch (err) {
             console.warn("Controller initialization error after XR entry, running in degraded mode:", err);
             this._controllersInitialized = true; // évite de loop
         }
+    }
+
+    private _createHandMenu(): void {
+        try { this.handmenu?.dispose(); } catch {}
+        this.handmenu = new HandMenu();
     }
 
     /**
