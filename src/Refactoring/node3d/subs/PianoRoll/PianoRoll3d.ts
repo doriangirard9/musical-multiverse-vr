@@ -33,6 +33,9 @@ interface ControlSequence {
   midiNumber: number;
   borderMesh: B.Mesh;
 }
+// Local types
+interface VisibleCell { row: number; col: number; }
+
 /* cleanup ?
 interface NoteButtonMesh extends B.Mesh {
   isActive: boolean;
@@ -43,8 +46,6 @@ interface NoteButtonMesh extends B.Mesh {
 
 
 
-// Local types
-interface VisibleCell { row: number; col: number; }
 
 // Extend Mesh to carry GUI cell flags (optional)
 interface NoteButtonMesh extends B.Mesh {
@@ -1055,9 +1056,12 @@ const getPianoRollFromMesh = (mesh: B.AbstractMesh): PianoRollN3D | null => {
 };
 
 // Helper function to perform raycast and get pointed piano roll
-const getPointedPianoRoll = (): PianoRollN3D | null => {
+const getPointedPianoRollLeftController = (): PianoRollN3D | null => {
   const leftController = xrManager.xrInputManager.leftController;
+  // const rightController = xrManager.xrInputManager.rightController;
+
   if (!leftController) return null;
+  // if (!rightController) return null;
   
   // Create ray from controller
   const ray = new B.Ray(leftController.pointer.position, leftController.pointer.forward, 100);
@@ -1070,16 +1074,37 @@ const getPointedPianoRoll = (): PianoRollN3D | null => {
   
   return null;
 };
+const getPointedPianoRollRightController = (): PianoRollN3D | null => {
+
+   const rightController = xrManager.xrInputManager.rightController;
+
+  if (!rightController) return null;
+  
+  // Create ray from controller
+  const ray = new B.Ray(rightController.pointer.position, rightController.pointer.forward, 100);
+  const pickResult = t.pickWithRay(ray);
+  
+  if (pickResult?.hit && pickResult.pickedMesh) {
+    // Check if the picked mesh belongs to this piano roll
+    return getPianoRollFromMesh(pickResult.pickedMesh);
+  }
+  return null;
+}
+
 
 // Continuous scrolling while thumbstick is held
+// @ts-ignore
 let scrollInterval: NodeJS.Timeout | null = null;
 const scrollSpeed = 200; // milliseconds between scroll steps
 
 const startScrolling = (direction: number) => {
   if (scrollInterval) return; // Already scrolling
   
-  const pointedPianoRoll = getPointedPianoRoll();
-  if (pointedPianoRoll === this) {
+  const pointedPianoRollLeft = getPointedPianoRollLeftController() ;
+  const pointedPianoRollRight = getPointedPianoRollRightController();
+  
+
+  if (pointedPianoRollLeft === this || pointedPianoRollRight === this) {
     isScrolling = true;
     // Completely disable movement features to prevent camera rotation
     xrManager.setMovement([]);
