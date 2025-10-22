@@ -470,6 +470,9 @@ class PianoRollN3DGUI implements Node3DGUI {
     this._drawHoverLabel((this.hoverLabel!.material as B.StandardMaterial).emissiveTexture as B.DynamicTexture, label);
     this.hoverLabel!.isVisible = true;
     this._positionHoverLabelAboveNote(row, col);
+    
+    // Set up continuous scale updates while hovering
+    this._setupLabelScaleUpdates();
 
     this._hoveredThinIndex = thinIndex;
   }
@@ -493,6 +496,9 @@ class PianoRollN3DGUI implements Node3DGUI {
     }
     this._hoveredThinIndex = null;
     if (this.hoverLabel) this.hoverLabel.isVisible = false;
+    
+    // Stop continuous scale updates
+    this._stopLabelScaleUpdates();
   }
 
   private _ensureHoverLabel(): void {
@@ -527,6 +533,65 @@ class PianoRollN3DGUI implements Node3DGUI {
     const z = cellPosition.z; // Same Z as the note
     
     this.hoverLabel.position.set(x, y, z);
+    
+    // Scale label based on distance to camera
+    this._updateLabelScale();
+  }
+
+  private _updateLabelScale(): void {
+    if (!this.hoverLabel) return;
+    
+    // Get camera position
+    const camera = this.context.scene.activeCamera;
+    if (!camera) return;
+    
+    // Calculate distance from label to camera
+    const labelWorldPos = this.hoverLabel.getAbsolutePosition();
+    const cameraPos = camera.position;
+    const distance = B.Vector3.Distance(labelWorldPos, cameraPos);
+    
+    // Scale factors: closer = smaller, farther = bigger
+    // Base distance of 5 units = normal size (scale 1.0)
+    // At distance 10+ units, scale up to 2.0x
+    // At distance 2 units, scale down to 0.5x
+    const baseDistance = 5.0;
+    const minDistance = 2.0;
+    const maxDistance = 15.0;
+    
+    let scale = 1.0;
+    if (distance > baseDistance) {
+      // Scale up when far
+      const farScale = Math.min(4.0, 1.0 + (distance - baseDistance) / (maxDistance - baseDistance));
+      scale = farScale;
+    } else if (distance < baseDistance) {
+      // Scale down when close
+      const closeScale = Math.max(0.5, 1.0 - (baseDistance - distance) / (baseDistance - minDistance));
+      scale = closeScale;
+    }
+    
+    // Apply the scale to the label
+    this.hoverLabel.scaling.setAll(scale);
+  }
+
+  private _labelScaleObserver: B.Nullable<B.Observer<B.Scene>> = null;
+
+  private _setupLabelScaleUpdates(): void {
+    // Remove existing observer if any
+    this._stopLabelScaleUpdates();
+    
+    // Set up continuous scale updates
+    this._labelScaleObserver = this.context.scene.onBeforeRenderObservable.add(() => {
+      if (this.hoverLabel && this.hoverLabel.isVisible) {
+        this._updateLabelScale();
+      }
+    });
+  }
+
+  private _stopLabelScaleUpdates(): void {
+    if (this._labelScaleObserver) {
+      this.context.scene.onBeforeRenderObservable.remove(this._labelScaleObserver);
+      this._labelScaleObserver = null;
+    }
   }
 
   public _setVisibleCellColor(row: number, col: number, color: B.Color3): void {
@@ -1032,6 +1097,9 @@ class PianoRollN3DGUI implements Node3DGUI {
       this.context.scene.onPointerObservable.remove(this._clickObserver);
       this._clickObserver = undefined;
     }
+    
+    // Clean up label scale observer
+    this._stopLabelScaleUpdates();
   }
 
   // For bounding volume consumers
