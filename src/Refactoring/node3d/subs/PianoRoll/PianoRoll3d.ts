@@ -15,6 +15,7 @@ import { DrumPadsStrategy } from "./grid/DrumPadsStrategy";
 import { InputManager } from "../../../xr/inputs/InputManager";
 import { XRManager } from "../../../xr/XRManager";
 import { SceneManager } from "../../../app/SceneManager";
+import { XRControllerManager } from "../../../xr/XRControllerManager";
 
 interface PatternNote {
   tick: number;
@@ -65,6 +66,7 @@ const COLOR_BLACK_KEY = new B.Color3(0.1, 0.1, 0.1);
 const COLOR_WHITE_KEY = new B.Color3(1, 1, 1);
 const COLOR_DISABLED = new B.Color3(0.2, 0.2, 0.2);
 const COLOR_BASE_MESH = new B.Color3(0.5, 0.2, 0.2);
+const COLOR_HOVER = new B.Color3(1, 1, 0);
 class PianoRollN3DGUI implements Node3DGUI {
   // Scene / root
   public root: B.TransformNode;
@@ -109,6 +111,10 @@ class PianoRollN3DGUI implements Node3DGUI {
   private thinInstanceColors!: Float32Array;
   private visibleCellMap: Map<number, VisibleCell> = new Map();
   private _clickObserver?: B.Observer<B.PointerInfo>;
+  private _hoveredThinIndex: number | null = null;
+
+  // Hover UI label (e.g., C4)
+  private hoverLabel?: B.Mesh;
 
   // Keyboard strips + labels
   public keyBoard: B.Mesh[] = [];
@@ -124,7 +130,7 @@ class PianoRollN3DGUI implements Node3DGUI {
   constructor(
     public context: Node3DGUIContext,
     s1: GridStrategy = new Piano88Strategy(),
-    s2: DrumPadsStrategy = new DrumPadsStrategy()
+    _s2: DrumPadsStrategy = new DrumPadsStrategy()
   ) {
     const strategy = s1;
     this.strategy = strategy;
@@ -289,8 +295,9 @@ class PianoRollN3DGUI implements Node3DGUI {
         const m = ctx.measureText(text);
         const textW = m.width;
         // approximate text height via metrics if available; fallback to mid
-        // @ts-expect-error metrics may not exist in TS lib
-        const textH = (m.actualBoundingBoxAscent ?? mid) + (m.actualBoundingBoxDescent ?? mid * 0.25);
+        const ascent = (m as any).actualBoundingBoxAscent ?? mid;
+        const descent = (m as any).actualBoundingBoxDescent ?? mid * 0.25;
+        const textH = ascent + descent;
         if (textW <= maxW && textH <= maxH) {
           best = mid;
           lo = mid + 1;
@@ -304,11 +311,10 @@ class PianoRollN3DGUI implements Node3DGUI {
     const fontPx = fitFontSize(availW, availH);
     ctx.font = baseFont.replace(/\d+px/, `${fontPx}px`);
     ctx.fillStyle = options?.textColor ?? "#000";
-    // @ts-expect-error canvas types
-    ctx.textAlign = "center";
-    // @ts-expect-error canvas types
-    ctx.textBaseline = "middle";
-    ctx.fillText(text, W / 2, H / 2);
+    const anyCtx = ctx as any;
+    anyCtx.textAlign = "center";
+    anyCtx.textBaseline = "middle";
+    anyCtx.fillText(text, W / 2, H / 2);
   
     dt.update();
   
@@ -368,7 +374,7 @@ class PianoRollN3DGUI implements Node3DGUI {
     this.noteCell.thinInstanceSetBuffer("matrix", this.thinInstanceMatrices, 16, false);
     this.noteCell.thinInstanceSetBuffer("color",  this.thinInstanceColors,   4,  false);
 
-    this._setupClickHandler();
+    this._setupPointerHandlers();
   }
 
   private _fillVisibleWindowBuffers(): void {
@@ -398,7 +404,7 @@ class PianoRollN3DGUI implements Node3DGUI {
     }
   }
 
-  private _setupClickHandler(): void {
+  private _setupPointerHandlers(): void {
     const scene = this.context.scene;
     if (this._clickObserver) {
       scene.onPointerObservable.remove(this._clickObserver);
@@ -406,15 +412,121 @@ class PianoRollN3DGUI implements Node3DGUI {
     }
 
     this._clickObserver = scene.onPointerObservable.add((pointerInfo) => {
-      if (pointerInfo.type !== B.PointerEventTypes.POINTERPICK) return;
       const p = pointerInfo.pickInfo;
-      if (!p || p.pickedMesh !== this.noteCell || p.thinInstanceIndex == null) return;
+      // Handle hover on move
+      if (pointerInfo.type === B.PointerEventTypes.POINTERMOVE) {
+        if (p && p.pickedMesh === this.noteCell && p.thinInstanceIndex != null) {
+          const cell = this.visibleCellMap.get(p.thinInstanceIndex);
+          if (cell) this._setHover(cell.row, cell.col, p.thinInstanceIndex);
+        } else {
+          // Clear hover when not over a note cell
+          this._clearHover();
+        }
+        return;
+      }
 
-      const cell = this.visibleCellMap.get(p.thinInstanceIndex);
-      if (cell && (this as any).owner) {
-        ((this as any).owner).handleCellClick(cell.row, cell.col);
+      // Handle clicks
+      if (pointerInfo.type === B.PointerEventTypes.POINTERPICK) {
+        if (!p || p.pickedMesh !== this.noteCell || p.thinInstanceIndex == null) return;
+        const cell = this.visibleCellMap.get(p.thinInstanceIndex);
+        if (cell && (this as any).owner) {
+          ((this as any).owner).handleCellClick(cell.row, cell.col);
+        }
       }
     });
+  }
+
+  private _setHover(row: number, col: number, thinIndex: number): void {
+    if (this._hoveredThinIndex === thinIndex) return;
+
+    // restore previous hovered cell color
+    if (this._hoveredThinIndex != null) {
+      const prev = this.visibleCellMap.get(this._hoveredThinIndex);
+      const owner = (this as any).owner as { getCellVisualColor?: (r: number, c: number) => B.Color3 } | undefined;
+      if (prev && owner?.getCellVisualColor) {
+        const base = owner.getCellVisualColor(prev.row, prev.col);
+        const off = this._hoveredThinIndex * 4;
+        this.thinInstanceColors[off + 0] = base.r;
+        this.thinInstanceColors[off + 1] = base.g;
+        this.thinInstanceColors[off + 2] = base.b;
+        this.thinInstanceColors[off + 3] = 1.0;
+      }
+    }
+
+    // set new hovered color
+    const off = thinIndex * 4;
+    this.thinInstanceColors[off + 0] = COLOR_HOVER.r;
+    this.thinInstanceColors[off + 1] = COLOR_HOVER.g;
+    this.thinInstanceColors[off + 2] = COLOR_HOVER.b;
+    this.thinInstanceColors[off + 3] = 1.0;
+    this.noteCell.thinInstanceBufferUpdated("color");
+
+    // Trigger haptic feedback on hover
+    this._triggerHapticFeedback();
+
+    // update label and position it above the specific note cell
+    this._ensureHoverLabel();
+    const label = this._labelTextForRow(row);
+    this._drawHoverLabel((this.hoverLabel!.material as B.StandardMaterial).emissiveTexture as B.DynamicTexture, label);
+    this.hoverLabel!.isVisible = true;
+    this._positionHoverLabelAboveNote(row, col);
+
+    this._hoveredThinIndex = thinIndex;
+  }
+
+  private _clearHover(): void {
+    if (this._hoveredThinIndex == null) {
+      if (this.hoverLabel) this.hoverLabel.isVisible = false;
+      return;
+    }
+
+    const prev = this.visibleCellMap.get(this._hoveredThinIndex);
+    const owner = (this as any).owner as { getCellVisualColor?: (r: number, c: number) => B.Color3 } | undefined;
+    if (prev && owner?.getCellVisualColor) {
+      const base = owner.getCellVisualColor(prev.row, prev.col);
+      const off = this._hoveredThinIndex * 4;
+      this.thinInstanceColors[off + 0] = base.r;
+      this.thinInstanceColors[off + 1] = base.g;
+      this.thinInstanceColors[off + 2] = base.b;
+      this.thinInstanceColors[off + 3] = 1.0;
+      this.noteCell.thinInstanceBufferUpdated("color");
+    }
+    this._hoveredThinIndex = null;
+    if (this.hoverLabel) this.hoverLabel.isVisible = false;
+  }
+
+  private _ensureHoverLabel(): void {
+    if (this.hoverLabel) return;
+    const dt = new B.DynamicTexture("hoverNoteLabelDT", { width: 1024, height: 256 }, this.context.scene, true);
+    dt.hasAlpha = true;
+    const mat = new B.StandardMaterial("hoverNoteLabelMat", this.context.scene);
+    mat.disableLighting = true;
+    mat.emissiveTexture = dt;
+    mat.opacityTexture = dt;
+    mat.alpha = 0.9; // Make it more visible
+
+    const plane = B.MeshBuilder.CreatePlane("hoverNoteLabel", { width: 2, height: 1 }, this.context.scene);
+    plane.material = mat;
+    plane.isPickable = false; // Ensure it doesn't block raycasting
+    plane.parent = this.root;
+    plane.billboardMode = B.AbstractMesh.BILLBOARDMODE_ALL; // Face the camera
+    plane.isVisible = false;
+    plane.renderingGroupId = 1; // Render on top of other objects
+    this.hoverLabel = plane;
+  }
+
+  private _positionHoverLabelAboveNote(row: number, col: number): void {
+    if (!this.hoverLabel) return;
+    
+    // Get the exact position of the hovered note cell
+    const cellPosition = this.getCellLocalPosition(row, col);
+    
+    // Position the label directly above the note cell
+    const x = cellPosition.x; // Same X as the note
+    const y = cellPosition.y + this.buttonHeight * 2; // Above the note cell
+    const z = cellPosition.z; // Same Z as the note
+    
+    this.hoverLabel.position.set(x, y, z);
   }
 
   public _setVisibleCellColor(row: number, col: number, color: B.Color3): void {
@@ -520,11 +632,39 @@ class PianoRollN3DGUI implements Node3DGUI {
 
     ctx.font = "bold 140px sans-serif";
     ctx.fillStyle = this._isSharpLabel(text) ? "#fff" : "#000";
-    // @ts-expect-error canvas types
-    ctx.textAlign = "center";
-    // @ts-expect-error canvas types
-    ctx.textBaseline = "middle";
-    ctx.fillText(text, W / 2, H / 2);
+    const anyCtx = ctx as any;
+    anyCtx.textAlign = "center";
+    anyCtx.textBaseline = "middle";
+    anyCtx.fillText(text, W / 2, H / 2);
+
+    dt.update();
+  }
+
+  private _drawHoverLabel(dt: B.DynamicTexture, text: string): void {
+    const ctx = dt.getContext();
+    const W = dt.getSize().width;
+    const H = dt.getSize().height;
+    ctx.clearRect(0, 0, W, H);
+
+    // Semi-transparent background for better visibility
+    ctx.fillStyle = "rgba(0,0,0,0.8)";
+    ctx.fillRect(0, 0, W, H);
+
+    ctx.font = "bold 200px sans-serif";
+    
+    // Draw text outline for better visibility
+    const anyCtx = ctx as any;
+    anyCtx.textAlign = "center";
+    anyCtx.textBaseline = "middle";
+    
+    // Black outline
+    anyCtx.strokeStyle = "#000000";
+    anyCtx.lineWidth = 8;
+    anyCtx.strokeText(text, W / 2, H / 2);
+    
+    // Bright yellow text
+    anyCtx.fillStyle = "#ffff00";
+    anyCtx.fillText(text, W / 2, H / 2);
 
     dt.update();
   }
@@ -649,7 +789,7 @@ class PianoRollN3DGUI implements Node3DGUI {
   private clearPatternButton(){
     this.btnClearPattern = this.createBox(
       "clearPatternButton",
-      { width: 5, height: 0.2, depth: 0.8 },
+      { width: 5, height: 0.2, depth: 1 },
       B.Color3.Black(),
       new B.Vector3(
         this.startX + (this.buttonWidth + this.buttonSpacing),
@@ -842,6 +982,45 @@ class PianoRollN3DGUI implements Node3DGUI {
     const arrow = this.createUpArrowMesh(scene, name, width, height, depth);
     arrow.rotation.x = Math.PI * 2;
     return arrow;
+  }
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // Haptic Feedback
+
+  private _triggerHapticFeedback(): void {
+    try {
+      const xrManager = XRManager.getInstance();
+      const scene = this.context.scene;
+
+      const left = xrManager.xrInputManager.leftController;
+      const right = xrManager.xrInputManager.rightController;
+
+      if (!left && !right) return;
+
+      // Cast a short ray from each controller to detect which is actually over the note grid
+      const maxLen = 100;
+      const isNoteCellHit = (pick: B.Nullable<B.PickingInfo>): boolean => !!(pick?.hit && pick.pickedMesh === this.noteCell);
+
+      if (left) {
+        const lray = new B.Ray(left.pointer.position, left.pointer.forward, maxLen);
+        const lpick = scene.pickWithRay(lray);
+        if (isNoteCellHit(lpick)) {
+          XRControllerManager.Instance.triggerHapticFeedback('left', 0.3, 50);
+          return; // Only one controller should vibrate per hover event
+        }
+      }
+
+      if (right) {
+        const rray = new B.Ray(right.pointer.position, right.pointer.forward, maxLen);
+        const rpick = scene.pickWithRay(rray);
+        if (isNoteCellHit(rpick)) {
+          XRControllerManager.Instance.triggerHapticFeedback('right', 0.3, 50);
+          return;
+        }
+      }
+    } catch (error) {
+      console.warn("Haptic feedback not available:", error);
+    }
   }
 
   // ───────────────────────────────────────────────────────────────────────────
@@ -1147,12 +1326,12 @@ im.left_thumbstick.on_value_change.add(({ x, y }) => {
 });
   }
 
-  private onInstrumentConnected(wamNode: WamNode) {
+  private onInstrumentConnected(_wamNode: WamNode) {
     // Handle new instrument connection
     // You can check wamNode.moduleId to determine instrument type
 }
 
-private onInstrumentDisconnected(wamNode: WamNode) {
+private onInstrumentDisconnected(_wamNode: WamNode) {
     // Handle instrument disconnection
 }
 
