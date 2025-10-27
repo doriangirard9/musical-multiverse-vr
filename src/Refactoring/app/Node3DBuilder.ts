@@ -111,13 +111,15 @@ export class Node3DBuilder {
         )
 
         // Get WAMs configs from server
-        const config_ids = await fetch(`${WAM_CONFIGS_URL}/wamsConfig`,{method:"get",headers:{"Content-Type":"application/json"}})
-        if(config_ids.ok){
-            const ids: string[] = await config_ids.json()
-            for(const id of ids){
-                this.FACTORY_KINDS = [id, ...this.FACTORY_KINDS]
+        try{
+            const config_ids = await fetch(`${WAM_CONFIGS_URL}/wamsConfig`,{method:"get",headers:{"Content-Type":"application/json"}})
+            if(config_ids.ok){
+                const ids: string[] = await config_ids.json()
+                for(const id of ids){
+                    this.FACTORY_KINDS = [id, ...this.FACTORY_KINDS]
+                }
             }
-        }
+        }catch(_){}
     }
 
     private async instantiateNode3d(factory: Node3DFactory<any,any>): Promise<Node3DInstance> {
