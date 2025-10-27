@@ -158,6 +158,7 @@ export class N3DConnectionInstance{
                 diameterTop: 0,
                 tessellation: 6,
             },this.scene)
+            SceneManager.getInstance().getShadowGenerator().addShadowCaster(this.arrow, false)
             MeshUtils.setColor(this.arrow, this.color)
         }
         MeshUtils.setColor(this.tube, this.color)
