@@ -26,7 +26,7 @@ export class Node3DBuilder {
      * Some of the valid kinds of Node3D.
      */
     FACTORY_KINDS = [
-        "audiooutput", "sequencer", "oscillator", "maracas", "livepiano", "notesbox","pianoroll","drumsampler",
+        "audiooutput", "oscillator", "maracas", "livepiano", "notesbox","pianoroll",
         ...Object.keys(examples).map(k => `wam3d-${k}`),
     ]
 
@@ -39,7 +39,6 @@ export class Node3DBuilder {
         if(kind=="livepiano") return LivePianoN3DFactory
         if(kind=="notesbox") return NoteBoxN3DFactory
         if(kind=="pianoroll") return PianoRollN3DFactory
-        if(kind=="drumsampler") return WamSamplerN3DFactory
 
         // Wam3DGenerator examples
         if(kind.startsWith("wam3d-")) {

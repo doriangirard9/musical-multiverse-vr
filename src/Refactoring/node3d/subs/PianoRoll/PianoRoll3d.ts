@@ -1661,7 +1661,7 @@ private onInstrumentDisconnected(wamNode: WamNode) {
 export const PianoRollN3DFactory: Node3DFactory<PianoRollN3DGUI, PianoRollN3D> = {
   label: "pianoroll",
   description : "3D Piano Roll Sequencer, sources WAM from sequencer.party",
-  tags: ["wam", "midi", "sequencer", "piano roll"],
+  tags: ["wam", "midi", "sequencer", "pianoroll", "generator"],
   async createGUI(context) { return new PianoRollN3DGUI(context) },
   async create(context, gui) { return new PianoRollN3D(context, gui) },
 }
