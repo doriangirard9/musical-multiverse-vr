@@ -13,7 +13,6 @@ import { LivePianoN3DFactory } from "../node3d/subs/LivePianoN3D.ts";
 import {NoteBoxN3DFactory} from "../node3d/subs/NoteBoxN3D.ts";
 import { SpeakerN3DFactory } from "../node3d/subs/speaker/SpeakerN3D.ts";
 import {PianoRollN3DFactory} from "../node3d/subs/PianoRoll/PianoRoll3d.ts";
-import { WamSamplerN3DFactory } from "../node3d/subs/drumSampler.ts";
 
 
 
@@ -92,19 +91,27 @@ export class Node3DBuilder {
         return await this.instantiateNode3d(factory)
     }
 
-    shared: N3DShared|null = null
+    private shared: N3DShared|null = null
 
-    private async instantiateNode3d(factory: Node3DFactory<any,any>): Promise<Node3DInstance> {
+    public getShared(): N3DShared {
+        if(this.shared==null){
+            throw new Error("Node3DBuilder not initialized. Call init() before using getShared().")
+        }
+        return this.shared
+    }
 
-        const shared = this.shared ??= new N3DShared(
+    public async init(): Promise<void> {
+        this.shared = new N3DShared(
             SceneManager.getInstance().getScene(),
             SceneManager.getInstance().getShadowGenerator(),
             Node3dManager.getInstance().getAudioContext(),
             Node3dManager.getInstance().getAudioEngine(),
             (await WamInitializer.getInstance(Node3dManager.getInstance().getAudioContext()).getHostGroupId())[0]
         )
+    }
 
-        const instance = new Node3DInstance(shared, factory)
+    private async instantiateNode3d(factory: Node3DFactory<any,any>): Promise<Node3DInstance> {
+        const instance = new Node3DInstance(this.getShared(), factory)
         await instance.instantiate()
         return instance
     }

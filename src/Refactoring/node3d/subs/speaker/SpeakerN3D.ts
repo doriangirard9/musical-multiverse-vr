@@ -164,7 +164,7 @@ export class SpeakerPannerNodeN3D implements Node3D{
                 [audioCtx.listener.upZ, -player_up.z],
             ] as [AudioParam,number][]){
                 // setTargetAtTime change le paramètre de manière progressive et évite les "pop"
-                parameter.setTargetAtTime(value, audioCtx.currentTime, 0.01)
+                parameter.setTargetAtTime(value, audioCtx.currentTime, 40/1000)
             }
         },50)
 
