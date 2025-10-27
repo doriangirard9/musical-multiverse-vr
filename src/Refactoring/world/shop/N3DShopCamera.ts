@@ -139,7 +139,8 @@ export class N3DShopCamera implements N3DShopType {
                 let observer = camera.getScene().onAfterAnimationsObservable.add(()=>{
                     const advancement = Math.min(1, (Date.now() - startTime) / TRANSITION_TIME)
                     camera.position.copyFrom(Vector3.Lerp(fromPosition, toPosition, advancement))
-                    camera.rotation.copyFrom(Vector3.Lerp(fromRotation, toRotation, advancement))
+                    if(camera.rotationQuaternion) camera.rotation = camera.rotationQuaternion.toEulerAngles()
+                    camera.rotation.y = Vector3.Lerp(fromRotation, toRotation, advancement).y
                     camera.rotationQuaternion = camera.rotation.toQuaternion()
                     if(advancement>=1){
                         observer.remove()
@@ -150,7 +151,8 @@ export class N3DShopCamera implements N3DShopType {
         }
         else{
             camera.position.copyFrom(toPosition)
-            camera.rotation.copyFrom(toRotation)
+            if(camera.rotationQuaternion) camera.rotation = camera.rotationQuaternion.toEulerAngles()
+            camera.rotation.y = toRotation.y
             camera.rotationQuaternion = camera.rotation.toQuaternion()
         }
         
