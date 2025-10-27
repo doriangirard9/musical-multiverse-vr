@@ -126,10 +126,10 @@ export class SpeakerPannerNodeN3D implements Node3D{
         
         // Configuration du PannerNode pour une spatialisation correcte en VR
         pannerNode.panningModel = 'HRTF'
-        pannerNode.distanceModel = 'inverse'
-        pannerNode.refDistance = 1 // Distance de référence pour réduire le volume
-        pannerNode.maxDistance = 100 // Distance maximale à laquelle le son sera réduit, passé cette distance le son ne sera pas réduit
-        pannerNode.rolloffFactor = 0.5 // Vitesse de décroissance du volume en fonction de la distance
+        pannerNode.distanceModel = 'exponential'
+        pannerNode.refDistance = 5 // Distance de référence pour réduire le volume
+        pannerNode.maxDistance = 200 // Distance maximale à laquelle le son sera réduit, passé cette distance le son ne sera pas réduit
+        pannerNode.rolloffFactor = 3 // Vitesse de décroissance du volume en fonction de la distance
 
         pannerNode.connect(audioCtx.destination)
 
@@ -164,7 +164,7 @@ export class SpeakerPannerNodeN3D implements Node3D{
                 [audioCtx.listener.upZ, -player_up.z],
             ] as [AudioParam,number][]){
                 // setTargetAtTime change le paramètre de manière progressive et évite les "pop"
-                parameter.setTargetAtTime(value, audioCtx.currentTime, 0.01)
+                parameter.setTargetAtTime(value, audioCtx.currentTime, 40/1000)
             }
         },50)
 

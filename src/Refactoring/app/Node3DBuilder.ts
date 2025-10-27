@@ -13,7 +13,6 @@ import { LivePianoN3DFactory } from "../node3d/subs/LivePianoN3D.ts";
 import {NoteBoxN3DFactory} from "../node3d/subs/NoteBoxN3D.ts";
 import { SpeakerN3DFactory } from "../node3d/subs/speaker/SpeakerN3D.ts";
 import {PianoRollN3DFactory} from "../node3d/subs/PianoRoll/PianoRoll3d.ts";
-import { WamSamplerN3DFactory } from "../node3d/subs/drumSampler.ts";
 
 
 
@@ -26,7 +25,7 @@ export class Node3DBuilder {
      * Some of the valid kinds of Node3D.
      */
     FACTORY_KINDS = [
-        "audiooutput", "sequencer", "oscillator", "maracas", "livepiano", "notesbox","pianoroll","drumsampler",
+        "audiooutput", "oscillator", "maracas", "livepiano", "notesbox","pianoroll",
         ...Object.keys(examples).map(k => `wam3d-${k}`),
     ]
 
@@ -39,7 +38,6 @@ export class Node3DBuilder {
         if(kind=="livepiano") return LivePianoN3DFactory
         if(kind=="notesbox") return NoteBoxN3DFactory
         if(kind=="pianoroll") return PianoRollN3DFactory
-        if(kind=="drumsampler") return WamSamplerN3DFactory
 
         // Wam3DGenerator examples
         if(kind.startsWith("wam3d-")) {
@@ -93,11 +91,18 @@ export class Node3DBuilder {
         return await this.instantiateNode3d(factory)
     }
 
-    shared: N3DShared|null = null
+    private shared: N3DShared|null = null
 
-    private async instantiateNode3d(factory: Node3DFactory<any,any>): Promise<Node3DInstance> {
+    public getShared(): N3DShared {
+        if(this.shared==null){
+            throw new Error("Node3DBuilder not initialized. Call init() before using getShared().")
+        }
+        return this.shared
+    }
 
-        const shared = this.shared ??= new N3DShared(
+    public async init(): Promise<void> {
+
+        this.shared = new N3DShared(
             SceneManager.getInstance().getScene(),
             SceneManager.getInstance().getShadowGenerator(),
             Node3dManager.getInstance().getAudioContext(),
@@ -105,7 +110,18 @@ export class Node3DBuilder {
             (await WamInitializer.getInstance(Node3dManager.getInstance().getAudioContext()).getHostGroupId())[0]
         )
 
-        const instance = new Node3DInstance(shared, factory)
+        // Get WAMs configs from server
+        const config_ids = await fetch(`${WAM_CONFIGS_URL}/wamsConfig`,{method:"get",headers:{"Content-Type":"application/json"}})
+        if(config_ids.ok){
+            const ids: string[] = await config_ids.json()
+            for(const id of ids){
+                this.FACTORY_KINDS = [id, ...this.FACTORY_KINDS]
+            }
+        }
+    }
+
+    private async instantiateNode3d(factory: Node3DFactory<any,any>): Promise<Node3DInstance> {
+        const instance = new Node3DInstance(this.getShared(), factory)
         await instance.instantiate()
         return instance
     }
