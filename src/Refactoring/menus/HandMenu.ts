@@ -164,6 +164,14 @@ export class HandMenu {
         mat.diffuseColor.set(1, 0, 0);
         btn.material = mat;
         
+        // Create label that will be updated
+        const label = this.createLabelForMesh(btn, "Paused", {
+            textColor: "#fff",
+            width: 0.015,  // Make label smaller to fit button
+            height: 0.005,
+            padding: 0.001
+        });
+        
         // add action to button to toggle a behavior on the this.handmenu
         btn.actionManager = new ActionManager(this.scene);
           if (!btn.actionManager)
@@ -174,11 +182,176 @@ export class HandMenu {
                 this.transport.toggle();
                 const mat = btn.material as StandardMaterial;
                 mat.diffuseColor = this.transport.getPlaying() ? Color3.Green() : Color3.Red();
+                
+                // Update label text based on transport state
+                this.updateLabelText(label, this.transport.getPlaying() ? "Playing" : "Paused");
               })
             );
-
     }
 
+    /**
+     * Create a text label and attach it to a single mesh.
+     * - Uses DynamicTexture (same approach as keyboard labels).
+     * - By default, positions slightly above the mesh center on Y.
+     */
+    public createLabelForMesh(
+        target: B.Mesh,
+        text: string,
+        options?: {
+            textColor?: string;
+            background?: string;
+            // If not provided, the plane will auto-fit the mesh top face (X/Z)
+            width?: number;    // plane width in target local space (maps to X when rotated flat)
+            height?: number;   // plane height in target local space (maps to Z when rotated flat)
+            font?: string;     // base font family/weight, size will be auto-fit
+            offset?: B.Vector3;
+            textureSize?: { width: number; height: number };
+            rotateFlatLikeKeyboard?: boolean; // default true
+            padding?: number;  // padding on plane in local units (applied on X/Z)
+            textPaddingPx?: number; // padding inside the texture in pixels
+        }
+    ): B.Mesh {
+        const scene = this.scene;
+    
+        // Local half-extents of target (X, Y, Z) in target space
+        const bi = target.getBoundingInfo();
+        const ext = bi?.boundingBox.extendSize ?? new B.Vector3(0.5, 0.5, 0.5);
+    
+        // Plane should cover the top face: width -> X, height -> Z (since we rotate it flat)
+        const padding = options?.padding ?? 0.02;
+        const planeWidth  = options?.width  ?? Math.max(0.05, ext.x * 2 - padding * 2);
+        const planeHeight = options?.height ?? Math.max(0.05, ext.z * 2 - padding * 2);
+    
+        const dtSize = options?.textureSize ?? { width: 1024, height: 512 }; // higher res to keep text crisp
+        const dt = new B.DynamicTexture(`meshLabelDT_${target.name}_${Date.now()}`, dtSize, scene, true);
+        dt.hasAlpha = true;
+    
+        const mat = new B.StandardMaterial(`meshLabelMat_${target.name}_${Date.now()}`, scene);
+        mat.disableLighting = true;
+        mat.emissiveTexture = dt;
+        mat.opacityTexture  = dt;
+    
+        const plane = B.MeshBuilder.CreatePlane(
+            `meshLabel_${target.name}_${Date.now()}`,
+            { width: planeWidth, height: planeHeight },
+            scene
+        );
+        plane.material   = mat;
+        plane.isPickable = false;
+    
+        // Attach to mesh and place just above the top surface
+        plane.parent = target;
+        const defaultOffset = new B.Vector3(0, ext.y + 0.001, 0); // tiny lift to avoid z-fighting
+        plane.position.copyFrom(options?.offset ?? defaultOffset);
+    
+        // Match keyboard behavior: fixed to mesh, lying flat
+        plane.billboardMode = B.AbstractMesh.BILLBOARDMODE_NONE;
+        if (options?.rotateFlatLikeKeyboard !== false) {
+            plane.rotation.x = Math.PI / 2;
+        }
+    
+        // Draw text and auto-fit inside the texture with padding
+        const ctx = dt.getContext();
+        const W = dt.getSize().width;
+        const H = dt.getSize().height;
+        const textPadding = options?.textPaddingPx ?? Math.floor(Math.min(W, H) * 0.08);
+        const availW = W - textPadding * 2;
+        const availH = H - textPadding * 2;
+    
+        ctx.clearRect(0, 0, W, H);
+        ctx.fillStyle = options?.background ?? "rgba(255,255,255,0)";
+        ctx.fillRect(0, 0, W, H);
+    
+        // Auto-fit font size to available width/height
+        const baseFont = options?.font ?? "bold 300px sans-serif";
+        const fitFontSize = (maxW: number, maxH: number): number => {
+            // quick binary search for font size
+            let lo = 10, hi = 400, best = 10;
+            while (lo <= hi) {
+                const mid = Math.floor((lo + hi) / 2);
+                ctx.font = baseFont.replace(/\d+px/, `${mid}px`);
+                const m = ctx.measureText(text);
+                const textW = m.width;
+                // approximate text height via metrics if available; fallback to mid
+                const ascent = (m as any).actualBoundingBoxAscent ?? mid;
+                const descent = (m as any).actualBoundingBoxDescent ?? mid * 0.25;
+                const textH = ascent + descent;
+                if (textW <= maxW && textH <= maxH) {
+                    best = mid;
+                    lo = mid + 1;
+                } else {
+                    hi = mid - 1;
+                }
+            }
+            return best;
+        };
+    
+        const fontPx = fitFontSize(availW, availH);
+        ctx.font = baseFont.replace(/\d+px/, `${fontPx}px`);
+        ctx.fillStyle = options?.textColor ?? "#000";
+        const anyCtx = ctx as any;
+        anyCtx.textAlign = "center";
+        anyCtx.textBaseline = "middle";
+        anyCtx.fillText(text, W / 2, H / 2);
+    
+        dt.update();
+    
+        return plane;
+    }
+
+    /**
+     * Update the text of an existing label mesh
+     */
+    private updateLabelText(labelMesh: B.Mesh, newText: string): void {
+        const material = labelMesh.material as B.StandardMaterial;
+        if (!material || !material.emissiveTexture) return;
+        
+        const dt = material.emissiveTexture as B.DynamicTexture;
+        const ctx = dt.getContext();
+        const W = dt.getSize().width;
+        const H = dt.getSize().height;
+        
+        // Clear and redraw with new text
+        ctx.clearRect(0, 0, W, H);
+        ctx.fillStyle = "rgba(255,255,255,0)";
+        ctx.fillRect(0, 0, W, H);
+        
+        // Use the same font sizing logic as createLabelForMesh
+        const textPadding = Math.floor(Math.min(W, H) * 0.08);
+        const availW = W - textPadding * 2;
+        const availH = H - textPadding * 2;
+        
+        const baseFont = "bold 300px sans-serif";
+        const fitFontSize = (maxW: number, maxH: number): number => {
+            let lo = 10, hi = 400, best = 10;
+            while (lo <= hi) {
+                const mid = Math.floor((lo + hi) / 2);
+                ctx.font = baseFont.replace(/\d+px/, `${mid}px`);
+                const m = ctx.measureText(newText);
+                const textW = m.width;
+                const ascent = (m as any).actualBoundingBoxAscent ?? mid;
+                const descent = (m as any).actualBoundingBoxDescent ?? mid * 0.25;
+                const textH = ascent + descent;
+                if (textW <= maxW && textH <= maxH) {
+                    best = mid;
+                    lo = mid + 1;
+                } else {
+                    hi = mid - 1;
+                }
+            }
+            return best;
+        };
+        
+        const fontPx = fitFontSize(availW, availH);
+        ctx.font = baseFont.replace(/\d+px/, `${fontPx}px`);
+        ctx.fillStyle = "#fff";
+        const anyCtx = ctx as any;
+        anyCtx.textAlign = "center";
+        anyCtx.textBaseline = "middle";
+        anyCtx.fillText(newText, W / 2, H / 2);
+        
+        dt.update();
+    }
 
     public dispose() {
         if (this.beforeRenderObs) {
