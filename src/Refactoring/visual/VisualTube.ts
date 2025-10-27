@@ -120,7 +120,7 @@ export class VisualTube{
 
     static getSyncManager(scene: Scene, doc: Doc){
         const syncmanager: SyncManager<VisualTube,any> = new SyncManager({
-            name: "node3d_connections",
+            name: "visual_tubes",
             doc,
             async create() { return new VisualTube(scene, syncmanager) },
             async on_add(instance) { instance.on_dispose = ()=> syncmanager.remove(instance) },
