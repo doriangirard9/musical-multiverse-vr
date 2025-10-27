@@ -209,6 +209,8 @@ export class XRInputManager {
         }
 
         XRControllerManager.Instance.updateLeftControllerStates(this.leftInputStates);
+        // Set the input source for haptic feedback
+        XRControllerManager.Instance.setInputSource('left', controller.inputSource);
     }
 
     /**
@@ -229,6 +231,8 @@ export class XRInputManager {
         }
 
         XRControllerManager.Instance.updateRightControllerStates(this.rightInputStates);
+        // Set the input source for haptic feedback
+        XRControllerManager.Instance.setInputSource('right', controller.inputSource);
     }
 
     /**

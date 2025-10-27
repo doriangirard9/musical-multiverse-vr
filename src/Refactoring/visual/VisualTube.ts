@@ -1,4 +1,4 @@
-import { Color3, Color4, CreateCylinder, Quaternion, Scene, Vector3, VertexBuffer } from "@babylonjs/core"
+import { Color4, CreateCylinder, Quaternion, Scene, Vector3, VertexBuffer } from "@babylonjs/core"
 import { SyncSerializable } from "../network/sync/SyncSerializable"
 import { Doc } from "yjs"
 import { SyncManager } from "../network/sync/SyncManager"
@@ -120,7 +120,7 @@ export class VisualTube{
 
     static getSyncManager(scene: Scene, doc: Doc){
         const syncmanager: SyncManager<VisualTube,any> = new SyncManager({
-            name: "visual_tubes",
+            name: "visual_connection",
             doc,
             async create() { return new VisualTube(scene, syncmanager) },
             async on_add(instance) { instance.on_dispose = ()=> syncmanager.remove(instance) },

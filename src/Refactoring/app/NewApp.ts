@@ -80,12 +80,15 @@ export class NewApp {
 
         menu.plane.position.set(0, 1.5, 1)*/
 
-        await (await this.audioManager!!.createNode3d("notesbox"))?.dispose()
+        await this.audioManager!!.builder.init()
 
-        const shared = this.audioManager?.builder?.shared!!
+        const shared = this.audioManager?.builder?.getShared()!!
 
-        window.addEventListener("keydown",e=>{
-            if(e.key=="y")XRManager.getInstance().xrHelper.baseExperience.camera.position.set(0, 1.6, 0)
+        window.addEventListener("keydown",async(e)=>{
+            if(e.key=="p"){
+                let prompt = window.prompt("Enter Node3D kind to create:")
+                if(prompt) this.audioManager?.createNode3d(prompt)
+            }
         })
 
         // setTimeout(()=>Inspector.Show(scene,{}), 10000)
