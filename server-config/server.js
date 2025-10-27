@@ -27,7 +27,7 @@ app.use(express.static(__dirname + "/public"));
 // Middleware to set headers for all responses
 app.use((req, res, next) => {
     res.setHeader('Content-Type', 'application/json');
-    res.setHeader('Access-Control-Allow-Origin', req.headers.origin);
+    if(req.headers.origin)res.setHeader('Access-Control-Allow-Origin', req.headers.origin);
     next();
 });
 app.get('/coreConfig/:name', (req, res) => {
@@ -54,6 +54,19 @@ app.get('/wamsConfig/:name', (req, res) => {
         res.status(200).json(data).end();
       });
  })
+
+ app.get('/wamsConfig/', (req, res) => {
+    const directoryPath = path.join(__dirname, '/public/wamsConfig/');
+    fs.readdir(directoryPath, (err, files) => {
+        if (err) {
+            console.error("Error reading directory:", err);
+            res.status(500).send("Error reading directory").end();
+            return;
+        }
+        const jsonFiles = files .filter(file => file.endsWith('.json')) .map(file => file.replace('.json', ''));
+        res.status(200).json(jsonFiles).end();
+    });
+})
 
 const httpsServer = https.createServer(credentials, app)
 httpsServer.listen(port, () => {

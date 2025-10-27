@@ -101,6 +101,7 @@ export class Node3DBuilder {
     }
 
     public async init(): Promise<void> {
+
         this.shared = new N3DShared(
             SceneManager.getInstance().getScene(),
             SceneManager.getInstance().getShadowGenerator(),
@@ -108,6 +109,15 @@ export class Node3DBuilder {
             Node3dManager.getInstance().getAudioEngine(),
             (await WamInitializer.getInstance(Node3dManager.getInstance().getAudioContext()).getHostGroupId())[0]
         )
+
+        // Get WAMs configs from server
+        const config_ids = await fetch(`${WAM_CONFIGS_URL}/wamsConfig`,{method:"get",headers:{"Content-Type":"application/json"}})
+        if(config_ids.ok){
+            const ids: string[] = await config_ids.json()
+            for(const id of ids){
+                this.FACTORY_KINDS = [id, ...this.FACTORY_KINDS]
+            }
+        }
     }
 
     private async instantiateNode3d(factory: Node3DFactory<any,any>): Promise<Node3DInstance> {
