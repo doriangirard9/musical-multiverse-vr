@@ -26,7 +26,7 @@ export class Node3DBuilder {
      * Some of the valid kinds of Node3D.
      */
     FACTORY_KINDS = [
-        "audiooutput", "sequencer", "oscillator", "maracas", "livepiano", "notesbox","pianoroll","drumsampler",
+        "audiooutput", "sequencer", "oscillator", "maracas", "livepiano", "notesbox","pianoroll","drumsampler","pro54michel",
         ...Object.keys(examples).map(k => `wam3d-${k}`),
     ]
 
