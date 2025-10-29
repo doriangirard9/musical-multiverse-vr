@@ -4,8 +4,8 @@ import { Node3DGUI } from "../node3d/Node3D";
 import { N3DHighlighter } from "../node3d/instance/utils/N3DHighlighter";
 import { Node3dManager } from "../app/Node3dManager";
 import { Node3DInstance } from "../node3d/instance/Node3DInstance";
-import {SpeakerN3DGUI} from "../node3d/subs/speaker/SpeakerN3D.ts";
-import {N3DText} from "../node3d/instance/utils/N3DText.ts";
+import { N3DText } from "../node3d/instance/utils/N3DText";
+import { HoldableBehaviour } from "../behaviours/boundingBox/HoldableBehaviour";
 
 
 /**
@@ -17,7 +17,11 @@ export class N3DPreviewer{
     root
     gui!: Node3DGUI
     highlighter!: N3DHighlighter
-    private text: N3DText;
+    drag!: HoldableBehaviour
+    text!: N3DText
+    on_start_drag?: ()=>void
+    on_drop?: (node3d:Node3DInstance)=>void
+    on_no_drop?: ()=>void
 
     constructor(
         private shared: N3DShared,
@@ -35,17 +39,7 @@ export class N3DPreviewer{
 
         // Intialize the GUI visual
         const highlighter = this.highlighter = new N3DHighlighter(shared.highlightLayer)
-        const gui = this.gui = await factory.createGUI({
-            babylon: shared.babylon,
-            highlight: (...args)=>highlighter.highlight(...args),
-            unhighlight: (...args)=>highlighter.unhighlight(...args),
-            materialLight: shared.materialLight,
-            materialMat: shared.materialMat,
-            materialMetal: shared.materialMetal,
-            materialShiny: shared.materialShiny,
-            scene: shared.scene,
-            tools: shared.tools
-        })
+        const gui = this.gui = await factory.createGUI({...highlighter.binded(), ...shared})
         if(this.inWorldSize)gui.root.scaling.setAll(gui.worldSize*Node3DInstance.SIZE_MULTIPLIER)
 
         // Create a hitbox
@@ -54,58 +48,55 @@ export class N3DPreviewer{
         const hitbox = CreateBox("preview hitbox", {size}, shared.scene)
         hitbox.visibility = .3
 
+        // Create a text display
+        const text = this.text = new N3DText(`n3preview ${this.kind} name`, [hitbox])
+        text.set(factory.label)
+
         gui.root.parent = hitbox
         hitbox.parent = this.root
 
-        if (gui instanceof SpeakerN3DGUI) gui.falloffSphere.visibility = 0;
         // On drag, create a new node3D
-        const drag_behaviour = new PointerDragBehavior()
+        const drag_behaviour = this.drag = new HoldableBehaviour()
         hitbox.addBehavior(drag_behaviour)
 
-        drag_behaviour.onDragStartObservable.add(async()=>{
+        drag_behaviour.onGrabObservable.add(async()=>{
+            this.on_start_drag?.()
             setTimeout(function timefn(){
-                
-                if(drag_behaviour.dragging){
+                if(drag_behaviour.isDragging){
                     hitbox.scaling.setAll(hitbox.scaling.y*.9+gui.worldSize*Node3DInstance.SIZE_MULTIPLIER*.1)
                     setTimeout(timefn,20)
                 }
             },20)
         })
 
-        drag_behaviour.onDragEndObservable.add(async()=>{
+        drag_behaviour.onReleaseObservable.add(async()=>{
             const dragDistance = hitbox.position.length()
-            if(dragDistance>4){
-                console.log(dragDistance)
-                console.log("node3dManager",this.node3DManager)
+            if(dragDistance>hitbox.getBoundingInfo().boundingBox.extendSizeWorld.x*2){
                 const new_node3d = await this.node3DManager.createNode3d(this.kind)
                 if(new_node3d!=null){
                     new_node3d.boundingBoxMesh.setAbsolutePosition(hitbox.absolutePosition.clone())
+                    new_node3d.boundingBoxMesh.rotationQuaternion = hitbox.absoluteRotationQuaternion
+                    this.on_drop?.(new_node3d)
                 }
+                else this.on_no_drop?.()
             }
-            drag_behaviour.dragging = false
+            else this.on_no_drop?.()
             hitbox.position.setAll(0)
+            hitbox.rotationQuaternion?.set(0,0,0,1)
+            hitbox.rotation.setAll(0)
             if(!this.inWorldSize)hitbox.scaling.setAll(1)
         })
 
         const action = hitbox.actionManager ??= new ActionManager()
         action.registerAction(new ExecuteCodeAction(ActionManager.OnPointerOverTrigger, ()=>{
             this.shared.highlightLayer.addMesh(hitbox, Color3.Green())
-
-            const text = this.text = new N3DText(this.kind, [hitbox])
-            text.set(this.kind)
             text.updatePosition()
-            text.plane.position.y -= 0.5
             text.show()
-
         }))!!
         
         action.registerAction(new ExecuteCodeAction(ActionManager.OnPointerOutTrigger, ()=>{
             this.shared.highlightLayer.removeMesh(hitbox)
-            if(this.text){
-                this.text.hide()
-                this.text.dispose()
-                this.text = undefined as any
-            }
+            text.hide()
         }))!!
     }
 
@@ -113,5 +104,6 @@ export class N3DPreviewer{
         this.highlighter.dispose()
         this.gui.dispose()
         this.root.dispose()
+        this.text.dispose()
     }
 }

@@ -20,7 +20,7 @@ export class SyncBlock implements Synchronized{
         this.mesh.rotationQuaternion = Quaternion.Identity()
         this.mesh.addBehavior(dragBehavior)
 
-        const actionManager = this.mesh.actionManager = new ActionManager(scene)
+        const actionManager ??= this.mesh.actionManager ??= new ActionManager(scene)
         actionManager.registerAction(new ExecuteCodeAction(ActionManager.OnRightPickTrigger, ()=>{
             this.color = Color3.Random()
             this.set_states("color")

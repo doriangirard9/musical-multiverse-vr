@@ -2,9 +2,17 @@ import { AbstractMesh, Vector3, type Mesh, type TransformNode } from "@babylonjs
 import { Node3D, Node3DFactory, Node3DGUI } from "../../Node3D";
 import { Node3DContext } from "../../Node3DContext";
 import { Node3DGUIContext } from "../../Node3DGUIContext";
+import { AbstractSoundSource } from "@babylonjs/core/AudioV2/abstractAudio/abstractSoundSource";
+
+
+const USE_AUDIO_ENGINE = false
 
 const SPEAKER_URL = (await import("./speaker.glb?url")).default
 
+/*
+    AJOUTER UN PARAM GAIN AVEC UN PARAMETRE CYLINDRE ROTATIF POUR GERER LE SON
+    SPATIALISATION NE FONCTIONNE PLUS, PEUT ETRE PARAM BABYLON A AJOUTER ?
+*/
 
 export class SpeakerN3DGUI implements Node3DGUI{
     
@@ -32,10 +40,11 @@ export class SpeakerN3DGUI implements Node3DGUI{
 
         /* FallOff selon l'idée de michel, il veut que ça soit tout le temps visible,
            au départ je voulais afficher uniquement si on drag puis uniquement si on est a l'extérieur
-           mais de ce qu'il ma dit en visio c'est plus un truc comme ça qu'il imagine (même
-           si ça rend très moche je trouve 3 outputs dans le monde = horrible)
+           mais de ce qu'il ma dit en visio c'est plus un truc comme ça qu'il imagine
          */
+        
         this.falloffSphere = B.CreateSphere("audio output falloff", {diameter:50}, context.scene)
+        this.falloffSphere.setEnabled(false)
         const material = new B.StandardMaterial("falloffSphereMaterial", context.scene)
         material.diffuseColor = new B.Color3(1, 0, 0)
         material.alpha = 0.1 // transparence
@@ -43,6 +52,11 @@ export class SpeakerN3DGUI implements Node3DGUI{
         this.falloffSphere.material = material // besoin de créé un autre mat sinon je ne peux pas accéder à BackfaceCulling
         this.falloffSphere.isPickable = false
         this.falloffSphere.parent = this.root
+        
+    }
+
+    doShowFalloff(shown: boolean){
+        this.falloffSphere.setEnabled(shown)
     }
 
     async dispose(){ }
@@ -51,24 +65,73 @@ export class SpeakerN3DGUI implements Node3DGUI{
 
 export class SpeakerN3D implements Node3D{
 
-    pannerNode
-    audioCtx
-    interval
+    node!: AudioNode
+    audioCtx!: AudioContext
+    source!: AbstractSoundSource
 
-    constructor(context: Node3DContext, gui: SpeakerN3DGUI){
-        const {tools:{AudioN3DConnectable}, audioCtx} = context
+    constructor(){}
+
+    async init(context: Node3DContext, gui: SpeakerN3DGUI){
+        const {tools:{AudioN3DConnectable}, audioCtx, audioEngine} = context
+
+        gui.doShowFalloff(true)
 
         this.audioCtx = audioCtx
 
         context.addToBoundingBox(gui.speaker)
-        const pannerNode = this.pannerNode = audioCtx.createPanner()
+        const node = this.node = audioCtx.createGain()
+        const source = this.source = await audioEngine.createSoundSourceAsync("speaker", node, {
+            spatialMaxDistance: 25,
+        })
+        source.spatial.attach(gui.root)
 
+        context.createConnectable(new AudioN3DConnectable.Input("audioInput", [gui.audioInput], "Destination", node))
+
+        return this
+    }
+
+    
+
+    async setState(_1: string, _2: any){ }
+
+    async getState(_1: string){ }
+
+    getStateKeys(): string[] { return [] }
+    
+    async dispose(){
+        this.source.dispose()
+    }
+
+}
+
+export class SpeakerPannerNodeN3D implements Node3D{
+
+    node!: AudioNode
+    audioCtx!: AudioContext
+    interval: any
+    pannerNode!: PannerNode
+
+    constructor(){}
+
+    async init(context: Node3DContext, gui: SpeakerN3DGUI){
+        const {tools:{AudioN3DConnectable}, audioCtx, audioEngine} = context
+
+        gui.doShowFalloff(true)
+
+        this.audioCtx = audioCtx
+
+        context.addToBoundingBox(gui.speaker)
+
+        const pannerNode = this.pannerNode = audioCtx.createPanner()
+        
         // Configuration du PannerNode pour une spatialisation correcte en VR
         pannerNode.panningModel = 'HRTF'
-        pannerNode.distanceModel = 'inverse'
-        pannerNode.refDistance = 1 // Distance de référence pour réduire le volume
-        pannerNode.maxDistance = 50 // Distance maximale à laquelle le son sera réduit, passé cette distance le son ne sera pas réduit
-        pannerNode.rolloffFactor = 0.5 // Vitesse de décroissance du volume en fonction de la distance
+        pannerNode.distanceModel = 'exponential'
+        pannerNode.refDistance = 5 // Distance de référence pour réduire le volume
+        pannerNode.maxDistance = 200 // Distance maximale à laquelle le son sera réduit, passé cette distance le son ne sera pas réduit
+        pannerNode.rolloffFactor = 3 // Vitesse de décroissance du volume en fonction de la distance
+
+        pannerNode.connect(audioCtx.destination)
 
         // TODO: audioCtx.listener ne devrait pas être changé par un Node3d car c'est un paramètre général
         // Il faut déplacer ça dehors.
@@ -101,15 +164,16 @@ export class SpeakerN3D implements Node3D{
                 [audioCtx.listener.upZ, -player_up.z],
             ] as [AudioParam,number][]){
                 // setTargetAtTime change le paramètre de manière progressive et évite les "pop"
-                parameter.setTargetAtTime(value, audioCtx.currentTime, 0.01)
+                parameter.setTargetAtTime(value, audioCtx.currentTime, 40/1000)
             }
         },50)
 
-        pannerNode.connect(audioCtx.destination)
+        context.createConnectable(new AudioN3DConnectable.Input("audioInput", [gui.audioInput], "Destination", pannerNode))
 
-        context.createConnectable(new AudioN3DConnectable.Input("audioInput", [gui.audioInput],"Destination",pannerNode))
-
+        return this
     }
+
+    
 
     async setState(_1: string, _2: any){ }
 
@@ -125,9 +189,13 @@ export class SpeakerN3D implements Node3D{
 }
 
 
-export const SpeakerN3DFactory: Node3DFactory<SpeakerN3DGUI,SpeakerN3D> = {
+export const SpeakerN3DFactory: Node3DFactory<SpeakerN3DGUI,Node3D> = {
 
     label: "Audio Output",
+
+    description: "A simple 3D speaker that can be used to output audio in 3D space.",
+
+    tags: ["speaker", "audio", "consumer", "audio_output"],
 
     createGUI: async (context) =>{
         const it = new SpeakerN3DGUI()
@@ -135,6 +203,6 @@ export const SpeakerN3DFactory: Node3DFactory<SpeakerN3DGUI,SpeakerN3D> = {
         return it
     },
 
-    create: async (context, gui) => new SpeakerN3D(context,gui),
+    create: async (context, gui) => await (new (USE_AUDIO_ENGINE ? SpeakerN3D: SpeakerPannerNodeN3D)()).init(context,gui),
 
 }

@@ -3,27 +3,28 @@ import { RandomUtils } from "../node3d/tools/utils/RandomUtils.ts";
 import { AudioEventBus } from "../eventBus/AudioEventBus.ts";
 import { NetworkManager } from "../network/NetworkManager.ts";
 import { Node3DBuilder as Node3DBuilder } from "./Node3DBuilder.ts";
+import { AudioEngineV2 } from "@babylonjs/core";
 
 export class Node3dManager {
 
     readonly builder: Node3DBuilder;
     private audioEventBus: AudioEventBus;
 
-    private constructor(private audioCtx: AudioContext) {
+    private constructor(private audioCtx: AudioContext, private audioEngine: AudioEngineV2) {
         this.builder = new Node3DBuilder();
         this.audioEventBus = AudioEventBus.getInstance();
     }
 
     private static _instance: Node3dManager | null = null;
 
-    public static getInstance(audioCtx?: AudioContext): Node3dManager {
-        if (!Node3dManager._instance) {
-            if (!audioCtx) {
-                throw new Error("Scene and AudioContext are required for first instantiation");
-            }
-            Node3dManager._instance = new Node3dManager(audioCtx);
-        }
-        return Node3dManager._instance;
+    public static async initialize(audioCtx: AudioContext, audioEngine: AudioEngineV2): Promise<void> {
+        this._instance = new Node3dManager(audioCtx, audioEngine)
+        await this._instance.builder.initialize()
+    }
+
+    public static getInstance(audioCtx?: AudioContext, audioEngine?: AudioEngineV2): Node3dManager {
+        if (!this._instance) throw new Error("Node3dManager not initialized. Call initialize() first.")
+        return this._instance
     }
 
     public async createNode3d(kind: string, id?: string): Promise<Node3DInstance|null>{
@@ -46,5 +47,8 @@ export class Node3dManager {
         return this.audioCtx;
     }
 
+    public getAudioEngine(): AudioEngineV2 {
+        return this.audioEngine
+    }
 
 }

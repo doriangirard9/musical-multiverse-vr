@@ -2,107 +2,72 @@ import * as B from "@babylonjs/core";
 
 import {Scene} from "@babylonjs/core";
 import {SceneManager} from "../../app/SceneManager.ts";
-import {DragBoundingBox} from "./DragBoundingBox.ts";
-import {RotateBoundingBox} from "./RotateBoundingBox.ts";
 import {PlayerManager} from "../../app/PlayerManager.ts";
-import {XRControllerManager} from "../../xr/XRControllerManager.ts";
+import { HoldableBehaviour } from "./HoldableBehaviour.ts";
 
 
 
 export class BoundingBox {
     private scene : Scene = SceneManager.getInstance().getScene();
+    readonly holdable: HoldableBehaviour
     public boundingBox!: B.AbstractMesh;
-    public dragBehavior!: DragBoundingBox;
-    public rotationBehavior!: RotateBoundingBox;
 
     public on_move = ()=>{}
-    public on_show_hitbox = ()=>{}
-    public on_hide_hitbox = ()=>{}
-
-    private readonly squeezeListenerId: string;
 
     constructor(private draggable: B.AbstractMesh) {
-        this.dragBehavior = new DragBoundingBox();
-        this.rotationBehavior = new RotateBoundingBox();
-        this.squeezeListenerId = `squeeze`;
-        this.createBoundingBox();
-        this.boundingBox.rotation.x = -Math.PI / 6;
-        this.attachControllerBehaviors();
-        this.dragBehavior.on_move = ()=>this.on_move()
-        this.rotationBehavior.on_move = ()=>this.on_move()
-    }
 
-
-    public createBoundingBox(): void {
+        // Create the bounding box
         let w = this.draggable.getBoundingInfo().boundingBox.extendSize.x * 2
         let h = this.draggable.getBoundingInfo().boundingBox.extendSize.y * 2
         let d = this.draggable.getBoundingInfo().boundingBox.extendSize.z * 2
 
-        this.boundingBox = B.MeshBuilder.CreateBox(`boundingBox`, {width:w+.01, height:h+.01, depth:d+.5}, this.scene)
+        const boundingBox = this.boundingBox = B.MeshBuilder.CreateBox(`boundingBox`, {width:w+.01, height:h+.01, depth:d+.5}, this.scene)
         this.draggable.parent = this.boundingBox
 
-        this.setupBoundingBoxProperties()
-        this.setupBehaviors()
+        this.boundingBox.isVisible = true
+        this.boundingBox.visibility = 0
+        this.boundingBox.isPickable = true
+        this.boundingBox.checkCollisions = false
         this.positionBoundingBoxInFrontOfPlayer()
-    }
 
-    private setupBoundingBoxProperties(): void {
-        this.boundingBox.isVisible = true;
-        this.boundingBox.visibility = 0;
-        this.boundingBox.isPickable = true;
-        this.boundingBox.checkCollisions = false;
-    }
+        this.boundingBox.rotation.x = -Math.PI / 6
 
-    private setupBehaviors(): void {
-        this.setupDragBehavior();
-        this.addActionHandlers();
-        this.attachControllerBehaviors();
-    }
+        this.boundingBox.rotationQuaternion = B.Quaternion.FromEulerVector(this.boundingBox.rotation)
 
-    public attachControllerBehaviors(): void {
-        this.attachSqueezeHandler();
-    }
+        // Holdable behaviour
+        this.holdable = new HoldableBehaviour()
+        this.holdable.onMoveObservable.add(()=>this.on_move())
+        this.holdable.onRotateObservable.add(()=>this.on_move())
+        this.boundingBox.addBehavior(this.holdable)
 
-    private _lastSqueezeValue: number = 0;
+        // Bounding box visibility
+        let hover = false
+        let took = false
 
-    /**
-     * Attache le handler du bouton Squeeze (contrôleur droit) pour gérer la rotation
-     */
-    private attachSqueezeHandler(): void {
-        if (XRControllerManager.Instance.hasButtonListener('right', 'xr-standard-squeeze', this.squeezeListenerId)) {
-            XRControllerManager.Instance.removeButtonListener('right', 'xr-standard-squeeze', this.squeezeListenerId);
+        function updateVisibility() {
+            if(took) boundingBox.visibility = .5
+            else if(hover) boundingBox.visibility = .2
+            else boundingBox.visibility = 0
         }
 
-        XRControllerManager.Instance.setScene(SceneManager.getInstance().getScene());
-
-        XRControllerManager.Instance.addButtonListener('right', 'xr-standard-squeeze', this.squeezeListenerId, (event) => {
-            const value = event.value !== undefined ? event.value : (event.pressed ? 1 : 0);
-
-            if (value === 1 && this._lastSqueezeValue < 1) {
-                this._enableRotationBehavior();
-            } else if (value < 1 && this._lastSqueezeValue === 1) {
-                this._disableRotationBehavior();
-            }
-
-            this._lastSqueezeValue = value;
-        });
-
-    }
-
-    public addActionHandlers(): void {
-        if (!this.boundingBox || !this.scene) {
-            console.error("Bounding box or scene not initialized properly");
-            return;
-        }
-
-        // Create a highlight layer for pointer interactions
-        if (!this.boundingBox.actionManager) {
-            try {
-                this.boundingBox.actionManager = new B.ActionManager(this.scene);
-            } catch (error) {
-                console.error("Failed to initialize ActionManager:", error);
-            }
-        }
+        const action = this.boundingBox.actionManager ??= new B.ActionManager(this.scene)
+        action.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPointerOverTrigger, ()=>{
+            hover = true
+            updateVisibility()
+        }))
+        action.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPointerOutTrigger, ()=>{
+            hover = false
+            updateVisibility()
+        }))
+        this.holdable.onGrabObservable.add(() => {
+            took = true
+            updateVisibility()
+        })
+        this.holdable.onReleaseObservable.add(() => {
+            took = false
+            updateVisibility()
+        })
+        
     }
 
     private positionBoundingBoxInFrontOfPlayer(): void {
@@ -124,43 +89,9 @@ export class BoundingBox {
 
     }
 
-    // Set up the drag behavior for the bounding box
-    private setupDragBehavior(): void {
-        this.boundingBox.addBehavior(this.dragBehavior);
-    }
-
-    // Enable rotation behavior
-    private _enableRotationBehavior(): void {
-        if (this.boundingBox && !this.boundingBox.behaviors.includes(this.rotationBehavior)) {
-            this.boundingBox.addBehavior(this.rotationBehavior);
-        }
-    }
-
-    // Disable rotation behavior
-    private _disableRotationBehavior(): void {
-        if (this.boundingBox && this.boundingBox.behaviors.includes(this.rotationBehavior)) {
-            this.boundingBox.removeBehavior(this.rotationBehavior)  // Detach the drag inputs
-        }
-    }
-
 
     public dispose(): void {
-        XRControllerManager.Instance.removeButtonListener('right', 'xr-standard-squeeze', this.squeezeListenerId);
-
-        // Supprimer les comportements
-        if (this.boundingBox && this.boundingBox.behaviors) {
-            if (this.boundingBox.behaviors.includes(this.dragBehavior)) {
-                this.boundingBox.removeBehavior(this.dragBehavior);
-            }
-            if (this.boundingBox.behaviors.includes(this.rotationBehavior)) {
-                this.boundingBox.removeBehavior(this.rotationBehavior);
-            }
-        }
-
-        if (this.boundingBox) {
-            this.boundingBox.dispose();
-        }
-
+        this.boundingBox?.dispose()
     }
 
 }

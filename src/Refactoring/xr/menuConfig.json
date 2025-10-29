@@ -28,7 +28,8 @@
           { "name": "Modal", "kind": "modal" },
           { "name": "Tiny54", "kind": "tiny54" },
           { "name": "Drum", "kind": "drum" },
-          { "name": "Tiny Synth", "kind": "wam3d-Tiny Synth"}
+          { "name": "Tiny Synth", "kind": "wam3d-Tiny Synth"},
+          { "name": "drum Sampler", "kind": "drumsampler"}
         ]
     },
     {

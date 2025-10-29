@@ -11,10 +11,11 @@ interface MockWamNode {
     scheduleEvents: (event: WamEvent[]) => void;
 }
 
+const s = .5
+
 export class NoteBoxN3DGUI implements Node3DGUI {
     root: TransformNode;
     base;
-    worldSize: number;
     output;
     input;
     padsContainer: TransformNode;
@@ -22,37 +23,38 @@ export class NoteBoxN3DGUI implements Node3DGUI {
     sampleCapsules: Mesh[] = [];
     private context: Node3DGUIContext;
 
+    get worldSize(){ return 2 }
+
     constructor(context: Node3DGUIContext) {
         const {babylon: B, tools: T} = context;
         this.context = context;
 
         this.root = new TransformNode("note box root");
-        this.worldSize = 1;
 
-        this.base = B.CreateBox("note box", {size: 1}, context.scene);
+        this.base = B.CreateBox("note box", {size: s}, context.scene);
         T.MeshUtils.setColor(this.base, new B.Color4(0.5, 0.5, 0.5, 1));
         this.base.parent = this.root;
 
-        this.output = B.CreateSphere("note box output", {diameter: 0.5}, context.scene);
+        this.output = B.CreateSphere("note box output", {diameter: 0.5*s}, context.scene);
         T.MeshUtils.setColor(this.output, T.MidiN3DConnectable.OutputColor.toColor4());
         this.output.parent = this.root;
-        this.output.position.x = 1;
+        this.output.position.x = s;
 
-        this.input = B.CreateSphere("note box input", {diameter: 0.5}, context.scene);
+        this.input = B.CreateSphere("note box input", {diameter: 0.5*s}, context.scene);
         T.MeshUtils.setColor(this.input, T.MidiN3DConnectable.InputColor.toColor4());
         this.input.parent = this.root;
-        this.input.position.x = -1;
+        this.input.position.x = -s;
 
         this.padsContainer = new TransformNode("pads container");
         this.padsContainer.parent = this.root;
-        this.padsContainer.position.y = 1;
+        this.padsContainer.position.y = s;
         this.createPadGrid(4, 4);
     }
 
     private createPadGrid(rows: number, cols: number) {
         const {babylon: B, tools: T} = this.context;
-        const padSize = 0.3;
-        const spacing = 0.1;
+        const padSize = 0.3*s;
+        const spacing = 0.1*s;
         const totalWidth = cols * padSize + (cols - 1) * spacing;
         const totalDepth = rows * padSize + (rows - 1) * spacing;
         const startX = -totalWidth / 2 + padSize / 2;
@@ -60,7 +62,7 @@ export class NoteBoxN3DGUI implements Node3DGUI {
 
         for (let row = 0; row < rows; row++) {
             for (let col = 0; col < cols; col++) {
-                const pad = B.CreateBox(`pad_${row}_${col}`, {size: padSize, height: 0.1}, this.context.scene);
+                const pad = B.CreateBox(`pad_${row}_${col}`, {size: padSize, height: 0.1*s}, this.context.scene);
                 T.MeshUtils.setColor(pad, new B.Color4(0.3, 0.3, 0.3, 1));
                 pad.parent = this.padsContainer;
                 pad.position.x = startX + col * (padSize + spacing);
@@ -74,8 +76,8 @@ export class NoteBoxN3DGUI implements Node3DGUI {
     createSampleCapsule(sampleIndex: number, totalSamples: number): Mesh {
         const {babylon: B, tools: T} = this.context;
         const capsule = B.CreateCylinder(`sample_${sampleIndex}`, {
-            diameter: 0.6,
-            height: 0.2,
+            diameter: 0.6*s,
+            height: 0.2*s,
             tessellation: 16
         }, this.context.scene);
 
@@ -85,7 +87,7 @@ export class NoteBoxN3DGUI implements Node3DGUI {
         T.MeshUtils.setColor(capsule, new B.Color4(color.r, color.g, color.b, 0.8));
 
         capsule.parent = this.root;
-        capsule.position.y = 1 + sampleIndex * 0.25;
+        capsule.position.y = s + sampleIndex * 0.25 * s;
         this.sampleCapsules.push(capsule);
         return capsule;
     }
@@ -298,7 +300,12 @@ export class NoteBoxN3D implements Node3D {
 }
 
 export const NoteBoxN3DFactory : Node3DFactory<NoteBoxN3DGUI, NoteBoxN3D> = {
+    
     label : "NoteBox",
+
+    description: "A simple note box that can be used to record and replay MIDI notes in 3D space. Useful to share a live performance with others players.",
+
+    tags: ["notebox", "midi", "generator", "live_instrument", "recorder", "player"],
 
     createGUI: async (context: Node3DGUIContext) : Promise<NoteBoxN3DGUI> => {
         return new NoteBoxN3DGUI(context);

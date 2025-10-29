@@ -42,14 +42,14 @@ export class SceneManager {
 
     }
 
-    public static getInstance(canvas?: HTMLCanvasElement): SceneManager {
-        if (!SceneManager._instance) {
-            if (!canvas) {
-                throw new Error("Canvas is required for first instantiation");
-            }
-            SceneManager._instance = new SceneManager(canvas);
-        }
-        return SceneManager._instance;
+    public static initialize() {
+        const canvas = document.getElementById('renderCanvas') as HTMLCanvasElement
+        this._instance = new SceneManager(canvas)
+    }
+
+    public static getInstance(): SceneManager {
+        if (!this._instance) throw new Error("SceneManager not initialized. Call intialize() first.")
+        return this._instance;
     }
 
     public start(): void {
@@ -73,16 +73,19 @@ export class SceneManager {
     }
 
     public getShadowGenerator(): B.ShadowGenerator {
-        return this.shadowGenerator;
+        return this.shadowGenerator
     }
 
 
     private initializeShadowGenerator(): B.ShadowGenerator {
-        const light = new B.DirectionalLight("dir01", new B.Vector3(0, -1, 0), this.scene);
-        light.position = new B.Vector3(0, 60, 0);
-        light.intensity = 0.2;
+        const light = new B.DirectionalLight("dir01", new B.Vector3(0, -1, 0), this.scene)
+        light.position = new B.Vector3(0, 60, 0)
+        light.intensity = 0.2
 
-        return new B.ShadowGenerator(1024, light);
+        const caster = new B.ShadowGenerator(1024, light)
+        caster.transparencyShadow = true
+
+        return caster
     }
 
     private createGround(): B.Mesh {

@@ -77,6 +77,9 @@ export class SimpleMenu{
         while(this.buttons.length > 0) this.removeButton(this.buttons.length-1)
     }
 
+    public get menuNode(): NearMenu{
+        return this.menu3d
+    }
     dispose(){
         this.guiManager.removeControl(this.menu3d)
         this.menu3d.dispose()

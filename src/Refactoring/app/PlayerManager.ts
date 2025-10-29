@@ -25,10 +25,12 @@ export class PlayerManager {
         this.startUpdateLoop();
     }
 
+    public static initialize(): void {
+        this._instance = new PlayerManager()
+    }
+
     public static getInstance(): PlayerManager {
-        if (!PlayerManager._instance) {
-            PlayerManager._instance = new PlayerManager();
-        }
+        if (!PlayerManager._instance) throw new Error("PlayerManager not initialized. Call initialize() first.")
         return PlayerManager._instance;
     }
 

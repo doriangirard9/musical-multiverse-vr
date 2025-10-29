@@ -317,6 +317,49 @@ class XRControllerManager {
     }
 
     /**
+     * Triggers haptic feedback on the specified controller
+     * @param controller The controller ('left' or 'right')
+     * @param intensity The intensity of the vibration (0.0 to 1.0)
+     * @param duration The duration of the vibration in milliseconds
+     */
+    public triggerHapticFeedback(controller: 'left' | 'right', intensity: number = 0.5, duration: number = 50): void {
+        const states = controller === 'left' ? this._leftControllerStates : this._rightControllerStates;
+        if (!states) return;
+
+        // Get the input source from the controller states
+        // We need to access the WebXR input source to get the gamepad
+        const inputSource = this._getInputSource(controller);
+        if (inputSource && inputSource.gamepad && inputSource.gamepad.hapticActuators) {
+            const hapticActuator = inputSource.gamepad.hapticActuators[0];
+            if (hapticActuator) {
+                hapticActuator.pulse(intensity, duration);
+            }
+        }
+    }
+
+    /**
+     * Sets the input source reference for haptic feedback
+     * @param controller The controller ('left' or 'right')
+     * @param inputSource The WebXR input source
+     */
+    public setInputSource(controller: 'left' | 'right', inputSource: any): void {
+        if (controller === 'left') {
+            (this as any)._leftInputSource = inputSource;
+        } else {
+            (this as any)._rightInputSource = inputSource;
+        }
+    }
+
+    /**
+     * Gets the input source for the specified controller
+     * @param controller The controller ('left' or 'right')
+     * @returns The WebXR input source or null
+     */
+    private _getInputSource(controller: 'left' | 'right'): any {
+        return controller === 'left' ? (this as any)._leftInputSource : (this as any)._rightInputSource;
+    }
+
+    /**
      * Nettoie les ressources lors de la destruction
      */
     public dispose(): void {

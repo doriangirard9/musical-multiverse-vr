@@ -80,14 +80,10 @@ export class SyncLink implements Synchronized{
     async removeState(_: string) { }
 
     async setState(key: string, value: SyncSerializable) {
-        console.log("setState",key,value)
         if(key=="border"){
             const {fromid,toid} = value as {fromid:string, toid:string}
-            console.log("PathId ",fromid," to ",toid)
-            console.log("PathNow ", this.blocks.getInstanceNow(fromid), " to ", this.blocks.getInstanceNow(toid))
-            const from = await this.blocks.getInstance(fromid) ?? null
-            const to = await this.blocks.getInstance(toid) ?? null
-            console.log("Path ",from," to ",to)
+            const from = await this.blocks.get(fromid) ?? null
+            const to = await this.blocks.get(toid) ?? null
             this.set_path(from,to)
         }
     }

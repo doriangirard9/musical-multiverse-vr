@@ -166,6 +166,10 @@ class SequencerN3D implements Node3D{
 export const SequencerN3DFactory: Node3DFactory<SequencerN3DGUI,SequencerN3D> = {
 
     label: "Sequencer",
+
+    description: "A simple sequencer that can be used to create patterns of MIDI notes. ",
+
+    tags: ["sequencer", "midi", "generator", "pattern"],
     
     async createGUI(context) { return new SequencerN3DGUI(context) },
 

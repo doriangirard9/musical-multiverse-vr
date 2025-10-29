@@ -1,13 +1,14 @@
-import { Observable, PointerEventTypes, Scene, Vector3, WebXRDefaultExperience, WebXRInputSource } from "@babylonjs/core";
+import { Immutable, Observable, PointerEventTypes, Scene, Vector3, WebXRDefaultExperience, WebXRInputSource } from "@babylonjs/core";
 import { ButtonInput, ButtonInputEvent } from "./ButtonInput";
 import { PressableInput, PressableInputEvent } from "./PressableInput";
 import { AxisInput, AxisInputEvent } from "./AxisInput";
 
 export interface PointerMovementEvent {
-    origin: Vector3,
-    forward: Vector3,
-    up: Vector3,
-    right: Vector3,
+    origin: Immutable<Vector3>,
+    forward: Immutable<Vector3>,
+    up: Immutable<Vector3>,
+    right: Immutable<Vector3>,
+    target: Immutable<Vector3>,
 }
 
 export class InputManager {
@@ -36,11 +37,19 @@ export class InputManager {
     readonly on_squeeze_change = new Observable<PressableInputEvent>()
     readonly on_pressable_change = new Observable<PressableInputEvent>()
 
-    readonly left_thumbstick = new AxisInput("left", ["arrowleft", "arrowright", "arrowup", "arrowdown"])
-    readonly right_thumbstick = new AxisInput("right", ["k", "m", "o", "l"])
+    readonly left_thumbstick = new AxisInput("left", ["k", "m", "o", "l"])
+    readonly right_thumbstick = new AxisInput("right", ["arrowleft", "arrowright", "arrowup", "arrowdown"])
     readonly on_thumbstick_change = new Observable<AxisInputEvent>()
 
     readonly pointer_move = new Observable<PointerMovementEvent>()
+
+    public current_pointer: PointerMovementEvent = {
+        origin: Vector3.Zero(),
+        forward: Vector3.Forward(),
+        up: Vector3.Up(),
+        right: Vector3.Right(),
+        target: Vector3.Forward(),
+    }
 
 
 
@@ -49,7 +58,7 @@ export class InputManager {
         scene: Scene,
     ){
         const im = this
-
+        
         for(const button of [im.x_button, im.y_button, im.a_button, im.b_button]) {
             button._registerDocumentObserver()
             button.on_change.add((event) => im.on_button_change.notifyObservers(event))
@@ -70,6 +79,7 @@ export class InputManager {
             thumbstick._registerDocumentObserver()
             thumbstick.on_change.add((event) => im.on_thumbstick_change.notifyObservers(event))
         }
+        im.left_thumbstick._registerMouseWheelObserver()
 
         //// Notify the observers with the controllers inputs ////
         function initController(controller: WebXRInputSource){
@@ -103,11 +113,26 @@ export class InputManager {
             if(!event.pickInfo?.originMesh) last_mouse_movement = Date.now()
             else if(Date.now() - last_mouse_movement < 5000) return
 
-            const origin = event.pickInfo?.ray?.origin!!
-            const forward = event.pickInfo?.ray?.direction?.normalize()!!
-            const right = forward.cross(Vector3.Up()).negateInPlace().normalize()
-            const up = right.cross(forward).normalize()
-            if(event.pickInfo)this.pointer_move.notifyObservers({origin, forward, up, right})
+            let origin!: Vector3
+            let forward!: Vector3
+            let right!: Vector3
+            let up!: Vector3
+            if(event.pickInfo?.aimTransform){
+                origin = event.pickInfo.aimTransform.position.clone()
+                forward = event.pickInfo.aimTransform.forward.clone()
+                right = event.pickInfo.aimTransform.right.clone()
+                up = event.pickInfo.aimTransform.up.clone()
+            } else if(event.pickInfo?.ray) {
+                origin = event.pickInfo?.ray?.origin!!.clone()
+                forward = event.pickInfo?.ray?.direction?.normalizeToNew()!!
+                right = forward.cross(Vector3.Up()).negateInPlace().normalize()
+                up = right.cross(forward).scaleInPlace(-1).normalize()
+            }
+            const target = event.pickInfo?.pickedPoint ?? origin.add(forward.scale(5))
+
+            const pointer_event = {origin, forward, up, right, target}
+            this.current_pointer = pointer_event
+            if(event.pickInfo)this.pointer_move.notifyObservers(pointer_event)
         })
     }
 }

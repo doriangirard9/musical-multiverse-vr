@@ -6,6 +6,7 @@ import { NetworkEventBus } from "../eventBus/NetworkEventBus.ts";
 // Serveur de signalisation pour WebRTC
 const SIGNALING_SERVER = "https://wamjamparty.i3s.univ-cotedazur.fr/rtc" //'ws://localhost:3001'; // 'wss://musical-multiverse-vr.onrender.com';
 
+
 /**
  * Composant gérant les connexions WebRTC et l'awareness des pairs.
  * Responsable de:
