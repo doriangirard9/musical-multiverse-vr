@@ -82,6 +82,8 @@ export class N3DShop {
                 const zone = options.zone ?? "default"
 
                 mesh.scaling.x*=-1
+
+                mesh.computeWorldMatrix(true)
                 
                 const location: N3DShopObject['location'] = {
                     position: mesh.position.clone(),
@@ -94,7 +96,9 @@ export class N3DShop {
                     absoluteScaling: mesh.absoluteScaling.clone().scaleInPlace(2),
 
                     parent: mesh.parent!!,
-                }
+                } 
+
+                mesh.setEnabled(false)
                 
                 // Create a panel
                 this.zoneMap[zone] ??= {objects: []}
@@ -102,7 +106,7 @@ export class N3DShop {
                 // Add object to the zone
                 this.zoneMap[zone].objects.push({ location, name, type, options })
 
-                mesh.dispose()
+                //mesh.dispose()
             }catch(e){
 
             }
@@ -152,7 +156,11 @@ export class N3DShop {
                 }
             }))
             z.dispose = async()=>{
-                await Promise.all(disposers.map(d=>d?.()))
+                try{
+                    await Promise.all(disposers.map(d=>d?.()))
+                }catch(e){
+                    console.error(e)
+                }
             }
         })()
     }
@@ -183,12 +191,12 @@ export class N3DShop {
     static BASE_OPTIONS: N3DShopOptions = {
         kinds: [
             "livepiano", "maracas", "audiooutput", "oscillator", "notesbox",
-            "modal", "tiny54", "voxamp", "flute", "disto_machine", "guitar", "kverb",
+            "wam3d-modal", "wam3d-Micro 54", "wam3d-Vox Amp 30", "wam3d-Faust Flute", "wam3d-Disto Machine", "wam3d-FAUST Guitar", "wam3d-KVerb",
         ],
         categories: {
             generator: ["livepiano", "oscillator", "notesbox", "maracas"],
-            instrument: ["tiny54", "flute", "guitar", "modal"],
-            effect: ["voxamp", "disto_machine", "kverb"],
+            instrument: ["wam3d-Micro 54", "wam3d-Faust Flute", "wam3d-FAUST Guitar", "wam3d-modal"],
+            effect: ["wam3d-Vox Amp 30", "wam3d-Disto Machine", "wam3d-KVerb"],
             technical: ["audiooutput"],
         }
     }

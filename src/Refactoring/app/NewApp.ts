@@ -2,78 +2,93 @@ import {SceneManager} from "./SceneManager.ts";
 import {XRManager} from "../xr/XRManager.ts";
 import {Node3dManager} from "./Node3dManager.ts";
 import {AppOrchestrator} from "./AppOrchestrator.ts";
-import {AudioEngineV2, ImportMeshAsync} from "@babylonjs/core";
+import ControlsUI from "./ControlsUI.ts";
+import {CreateAudioEngineAsync, ImportMeshAsync} from "@babylonjs/core";
 import {N3DShop, N3DShopOptions} from "../world/shop/N3DShop.ts";
 import { InputManager } from "../xr/inputs/InputManager.ts";
 import { parallel } from "../utils/utils.ts";
-import { Menu2 } from "../menus/Menu2.ts";
+import { UIManager } from "./UIManager.ts";
+import { NetworkManager } from "../network/NetworkManager.ts";
+import { PlayerManager } from "./PlayerManager.ts";
+import { ConnectionManager } from "../iomanager/ConnectionManager.ts";
 export class NewApp {
-    private audioCtx: AudioContext | undefined;
-    private audioEngine!: AudioEngineV2
-    private sceneManager: SceneManager;
-    private xrManager: XRManager | null = null;
-    private audioManager: Node3dManager | null = null;
+    private controlsUI?: ControlsUI;
 
-    private constructor(audioContext?: AudioContext, audioEngine?: AudioEngineV2) {
-        const canvas: HTMLCanvasElement = document.getElementById('renderCanvas') as HTMLCanvasElement;
-        this.sceneManager = SceneManager.getInstance(canvas);
-        if (audioContext !== undefined) {
-            this.audioCtx = audioContext;
-            this.audioEngine = audioEngine!!;
-            this.audioManager = Node3dManager.getInstance(this.audioCtx, this.audioEngine);
-            this.xrManager = XRManager.getInstance();
-            AppOrchestrator.getInstance()
-        }
+    constructor() {}
 
-    }
 
     private static instance?: NewApp
 
-    public static getInstance(audioContext? : AudioContext, audioEngine?: AudioEngineV2): NewApp {
-        if (!NewApp.instance) {
-            if (!audioContext) {
-                throw new Error("AudioContext is required for first instantiation");
-            }
-            NewApp.instance = new NewApp(audioContext, audioEngine);
-        }
+    public static getInstance(): NewApp {
+        if (!NewApp.instance) throw new Error("NewApp not initialized. Create an instance first.")
         return NewApp.instance;
     }
 
     public async start(): Promise<void> {
-        const scene = this.sceneManager.getScene()
-        
-        this.sceneManager.start();
-        await this.xrManager!!.init(this.sceneManager.getScene(), this.audioEngine);
-        
-        //await this.audioManager!!.createNode3d("notesbox")
-        /*
-        //await this.audioManager!!.createNode3d("audiooutput")
+        NewApp.instance = this
 
-        const mesh = CreateBox("box", {size: 1}, scene)
-        mesh.rotation.x = Math.PI / 3
-        mesh.bakeCurrentTransformIntoVertices()
-        const behavior = new ShakeBehavior()
-        mesh.addBehavior(behavior)
-        behavior.on_shake = (p,c)=>{
-            mesh.visibility = Math.max(0,1-p/10)
-        }
-        behavior.on_stop = (p,c)=>{
-            mesh.visibility = 1
-        }*/
 
-        /*const menu = new Menu2(scene, {
-            label: "Main",
-            buttons: []
+        // Intialization of scene
+        SceneManager.initialize()
+
+
+        // Initialization of Audio Context
+        const audioContext = new AudioContext()
+        await new Promise<void>(r=>{
+            window.addEventListener('click',
+                async() => {
+                    await audioContext.resume();
+                    r()
+                }, 
+                { once: true }
+            )
         })
+        
+        const audioEngine = await CreateAudioEngineAsync({audioContext})
+        await audioEngine.unlockAsync()
 
-        menu.plane.position.set(0, 1.5, 1)*/
 
-        await (await this.audioManager!!.createNode3d("notesbox"))?.dispose()
+        // Initialization of App Parts
+        UIManager.initialize()
 
-        const shared = this.audioManager?.builder?.shared!!
+        await Node3dManager.initialize(audioContext, audioEngine)
+        
+        PlayerManager.initialize()
+        NetworkManager.initialize()
+        ConnectionManager.initialize()
 
-        window.addEventListener("keydown",e=>{
-            if(e.key=="y")XRManager.getInstance().xrHelper.baseExperience.camera.position.set(0, 1.6, 0)
+        await AppOrchestrator.initialize()
+
+        SceneManager.getInstance().start();
+
+        await XRManager.getInstance()!!.init(SceneManager.getInstance().getScene(), audioEngine);
+
+        // Get things
+        const scene = SceneManager.getInstance().getScene()
+        const node3dManager = Node3dManager.getInstance()
+        const node3dBuilder = node3dManager.builder
+        const node3dShared = node3dBuilder.getShared()
+        
+        // create 3D controller button labels
+        this.controlsUI = new ControlsUI();
+        
+        // Setup X button to toggle controls UI
+        InputManager.getInstance().x_button.on_change.add((event) => {
+            if (event.pressed) {
+                this.controlsUI?.toggle();
+            }
+        });
+
+        console.log(node3dShared)
+
+        window.addEventListener("keydown",async(e)=>{
+            if(e.key=="p"){
+                let prompt = window.prompt("Enter Node3D kind to create:")
+                if(prompt) node3dManager.createNode3d(`desc:${prompt}`)
+            }
+            else if(e.key=="i"){
+                scene.debugLayer.show()
+            }
         })
 
         // setTimeout(()=>Inspector.Show(scene,{}), 10000)
@@ -88,7 +103,7 @@ export class NewApp {
                     model.scaling.scaleInPlace(.6)
                     const shop = new N3DShop(
                         model,
-                        shared,
+                        node3dShared,
                         Node3dManager.getInstance(),
                         InputManager.getInstance(),
                         N3DShop.BASE_OPTIONS,
@@ -99,12 +114,11 @@ export class NewApp {
                 },
                 // Le magasin-menu, accessible via un bouton et dont les WAM sont chargé et déchargé dynamiquement
                 async()=>{
-                    const builder = this.audioManager?.builder!!
                     const categories: Record<string, Set<string>> = {}
                     const kinds = new Set<string>()
-                    await Promise.all(builder.FACTORY_KINDS.map(async kind => {
+                    await Promise.all(node3dBuilder.FACTORY_KINDS.map(async kind => {
                         try{
-                            const factory = await builder.getFactory(kind)
+                            const factory = await node3dBuilder.getFactory(kind)
                             if(!factory) return
                             kinds.add(kind)
                             for(const tag of factory.tags){
@@ -121,15 +135,21 @@ export class NewApp {
                     const model = (await ImportMeshAsync(N3DShop.BASE_SHOP_MODEL_URL, scene)).meshes[0]
                     model.position.set(0, -1.5, 60)
                     model.scaling.scaleInPlace(.6)
-                    const shop = new N3DShop(
-                        model,
-                        shared,
-                        Node3dManager.getInstance(),
-                        InputManager.getInstance(),
-                        options,
-                    )
-                    shop.showZone("default")
-
+                    
+                    let shop: N3DShop|null
+                    InputManager.getInstance().y_button.on_down.addOnce(async()=>{
+                        if(shop){
+                            shop.dispose()
+                        }
+                        shop = new N3DShop(
+                            model,
+                            node3dShared,
+                            Node3dManager.getInstance(),
+                            InputManager.getInstance(),
+                            options,
+                        )
+                        shop.showZone("default")
+                    })
 
                 }
             )

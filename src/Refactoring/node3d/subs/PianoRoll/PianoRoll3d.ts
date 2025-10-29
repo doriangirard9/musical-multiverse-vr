@@ -15,6 +15,8 @@ import { DrumPadsStrategy } from "./grid/DrumPadsStrategy";
 import { InputManager } from "../../../xr/inputs/InputManager";
 import { XRManager } from "../../../xr/XRManager";
 import { SceneManager } from "../../../app/SceneManager";
+import { XRControllerManager } from "../../../xr/XRControllerManager";
+import { ETextureFilterType } from "@babylonjs/loaders/glTF/1.0";
 
 interface PatternNote {
   tick: number;
@@ -33,6 +35,9 @@ interface ControlSequence {
   midiNumber: number;
   borderMesh: B.Mesh;
 }
+// Local types
+interface VisibleCell { row: number; col: number; }
+
 /* cleanup ?
 interface NoteButtonMesh extends B.Mesh {
   isActive: boolean;
@@ -43,8 +48,6 @@ interface NoteButtonMesh extends B.Mesh {
 
 
 
-// Local types
-interface VisibleCell { row: number; col: number; }
 
 // Extend Mesh to carry GUI cell flags (optional)
 interface NoteButtonMesh extends B.Mesh {
@@ -64,6 +67,7 @@ const COLOR_BLACK_KEY = new B.Color3(0.1, 0.1, 0.1);
 const COLOR_WHITE_KEY = new B.Color3(1, 1, 1);
 const COLOR_DISABLED = new B.Color3(0.2, 0.2, 0.2);
 const COLOR_BASE_MESH = new B.Color3(0.5, 0.2, 0.2);
+const COLOR_HOVER = new B.Color3(1, 1, 0);
 class PianoRollN3DGUI implements Node3DGUI {
   // Scene / root
   public root: B.TransformNode;
@@ -108,6 +112,10 @@ class PianoRollN3DGUI implements Node3DGUI {
   private thinInstanceColors!: Float32Array;
   private visibleCellMap: Map<number, VisibleCell> = new Map();
   private _clickObserver?: B.Observer<B.PointerInfo>;
+  private _hoveredThinIndex: number | null = null;
+
+  // Hover UI label (e.g., C4)
+  private hoverLabel?: B.Mesh;
 
   // Keyboard strips + labels
   public keyBoard: B.Mesh[] = [];
@@ -123,7 +131,7 @@ class PianoRollN3DGUI implements Node3DGUI {
   constructor(
     public context: Node3DGUIContext,
     s1: GridStrategy = new Piano88Strategy(),
-    s2: DrumPadsStrategy = new DrumPadsStrategy()
+    _s2: DrumPadsStrategy = new DrumPadsStrategy()
   ) {
     const strategy = s1;
     this.strategy = strategy;
@@ -132,7 +140,6 @@ class PianoRollN3DGUI implements Node3DGUI {
     this.tool = T;
 
     this.root = new B.TransformNode("pianoroll root", context.scene);
-    this.root.scaling.setAll(0.1);
 
     // Rows come from strategy
     this.rows = this.strategy.getRowCount();
@@ -146,9 +153,44 @@ class PianoRollN3DGUI implements Node3DGUI {
     // Default starting index clamped to rows
     this._startRowIndex = Math.min(this._startRowIndex, Math.max(0, this.rows - this.visibleRowCount));
 
-   
+    // Calculate scaling to fit within 1x1x1 block as required by Node3D specification
+    this._calculateAndApplyScaling();
+
     // Build
     void this.instantiate();
+  }
+
+  /**
+   * Calculate the appropriate scaling factor to ensure the GUI fits within a 1x1x1 block
+   * as required by the Node3D specification.
+   */
+  private _calculateAndApplyScaling(): void {
+    // Calculate the total dimensions of the piano roll
+    this.recalculateGridBoundaries();
+    
+    // Calculate the total width including keyboard and spacing
+    const totalWidth = (this.endX - this.startX) + 
+                      (this.keyboardWidth * 2 + this.buttonSpacing) + 
+                      (this.keyboardWidth + this.buttonSpacing * 2);
+    
+    // Calculate the total depth including spacing and extra room
+    const totalDepth = this.endZ - this.startZ + 
+                      this.buttonDepth + this.buttonSpacing + 
+                      (this.buttonDepth + this.buttonSpacing) * 2 + 0.8;
+    
+    // Calculate the total height (base height + button height + some margin)
+    const totalHeight = 0.2 + this.buttonHeight + 0.6; // base + button + margin
+    
+    // Find the maximum dimension
+    const maxDimension = Math.max(totalWidth, totalDepth, totalHeight);
+    
+    // Calculate scaling factor to fit within 1x1x1 block
+    // Use 0.95 to leave some margin
+    const scaleFactor = 0.95 / maxDimension;
+    console.log('maxDimension:', maxDimension );
+    console.log('scaleFactor:', scaleFactor);
+    // Apply the scaling
+    this.root.scaling.setAll(scaleFactor);
   }
 
   // Allow runtime hot-swap of strategy (e.g., connect to drum sampler)
@@ -162,6 +204,9 @@ class PianoRollN3DGUI implements Node3DGUI {
 
     // Reset start window safely
     this._startRowIndex = Math.min(this._startRowIndex, Math.max(0, this.rows - this.visibleRowCount));
+
+    // Recalculate scaling for new strategy dimensions
+    this._calculateAndApplyScaling();
 
     // Rebuild visuals
     this.createGrid();
@@ -200,6 +245,7 @@ class PianoRollN3DGUI implements Node3DGUI {
     this.midiOutput.parent = this.root;
 
     this.startStopButton();
+
   }
 
   // Add this inside the PianoRollN3DGUI class (same section as the other label helpers)
@@ -288,8 +334,9 @@ class PianoRollN3DGUI implements Node3DGUI {
         const m = ctx.measureText(text);
         const textW = m.width;
         // approximate text height via metrics if available; fallback to mid
-        // @ts-expect-error metrics may not exist in TS lib
-        const textH = (m.actualBoundingBoxAscent ?? mid) + (m.actualBoundingBoxDescent ?? mid * 0.25);
+        const ascent = (m as any).actualBoundingBoxAscent ?? mid;
+        const descent = (m as any).actualBoundingBoxDescent ?? mid * 0.25;
+        const textH = ascent + descent;
         if (textW <= maxW && textH <= maxH) {
           best = mid;
           lo = mid + 1;
@@ -303,11 +350,10 @@ class PianoRollN3DGUI implements Node3DGUI {
     const fontPx = fitFontSize(availW, availH);
     ctx.font = baseFont.replace(/\d+px/, `${fontPx}px`);
     ctx.fillStyle = options?.textColor ?? "#000";
-    // @ts-expect-error canvas types
-    ctx.textAlign = "center";
-    // @ts-expect-error canvas types
-    ctx.textBaseline = "middle";
-    ctx.fillText(text, W / 2, H / 2);
+    const anyCtx = ctx as any;
+    anyCtx.textAlign = "center";
+    anyCtx.textBaseline = "middle";
+    anyCtx.fillText(text, W / 2, H / 2);
   
     dt.update();
   
@@ -367,7 +413,7 @@ class PianoRollN3DGUI implements Node3DGUI {
     this.noteCell.thinInstanceSetBuffer("matrix", this.thinInstanceMatrices, 16, false);
     this.noteCell.thinInstanceSetBuffer("color",  this.thinInstanceColors,   4,  false);
 
-    this._setupClickHandler();
+    this._setupPointerHandlers();
   }
 
   private _fillVisibleWindowBuffers(): void {
@@ -397,7 +443,7 @@ class PianoRollN3DGUI implements Node3DGUI {
     }
   }
 
-  private _setupClickHandler(): void {
+  private _setupPointerHandlers(): void {
     const scene = this.context.scene;
     if (this._clickObserver) {
       scene.onPointerObservable.remove(this._clickObserver);
@@ -405,15 +451,186 @@ class PianoRollN3DGUI implements Node3DGUI {
     }
 
     this._clickObserver = scene.onPointerObservable.add((pointerInfo) => {
-      if (pointerInfo.type !== B.PointerEventTypes.POINTERPICK) return;
       const p = pointerInfo.pickInfo;
-      if (!p || p.pickedMesh !== this.noteCell || p.thinInstanceIndex == null) return;
+      // Handle hover on move
+      if (pointerInfo.type === B.PointerEventTypes.POINTERMOVE) {
+        if (p && p.pickedMesh === this.noteCell && p.thinInstanceIndex != null) {
+          const cell = this.visibleCellMap.get(p.thinInstanceIndex);
+          if (cell) this._setHover(cell.row, cell.col, p.thinInstanceIndex);
+        } else {
+          // Clear hover when not over a note cell
+          this._clearHover();
+        }
+        return;
+      }
 
-      const cell = this.visibleCellMap.get(p.thinInstanceIndex);
-      if (cell && (this as any).owner) {
-        ((this as any).owner).handleCellClick(cell.row, cell.col);
+      // Handle clicks
+      if (pointerInfo.type === B.PointerEventTypes.POINTERPICK) {
+        if (!p || p.pickedMesh !== this.noteCell || p.thinInstanceIndex == null) return;
+        const cell = this.visibleCellMap.get(p.thinInstanceIndex);
+        if (cell && (this as any).owner) {
+          ((this as any).owner).handleCellClick(cell.row, cell.col);
+        }
       }
     });
+  }
+
+  private _setHover(row: number, col: number, thinIndex: number): void {
+    if (this._hoveredThinIndex === thinIndex) return;
+
+    // restore previous hovered cell color
+    if (this._hoveredThinIndex != null) {
+      const prev = this.visibleCellMap.get(this._hoveredThinIndex);
+      const owner = (this as any).owner as { getCellVisualColor?: (r: number, c: number) => B.Color3 } | undefined;
+      if (prev && owner?.getCellVisualColor) {
+        const base = owner.getCellVisualColor(prev.row, prev.col);
+        const off = this._hoveredThinIndex * 4;
+        this.thinInstanceColors[off + 0] = base.r;
+        this.thinInstanceColors[off + 1] = base.g;
+        this.thinInstanceColors[off + 2] = base.b;
+        this.thinInstanceColors[off + 3] = 1.0;
+      }
+    }
+
+    // set new hovered color
+    const off = thinIndex * 4;
+    this.thinInstanceColors[off + 0] = COLOR_HOVER.r;
+    this.thinInstanceColors[off + 1] = COLOR_HOVER.g;
+    this.thinInstanceColors[off + 2] = COLOR_HOVER.b;
+    this.thinInstanceColors[off + 3] = 1.0;
+    this.noteCell.thinInstanceBufferUpdated("color");
+
+    // Trigger haptic feedback on hover
+    this._triggerHapticFeedback();
+
+    // update label and position it above the specific note cell
+    this._ensureHoverLabel();
+    const label = this._labelTextForRow(row);
+    this._drawHoverLabel((this.hoverLabel!.material as B.StandardMaterial).emissiveTexture as B.DynamicTexture, label);
+    this.hoverLabel!.isVisible = true;
+    this._positionHoverLabelAboveNote(row, col);
+    
+    // Set up continuous scale updates while hovering
+    this._setupLabelScaleUpdates();
+
+    this._hoveredThinIndex = thinIndex;
+  }
+
+  private _clearHover(): void {
+    if (this._hoveredThinIndex == null) {
+      if (this.hoverLabel) this.hoverLabel.isVisible = false;
+      return;
+    }
+
+    const prev = this.visibleCellMap.get(this._hoveredThinIndex);
+    const owner = (this as any).owner as { getCellVisualColor?: (r: number, c: number) => B.Color3 } | undefined;
+    if (prev && owner?.getCellVisualColor) {
+      const base = owner.getCellVisualColor(prev.row, prev.col);
+      const off = this._hoveredThinIndex * 4;
+      this.thinInstanceColors[off + 0] = base.r;
+      this.thinInstanceColors[off + 1] = base.g;
+      this.thinInstanceColors[off + 2] = base.b;
+      this.thinInstanceColors[off + 3] = 1.0;
+      this.noteCell.thinInstanceBufferUpdated("color");
+    }
+    this._hoveredThinIndex = null;
+    if (this.hoverLabel) this.hoverLabel.isVisible = false;
+    
+    // Stop continuous scale updates
+    this._stopLabelScaleUpdates();
+  }
+
+  private _ensureHoverLabel(): void {
+    if (this.hoverLabel) return;
+    const dt = new B.DynamicTexture("hoverNoteLabelDT", { width: 1024, height: 256 }, this.context.scene, true);
+    dt.hasAlpha = true;
+    const mat = new B.StandardMaterial("hoverNoteLabelMat", this.context.scene);
+    mat.disableLighting = true;
+    mat.emissiveTexture = dt;
+    mat.opacityTexture = dt;
+    mat.alpha = 0.9; // Make it more visible
+
+    const plane = B.MeshBuilder.CreatePlane("hoverNoteLabel", { width: 2, height: 1 }, this.context.scene);
+    plane.material = mat;
+    plane.isPickable = false; // Ensure it doesn't block raycasting
+    plane.parent = this.root;
+    plane.billboardMode = B.AbstractMesh.BILLBOARDMODE_ALL; // Face the camera
+    plane.isVisible = false;
+    plane.renderingGroupId = 1; // Render on top of other objects
+    this.hoverLabel = plane;
+  }
+
+  private _positionHoverLabelAboveNote(row: number, col: number): void {
+    if (!this.hoverLabel) return;
+    
+    // Get the exact position of the hovered note cell
+    const cellPosition = this.getCellLocalPosition(row, col);
+    
+    // Position the label directly above the note cell
+    const x = cellPosition.x; // Same X as the note
+    const y = cellPosition.y + this.buttonHeight * 2; // Above the note cell
+    const z = cellPosition.z; // Same Z as the note
+    
+    this.hoverLabel.position.set(x, y, z);
+    
+    // Scale label based on distance to camera
+    this._updateLabelScale();
+  }
+
+  private _updateLabelScale(): void {
+    if (!this.hoverLabel) return;
+    
+    // Get camera position
+    const camera = this.context.scene.activeCamera;
+    if (!camera) return;
+    
+    // Calculate distance from label to camera
+    const labelWorldPos = this.hoverLabel.getAbsolutePosition();
+    const cameraPos = camera.position;
+    const distance = B.Vector3.Distance(labelWorldPos, cameraPos);
+    
+    // Scale factors: closer = smaller, farther = bigger
+    // Base distance of 5 units = normal size (scale 1.0)
+    // At distance 10+ units, scale up to 2.0x
+    // At distance 2 units, scale down to 0.5x
+    const baseDistance = 5.0;
+    const minDistance = 2.0;
+    const maxDistance = 15.0;
+    
+    let scale = 1.0;
+    if (distance > baseDistance) {
+      // Scale up when far
+      const farScale = Math.min(4.0, 1.0 + (distance - baseDistance) / (maxDistance - baseDistance));
+      scale = farScale;
+    } else if (distance < baseDistance) {
+      // Scale down when close
+      const closeScale = Math.max(0.5, 1.0 - (baseDistance - distance) / (baseDistance - minDistance));
+      scale = closeScale;
+    }
+    
+    // Apply the scale to the label
+    this.hoverLabel.scaling.setAll(scale);
+  }
+
+  private _labelScaleObserver: B.Nullable<B.Observer<B.Scene>> = null;
+
+  private _setupLabelScaleUpdates(): void {
+    // Remove existing observer if any
+    this._stopLabelScaleUpdates();
+    
+    // Set up continuous scale updates
+    this._labelScaleObserver = this.context.scene.onBeforeRenderObservable.add(() => {
+      if (this.hoverLabel && this.hoverLabel.isVisible) {
+        this._updateLabelScale();
+      }
+    });
+  }
+
+  private _stopLabelScaleUpdates(): void {
+    if (this._labelScaleObserver) {
+      this.context.scene.onBeforeRenderObservable.remove(this._labelScaleObserver);
+      this._labelScaleObserver = null;
+    }
   }
 
   public _setVisibleCellColor(row: number, col: number, color: B.Color3): void {
@@ -519,11 +736,39 @@ class PianoRollN3DGUI implements Node3DGUI {
 
     ctx.font = "bold 140px sans-serif";
     ctx.fillStyle = this._isSharpLabel(text) ? "#fff" : "#000";
-    // @ts-expect-error canvas types
-    ctx.textAlign = "center";
-    // @ts-expect-error canvas types
-    ctx.textBaseline = "middle";
-    ctx.fillText(text, W / 2, H / 2);
+    const anyCtx = ctx as any;
+    anyCtx.textAlign = "center";
+    anyCtx.textBaseline = "middle";
+    anyCtx.fillText(text, W / 2, H / 2);
+
+    dt.update();
+  }
+
+  private _drawHoverLabel(dt: B.DynamicTexture, text: string): void {
+    const ctx = dt.getContext();
+    const W = dt.getSize().width;
+    const H = dt.getSize().height;
+    ctx.clearRect(0, 0, W, H);
+
+    // Semi-transparent background for better visibility
+    ctx.fillStyle = "rgba(0,0,0,0.8)";
+    ctx.fillRect(0, 0, W, H);
+
+    ctx.font = "bold 200px sans-serif";
+    
+    // Draw text outline for better visibility
+    const anyCtx = ctx as any;
+    anyCtx.textAlign = "center";
+    anyCtx.textBaseline = "middle";
+    
+    // Black outline
+    anyCtx.strokeStyle = "#000000";
+    anyCtx.lineWidth = 8;
+    anyCtx.strokeText(text, W / 2, H / 2);
+    
+    // Bright yellow text
+    anyCtx.fillStyle = "#ffff00";
+    anyCtx.fillText(text, W / 2, H / 2);
 
     dt.update();
   }
@@ -648,7 +893,7 @@ class PianoRollN3DGUI implements Node3DGUI {
   private clearPatternButton(){
     this.btnClearPattern = this.createBox(
       "clearPatternButton",
-      { width: 5, height: 0.2, depth: 0.8 },
+      { width: 5, height: 0.2, depth: 1 },
       B.Color3.Black(),
       new B.Vector3(
         this.startX + (this.buttonWidth + this.buttonSpacing),
@@ -844,6 +1089,45 @@ class PianoRollN3DGUI implements Node3DGUI {
   }
 
   // ───────────────────────────────────────────────────────────────────────────
+  // Haptic Feedback
+
+  private _triggerHapticFeedback(): void {
+    try {
+      const xrManager = XRManager.getInstance();
+      const scene = this.context.scene;
+
+      const left = xrManager.xrInputManager.leftController;
+      const right = xrManager.xrInputManager.rightController;
+
+      if (!left && !right) return;
+
+      // Cast a short ray from each controller to detect which is actually over the note grid
+      const maxLen = 100;
+      const isNoteCellHit = (pick: B.Nullable<B.PickingInfo>): boolean => !!(pick?.hit && pick.pickedMesh === this.noteCell);
+
+      if (left) {
+        const lray = new B.Ray(left.pointer.position, left.pointer.forward, maxLen);
+        const lpick = scene.pickWithRay(lray);
+        if (isNoteCellHit(lpick)) {
+          XRControllerManager.Instance.triggerHapticFeedback('left', 0.3, 50);
+          return; // Only one controller should vibrate per hover event
+        }
+      }
+
+      if (right) {
+        const rray = new B.Ray(right.pointer.position, right.pointer.forward, maxLen);
+        const rpick = scene.pickWithRay(rray);
+        if (isNoteCellHit(rpick)) {
+          XRControllerManager.Instance.triggerHapticFeedback('right', 0.3, 50);
+          return;
+        }
+      }
+    } catch (error) {
+      console.warn("Haptic feedback not available:", error);
+    }
+  }
+
+  // ───────────────────────────────────────────────────────────────────────────
   // Cleanup
 
   public async dispose(): Promise<void> {
@@ -852,10 +1136,15 @@ class PianoRollN3DGUI implements Node3DGUI {
       this.context.scene.onPointerObservable.remove(this._clickObserver);
       this._clickObserver = undefined;
     }
+    
+    // Clean up label scale observer
+    this._stopLabelScaleUpdates();
   }
 
   // For bounding volume consumers
-  public get worldSize() { return 4; }
+  // Now that the GUI is properly scaled to fit within 1x1x1, 
+  // we can use a more appropriate world size
+  public get worldSize() { return  20; }
 }
 
 
@@ -889,7 +1178,7 @@ export class PianoRollN3D implements Node3D {
   private isAKeyPressed = false;
 
   // Async ready gate for WAM init + pattern delegate
-  private ready!: Promise<void>;
+  public ready!: Promise<void>;
   private isReady = false;
   private pendingPattern: Pattern | null = null;
   private midiOutputConnectable: InstanceType<typeof MidiN3DConnectable.ListOutput>;
@@ -1011,6 +1300,9 @@ InputManager.getInstance().right_squeeze.on_change.add((event) => {
           this.pendingPattern = null;
           this._safeSendPatternToPianoRoll();
         }
+        // Ensure current pattern is broadcast to the sync layer after init
+        // so late joiners receive a complete snapshot immediately.
+        this.context.notifyStateChange("pattern");
       })
       .catch((e) => console.error("WAM init failed:", e));
 
@@ -1055,9 +1347,12 @@ const getPianoRollFromMesh = (mesh: B.AbstractMesh): PianoRollN3D | null => {
 };
 
 // Helper function to perform raycast and get pointed piano roll
-const getPointedPianoRoll = (): PianoRollN3D | null => {
+const getPointedPianoRollLeftController = (): PianoRollN3D | null => {
   const leftController = xrManager.xrInputManager.leftController;
+  // const rightController = xrManager.xrInputManager.rightController;
+
   if (!leftController) return null;
+  // if (!rightController) return null;
   
   // Create ray from controller
   const ray = new B.Ray(leftController.pointer.position, leftController.pointer.forward, 100);
@@ -1070,16 +1365,37 @@ const getPointedPianoRoll = (): PianoRollN3D | null => {
   
   return null;
 };
+const getPointedPianoRollRightController = (): PianoRollN3D | null => {
+
+   const rightController = xrManager.xrInputManager.rightController;
+
+  if (!rightController) return null;
+  
+  // Create ray from controller
+  const ray = new B.Ray(rightController.pointer.position, rightController.pointer.forward, 100);
+  const pickResult = t.pickWithRay(ray);
+  
+  if (pickResult?.hit && pickResult.pickedMesh) {
+    // Check if the picked mesh belongs to this piano roll
+    return getPianoRollFromMesh(pickResult.pickedMesh);
+  }
+  return null;
+}
+
 
 // Continuous scrolling while thumbstick is held
+// @ts-ignore
 let scrollInterval: NodeJS.Timeout | null = null;
 const scrollSpeed = 200; // milliseconds between scroll steps
 
 const startScrolling = (direction: number) => {
   if (scrollInterval) return; // Already scrolling
   
-  const pointedPianoRoll = getPointedPianoRoll();
-  if (pointedPianoRoll === this) {
+  const pointedPianoRollLeft = getPointedPianoRollLeftController() ;
+  const pointedPianoRollRight = getPointedPianoRollRightController();
+  
+
+  if (pointedPianoRollLeft === this || pointedPianoRollRight === this) {
     isScrolling = true;
     // Completely disable movement features to prevent camera rotation
     xrManager.setMovement([]);
@@ -1122,12 +1438,12 @@ im.left_thumbstick.on_value_change.add(({ x, y }) => {
 });
   }
 
-  private onInstrumentConnected(wamNode: WamNode) {
+  private onInstrumentConnected(_wamNode: WamNode) {
     // Handle new instrument connection
     // You can check wamNode.moduleId to determine instrument type
 }
 
-private onInstrumentDisconnected(wamNode: WamNode) {
+private onInstrumentDisconnected(_wamNode: WamNode) {
     // Handle instrument disconnection
 }
 
@@ -1644,6 +1960,7 @@ private onInstrumentDisconnected(wamNode: WamNode) {
     if (key === "pattern") return { pattern: this.pattern, timestamp: Date.now() };
   }
   async setState(key: string, state: any): Promise<void> {
+    console.log("PianoRollN3D setState:", key, state);
     if (key === "pattern") this.setPattern(state.pattern);
   }
   getStateKeys(): string[] { return ["pattern"]; }
@@ -1661,7 +1978,12 @@ private onInstrumentDisconnected(wamNode: WamNode) {
 export const PianoRollN3DFactory: Node3DFactory<PianoRollN3DGUI, PianoRollN3D> = {
   label: "pianoroll",
   description : "3D Piano Roll Sequencer, sources WAM from sequencer.party",
-  tags: ["wam", "midi", "sequencer", "piano roll"],
+  tags: ["wam", "midi", "sequencer", "pianoroll", "generator"],
   async createGUI(context) { return new PianoRollN3DGUI(context) },
-  async create(context, gui) { return new PianoRollN3D(context, gui) },
+  async create(context, gui) {
+    const ret = new PianoRollN3D(context, gui)
+    await ret.ready
+    await new Promise(res => setTimeout(res, 1000)) // Wait till patterns are sent. TODO: Faire ça proprement avec des async await
+    return ret  
+  },
 }

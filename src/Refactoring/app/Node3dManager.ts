@@ -17,14 +17,14 @@ export class Node3dManager {
 
     private static _instance: Node3dManager | null = null;
 
+    public static async initialize(audioCtx: AudioContext, audioEngine: AudioEngineV2): Promise<void> {
+        this._instance = new Node3dManager(audioCtx, audioEngine)
+        await this._instance.builder.initialize()
+    }
+
     public static getInstance(audioCtx?: AudioContext, audioEngine?: AudioEngineV2): Node3dManager {
-        if (!Node3dManager._instance) {
-            if (!audioCtx) {
-                throw new Error("Scene and AudioContext are required for first instantiation");
-            }
-            Node3dManager._instance = new Node3dManager(audioCtx, audioEngine!!);
-        }
-        return Node3dManager._instance;
+        if (!this._instance) throw new Error("Node3dManager not initialized. Call initialize() first.")
+        return this._instance
     }
 
     public async createNode3d(kind: string, id?: string): Promise<Node3DInstance|null>{

@@ -1,19 +1,22 @@
-import { Vector3, WebXRFeatureName } from "@babylonjs/core";
+import { Vector3, WebXRCamera, WebXRFeatureName } from "@babylonjs/core";
 import { XRManager } from "../../xr/XRManager";
 import { N3DShop, N3DShopObject, N3DShopType } from "./N3DShop";
-import { SceneManager } from "../../app/SceneManager";
 
 const TRANSITION_TIME = 250 // ms
 
 const ANIMATED_TRANSITION = false
+
+const DEBUG_LOG = false // Set to true to enable debug logs
 
 export class N3DShopCamera implements N3DShopType {
 
     cameras = [] as N3DShopObject[]
     selected = -1
     to_show = 0
-    initialPosition = new Vector3(0, 0, 0)
-    initialRotation = new Vector3(0, 0, 0)
+    /** Position before going to the shop */
+    initialPosition: Vector3 | null = null
+    /** Rotation before going to the shop */
+    initialRotation: Vector3 | null = null
     animation = Promise.resolve()
     shown = null as string|null
     shop!: N3DShop
@@ -25,11 +28,25 @@ export class N3DShopCamera implements N3DShopType {
         this.shop = shop
 
         if(this.cameras.length==1){
+            const camera = XRManager.getInstance().xrHelper.baseExperience.camera
+            
             shop.inputs.y_button.on_down.add(()=>{
+                if(DEBUG_LOG) console.log(`[Y Button] pressed - selected: ${this.selected}, to_show: ${this.to_show}`)
                 this.animation = this.animation.then(async()=>{
                     if(this.selected==-1) await this.show(this.to_show)
-                    else await this.show(-1)
-                    await this.unload()
+                    else{
+                        await this.show(-1)
+                        await this.unload()
+                    }
+                    
+                })
+            })
+            shop.inputs.b_button.on_down.add(()=>{
+                this.animation = this.animation.then(async()=>{
+                    if(this.selected!=-1){
+                        await this.show(-1)
+                        await this.unload()
+                    }
                 })
             })
             shop.inputs.left_thumbstick.on_left_down.add(()=>{
@@ -44,7 +61,6 @@ export class N3DShopCamera implements N3DShopType {
                 })
             })
 
-            const camera = XRManager.getInstance().xrHelper.baseExperience.camera
             shop.on_start_drag.add((previewer) => {
                 this.animation = this.animation.then(async()=>{
                     await this.show(-1)
@@ -69,7 +85,7 @@ export class N3DShopCamera implements N3DShopType {
         let selected = this.selected
         do{
             selected = (selected + offset + this.cameras.length) % this.cameras.length
-            const camera = this.cameras[selected]
+            // const camera = this.cameras[selected]  // Reserved for future empty verification
             if(true/*NOT EMPTY VERIFICATION*/)break
         }while(selected!=this.selected)
         await this.show(selected)
@@ -77,6 +93,8 @@ export class N3DShopCamera implements N3DShopType {
     }
 
     async show(index: number){
+        if(DEBUG_LOG) console.log(`[show] called - index: ${index}, current selected: ${this.selected}, cameras.length: ${this.cameras.length}`)
+        
         if(index==this.selected) return
 
         const camera = XRManager.getInstance().xrHelper.baseExperience.camera
@@ -85,36 +103,45 @@ export class N3DShopCamera implements N3DShopType {
         let fromPosition: Vector3
         let fromRotation: Vector3
 
+        // FROM WORLD
         if(this.selected==-1){
-            this.initialPosition = camera.position.clone()
-            this.initialRotation = camera.rotation.clone()
+            this.initialPosition = camera.globalPosition.clone()
+            this.initialRotation = camera.rotationQuaternion?.toEulerAngles() ?? camera.rotation.clone()
+                                    
             fromPosition = this.initialPosition
             fromRotation = this.initialRotation
-            if(XRManager.getInstance().xrFeaturesManager.getEnabledFeatures().includes(WebXRFeatureName.MOVEMENT))
+
+            if(XRManager.getInstance().xrFeaturesManager.getEnabledFeatures().includes(WebXRFeatureName.MOVEMENT)){
                 XRManager.getInstance().xrFeaturesManager.disableFeature(WebXRFeatureName.MOVEMENT)
+            }
+            camera.applyGravity = false
+            await this._stopCameraVelocity(camera)
         }
+        // FROM ANOTHER SHOP PANEL
         else{
             fromPosition = this.cameras[this.selected].location.absolutePosition
             fromRotation = this.cameras[this.selected].location.absoluteRotation
         }
 
-        console.log("after calc from")
+        if(DEBUG_LOG) console.log("after calc from")
 
         // To position and rotation
         let toPosition: Vector3
         let toRotation: Vector3
 
+        // TO WORLD
         if(index==-1){
-            toPosition = this.initialPosition
-            toRotation = this.initialRotation
+            toPosition = this.initialPosition!
+            toRotation = this.initialRotation!
+
             if(!XRManager.getInstance().xrFeaturesManager.getEnabledFeatures().includes(WebXRFeatureName.MOVEMENT))
-                XRManager.getInstance().xrFeaturesManager.enableFeature(WebXRFeatureName.MOVEMENT, "latest",
-                {
-                    xrInput: XRManager.getInstance().xrHelper.input,
-                    movementSpeed: 0.2,
-                    rotationSpeed: 0.3
-                })
+                XRManager.getInstance().setMovement(["rotation", "translation"])
+            camera.applyGravity = true
+
+            this.initialPosition = null
+            this.initialRotation = null
         }
+        // TO A SHOP PANEL
         else{
             toPosition = this.cameras[index].location.absolutePosition
             toRotation = this.cameras[index].location.absoluteRotation
@@ -126,6 +153,9 @@ export class N3DShopCamera implements N3DShopType {
         // Hide
         if(newShown!=null) await this.shop.showZone(newShown)
 
+        // Stop camera velocity before teleporting to prevent drift
+        this._stopCameraVelocity(camera)
+
         // Animate
         if(ANIMATED_TRANSITION){
             const startTime = Date.now()
@@ -133,7 +163,8 @@ export class N3DShopCamera implements N3DShopType {
                 let observer = camera.getScene().onAfterAnimationsObservable.add(()=>{
                     const advancement = Math.min(1, (Date.now() - startTime) / TRANSITION_TIME)
                     camera.position.copyFrom(Vector3.Lerp(fromPosition, toPosition, advancement))
-                    camera.rotation.copyFrom(Vector3.Lerp(fromRotation, toRotation, advancement))
+                    if(camera.rotationQuaternion) camera.rotation = camera.rotationQuaternion.toEulerAngles()
+                    camera.rotation.y = Vector3.Lerp(fromRotation, toRotation, advancement).y
                     camera.rotationQuaternion = camera.rotation.toQuaternion()
                     if(advancement>=1){
                         observer.remove()
@@ -143,8 +174,11 @@ export class N3DShopCamera implements N3DShopType {
             })
         }
         else{
+            // Teleport to the new location
             camera.position.copyFrom(toPosition)
-            camera.rotation.copyFrom(toRotation)
+            // Change only the y rotation of the camera (With some quaternion related shenanigans to handle rotationQuaternion)
+            if(camera.rotationQuaternion) camera.rotation = camera.rotationQuaternion.toEulerAngles()
+            camera.rotation.y = toRotation.y
             camera.rotationQuaternion = camera.rotation.toQuaternion()
         }
         
@@ -155,7 +189,7 @@ export class N3DShopCamera implements N3DShopType {
         this.shown = newShown
         this.selected = index
 
-        console.log("after switch")
+        if(DEBUG_LOG) console.log("after switch")
     }
 
     async unload(){
@@ -164,5 +198,17 @@ export class N3DShopCamera implements N3DShopType {
         }
         this.to_unloads.clear()
     }
+
+    
+    private async _stopCameraVelocity(camera: WebXRCamera) {
+        // Stop camera momentum/velocity to prevent drift during teleport
+        // Try multiple properties that different camera types might use
+        camera.cameraDirection.setAll(0)
+        camera.cameraRotation.setAll(0)
+
+        // Wait some time to ensure velocity is cleared
+        await new Promise(r => setTimeout(r, 50));
+    }
+
 
 }
