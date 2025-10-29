@@ -35,6 +35,9 @@ export class Node3DBuilder {
         if("wam3d" in json){
             return await Wam3DGeneratorN3DFactory.create(json.wam3d)
         }
+        else if("bottom_color" in json){
+            return await Wam3DGeneratorN3DFactory.create(json)
+        }
 
         return null
     }
