@@ -107,6 +107,8 @@ class Wam3DGeneratorN3D implements Node3D{
         this.states = new ControlStateManager(gui.wam_generator.controls)
         this.states.onStateChange = name => context.notifyStateChange(name)
         context.addToBoundingBox(gui.wam_generator.pad_node as AbstractMesh)
+
+        await new Promise(r=>setTimeout(r,1000)) // Wait a frame to ensure everything is initialized
     }
 
     async dispose(): Promise<void> {
