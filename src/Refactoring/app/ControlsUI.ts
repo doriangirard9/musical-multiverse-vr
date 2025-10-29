@@ -15,6 +15,8 @@ interface ButtonLabel {
  * ControlsUI — Individual 3D labels positioned near each physical button on controllers
 */
 export class ControlsUI {
+    private static readonly DEBUG_LOG = false; // Set to true to enable debug logging
+    
     private labels: Map<string, ButtonLabel> = new Map();
     private visible: boolean = false;
     private scene: B.Scene;
@@ -31,7 +33,7 @@ export class ControlsUI {
         this._createLabels();
         this._createDebugGrids();
         
-        console.log(`[ControlsUI] Created ${this.labels.size} labels`);
+        if (ControlsUI.DEBUG_LOG) console.log(`[ControlsUI] Created ${this.labels.size} labels`);
         
         // Update positions each frame when in XR
         this.updateObserver = this.scene.onBeforeRenderObservable.add(() => {
@@ -144,15 +146,17 @@ export class ControlsUI {
                 const componentMesh = this._findComponentMesh(controller.grip, label.componentId);
                 
                 // Debug log when we find (or don't find) a mesh
-                const logKey = `${label.handedness}-${label.componentId}`;
-                if (!this.loggedMeshFinds.has(logKey)) {
-                    if (componentMesh) {
-                        const meshPos = componentMesh.getAbsolutePosition();
-                        console.log(`[ControlsUI] ✓ Found mesh for ${label.componentId} on ${label.handedness}: ${componentMesh.name} at (${meshPos.x.toFixed(3)}, ${meshPos.y.toFixed(3)}, ${meshPos.z.toFixed(3)})`);
-                    } else {
-                        console.warn(`[ControlsUI] ✗ Could not find mesh for ${label.componentId} on ${label.handedness}`);
+                if (ControlsUI.DEBUG_LOG) {
+                    const logKey = `${label.handedness}-${label.componentId}`;
+                    if (!this.loggedMeshFinds.has(logKey)) {
+                        if (componentMesh) {
+                            const meshPos = componentMesh.getAbsolutePosition();
+                            console.log(`[ControlsUI] ✓ Found mesh for ${label.componentId} on ${label.handedness}: ${componentMesh.name} at (${meshPos.x.toFixed(3)}, ${meshPos.y.toFixed(3)}, ${meshPos.z.toFixed(3)})`);
+                        } else {
+                            console.warn(`[ControlsUI] ✗ Could not find mesh for ${label.componentId} on ${label.handedness}`);
+                        }
+                        this.loggedMeshFinds.add(logKey);
                     }
-                    this.loggedMeshFinds.add(logKey);
                 }
                 
                 if (componentMesh) {
@@ -168,11 +172,13 @@ export class ControlsUI {
                     label.mesh.position = finalPos;
                     
                     // Log final label position once
-                    const posLogKey = `pos-${label.handedness}-${label.componentId}`;
-                    if (!this.loggedMeshFinds.has(posLogKey)) {
-                        console.log(`[ControlsUI] ${label.componentId} bounding center: (${boundingCenter.x.toFixed(3)}, ${boundingCenter.y.toFixed(3)}, ${boundingCenter.z.toFixed(3)})`);
-                        console.log(`[ControlsUI] Label positioned at: (${finalPos.x.toFixed(3)}, ${finalPos.y.toFixed(3)}, ${finalPos.z.toFixed(3)})`);
-                        this.loggedMeshFinds.add(posLogKey);
+                    if (ControlsUI.DEBUG_LOG) {
+                        const posLogKey = `pos-${label.handedness}-${label.componentId}`;
+                        if (!this.loggedMeshFinds.has(posLogKey)) {
+                            console.log(`[ControlsUI] ${label.componentId} bounding center: (${boundingCenter.x.toFixed(3)}, ${boundingCenter.y.toFixed(3)}, ${boundingCenter.z.toFixed(3)})`);
+                            console.log(`[ControlsUI] Label positioned at: (${finalPos.x.toFixed(3)}, ${finalPos.y.toFixed(3)}, ${finalPos.z.toFixed(3)})`);
+                            this.loggedMeshFinds.add(posLogKey);
+                        }
                     }
                 } else {
                     // Fallback to grip position if component not found
@@ -183,7 +189,7 @@ export class ControlsUI {
             }
             
             // Debug log once when we first start updating positions
-            if (updatedCount > 0 && !this.hasLoggedUpdate) {
+            if (ControlsUI.DEBUG_LOG && updatedCount > 0 && !this.hasLoggedUpdate) {
                 console.log(`[ControlsUI] Updating ${updatedCount} label positions`);
                 this.hasLoggedUpdate = true;
             }
@@ -202,14 +208,16 @@ export class ControlsUI {
         const meshPatterns = this._getComponentMeshPatterns(componentId);
         
         // Debug: List all nodes in hierarchy once (only after model loads)
-        const logKey = `hierarchy-${gripNode.name}`;
-        if (!this.loggedMeshFinds.has(logKey)) {
-            const children = gripNode.getChildren();
-            // Only log if the controller model has loaded (has children)
-            if (children && children.length > 0) {
-                console.log(`[ControlsUI] Full hierarchy of: ${gripNode.name}`);
-                this._listHierarchy(gripNode, 0);
-                this.loggedMeshFinds.add(logKey);
+        if (ControlsUI.DEBUG_LOG) {
+            const logKey = `hierarchy-${gripNode.name}`;
+            if (!this.loggedMeshFinds.has(logKey)) {
+                const children = gripNode.getChildren();
+                // Only log if the controller model has loaded (has children)
+                if (children && children.length > 0) {
+                    console.log(`[ControlsUI] Full hierarchy of: ${gripNode.name}`);
+                    this._listHierarchy(gripNode, 0);
+                    this.loggedMeshFinds.add(logKey);
+                }
             }
         }
         
@@ -228,15 +236,17 @@ export class ControlsUI {
                     }
                     
                     // Found a potential mesh - log it once with position
-                    const meshLogKey = `found-${componentId}-${node.name}`;
-                    if (!this.loggedMeshFinds.has(meshLogKey)) {
-                        if (node instanceof B.AbstractMesh) {
-                            const pos = node.absolutePosition;
-                            console.log(`[ControlsUI] ✓ Found ${componentId} mesh: '${node.name}' at (${pos.x.toFixed(3)}, ${pos.y.toFixed(3)}, ${pos.z.toFixed(3)})`);
-                        } else {
-                            console.log(`[ControlsUI] ✓ Found ${componentId} mesh: '${node.name}' (TransformNode)`);
+                    if (ControlsUI.DEBUG_LOG) {
+                        const meshLogKey = `found-${componentId}-${node.name}`;
+                        if (!this.loggedMeshFinds.has(meshLogKey)) {
+                            if (node instanceof B.AbstractMesh) {
+                                const pos = node.absolutePosition;
+                                console.log(`[ControlsUI] ✓ Found ${componentId} mesh: '${node.name}' at (${pos.x.toFixed(3)}, ${pos.y.toFixed(3)}, ${pos.z.toFixed(3)})`);
+                            } else {
+                                console.log(`[ControlsUI] ✓ Found ${componentId} mesh: '${node.name}' (TransformNode)`);
+                            }
+                            this.loggedMeshFinds.add(meshLogKey);
                         }
-                        this.loggedMeshFinds.add(meshLogKey);
                     }
                     
                     // Found it! Return as AbstractMesh if possible
