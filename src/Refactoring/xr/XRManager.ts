@@ -51,6 +51,7 @@ export class XRManager {
             this.xrHelper.baseExperience.camera.checkCollisions = true;
             this.xrHelper.baseExperience.camera.applyGravity = true;
             this.xrHelper.baseExperience.camera.ellipsoid = new B.Vector3(1, 1, 1);
+            
             this.xrHelper.baseExperience.onStateChangedObservable.add((state) => {
                 switch (state) {
                     case B.WebXRState.ENTERING_XR:
@@ -58,6 +59,20 @@ export class XRManager {
                         break;
                     case B.WebXRState.IN_XR:
                         console.log('[*] XR STATE - In XR...');
+                        
+                        // Forcer la gravité à s'appliquer pour éviter de commencer dans les airs
+                        let frameCount = 0;
+                        const gravityObserver = this._scene.onBeforeRenderObservable.add(() => {
+                            const cam = this.xrHelper.baseExperience.camera;
+                            if (cam.applyGravity && cam.cameraDirection) {
+                                const deltaTime = cam.getEngine().getDeltaTime() / 1000.0;
+                                cam.cameraDirection.y -= 9.81 * deltaTime;
+                            }
+                            if (++frameCount >= 10) {
+                                this._scene.onBeforeRenderObservable.remove(gravityObserver);
+                            }
+                        });
+                        
                         // Besoin d'attendre qu'on soit en VR avant d'initialiser les contrôleurs
                         this._initControllersAfterXREntry();
                         break;
