@@ -106,7 +106,7 @@ export class N3DShopCamera implements N3DShopType {
         // FROM WORLD
         if(this.selected==-1){
             this.initialPosition = camera.globalPosition.clone()
-            this.initialRotation = camera.rotation.clone()
+            this.initialRotation = camera.rotationQuaternion?.toEulerAngles() ?? camera.rotation.clone()
                                     
             fromPosition = this.initialPosition
             fromRotation = this.initialRotation

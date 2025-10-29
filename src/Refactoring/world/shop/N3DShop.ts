@@ -156,7 +156,11 @@ export class N3DShop {
                 }
             }))
             z.dispose = async()=>{
-                await Promise.all(disposers.map(d=>d?.()))
+                try{
+                    await Promise.all(disposers.map(d=>d?.()))
+                }catch(e){
+                    console.error(e)
+                }
             }
         })()
     }
@@ -187,12 +191,12 @@ export class N3DShop {
     static BASE_OPTIONS: N3DShopOptions = {
         kinds: [
             "livepiano", "maracas", "audiooutput", "oscillator", "notesbox",
-            "wam3d-modal", "wam3d-tiny54", "wam3d-voxamp", "wam3d-flute", "wam3d-disto_machine", "wam3d-guitar", "wam3d-kverb",
+            "wam3d-modal", "wam3d-Micro 54", "wam3d-Vox Amp 30", "wam3d-Faust Flute", "wam3d-Disto Machine", "wam3d-FAUST Guitar", "wam3d-KVerb",
         ],
         categories: {
             generator: ["livepiano", "oscillator", "notesbox", "maracas"],
-            instrument: ["wam3d-tiny54", "wam3d-flute", "wam3d-guitar", "wam3d-modal"],
-            effect: ["wam3d-voxamp", "wam3d-disto_machine", "wam3d-kverb"],
+            instrument: ["wam3d-Micro 54", "wam3d-Faust Flute", "wam3d-FAUST Guitar", "wam3d-modal"],
+            effect: ["wam3d-Vox Amp 30", "wam3d-Disto Machine", "wam3d-KVerb"],
             technical: ["audiooutput"],
         }
     }

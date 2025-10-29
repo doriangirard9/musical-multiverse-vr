@@ -16,6 +16,7 @@ import { InputManager } from "../../../xr/inputs/InputManager";
 import { XRManager } from "../../../xr/XRManager";
 import { SceneManager } from "../../../app/SceneManager";
 import { XRControllerManager } from "../../../xr/XRControllerManager";
+import { ETextureFilterType } from "@babylonjs/loaders/glTF/1.0";
 
 interface PatternNote {
   tick: number;
@@ -244,6 +245,7 @@ class PianoRollN3DGUI implements Node3DGUI {
     this.midiOutput.parent = this.root;
 
     this.startStopButton();
+
   }
 
   // Add this inside the PianoRollN3DGUI class (same section as the other label helpers)
@@ -1176,7 +1178,7 @@ export class PianoRollN3D implements Node3D {
   private isAKeyPressed = false;
 
   // Async ready gate for WAM init + pattern delegate
-  private ready!: Promise<void>;
+  public ready!: Promise<void>;
   private isReady = false;
   private pendingPattern: Pattern | null = null;
   private midiOutputConnectable: InstanceType<typeof MidiN3DConnectable.ListOutput>;
@@ -1958,6 +1960,7 @@ private onInstrumentDisconnected(_wamNode: WamNode) {
     if (key === "pattern") return { pattern: this.pattern, timestamp: Date.now() };
   }
   async setState(key: string, state: any): Promise<void> {
+    console.log("PianoRollN3D setState:", key, state);
     if (key === "pattern") this.setPattern(state.pattern);
   }
   getStateKeys(): string[] { return ["pattern"]; }
@@ -1977,5 +1980,10 @@ export const PianoRollN3DFactory: Node3DFactory<PianoRollN3DGUI, PianoRollN3D> =
   description : "3D Piano Roll Sequencer, sources WAM from sequencer.party",
   tags: ["wam", "midi", "sequencer", "pianoroll", "generator"],
   async createGUI(context) { return new PianoRollN3DGUI(context) },
-  async create(context, gui) { return new PianoRollN3D(context, gui) },
+  async create(context, gui) {
+    const ret = new PianoRollN3D(context, gui)
+    await ret.ready
+    await new Promise(res => setTimeout(res, 1000)) // Wait till patterns are sent. TODO: Faire ça proprement avec des async await
+    return ret  
+  },
 }

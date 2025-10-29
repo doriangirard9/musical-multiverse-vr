@@ -69,9 +69,8 @@ export class NewApp {
         const node3dBuilder = node3dManager.builder
         const node3dShared = node3dBuilder.getShared()
         
-        // create left-side controls UI (HUD)
-        this.controlsUI = new ControlsUI("320px");
-        this.controlsUI.show();
+        // create 3D controller button labels
+        this.controlsUI = new ControlsUI();
         
         // Setup X button to toggle controls UI
         InputManager.getInstance().x_button.on_change.add((event) => {
