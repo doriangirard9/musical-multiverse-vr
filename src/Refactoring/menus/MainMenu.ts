@@ -38,11 +38,7 @@ export class MainMenu extends AbstractMenu {
     }
 
     private _createCategories(): void {
-        // Sound generators
-        const soundGeneratorsButton = new GUI.TouchHolographicButton("soundGenerators");
-        soundGeneratorsButton.text = "Sound Generators";
-        this._menu.addButton(soundGeneratorsButton);
-
+        
         // WAM plugins
         this._menuConfig.categories.forEach((category, index: number): void => {
             const button = new GUI.TouchHolographicButton(category.name);
