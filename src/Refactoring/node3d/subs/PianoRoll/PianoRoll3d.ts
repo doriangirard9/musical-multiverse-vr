@@ -1298,6 +1298,9 @@ InputManager.getInstance().right_squeeze.on_change.add((event) => {
           this.pendingPattern = null;
           this._safeSendPatternToPianoRoll();
         }
+        // Ensure current pattern is broadcast to the sync layer after init
+        // so late joiners receive a complete snapshot immediately.
+        this.context.notifyStateChange("pattern");
       })
       .catch((e) => console.error("WAM init failed:", e));
 

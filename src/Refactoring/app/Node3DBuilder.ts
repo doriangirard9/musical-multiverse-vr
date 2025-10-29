@@ -29,7 +29,26 @@ export class Node3DBuilder {
         ...Object.keys(examples).map(k => `wam3d-${k}`),
     ]
 
+    private async parseFactory(code: string): Promise<Node3DFactory<Node3DGUI,Node3D>|null> {
+        const json = JSON.parse(code) as Node3DConfig
+        
+        if("wam3d" in json){
+            return await Wam3DGeneratorN3DFactory.create(json.wam3d)
+        }
+        else if("bottom_color" in json){
+            return await Wam3DGeneratorN3DFactory.create(json)
+        }
+
+        return null
+    }
+
     private async createFactories(kind: string): Promise<Node3DFactory<Node3DGUI,Node3D>|null> {
+        // Dynamic 
+        if(kind.startsWith("desc:")){
+            const description = kind.substring(5)
+            return await this.parseFactory(description)
+        }
+
         // Builtin
         if(kind=="audiooutput") return SpeakerN3DFactory
         if(kind=="sequencer") return SequencerN3DFactory
@@ -49,15 +68,8 @@ export class Node3DBuilder {
         // Configs
         {
             const response = await fetch(`${WAM_CONFIGS_URL}/wamsConfig/${kind}.json`,{method:"get",headers:{"Content-Type":"application/json"}})
-            if(response.ok){
-                const config = await response.json() as Node3DConfig
-
-                // Wam3DGenerator
-                if("wam3d" in config)return await Wam3DGeneratorN3DFactory.create(config.wam3d)
-            }
-
+            if(response.ok) return await this.parseFactory(await response.text())
         }
-
 
         return null
     }
