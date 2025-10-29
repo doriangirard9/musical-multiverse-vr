@@ -80,8 +80,6 @@ export class N3DShop {
                 const options = JSON.parse(realJson) as any
                 
                 const zone = options.zone ?? "default"
-
-                mesh.scaling.x*=-1
                 
                 const location: N3DShopObject['location'] = {
                     position: mesh.position.clone(),
@@ -90,11 +88,13 @@ export class N3DShop {
                     rotation: mesh.rotationQuaternion ? mesh.rotationQuaternion.toEulerAngles() : mesh.rotation.clone(),
                     absoluteRotation: mesh.absoluteRotationQuaternion.toEulerAngles(),
                     
-                    scaling: mesh.scaling.clone().scaleInPlace(2),
-                    absoluteScaling: mesh.absoluteScaling.clone().scaleInPlace(2),
+                    scaling: mesh.scaling.clone().scaleInPlace(-2),
+                    absoluteScaling: mesh.absoluteScaling.clone().scaleInPlace(-2),
 
                     parent: mesh.parent!!,
                 }
+
+                mesh.scaling.x*=-1
                 
                 // Create a panel
                 this.zoneMap[zone] ??= {objects: []}
