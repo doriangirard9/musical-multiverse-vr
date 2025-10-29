@@ -34,11 +34,15 @@ export class NetworkManager {
         console.log("Current player id:", this.playerId)
     }
 
+    public static initialize(){
+        this.instance = new NetworkManager();
+    }
+
     private static instance?: NetworkManager
 
     public static getInstance() {
         if (!this.instance) {
-            this.instance = new NetworkManager();
+            throw new Error("NetworkManager not initialized. Call init() first.");
         }
         return this.instance;
     }

@@ -25,10 +25,12 @@ export class ConnectionManager {
     
     private static instance: ConnectionManager
 
+    public static initialize(): void {
+        this.instance = new ConnectionManager()
+    }
+
     public static getInstance(): ConnectionManager {
-        if (!ConnectionManager.instance) {
-            ConnectionManager.instance = new ConnectionManager();
-        }
+        if (!ConnectionManager.instance) throw new Error("ConnectionManager not initialized. Call initialize() first.")
         return ConnectionManager.instance;
     }
 
