@@ -17,23 +17,16 @@ import {NewApp} from "./Refactoring/app/NewApp.ts";
  * un objet y est supprimé, il est désynchronisé.
  */
 
-const audioCtx: AudioContext = new AudioContext();
 
-const audioEngine = await CreateAudioEngineAsync({audioContext:audioCtx})
-await audioEngine.unlockAsync();
-
-let onload = (): void => {
-    const newApp: NewApp = NewApp.getInstance(audioCtx, audioEngine);
-    newApp.start().then(() => {
+let onload = async() => {
+    const newApp: NewApp = new NewApp()
+    try{
+        await newApp.start()
         console.log("NewApp started");
-    }).catch((error) => {
-        console.error("Error starting NewApp:", error);
-    });
+    }catch(e){
+        console.error("Error during app initialization:", e);
+    }
 }
 
 if(document.readyState === "complete") onload()
 else window.addEventListener("load", onload)
-
-window.addEventListener('click', async (): Promise<void> => {
-    await audioCtx.resume();
-}, { once: true });

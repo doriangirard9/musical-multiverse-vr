@@ -3,51 +3,75 @@ import {XRManager} from "../xr/XRManager.ts";
 import {Node3dManager} from "./Node3dManager.ts";
 import {AppOrchestrator} from "./AppOrchestrator.ts";
 import ControlsUI from "./ControlsUI.ts";
-import {AudioEngineV2, ImportMeshAsync} from "@babylonjs/core";
+import {CreateAudioEngineAsync, ImportMeshAsync} from "@babylonjs/core";
 import {N3DShop, N3DShopOptions} from "../world/shop/N3DShop.ts";
 import { InputManager } from "../xr/inputs/InputManager.ts";
 import { parallel } from "../utils/utils.ts";
+import { UIManager } from "./UIManager.ts";
+import { NetworkManager } from "../network/NetworkManager.ts";
+import { PlayerManager } from "./PlayerManager.ts";
+import { ConnectionManager } from "../iomanager/ConnectionManager.ts";
 export class NewApp {
-    private audioCtx: AudioContext | undefined;
-    private audioEngine!: AudioEngineV2
-    private sceneManager: SceneManager;
-    private xrManager: XRManager | null = null;
-    private audioManager: Node3dManager | null = null;
     private controlsUI?: ControlsUI;
 
-    private constructor(audioContext?: AudioContext, audioEngine?: AudioEngineV2) {
-        const canvas: HTMLCanvasElement = document.getElementById('renderCanvas') as HTMLCanvasElement;
-        this.sceneManager = SceneManager.getInstance(canvas);
-        if (audioContext !== undefined) {
-            this.audioCtx = audioContext;
-            this.audioEngine = audioEngine!!;
-            this.audioManager = Node3dManager.getInstance(this.audioCtx, this.audioEngine);
-            this.xrManager = XRManager.getInstance();
-            AppOrchestrator.getInstance()
-        }
+    constructor() {}
 
-    }
 
     private static instance?: NewApp
 
-    public static getInstance(audioContext? : AudioContext, audioEngine?: AudioEngineV2): NewApp {
-        if (!NewApp.instance) {
-            if (!audioContext) {
-                throw new Error("AudioContext is required for first instantiation");
-            }
-            NewApp.instance = new NewApp(audioContext, audioEngine);
-        }
+    public static getInstance(): NewApp {
+        if (!NewApp.instance) throw new Error("NewApp not initialized. Create an instance first.")
         return NewApp.instance;
     }
 
     public async start(): Promise<void> {
-        const scene = this.sceneManager.getScene()
+        NewApp.instance = this
+
+
+        // Intialization of scene
+        SceneManager.initialize()
+
+
+        // Initialization of Audio Context
+        const audioContext = new AudioContext()
+        await new Promise<void>(r=>{
+            window.addEventListener('click',
+                async() => {
+                    await audioContext.resume();
+                    r()
+                }, 
+                { once: true }
+            )
+        })
         
-        this.sceneManager.start();
+        const audioEngine = await CreateAudioEngineAsync({audioContext})
+        await audioEngine.unlockAsync()
+
+
+        // Initialization of App Parts
+        UIManager.initialize()
+
+        await Node3dManager.initialize(audioContext, audioEngine)
+        
+        PlayerManager.initialize()
+        NetworkManager.initialize()
+        ConnectionManager.initialize()
+
+        await AppOrchestrator.initialize()
+
+        SceneManager.getInstance().start();
+
+        await XRManager.getInstance()!!.init(SceneManager.getInstance().getScene(), audioEngine);
+
+        // Get things
+        const scene = SceneManager.getInstance().getScene()
+        const node3dManager = Node3dManager.getInstance()
+        const node3dBuilder = node3dManager.builder
+        const node3dShared = node3dBuilder.getShared()
+        
         // create left-side controls UI (HUD)
         this.controlsUI = new ControlsUI("320px");
         this.controlsUI.show();
-        await this.xrManager!!.init(this.sceneManager.getScene(), this.audioEngine);
         
         // Setup X button to toggle controls UI
         InputManager.getInstance().x_button.on_change.add((event) => {
@@ -55,38 +79,13 @@ export class NewApp {
                 this.controlsUI?.toggle();
             }
         });
-        
-        //await this.audioManager!!.createNode3d("notesbox")
-        /*
-        //await this.audioManager!!.createNode3d("audiooutput")
 
-        const mesh = CreateBox("box", {size: 1}, scene)
-        mesh.rotation.x = Math.PI / 3
-        mesh.bakeCurrentTransformIntoVertices()
-        const behavior = new ShakeBehavior()
-        mesh.addBehavior(behavior)
-        behavior.on_shake = (p,c)=>{
-            mesh.visibility = Math.max(0,1-p/10)
-        }
-        behavior.on_stop = (p,c)=>{
-            mesh.visibility = 1
-        }*/
-
-        /*const menu = new Menu2(scene, {
-            label: "Main",
-            buttons: []
-        })
-
-        menu.plane.position.set(0, 1.5, 1)*/
-
-        await this.audioManager!!.builder.init()
-
-        const shared = this.audioManager?.builder?.getShared()!!
+        console.log(node3dShared)
 
         window.addEventListener("keydown",async(e)=>{
             if(e.key=="p"){
                 let prompt = window.prompt("Enter Node3D kind to create:")
-                if(prompt) this.audioManager?.createNode3d(`desc:${prompt}`)
+                if(prompt) node3dManager.createNode3d(`desc:${prompt}`)
             }
             else if(e.key=="i"){
                 scene.debugLayer.show()
@@ -105,7 +104,7 @@ export class NewApp {
                     model.scaling.scaleInPlace(.6)
                     const shop = new N3DShop(
                         model,
-                        shared,
+                        node3dShared,
                         Node3dManager.getInstance(),
                         InputManager.getInstance(),
                         N3DShop.BASE_OPTIONS,
@@ -116,12 +115,11 @@ export class NewApp {
                 },
                 // Le magasin-menu, accessible via un bouton et dont les WAM sont chargé et déchargé dynamiquement
                 async()=>{
-                    const builder = this.audioManager?.builder!!
                     const categories: Record<string, Set<string>> = {}
                     const kinds = new Set<string>()
-                    await Promise.all(builder.FACTORY_KINDS.map(async kind => {
+                    await Promise.all(node3dBuilder.FACTORY_KINDS.map(async kind => {
                         try{
-                            const factory = await builder.getFactory(kind)
+                            const factory = await node3dBuilder.getFactory(kind)
                             if(!factory) return
                             kinds.add(kind)
                             for(const tag of factory.tags){
@@ -146,7 +144,7 @@ export class NewApp {
                         }
                         shop = new N3DShop(
                             model,
-                            shared,
+                            node3dShared,
                             Node3dManager.getInstance(),
                             InputManager.getInstance(),
                             options,

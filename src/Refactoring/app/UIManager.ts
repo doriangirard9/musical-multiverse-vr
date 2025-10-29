@@ -28,11 +28,13 @@ export class UIManager {
         this.setupEventListeners();
     }
 
+    public static initialize(){
+        this._instance = new UIManager(SceneManager.getInstance().getScene())
+    }
+
     public static getInstance(): UIManager {
-        if (!UIManager._instance) {
-            UIManager._instance = new UIManager(SceneManager.getInstance().getScene());
-        }
-        return UIManager._instance;
+        if (!UIManager._instance) throw new Error("UIManager not initialized. Call initialize() first.")
+        return UIManager._instance
     }
 
     private setupEventListeners(): void {
