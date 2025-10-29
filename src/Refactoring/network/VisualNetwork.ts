@@ -7,6 +7,7 @@ import { VisualTube } from '../visual/VisualTube.ts';
  * Responsable de la synchronisation des états des nœuds audio via Y.js.
  */
 export class VisualNetwork {
+    private static readonly DEBUG_LOG = false;
 
     /**
      * Le gestionnaire des visuels de tube
@@ -21,7 +22,7 @@ export class VisualNetwork {
 
         this.tubes = VisualTube.getSyncManager(scene,doc)
 
-        console.log(`[VisualNetwork] Initialized`);
+        if (VisualNetwork.DEBUG_LOG) console.log(`[VisualNetwork] Initialized`);
     }
 
 }

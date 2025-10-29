@@ -3,6 +3,7 @@ import {NoteExtension} from "../wamExtensions/notes/NoteExtension.ts";
 import {PatternExtension} from "../wamExtensions/patterns/PatternExtension.ts";
 
 export class WamInitializer {
+    private static readonly DEBUG_LOG = false;
     private static hostGroupId: [string, string] | null = null;
     private static hostGroupIdPromise: Promise<[string, string]> | null = null;
     private readonly _audioCtx: AudioContext;
@@ -12,7 +13,7 @@ export class WamInitializer {
         this.initializeHostGroupId().catch((error) => {
             console.error('Failed to initialize WAM host group ID:', error);
         });
-        console.log("[*] WamInitializer Initialized");
+        if (WamInitializer.DEBUG_LOG) console.log("[*] WamInitializer Initialized");
         this._wamExtensionSetup();
     }
     public static getInstance(audioCtx?: AudioContext): WamInitializer {
@@ -38,7 +39,7 @@ export class WamInitializer {
             WamInitializer.hostGroupIdPromise = this.createHostGroupId();
             try {
                 WamInitializer.hostGroupId = await WamInitializer.hostGroupIdPromise;
-                console.log('Host group ID initialized:', WamInitializer.hostGroupId);
+                if (WamInitializer.DEBUG_LOG) console.log('Host group ID initialized:', WamInitializer.hostGroupId);
             } catch (error) {
                 console.error('Failed to initialize host group ID:', error);
                 WamInitializer.hostGroupIdPromise = null;
@@ -59,6 +60,6 @@ export class WamInitializer {
         window.WAMExtensions.notes = new NoteExtension();
         window.WAMExtensions.patterns = new PatternExtension();
 
-        console.log("[*] WamExtension setup done");
+        if (WamInitializer.DEBUG_LOG) console.log("[*] WamExtension setup done");
     }
 }

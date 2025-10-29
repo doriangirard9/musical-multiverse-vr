@@ -10,6 +10,7 @@ import { UIManager } from '../app/UIManager.ts';
  * Responsable de la synchronisation des états des nœuds audio via Y.js.
  */
 export class Node3DNetwork {
+    private static readonly DEBUG_LOG = false;
 
     /**
      * Le gestionnaire de Node3D
@@ -41,7 +42,7 @@ export class Node3DNetwork {
             UIManager.getInstance(),
         )
 
-        console.log(`[AudioNodeComponent] Initialized`);
+        if (Node3DNetwork.DEBUG_LOG) console.log(`[AudioNodeComponent] Initialized`);
     }
 
 }

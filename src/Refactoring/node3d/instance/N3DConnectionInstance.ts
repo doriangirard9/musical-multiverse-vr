@@ -14,6 +14,7 @@ import { SceneManager } from "../../app/SceneManager"
  * Gère le visuel et la logique des connections.
  */
 export class N3DConnectionInstance{
+    private static readonly DEBUG_LOG = false;
 
     private tube
     private shake
@@ -239,11 +240,11 @@ export class N3DConnectionInstance{
         if(key=="connectables"){
             const {fromId,fromPortId,toId,toPortId} = value as {fromId:string, fromPortId:string, toId:string, toPortId:string}
             
-            console.log("TRET Wait for node "+fromId)
+            if (N3DConnectionInstance.DEBUG_LOG) console.log("TRET Wait for node "+fromId)
             const from = await this.nodes.get(fromId) ?? null
-            console.log(`TRET  ${this.connections.getId(this)}: ${from} -> *`)
+            if (N3DConnectionInstance.DEBUG_LOG) console.log(`TRET  ${this.connections.getId(this)}: ${from} -> *`)
             const to = await this.nodes.get(toId) ?? null
-            console.log(`TRET ${this.connections.getId(this)}: * -> ${to}`)
+            if (N3DConnectionInstance.DEBUG_LOG) console.log(`TRET ${this.connections.getId(this)}: * -> ${to}`)
 
             const fromConnectable = from?.connectables?.get(fromPortId)
             const toConnectable = to?.connectables?.get(toPortId)

@@ -11,6 +11,8 @@ import {Player} from "../app/Player.ts";
  * TODO: Changer tout ça pour plutôt utiliser SyncManager
  */
 export class PlayerNetwork {
+    private static readonly DEBUG_LOG = false;
+    
     private readonly localPlayerId: string;
     private networkEventBus: NetworkEventBus;
 
@@ -26,7 +28,7 @@ export class PlayerNetwork {
 
         this.setupEventListeners();
 
-        console.log(`[PlayerComponent] Initialized with local player ID: ${localPlayerId}`);
+        if (PlayerNetwork.DEBUG_LOG) console.log(`[PlayerComponent] Initialized with local player ID: ${localPlayerId}`);
     }
 
     /**
@@ -52,7 +54,7 @@ export class PlayerNetwork {
      * Gère l'ajout d'un nouveau joueur.
      */
     private handlePlayerAdded(payload: { playerId: string }): void {
-        console.log(`[PlayerComponent] Player added: ${payload.playerId}`);
+        if (PlayerNetwork.DEBUG_LOG) console.log(`[PlayerComponent] Player added: ${payload.playerId}`);
         if (!this.players.has(payload.playerId) && payload.playerId !== this.localPlayerId) {
             const player = new Player(payload.playerId);
             this.players.set(payload.playerId, player);
@@ -68,7 +70,7 @@ export class PlayerNetwork {
      * Gère la suppression d'un joueur.
      */
     private handlePlayerDeleted(payload: { playerId: string }): void {
-        console.log(`[PlayerComponent] Player deleted: ${payload.playerId}`);
+        if (PlayerNetwork.DEBUG_LOG) console.log(`[PlayerComponent] Player deleted: ${payload.playerId}`);
         const player = this.players.get(payload.playerId);
         if (player) {
             player.dispose();

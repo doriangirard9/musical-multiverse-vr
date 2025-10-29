@@ -6,6 +6,7 @@ import {NetworkEventBus} from "../eventBus/NetworkEventBus.ts";
 import {SceneManager} from "./SceneManager.ts";
 
 export class PlayerManager {
+    private static readonly DEBUG_LOG = false;
     private static _instance: PlayerManager;
     private readonly _id: string = v4();
     private xrManager = XRManager.getInstance();
@@ -19,7 +20,7 @@ export class PlayerManager {
     private readonly ROTATION_THRESHOLD = 0.02; // ~1 degré de rotation minimum
 
     private constructor() {
-        console.log(`[PlayerManager] Initialized with player ID: ${this._id}`);
+        if (PlayerManager.DEBUG_LOG) console.log(`[PlayerManager] Initialized with player ID: ${this._id}`);
 
         // Démarrer la boucle de mise à jour throttled
         this.startUpdateLoop();

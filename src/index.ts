@@ -1,6 +1,16 @@
 import { CreateAudioEngineAsync } from "@babylonjs/core";
 import {NewApp} from "./Refactoring/app/NewApp.ts";
 
+// Filter out spammy wam3dgenerator console logs (memory allocation logs)
+const originalConsoleLog = console.log;
+console.log = function(...args: any[]) {
+    // Filter out numeric-only logs from wam3dgenerator (memory size logs)
+    if (args.length === 1 && typeof args[0] === 'number') {
+        return; // Skip these logs
+    }
+    originalConsoleLog.apply(console, args);
+};
+
 /**
  * # Plan du code
  * Une description de quelques parties importantes du code.
@@ -18,11 +28,13 @@ import {NewApp} from "./Refactoring/app/NewApp.ts";
  */
 
 
+const DEBUG_LOG = false;
+
 let onload = async() => {
     const newApp: NewApp = new NewApp()
     try{
         await newApp.start()
-        console.log("NewApp started");
+        if (DEBUG_LOG) console.log("NewApp started");
     }catch(e){
         console.error("Error during app initialization:", e);
     }
