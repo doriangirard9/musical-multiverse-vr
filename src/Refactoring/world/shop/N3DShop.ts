@@ -80,6 +80,10 @@ export class N3DShop {
                 const options = JSON.parse(realJson) as any
                 
                 const zone = options.zone ?? "default"
+
+                mesh.scaling.x*=-1
+
+                mesh.computeWorldMatrix(true)
                 
                 const location: N3DShopObject['location'] = {
                     position: mesh.position.clone(),
@@ -88,13 +92,11 @@ export class N3DShop {
                     rotation: mesh.rotationQuaternion ? mesh.rotationQuaternion.toEulerAngles() : mesh.rotation.clone(),
                     absoluteRotation: mesh.absoluteRotationQuaternion.toEulerAngles(),
                     
-                    scaling: mesh.scaling.clone().scaleInPlace(-2),
-                    absoluteScaling: mesh.absoluteScaling.clone().scaleInPlace(-2),
+                    scaling: mesh.scaling.clone().scaleInPlace(2),
+                    absoluteScaling: mesh.absoluteScaling.clone().scaleInPlace(2),
 
                     parent: mesh.parent!!,
-                }
-
-                mesh.scaling.x*=-1
+                } 
 
                 mesh.setEnabled(false)
                 
@@ -185,12 +187,12 @@ export class N3DShop {
     static BASE_OPTIONS: N3DShopOptions = {
         kinds: [
             "livepiano", "maracas", "audiooutput", "oscillator", "notesbox",
-            "modal", "tiny54", "voxamp", "flute", "disto_machine", "guitar", "kverb",
+            "wam3d-modal", "wam3d-tiny54", "wam3d-voxamp", "wam3d-flute", "wam3d-disto_machine", "wam3d-guitar", "wam3d-kverb",
         ],
         categories: {
             generator: ["livepiano", "oscillator", "notesbox", "maracas"],
-            instrument: ["tiny54", "flute", "guitar", "modal"],
-            effect: ["voxamp", "disto_machine", "kverb"],
+            instrument: ["wam3d-tiny54", "wam3d-flute", "wam3d-guitar", "wam3d-modal"],
+            effect: ["wam3d-voxamp", "wam3d-disto_machine", "wam3d-kverb"],
             technical: ["audiooutput"],
         }
     }
