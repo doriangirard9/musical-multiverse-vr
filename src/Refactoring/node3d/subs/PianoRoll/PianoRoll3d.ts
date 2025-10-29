@@ -68,6 +68,9 @@ const COLOR_WHITE_KEY = new B.Color3(1, 1, 1);
 const COLOR_DISABLED = new B.Color3(0.2, 0.2, 0.2);
 const COLOR_BASE_MESH = new B.Color3(0.5, 0.2, 0.2);
 const COLOR_HOVER = new B.Color3(1, 1, 0);
+
+const DEBUG_LOG = false;
+
 class PianoRollN3DGUI implements Node3DGUI {
   // Scene / root
   public root: B.TransformNode;
@@ -187,8 +190,8 @@ class PianoRollN3DGUI implements Node3DGUI {
     // Calculate scaling factor to fit within 1x1x1 block
     // Use 0.95 to leave some margin
     const scaleFactor = 0.95 / maxDimension;
-    console.log('maxDimension:', maxDimension );
-    console.log('scaleFactor:', scaleFactor);
+    if (DEBUG_LOG) console.log('maxDimension:', maxDimension );
+    if (DEBUG_LOG) console.log('scaleFactor:', scaleFactor);
     // Apply the scaling
     this.root.scaling.setAll(scaleFactor);
   }
@@ -1214,7 +1217,7 @@ export class PianoRollN3D implements Node3D {
       "MIDI Output",
       // Callback when instrument connects
       (wamNode: WamNode) => {
-          console.log(`Instrument connected: ${wamNode.instanceId}`);
+          if (DEBUG_LOG) console.log(`Instrument connected: ${wamNode.instanceId}`);
           
           // Connect to WAM instance if it exists
           if (this.wamInstance?.audioNode) {
@@ -1230,7 +1233,7 @@ export class PianoRollN3D implements Node3D {
       },
       // Callback when instrument disconnects
       (wamNode: WamNode) => {
-          console.log(`Instrument disconnected: ${wamNode.instanceId}`);
+          if (DEBUG_LOG) console.log(`Instrument disconnected: ${wamNode.instanceId}`);
           
           // Disconnect from WAM instance if it exists
           if (this.wamInstance?.audioNode) {
@@ -1333,13 +1336,13 @@ const getPianoRollFromMesh = (mesh: B.AbstractMesh): PianoRollN3D | null => {
       this.gui.keyBoard.includes(mesh as B.Mesh) ||
       this.gui.keyLabels.includes(mesh as B.Mesh) ||
       mesh === this.gui.noteCell) {
-        console.log("Piano roll found");
+        if (DEBUG_LOG) console.log("Piano roll found");
     return this; // This is our piano roll instance
   }
   
   // Check if it's a thin instance of our note cell
   if (mesh === this.gui.noteCell) {
-    console.log("Note cell found");
+    if (DEBUG_LOG) console.log("Note cell found");
     return this;
   }
   

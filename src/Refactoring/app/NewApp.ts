@@ -12,6 +12,7 @@ import { NetworkManager } from "../network/NetworkManager.ts";
 import { PlayerManager } from "./PlayerManager.ts";
 import { ConnectionManager } from "../iomanager/ConnectionManager.ts";
 export class NewApp {
+    private static readonly DEBUG_LOG = false;
     private controlsUI?: ControlsUI;
 
     constructor() {}
@@ -79,7 +80,7 @@ export class NewApp {
             }
         });
 
-        console.log(node3dShared)
+        if (NewApp.DEBUG_LOG) console.log(node3dShared)
 
         window.addEventListener("keydown",async(e)=>{
             if(e.key=="p"){

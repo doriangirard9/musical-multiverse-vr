@@ -41,6 +41,7 @@ class Wam3DGeneratorN3DGui implements Node3DGUI{
 }
 
 class Wam3DGeneratorN3D implements Node3D{
+    private static readonly DEBUG_LOG = false;
 
     states!: ControlStateManager
 
@@ -120,7 +121,7 @@ class Wam3DGeneratorN3D implements Node3D{
     }
 
     async setState(name: string, value: any): Promise<void> {
-        console.log("Wam3DGeneratorN3D setState", name, value)
+        if (Wam3DGeneratorN3D.DEBUG_LOG) console.log("Wam3DGeneratorN3D setState", name, value)
         await this.states.set(name, value)
     }
 

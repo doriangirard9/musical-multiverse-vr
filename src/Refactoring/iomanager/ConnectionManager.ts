@@ -9,6 +9,7 @@ import { VisualTube } from "../visual/VisualTube.ts";
 import { InputManager } from "../xr/inputs/InputManager.ts";
 
 export class ConnectionManager {
+    private static readonly DEBUG_LOG = false;
     private currentPort: N3DConnectableInstance|null = null;
 
     private ioEventBus: IOEventBus = IOEventBus.getInstance()
@@ -18,7 +19,7 @@ export class ConnectionManager {
     private disposePreview: (() => void) | null = null;
 
     private constructor() {
-        console.log("[IOManager] POMME IOManager initialized");
+        if (ConnectionManager.DEBUG_LOG) console.log("[IOManager] POMME IOManager initialized");
         this.onIOEvent();
     }
 
@@ -52,7 +53,7 @@ export class ConnectionManager {
     private connectHandler(data: IOEventPayload['IO_CONNECT']) {
         const {pickType} = data
 
-        console.log(`[IOManager] Pick type: ${pickType} | ${data}`)
+        if (ConnectionManager.DEBUG_LOG) console.log(`[IOManager] Pick type: ${pickType} | ${data}`)
         switch (pickType) {
             case "down":
                 this.currentPort = data.connectable

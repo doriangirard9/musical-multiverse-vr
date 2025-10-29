@@ -11,6 +11,7 @@ import { VisualNetwork } from './VisualNetwork.ts';
  * Utilise Y.js pour la synchronisation d'état et WebRTC pour la communication P2P.
  */
 export class NetworkManager {
+    private static readonly DEBUG_LOG = false;
 
     readonly doc: Y.Doc
     private readonly playerId: string
@@ -31,7 +32,7 @@ export class NetworkManager {
         this.node3d = new Node3DNetwork(this.doc)
         this.visual = new VisualNetwork(this.doc)
 
-        console.log("Current player id:", this.playerId)
+        if (NetworkManager.DEBUG_LOG) console.log("Current player id:", this.playerId)
     }
 
     public static initialize(){

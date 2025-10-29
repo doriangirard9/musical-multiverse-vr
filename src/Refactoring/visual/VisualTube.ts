@@ -11,6 +11,7 @@ import { MeshUtils } from "../node3d/tools"
 export class VisualTube{
 
     private tube
+    private arrow
     public on_dispose = ()=>{}
 
     constructor(
@@ -21,6 +22,14 @@ export class VisualTube{
             height: 1,
             diameter: .25,
             tessellation: 6
+        },this.scene)
+        
+        // Add arrow for direction indication (same as N3DConnectionInstance)
+        this.arrow = CreateCylinder("connection arrow",{
+            height: 1,
+            diameterBottom: .5,
+            diameterTop: 0,
+            tessellation: 6,
         },this.scene)
     }
 
@@ -41,21 +50,29 @@ export class VisualTube{
             this.cA.copyFrom(a)
             this.cB.copyFrom(b)
             
-            // Some calculations
-            const offset = a.subtract(b)
-            const length = offset.length()*.8
-            offset.normalize()
+            // Calculate direction from A (source) to B (target)
+            const direction = b.subtract(a)
+            const totalLength = direction.length()
+            direction.normalize()
 
-            const pointA = a
-            const pointB = b
-
-            const orientation = Quaternion.FromUnitVectorsToRef(Vector3.Up(), offset.normalizeToNew(), new Quaternion())
+            const orientation = Quaternion.FromUnitVectorsToRef(Vector3.Up(), direction, new Quaternion())
             
-            // Move the tube
-            const tubeCenter = pointA.scale(.6).add(pointB.scale(.4))
+            // Reserve 1 unit for the arrow, rest is tube
+            const arrowLength = 1
+            const tubeLength = Math.max(0.1, totalLength - arrowLength)
+            
+            // Tube: from A to (almost) B, leaving space for arrow
+            const tubeEndPoint = a.add(direction.scale(tubeLength))
+            const tubeCenter = a.add(tubeEndPoint).scale(0.5)
             this.tube.setAbsolutePosition(tubeCenter)
             this.tube.rotationQuaternion = orientation
-            this.tube.scaling.set(1,length,1)
+            this.tube.scaling.set(1, tubeLength, 1)
+            
+            // Arrow: from end of tube to B (the remaining space)
+            const arrowCenter = tubeEndPoint.add(b).scale(0.5)
+            this.arrow.setAbsolutePosition(arrowCenter)
+            this.arrow.rotationQuaternion = orientation
+            this.arrow.scaling.set(1, arrowLength, 1)
 
             this.buildTimeout = undefined
         },10)
@@ -69,6 +86,7 @@ export class VisualTube{
 
     setColor(color: Color4){
         MeshUtils.setColor(this.tube, color)
+        MeshUtils.setColor(this.arrow, color)
         this.set_states("color")
     }
 
@@ -76,6 +94,7 @@ export class VisualTube{
         this.on_dispose()
         if(this.buildTimeout) clearTimeout(this.buildTimeout)
         this.tube.dispose()
+        this.arrow.dispose()
     }
 
     //// Synchronization ////
@@ -100,7 +119,9 @@ export class VisualTube{
             this.set(this.cA, this.cB)
         }
         else if(key=="color"){
-            MeshUtils.setColor(this.tube, Color4.FromArray(value as number[]))
+            const color = Color4.FromArray(value as number[])
+            MeshUtils.setColor(this.tube, color)
+            MeshUtils.setColor(this.arrow, color)
         }
     }
 
