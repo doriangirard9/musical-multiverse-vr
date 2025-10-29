@@ -139,7 +139,6 @@ class PianoRollN3DGUI implements Node3DGUI {
     this.tool = T;
 
     this.root = new B.TransformNode("pianoroll root", context.scene);
-    this.root.scaling.setAll(0.1);
 
     // Rows come from strategy
     this.rows = this.strategy.getRowCount();
@@ -153,9 +152,44 @@ class PianoRollN3DGUI implements Node3DGUI {
     // Default starting index clamped to rows
     this._startRowIndex = Math.min(this._startRowIndex, Math.max(0, this.rows - this.visibleRowCount));
 
-   
+    // Calculate scaling to fit within 1x1x1 block as required by Node3D specification
+    this._calculateAndApplyScaling();
+
     // Build
     void this.instantiate();
+  }
+
+  /**
+   * Calculate the appropriate scaling factor to ensure the GUI fits within a 1x1x1 block
+   * as required by the Node3D specification.
+   */
+  private _calculateAndApplyScaling(): void {
+    // Calculate the total dimensions of the piano roll
+    this.recalculateGridBoundaries();
+    
+    // Calculate the total width including keyboard and spacing
+    const totalWidth = (this.endX - this.startX) + 
+                      (this.keyboardWidth * 2 + this.buttonSpacing) + 
+                      (this.keyboardWidth + this.buttonSpacing * 2);
+    
+    // Calculate the total depth including spacing and extra room
+    const totalDepth = this.endZ - this.startZ + 
+                      this.buttonDepth + this.buttonSpacing + 
+                      (this.buttonDepth + this.buttonSpacing) * 2 + 0.8;
+    
+    // Calculate the total height (base height + button height + some margin)
+    const totalHeight = 0.2 + this.buttonHeight + 0.6; // base + button + margin
+    
+    // Find the maximum dimension
+    const maxDimension = Math.max(totalWidth, totalDepth, totalHeight);
+    
+    // Calculate scaling factor to fit within 1x1x1 block
+    // Use 0.95 to leave some margin
+    const scaleFactor = 0.95 / maxDimension;
+    console.log('maxDimension:', maxDimension );
+    console.log('scaleFactor:', scaleFactor);
+    // Apply the scaling
+    this.root.scaling.setAll(scaleFactor);
   }
 
   // Allow runtime hot-swap of strategy (e.g., connect to drum sampler)
@@ -169,6 +203,9 @@ class PianoRollN3DGUI implements Node3DGUI {
 
     // Reset start window safely
     this._startRowIndex = Math.min(this._startRowIndex, Math.max(0, this.rows - this.visibleRowCount));
+
+    // Recalculate scaling for new strategy dimensions
+    this._calculateAndApplyScaling();
 
     // Rebuild visuals
     this.createGrid();
@@ -1103,7 +1140,9 @@ class PianoRollN3DGUI implements Node3DGUI {
   }
 
   // For bounding volume consumers
-  public get worldSize() { return 4; }
+  // Now that the GUI is properly scaled to fit within 1x1x1, 
+  // we can use a more appropriate world size
+  public get worldSize() { return  20; }
 }
 
 
@@ -1259,6 +1298,9 @@ InputManager.getInstance().right_squeeze.on_change.add((event) => {
           this.pendingPattern = null;
           this._safeSendPatternToPianoRoll();
         }
+        // Ensure current pattern is broadcast to the sync layer after init
+        // so late joiners receive a complete snapshot immediately.
+        this.context.notifyStateChange("pattern");
       })
       .catch((e) => console.error("WAM init failed:", e));
 

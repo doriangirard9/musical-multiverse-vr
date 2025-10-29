@@ -13,7 +13,6 @@ import { LivePianoN3DFactory } from "../node3d/subs/LivePianoN3D.ts";
 import {NoteBoxN3DFactory} from "../node3d/subs/NoteBoxN3D.ts";
 import { SpeakerN3DFactory } from "../node3d/subs/speaker/SpeakerN3D.ts";
 import {PianoRollN3DFactory} from "../node3d/subs/PianoRoll/PianoRoll3d.ts";
-import { WamSamplerN3DFactory } from "../node3d/subs/drumSampler.ts";
 
 
 
@@ -30,7 +29,26 @@ export class Node3DBuilder {
         ...Object.keys(examples).map(k => `wam3d-${k}`),
     ]
 
+    private async parseFactory(code: string): Promise<Node3DFactory<Node3DGUI,Node3D>|null> {
+        const json = JSON.parse(code) as Node3DConfig
+        
+        if("wam3d" in json){
+            return await Wam3DGeneratorN3DFactory.create(json.wam3d)
+        }
+        else if("bottom_color" in json){
+            return await Wam3DGeneratorN3DFactory.create(json)
+        }
+
+        return null
+    }
+
     private async createFactories(kind: string): Promise<Node3DFactory<Node3DGUI,Node3D>|null> {
+        // Dynamic 
+        if(kind.startsWith("desc:")){
+            const description = kind.substring(5)
+            return await this.parseFactory(description)
+        }
+
         // Builtin
         if(kind=="audiooutput") return SpeakerN3DFactory
         if(kind=="sequencer") return SequencerN3DFactory
@@ -50,15 +68,8 @@ export class Node3DBuilder {
         // Configs
         {
             const response = await fetch(`${WAM_CONFIGS_URL}/wamsConfig/${kind}.json`,{method:"get",headers:{"Content-Type":"application/json"}})
-            if(response.ok){
-                const config = await response.json() as Node3DConfig
-
-                // Wam3DGenerator
-                if("wam3d" in config)return await Wam3DGeneratorN3DFactory.create(config.wam3d)
-            }
-
+            if(response.ok) return await this.parseFactory(await response.text())
         }
-
 
         return null
     }
@@ -92,11 +103,18 @@ export class Node3DBuilder {
         return await this.instantiateNode3d(factory)
     }
 
-    shared: N3DShared|null = null
+    private shared: N3DShared|null = null
 
-    private async instantiateNode3d(factory: Node3DFactory<any,any>): Promise<Node3DInstance> {
+    public getShared(): N3DShared {
+        if(this.shared==null){
+            throw new Error("Node3DBuilder not initialized. Call init() before using getShared().")
+        }
+        return this.shared
+    }
 
-        const shared = this.shared ??= new N3DShared(
+    public async init(): Promise<void> {
+
+        this.shared = new N3DShared(
             SceneManager.getInstance().getScene(),
             SceneManager.getInstance().getShadowGenerator(),
             Node3dManager.getInstance().getAudioContext(),
@@ -104,7 +122,20 @@ export class Node3DBuilder {
             (await WamInitializer.getInstance(Node3dManager.getInstance().getAudioContext()).getHostGroupId())[0]
         )
 
-        const instance = new Node3DInstance(shared, factory)
+        // Get WAMs configs from server
+        try{
+            const config_ids = await fetch(`${WAM_CONFIGS_URL}/wamsConfig`,{method:"get",headers:{"Content-Type":"application/json"}})
+            if(config_ids.ok){
+                const ids: string[] = await config_ids.json()
+                for(const id of ids){
+                    this.FACTORY_KINDS = [id, ...this.FACTORY_KINDS]
+                }
+            }
+        }catch(_){}
+    }
+
+    private async instantiateNode3d(factory: Node3DFactory<any,any>): Promise<Node3DInstance> {
+        const instance = new Node3DInstance(this.getShared(), factory)
         await instance.instantiate()
         return instance
     }
