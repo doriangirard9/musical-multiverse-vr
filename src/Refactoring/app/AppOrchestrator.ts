@@ -4,12 +4,8 @@ import {MenuEventBus} from "../eventBus/MenuEventBus.ts";
 
 import {Node3dManager} from "./Node3dManager.ts";
 import {UIManager} from "./UIManager.ts";
-import {SceneManager} from "./SceneManager.ts";
-import {PlayerManager} from "./PlayerManager.ts";
 import {AudioEventBus} from "../eventBus/AudioEventBus.ts";
-import {ConnectionManager} from "../iomanager/ConnectionManager.ts";
 import {IOEventBus} from "../eventBus/IOEventBus.ts";
-import {NetworkManager} from "../network/NetworkManager.ts";
 import { Node3DInstance } from "../node3d/instance/Node3DInstance.ts";
 
 

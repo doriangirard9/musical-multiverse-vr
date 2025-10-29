@@ -37,8 +37,8 @@ export class InputManager {
     readonly on_squeeze_change = new Observable<PressableInputEvent>()
     readonly on_pressable_change = new Observable<PressableInputEvent>()
 
-    readonly left_thumbstick = new AxisInput("left", ["arrowleft", "arrowright", "arrowup", "arrowdown"])
-    readonly right_thumbstick = new AxisInput("right", ["k", "m", "o", "l"])
+    readonly left_thumbstick = new AxisInput("left", ["k", "m", "o", "l"])
+    readonly right_thumbstick = new AxisInput("right", ["arrowleft", "arrowright", "arrowup", "arrowdown"])
     readonly on_thumbstick_change = new Observable<AxisInputEvent>()
 
     readonly pointer_move = new Observable<PointerMovementEvent>()
