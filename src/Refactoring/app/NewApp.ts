@@ -45,9 +45,8 @@ export class NewApp {
         const scene = this.sceneManager.getScene()
         
         this.sceneManager.start();
-        // create left-side controls UI (HUD)
-        this.controlsUI = new ControlsUI("320px");
-        this.controlsUI.show();
+        // create 3D controller button labels
+        this.controlsUI = new ControlsUI();
         await this.xrManager!!.init(this.sceneManager.getScene(), this.audioEngine);
         
         // Setup X button to toggle controls UI
