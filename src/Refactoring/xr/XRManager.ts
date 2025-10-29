@@ -51,6 +51,7 @@ export class XRManager {
             this.xrHelper.baseExperience.camera.checkCollisions = true;
             this.xrHelper.baseExperience.camera.applyGravity = true;
             this.xrHelper.baseExperience.camera.ellipsoid = new B.Vector3(1, 1, 1);
+            
             this.xrHelper.baseExperience.onStateChangedObservable.add((state) => {
                 switch (state) {
                     case B.WebXRState.ENTERING_XR:
@@ -58,6 +59,20 @@ export class XRManager {
                         break;
                     case B.WebXRState.IN_XR:
                         console.log('[*] XR STATE - In XR...');
+                        
+                        // Forcer la gravité à s'appliquer pour éviter de commencer dans les airs
+                        let frameCount = 0;
+                        const gravityObserver = this._scene.onBeforeRenderObservable.add(() => {
+                            const cam = this.xrHelper.baseExperience.camera;
+                            if (cam.applyGravity && cam.cameraDirection) {
+                                const deltaTime = cam.getEngine().getDeltaTime() / 1000.0;
+                                cam.cameraDirection.y -= 9.81 * deltaTime;
+                            }
+                            if (++frameCount >= 10) {
+                                this._scene.onBeforeRenderObservable.remove(gravityObserver);
+                            }
+                        });
+                        
                         // Besoin d'attendre qu'on soit en VR avant d'initialiser les contrôleurs
                         this._initControllersAfterXREntry();
                         break;
@@ -158,10 +173,38 @@ export class XRManager {
     setMovement(features: ("rotation"|"translation")[]){
         const featuresManager: B.WebXRFeaturesManager = this.xrHelper.baseExperience.featuresManager
         try{ featuresManager.disableFeature(B.WebXRFeatureName.MOVEMENT) }catch(e){}
+        
+        // Configuration inversée: stick gauche = déplacement, stick droit = rotation
+        const swappedHandednessConfiguration = [
+            {
+                // Stick droit (main droite) -> rotation
+                allowedComponentTypes: [B.WebXRControllerComponent.THUMBSTICK_TYPE, B.WebXRControllerComponent.TOUCHPAD_TYPE],
+                forceHandedness: "right" as XRHandedness,
+                axisChangedHandler: (axes: any, movementState: any, featureContext: any, _xrInput: any) => {
+                    movementState.rotateX = Math.abs(axes.x) > featureContext.rotationThreshold ? axes.x : 0;
+                    movementState.rotateY = Math.abs(axes.y) > featureContext.rotationThreshold ? axes.y : 0;
+                },
+            },
+            {
+                // Stick gauche (main gauche) -> déplacement
+                allowedComponentTypes: [B.WebXRControllerComponent.THUMBSTICK_TYPE, B.WebXRControllerComponent.TOUCHPAD_TYPE],
+                forceHandedness: "left" as XRHandedness,
+                axisChangedHandler: (axes: any, movementState: any, featureContext: any, _xrInput: any) => {
+                    movementState.moveX = Math.abs(axes.x) > featureContext.movementThreshold ? axes.x : 0;
+                    movementState.moveY = Math.abs(axes.y) > featureContext.movementThreshold ? axes.y : 0;
+                },
+            },
+        ];
+        
         featuresManager.enableFeature(B.WebXRFeatureName.MOVEMENT, "latest", {
             xrInput: this.xrHelper.input,
+            movementEnabled: features.includes("translation"),
+            rotationEnabled: features.includes("rotation"),
             movementSpeed: features.includes("translation") ? 0.2 : 0.0,
             rotationSpeed: features.includes("rotation") ? 0.3 : 0.0,
-        })
+            movementOrientationFollowsViewerPose: true,
+            movementOrientationFollowsController: false,
+            customRegistrationConfigurations: swappedHandednessConfiguration
+        });
     }
 }

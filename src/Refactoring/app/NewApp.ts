@@ -2,6 +2,7 @@ import {SceneManager} from "./SceneManager.ts";
 import {XRManager} from "../xr/XRManager.ts";
 import {Node3dManager} from "./Node3dManager.ts";
 import {AppOrchestrator} from "./AppOrchestrator.ts";
+import ControlsUI from "./ControlsUI.ts";
 import {AudioEngineV2, ImportMeshAsync} from "@babylonjs/core";
 import {N3DShop, N3DShopOptions} from "../world/shop/N3DShop.ts";
 import { InputManager } from "../xr/inputs/InputManager.ts";
@@ -12,6 +13,7 @@ export class NewApp {
     private sceneManager: SceneManager;
     private xrManager: XRManager | null = null;
     private audioManager: Node3dManager | null = null;
+    private controlsUI?: ControlsUI;
 
     private constructor(audioContext?: AudioContext, audioEngine?: AudioEngineV2) {
         const canvas: HTMLCanvasElement = document.getElementById('renderCanvas') as HTMLCanvasElement;
@@ -42,7 +44,17 @@ export class NewApp {
         const scene = this.sceneManager.getScene()
         
         this.sceneManager.start();
+        // create left-side controls UI (HUD)
+        this.controlsUI = new ControlsUI("320px");
+        this.controlsUI.show();
         await this.xrManager!!.init(this.sceneManager.getScene(), this.audioEngine);
+        
+        // Setup X button to toggle controls UI
+        InputManager.getInstance().x_button.on_change.add((event) => {
+            if (event.pressed) {
+                this.controlsUI?.toggle();
+            }
+        });
         
         //await this.audioManager!!.createNode3d("notesbox")
         /*
