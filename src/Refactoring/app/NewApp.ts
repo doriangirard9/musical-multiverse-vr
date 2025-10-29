@@ -6,7 +6,6 @@ import {AudioEngineV2, ImportMeshAsync} from "@babylonjs/core";
 import {N3DShop, N3DShopOptions} from "../world/shop/N3DShop.ts";
 import { InputManager } from "../xr/inputs/InputManager.ts";
 import { parallel } from "../utils/utils.ts";
-import { Menu2 } from "../menus/Menu2.ts";
 export class NewApp {
     private audioCtx: AudioContext | undefined;
     private audioEngine!: AudioEngineV2
@@ -75,7 +74,10 @@ export class NewApp {
         window.addEventListener("keydown",async(e)=>{
             if(e.key=="p"){
                 let prompt = window.prompt("Enter Node3D kind to create:")
-                if(prompt) this.audioManager?.createNode3d(prompt)
+                if(prompt) this.audioManager?.createNode3d(`desc:${prompt}`)
+            }
+            else if(e.key=="i"){
+                scene.debugLayer.show()
             }
         })
 
@@ -124,15 +126,21 @@ export class NewApp {
                     const model = (await ImportMeshAsync(N3DShop.BASE_SHOP_MODEL_URL, scene)).meshes[0]
                     model.position.set(0, -1.5, 60)
                     model.scaling.scaleInPlace(.6)
-                    const shop = new N3DShop(
-                        model,
-                        shared,
-                        Node3dManager.getInstance(),
-                        InputManager.getInstance(),
-                        options,
-                    )
-                    shop.showZone("default")
-
+                    
+                    let shop: N3DShop|null
+                    InputManager.getInstance().y_button.on_down.addOnce(async()=>{
+                        if(shop){
+                            shop.dispose()
+                        }
+                        shop = new N3DShop(
+                            model,
+                            shared,
+                            Node3dManager.getInstance(),
+                            InputManager.getInstance(),
+                            options,
+                        )
+                        shop.showZone("default")
+                    })
 
                 }
             )

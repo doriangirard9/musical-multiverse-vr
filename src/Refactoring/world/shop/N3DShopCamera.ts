@@ -1,7 +1,6 @@
-import { Vector3, WebXRFeatureName } from "@babylonjs/core";
+import { CreateBox, Vector3, WebXRFeatureName } from "@babylonjs/core";
 import { XRManager } from "../../xr/XRManager";
 import { N3DShop, N3DShopObject, N3DShopType } from "./N3DShop";
-import { SceneManager } from "../../app/SceneManager";
 
 const TRANSITION_TIME = 250 // ms
 
@@ -23,6 +22,10 @@ export class N3DShopCamera implements N3DShopType {
         this.cameras.push(object)
         this.cameras.sort((a, b) => (a.options.order??0)-(b.options.order??0))
         this.shop = shop
+
+        const block = CreateBox("block", {size: 0.1}, shop.shared.scene)
+        block.position = object.location.absolutePosition.clone()
+        block.rotation = object.location.absoluteRotation.clone()
 
         if(this.cameras.length==1){
             shop.inputs.y_button.on_down.add(()=>{
@@ -86,6 +89,7 @@ export class N3DShopCamera implements N3DShopType {
         if(index==this.selected) return
 
         const camera = XRManager.getInstance().xrHelper.baseExperience.camera
+        const reference = XRManager.getInstance().xrHelper.baseExperience.sessionManager.referenceSpace
         
         // From position and rotation
         let fromPosition: Vector3
@@ -96,8 +100,11 @@ export class N3DShopCamera implements N3DShopType {
             this.initialRotation = camera.rotation.clone()
             fromPosition = this.initialPosition
             fromRotation = this.initialRotation
-            if(XRManager.getInstance().xrFeaturesManager.getEnabledFeatures().includes(WebXRFeatureName.MOVEMENT))
+            if(XRManager.getInstance().xrFeaturesManager.getEnabledFeatures().includes(WebXRFeatureName.MOVEMENT)){
                 XRManager.getInstance().xrFeaturesManager.disableFeature(WebXRFeatureName.MOVEMENT)
+            }
+            camera.cameraDirection.setAll(0)
+            await new Promise(r=>setTimeout(r,100))
         }
         else{
             fromPosition = this.cameras[this.selected].location.absolutePosition

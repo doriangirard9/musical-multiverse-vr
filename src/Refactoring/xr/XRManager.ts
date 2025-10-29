@@ -143,7 +143,7 @@ export class XRManager {
             throw new Error('WebXR immersive-vr is not supported on this browser');
         }
         const xrExperience = await this._scene.createDefaultXRExperienceAsync({
-            uiOptions: { sessionMode: 'immersive-vr' }
+            uiOptions: { sessionMode: 'immersive-vr' },
         });
         this.xrFeaturesManager = xrExperience.baseExperience.featuresManager;
         return xrExperience;

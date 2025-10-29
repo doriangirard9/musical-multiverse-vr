@@ -95,6 +95,8 @@ export class N3DShop {
 
                     parent: mesh.parent!!,
                 }
+
+                mesh.setEnabled(false)
                 
                 // Create a panel
                 this.zoneMap[zone] ??= {objects: []}
@@ -102,7 +104,7 @@ export class N3DShop {
                 // Add object to the zone
                 this.zoneMap[zone].objects.push({ location, name, type, options })
 
-                mesh.dispose()
+                //mesh.dispose()
             }catch(e){
 
             }
