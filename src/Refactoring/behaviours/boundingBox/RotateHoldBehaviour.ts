@@ -1,4 +1,4 @@
-import { Behavior, Matrix, Quaternion, Space, TransformNode, Vector3 } from "@babylonjs/core";
+import { Behavior, Matrix, Quaternion, TransformNode } from "@babylonjs/core";
 import { InputManager, PointerMovementEvent } from "../../xr/inputs/InputManager";
 import { XRManager } from "../../xr/XRManager";
 
@@ -6,7 +6,7 @@ import { XRManager } from "../../xr/XRManager";
  * An object attached to this behavior will be rotated by the user with his controller.
  * The user can rotate the object by rotating their hand.
  * The object will rotate to match the controller's direction.
- * Using the left thumbstick, the user can rotate the object around its local axes.
+ * Using the right thumbstick, the user can rotate the object around its local axes.
  */
 export class RotateHoldBehaviour implements Behavior<TransformNode> {
   
@@ -48,9 +48,9 @@ export class RotateHoldBehaviour implements Behavior<TransformNode> {
 
     })
 
-    // Rotate with left thumbstick
+    // Rotate with RIGHT thumbstick
     let power = 4
-    const o2 = inputs.left_thumbstick.setPullInterval(20,
+    const o2 = inputs.right_thumbstick.setPullInterval(20,
       (x,y)=>{
         this.rotate(-x*power,y*power)
         power+=0.2

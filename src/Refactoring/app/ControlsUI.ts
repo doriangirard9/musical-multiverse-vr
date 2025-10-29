@@ -33,8 +33,8 @@ export class ControlsUI {
             "Y - Open/Close physical shop",
             "Trigger (hold) - Select object or parameter",
             "Grip : [Free rotation]",
-            "Left stick : Move Camera / [Move object away or closer]",
-            "Right stick : Move",
+            "Left stick : Move Camera",
+            "Right stick : Rotate Camera / [Move object away or closer]",
             "[instruction] = behaviour while an object is selected"
         ]);
         this.show(); // Show panel by default

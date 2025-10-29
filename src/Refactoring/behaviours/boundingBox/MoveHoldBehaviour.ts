@@ -1,11 +1,11 @@
-import { Behavior, Matrix, Quaternion, TransformNode, Vector3 } from "@babylonjs/core";
+import { Behavior, Matrix, Quaternion, TransformNode } from "@babylonjs/core";
 import { InputManager } from "../../xr/inputs/InputManager";
 
 /**
  * An object attached to this behavior will be moved around by the user with his controller.
  * The user can drag the object around, and move it forward and backward.
  * The object will rotate when dragged and will keep its orientation relative to the controller's direction.
- * Using the left thumbstick, the user can move the object forward and backward.
+ * Using the right thumbstick, the user can move the object forward and backward.
  */
 export class MoveHoldBehaviour implements Behavior<TransformNode> {
   
@@ -31,9 +31,9 @@ export class MoveHoldBehaviour implements Behavior<TransformNode> {
     const o = inputs.pointer_move.add(() => this.updatePos())
     this.updatePos()
 
-    // Move forward and backward
+    // Move forward and backward with RIGHT thumbstick
     let power = 1 
-    const o2 = inputs.left_thumbstick.setPullInterval(50,
+    const o2 = inputs.right_thumbstick.setPullInterval(50,
       (_,y)=>{
         power += 0.1
         this.distance += y/4*power
