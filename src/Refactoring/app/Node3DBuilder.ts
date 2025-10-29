@@ -79,7 +79,7 @@ export class Node3DBuilder {
     /**
      * Get a Node3DFactory from it kind name.
      * @param kind The kind of Node3D, correspond to the name of its config file.
-     * @returns 
+     * @returns
      */
     public async getFactory(kind: string): Promise<Node3DFactory<Node3DGUI,Node3D>|null> {
         if(!this.factories.has(kind)){

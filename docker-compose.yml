@@ -8,15 +8,18 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=443
+    restart: always
   config:
     build:
       context: ./server-config
       dockerfile: Dockerfile
     ports:
         - "3000:3000"
+    restart: always
   app:
     build:
       context: ./
       dockerfile: Dockerfile-app
     ports:
       - "5173:5173"
+    restart: always
