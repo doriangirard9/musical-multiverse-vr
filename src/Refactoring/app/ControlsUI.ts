@@ -81,14 +81,50 @@ export class ControlsUI {
         background.color = color;
         gui.addControl(background);
         
+        // Create a stack panel to hold title and text vertically
+        const stackPanel = new GUI.StackPanel();
+        stackPanel.width = 1;
+        stackPanel.height = 1;
+        stackPanel.spacing = -12; // Reduce spacing between title and text
+        background.addControl(stackPanel);
+        
+        // Get button name from component ID
+        const buttonName = this._getButtonName(componentId);
+        
+        // Create title (button name)
+        const titleBlock = new GUI.TextBlock();
+        titleBlock.text = buttonName;
+        titleBlock.color = "#AAAAAA"; // Gray color
+        titleBlock.fontSize = 16;
+        titleBlock.height = "24px";
+        titleBlock.textVerticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_TOP;
+        stackPanel.addControl(titleBlock);
+        
+        // Create main text (action description)
         const textBlock = new GUI.TextBlock();
         textBlock.text = text;
         textBlock.color = "white";
-        textBlock.fontSize = 28;
+        textBlock.fontSize = 24;
         textBlock.fontWeight = "bold";
-        background.addControl(textBlock);
+        textBlock.height = "50px";
+        textBlock.textVerticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_CENTER;
+        stackPanel.addControl(textBlock);
         
         this.labels.set(id, { mesh, gui, componentId, handedness, offset });
+    }
+    
+    /** Get human-readable button name from component ID */
+    private _getButtonName(componentId: string): string {
+        switch (componentId) {
+            case 'a-button': return 'A Button';
+            case 'b-button': return 'B Button';
+            case 'x-button': return 'X Button';
+            case 'y-button': return 'Y Button';
+            case 'xr-standard-squeeze': return 'Grip';
+            case 'xr-standard-trigger': return 'Trigger';
+            case 'xr-standard-thumbstick': return 'Thumbstick';
+            default: return componentId;
+        }
     }
 
     /** Update positions of all labels based on controller component positions */
