@@ -4,12 +4,8 @@ import {MenuEventBus} from "../eventBus/MenuEventBus.ts";
 
 import {Node3dManager} from "./Node3dManager.ts";
 import {UIManager} from "./UIManager.ts";
-import {SceneManager} from "./SceneManager.ts";
-import {PlayerManager} from "./PlayerManager.ts";
 import {AudioEventBus} from "../eventBus/AudioEventBus.ts";
-import {ConnectionManager} from "../iomanager/ConnectionManager.ts";
 import {IOEventBus} from "../eventBus/IOEventBus.ts";
-import {NetworkManager} from "../network/NetworkManager.ts";
 import { Node3DInstance } from "../node3d/instance/Node3DInstance.ts";
 
 
@@ -19,54 +15,36 @@ export class AppOrchestrator{
     private audioEventBus : AudioEventBus | null = null;
     private NetworkEventBus : NetworkEventBus | null = null;
     private UIEventBus : UIEventBus | null = null;
-    private IOEventBus : IOEventBus | null = null;
     private MenuEventBus : MenuEventBus | null = null;
-    private AudioManager : Node3dManager | null = null;
-    private iOManager : ConnectionManager | null = null;
-    private UIManager : UIManager | null = null;
-    private SceneManager : SceneManager | null = null;
-    private PlayerManager : PlayerManager | null = null;
-    private ConnectionManager : ConnectionManager | null = null;
-    private NetworkManager : NetworkManager | null = null;
-    private constructor() {
-        this.initManagers()
 
+    private constructor() {
         this.onMenuEvent();
         this.onAudioEvent();
-        //this.debugLogEvents()
+    }
+
+    static async initialize(){
+        this.instance = new AppOrchestrator();
+
+        // ---------------EVENT BUS-------------------
+        this.instance.audioEventBus = AudioEventBus.getInstance();
+        this.instance.NetworkEventBus = NetworkEventBus.getInstance();
+        this.instance.UIEventBus = UIEventBus.getInstance();
+        this.instance.MenuEventBus = MenuEventBus.getInstance();
+        IOEventBus.getInstance();
     }
 
     public static getInstance(): AppOrchestrator {
-        if (!AppOrchestrator.instance) {
-            AppOrchestrator.instance = new AppOrchestrator();
-        }
-        return AppOrchestrator.instance;
-    }
-
-    private initManagers(){
-        // ---------------EVENT BUS-------------------
-        this.audioEventBus = AudioEventBus.getInstance();
-        this.NetworkEventBus = NetworkEventBus.getInstance();
-        this.UIEventBus = UIEventBus.getInstance();
-        this.MenuEventBus = MenuEventBus.getInstance();
-        this.IOEventBus = IOEventBus.getInstance();
-
-        // ---------------MANAGERS-------------------
-        this.AudioManager = Node3dManager.getInstance();
-        this.UIManager = UIManager.getInstance();
-        this.SceneManager = SceneManager.getInstance();
-        this.PlayerManager = PlayerManager.getInstance();
-        this.iOManager = ConnectionManager.getInstance();
-        this.NetworkManager = NetworkManager.getInstance();
+        if (!this.instance) throw new Error("AppOrchestrator not initialized. Call initialize() first.")
+        return this.instance
     }
 
     private onMenuEvent(): void {
         this.MenuEventBus?.on('CREATE_AUDIO_NODE', async (payload) => {
             console.log(`Audio node created: ${payload.name}`);
-            const node = await this.AudioManager?.createNode3d(payload.kind, payload.nodeId)
+            const node = await Node3dManager.getInstance().createNode3d(payload.kind, payload.nodeId)
             if (node) {
                 if(!(node instanceof Node3DInstance)){
-                    this.UIManager?.showMessage(`Error: ${node}`, 2000)
+                    UIManager.getInstance().showMessage(`Error: ${node}`, 2000)
                 }
                 
             }
@@ -95,7 +73,7 @@ export class AppOrchestrator{
 
         const uiEvents = (UIEventBus.getInstance() as any).getAllEventTypes?.() || [];
         uiEvents.forEach((eventType: any) => {
-            this.UIEventBus?.on(eventType, (payload) => {
+            UIEventBus.getInstance().on(eventType, (payload) => {
                 console.log(`[*] UI Event Bus: ${eventType}`, payload);
             });
         });

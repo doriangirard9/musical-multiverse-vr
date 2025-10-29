@@ -112,7 +112,7 @@ export class Node3DBuilder {
         return this.shared
     }
 
-    public async init(): Promise<void> {
+    public async initialize(): Promise<void> {
 
         this.shared = new N3DShared(
             SceneManager.getInstance().getScene(),

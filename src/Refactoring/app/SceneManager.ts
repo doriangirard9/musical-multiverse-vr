@@ -42,14 +42,14 @@ export class SceneManager {
 
     }
 
-    public static getInstance(canvas?: HTMLCanvasElement): SceneManager {
-        if (!SceneManager._instance) {
-            if (!canvas) {
-                throw new Error("Canvas is required for first instantiation");
-            }
-            SceneManager._instance = new SceneManager(canvas);
-        }
-        return SceneManager._instance;
+    public static initialize() {
+        const canvas = document.getElementById('renderCanvas') as HTMLCanvasElement
+        this._instance = new SceneManager(canvas)
+    }
+
+    public static getInstance(): SceneManager {
+        if (!this._instance) throw new Error("SceneManager not initialized. Call intialize() first.")
+        return this._instance;
     }
 
     public start(): void {
