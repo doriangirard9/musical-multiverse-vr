@@ -6,6 +6,8 @@ const TRANSITION_TIME = 250 // ms
 
 const ANIMATED_TRANSITION = false
 
+const DEBUG_LOG = false // Set to true to enable debug logs
+
 export class N3DShopCamera implements N3DShopType {
 
     cameras = [] as N3DShopObject[]
@@ -27,16 +29,92 @@ export class N3DShopCamera implements N3DShopType {
             const camera = XRManager.getInstance().xrHelper.baseExperience.camera
             
             shop.inputs.y_button.on_down.add(()=>{
-                console.log(`[Y Button] pressed - selected: ${this.selected}, to_show: ${this.to_show}`)
-                // Capture position IMMEDIATELY when Y is pressed, before any async operations
-                const capturedPosition = this.selected === -1 ? camera.position.clone() : null
-                const capturedRotation = this.selected === -1 ? camera.rotation.clone() : null
+                if(DEBUG_LOG) console.log(`[Y Button] pressed - selected: ${this.selected}, to_show: ${this.to_show}`)
                 
-                this.animation = this.animation.then(async()=>{
-                    if(this.selected==-1) await this.show(this.to_show, capturedPosition!, capturedRotation!)
-                    else await this.show(-1)
-                    await this.unload()
-                })
+                if(this.selected === -1) {
+                    // Entering shop - execute transition SYNCHRONOUSLY
+                    const targetIndex = this.to_show
+                    
+                    // CRITICAL: Disable movement FIRST
+                    if(XRManager.getInstance().xrFeaturesManager.getEnabledFeatures().includes(WebXRFeatureName.MOVEMENT))
+                        XRManager.getInstance().xrFeaturesManager.disableFeature(WebXRFeatureName.MOVEMENT)
+                    camera.applyGravity = false
+                    
+                    // Stop camera velocity
+                    this._stopCameraVelocity(camera)
+                    
+                    // Capture current position and rotation IMMEDIATELY
+                    this.initialPosition = camera.globalPosition.clone()
+                    if(camera.rotationQuaternion) {
+                        this.initialRotation = camera.rotationQuaternion.toEulerAngles()
+                    } else {
+                        this.initialRotation = camera.rotation.clone()
+                    }
+                    
+                    if(DEBUG_LOG) console.log(`[Y Button] Captured:`, this.initialPosition, `rotation.y:`, this.initialRotation.y)
+                    
+                    // Calculate shop target position SYNCHRONOUSLY
+                    const localPos = this.cameras[targetIndex].location.position
+                    const parent = this.cameras[targetIndex].location.parent as TransformNode
+                    const toPosition = Vector3.TransformCoordinates(localPos, parent.getWorldMatrix())
+                    const toRotation = this.cameras[targetIndex].location.absoluteRotation
+                    
+                    // Add small offset backwards (away from wall) - 0.5 units
+                    const offset = 0.5
+                    const forwardX = Math.sin(toRotation.y)
+                    const forwardZ = Math.cos(toRotation.y)
+                    toPosition.x -= forwardX * offset
+                    toPosition.z -= forwardZ * offset
+                    
+                    // TELEPORT IMMEDIATELY - no async delay
+                    camera.position.copyFrom(toPosition)
+                    if(camera.rotationQuaternion) camera.rotation = camera.rotationQuaternion.toEulerAngles()
+                    camera.rotation.y = toRotation.y
+                    camera.rotationQuaternion = camera.rotation.toQuaternion()
+                    
+                    this.selected = targetIndex
+                    this.to_show = targetIndex
+                    
+                    if(DEBUG_LOG) console.log(`[Y Button] INSTANT teleport to shop:`, toPosition, `rotation.y:`, toRotation.y)
+                    
+                    // Show zone asynchronously (UI stuff)
+                    const newShown = this.cameras[targetIndex].options.show as string
+                    if(this.shown) this.to_unloads.add(this.shown)
+                    if(newShown) this.to_unloads.delete(newShown)
+                    this.shown = newShown
+                    
+                    this.animation = this.animation.then(async()=>{
+                        if(newShown) await this.shop.showZone(newShown)
+                        await this.unload()
+                    })
+                }
+                else {
+                    // Returning from shop - execute SYNCHRONOUSLY
+                    
+                    // TELEPORT BACK IMMEDIATELY
+                    camera.position.copyFrom(this.initialPosition!)
+                    if(camera.rotationQuaternion) camera.rotation = camera.rotationQuaternion.toEulerAngles()
+                    camera.rotation.y = this.initialRotation!.y
+                    camera.rotationQuaternion = camera.rotation.toQuaternion()
+                    
+                    // Re-enable movement and gravity
+                    if(!XRManager.getInstance().xrFeaturesManager.getEnabledFeatures().includes(WebXRFeatureName.MOVEMENT))
+                        XRManager.getInstance().setMovement(["rotation", "translation"])
+                    camera.applyGravity = true
+                    
+                    this.selected = -1
+                    
+                    if(DEBUG_LOG) console.log(`[Y Button] INSTANT teleport back to world:`, this.initialPosition, `rotation.y:`, this.initialRotation!.y)
+                    
+                    // Reset
+                    this.initialPosition = null
+                    this.initialRotation = null
+                    
+                    // Unload zones asynchronously
+                    this.animation = this.animation.then(async()=>{
+                        await this.unload()
+                    })
+                }
             })
             shop.inputs.b_button.on_down.add(()=>{
                 this.animation = this.animation.then(async()=>{
@@ -88,40 +166,45 @@ export class N3DShopCamera implements N3DShopType {
     }
 
     async show(index: number, capturedPosition?: Vector3, capturedRotation?: Vector3){
-        console.log(`[show] called - index: ${index}, current selected: ${this.selected}, cameras.length: ${this.cameras.length}`)
+        if(DEBUG_LOG) console.log(`[show] called - index: ${index}, current selected: ${this.selected}, cameras.length: ${this.cameras.length}`)
+        
         if(index==this.selected) return
 
         const camera = XRManager.getInstance().xrHelper.baseExperience.camera
-        console.log(`[show] camera position:`, camera.position, `rotation:`, camera.rotation, `initialPosition:`, this.initialPosition, `initialRotation:`, this.initialRotation)
+        if(DEBUG_LOG) console.log(`[show] camera position:`, camera.position, `rotation:`, camera.rotation, `initialPosition:`, this.initialPosition, `initialRotation:`, this.initialRotation)
         
         // From position and rotation
         let fromPosition: Vector3
         let fromRotation: Vector3
 
         if(this.selected==-1){
-            // Use the captured position from Y button press (to avoid drift from async delay)
-            // Store the EXACT position including Y - don't normalize
-            this.initialPosition = capturedPosition ?? camera.position.clone()
-            this.initialRotation = capturedRotation ?? camera.rotation.clone()
+            // Use the captured WORLD position from Y button press (movement already disabled in button handler)
+            // Store the EXACT world position including Y - don't normalize
+            this.initialPosition = capturedPosition ?? camera.globalPosition.clone()
+            // Save the Y rotation from the captured rotation
+            if(capturedRotation) {
+                this.initialRotation = capturedRotation.clone()
+            } else {
+                // Get current rotation from quaternion
+                if(camera.rotationQuaternion) camera.rotation = camera.rotationQuaternion.toEulerAngles()
+                this.initialRotation = camera.rotation.clone()
+            }
             
-            console.log(`[show] Saved exact position:`, this.initialPosition, `rotation:`, this.initialRotation)
+            if(DEBUG_LOG) console.log(`[show] Saved exact WORLD position:`, this.initialPosition, `rotation:`, this.initialRotation)
             
-            // NOW disable movement and gravity
-            if(XRManager.getInstance().xrFeaturesManager.getEnabledFeatures().includes(WebXRFeatureName.MOVEMENT))
-                XRManager.getInstance().xrFeaturesManager.disableFeature(WebXRFeatureName.MOVEMENT)
-            camera.applyGravity = false
+            // Movement and gravity already disabled in button handler
             
             fromPosition = this.initialPosition
             fromRotation = this.initialRotation
-            console.log(`[show] Going TO shop, fromPosition:`, fromPosition, `fromRotation:`, fromRotation)
+            if(DEBUG_LOG) console.log(`[show] Going TO shop, fromPosition:`, fromPosition, `fromRotation:`, fromRotation)
         }
         else{
             fromPosition = this.cameras[this.selected].location.absolutePosition
             fromRotation = this.cameras[this.selected].location.absoluteRotation
-            console.log(`[show] Switching cameras or going back, fromPosition:`, fromPosition)
+            if(DEBUG_LOG) console.log(`[show] Switching cameras or going back, fromPosition:`, fromPosition)
         }
 
-        console.log("after calc from")
+        if(DEBUG_LOG) console.log("after calc from")
 
         // To position and rotation
         let toPosition: Vector3
@@ -130,7 +213,7 @@ export class N3DShopCamera implements N3DShopType {
         if(index==-1){
             toPosition = this.initialPosition!
             toRotation = this.initialRotation!
-            console.log(`[show] Going BACK to world, toPosition:`, toPosition, `toRotation:`, toRotation)
+            if(DEBUG_LOG) console.log(`[show] Going BACK to world, toPosition:`, toPosition, `toRotation:`, toRotation)
             if(!XRManager.getInstance().xrFeaturesManager.getEnabledFeatures().includes(WebXRFeatureName.MOVEMENT))
                 XRManager.getInstance().setMovement(["rotation", "translation"])
             // Re-enable gravity when returning to world - will be applied after position is set
@@ -146,7 +229,7 @@ export class N3DShopCamera implements N3DShopType {
             const parent = this.cameras[index].location.parent as TransformNode
             toPosition = Vector3.TransformCoordinates(localPos, parent.getWorldMatrix())
             toRotation = this.cameras[index].location.absoluteRotation
-            console.log(`[show] Going to camera[${index}], localPos:`, localPos, `toPosition:`, toPosition)
+            if(DEBUG_LOG) console.log(`[show] Going to camera[${index}], localPos:`, localPos, `toPosition:`, toPosition)
             this.to_show = index
         }
 
@@ -154,6 +237,9 @@ export class N3DShopCamera implements N3DShopType {
 
         // Hide
         if(newShown!=null) await this.shop.showZone(newShown)
+
+        // Stop camera velocity before teleporting to prevent drift
+        this._stopCameraVelocity(camera)
 
         // Animate
         if(ANIMATED_TRANSITION){
@@ -173,27 +259,15 @@ export class N3DShopCamera implements N3DShopType {
             })
         }
         else{
+            // Only teleport position and Y rotation - let headset control X and Z naturally
             camera.position.copyFrom(toPosition)
+            // Get current rotation from quaternion to preserve headset's X and Z
             if(camera.rotationQuaternion) camera.rotation = camera.rotationQuaternion.toEulerAngles()
-            
-            if(index === -1) {
-                // Going back to world: restore EXACT rotation from when we left
-                console.log(`[show] Restoring exact world rotation:`, toRotation)
-                camera.rotation.copyFrom(toRotation)
-                
-                // Force camera to immediately apply gravity/collision constraints
-                // This prevents floating above ground when first returning from shop
-                camera._checkInputs()
-            } else {
-                // Going to shop: use shop camera rotation (Y only, keep horizon level)
-                console.log(`[show] Setting shop camera rotation - Y: ${toRotation.y} (resetting X and Z to 0)`)
-                camera.rotation.x = 0  // No pitch - look horizontally
-                camera.rotation.y = toRotation.y  // Use shop camera's yaw
-                camera.rotation.z = 0  // No roll - keep upright
-            }
-            
+            // Set only Y rotation, keep X and Z from headset
+            camera.rotation.y = toRotation.y
+            // Convert back to quaternion so it takes effect
             camera.rotationQuaternion = camera.rotation.toQuaternion()
-            console.log(`[show] After setting - position:`, camera.position, `rotation:`, camera.rotation)
+            if(DEBUG_LOG) console.log(`[show] After setting - position:`, camera.position, `rotation.y:`, toRotation.y)
         }
         
         // Manage unloads
@@ -203,7 +277,7 @@ export class N3DShopCamera implements N3DShopType {
         this.shown = newShown
         this.selected = index
 
-        console.log("after switch")
+        if(DEBUG_LOG) console.log("after switch")
     }
 
     async unload(){
@@ -212,5 +286,43 @@ export class N3DShopCamera implements N3DShopType {
         }
         this.to_unloads.clear()
     }
+
+    
+    private _stopCameraVelocity(camera: any) {
+        // Stop camera momentum/velocity to prevent drift during teleport
+        // Try multiple properties that different camera types might use
+        if(camera.cameraDirection) {
+            camera.cameraDirection.setAll(0)
+        }
+        if(camera._cameraDirection) {
+            camera._cameraDirection.setAll(0)
+        }
+        if(camera.inertialVelocityToRef) {
+            camera.inertialVelocityToRef(Vector3.Zero())
+        }
+        // Stop rotation inertia
+        if(camera.inertialAlphaOffset !== undefined) {
+            camera.inertialAlphaOffset = 0
+        }
+        if(camera.inertialBetaOffset !== undefined) {
+            camera.inertialBetaOffset = 0
+        }
+        if(camera.inertialRadiusOffset !== undefined) {
+            camera.inertialRadiusOffset = 0
+        }
+        // Reset angular velocity for rotation
+        if(camera.angularSensibility !== undefined) {
+            // Clear any accumulated rotation velocity
+            if(camera._localDirection) {
+                camera._localDirection.setAll(0)
+            }
+        }
+        // Reset physics velocity if present
+        if(camera.physicsBody) {
+            camera.physicsBody.setLinearVelocity(Vector3.Zero())
+            camera.physicsBody.setAngularVelocity(Vector3.Zero())
+        }
+    }
+
 
 }

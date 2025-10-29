@@ -162,6 +162,8 @@ export class XRManager {
             xrInput: this.xrHelper.input,
             movementSpeed: features.includes("translation") ? 0.2 : 0.0,
             rotationSpeed: features.includes("rotation") ? 0.3 : 0.0,
+            movementOrientationFollowsViewerPose: true,
+            movementOrientationFollowsController: false
         })
     }
 }
