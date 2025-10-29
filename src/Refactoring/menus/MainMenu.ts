@@ -80,25 +80,25 @@ export class MainMenu extends AbstractMenu {
                 case "wam3d-Big Muff":
                     url = bigMuffImg
                     break;
-                case "disto_machine":
+                case "wam3d-disto_machine":
                     url = distoImg
                     break;
-                case "flute":
+                case "wam3d-flute":
                     url = fluteImg
                     break;
                 case "wam3d-Grey Hole":
                     url = greyholeImg
                     break;
-                case "guitar":
+                case "wam3d-guitar":
                     url = guitarImg
                     break;
                 case "livepiano":
                     url = pianoImg
                     break;
-                case "voxamp":
+                case "wam3d-voxamp":
                     url = voxampImg
                     break;
-                case "kverb":
+                case "wam3d-kverb":
                     url = kbverbImg
                     break;
                 case "wam3d-Ping Pong Delay":

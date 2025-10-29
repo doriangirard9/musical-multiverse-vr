@@ -18,8 +18,7 @@ export class AppOrchestrator{
     private MenuEventBus : MenuEventBus | null = null;
 
     private constructor() {
-        this.onMenuEvent();
-        this.onAudioEvent();
+
     }
 
     static async initialize(){
@@ -31,6 +30,8 @@ export class AppOrchestrator{
         this.instance.UIEventBus = UIEventBus.getInstance();
         this.instance.MenuEventBus = MenuEventBus.getInstance();
         IOEventBus.getInstance();
+        this.instance.onMenuEvent();
+        this.instance.onAudioEvent();
     }
 
     public static getInstance(): AppOrchestrator {
@@ -39,7 +40,7 @@ export class AppOrchestrator{
     }
 
     private onMenuEvent(): void {
-        this.MenuEventBus?.on('CREATE_AUDIO_NODE', async (payload) => {
+        this.MenuEventBus!!.on('CREATE_AUDIO_NODE', async (payload) => {
             console.log(`Audio node created: ${payload.name}`);
             const node = await Node3dManager.getInstance().createNode3d(payload.kind, payload.nodeId)
             if (node) {
