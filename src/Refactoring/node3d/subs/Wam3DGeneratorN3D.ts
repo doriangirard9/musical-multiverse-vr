@@ -118,6 +118,7 @@ class Wam3DGeneratorN3D implements Node3D{
     }
 
     async setState(name: string, value: any): Promise<void> {
+        console.log("Wam3DGeneratorN3D setState", name, value)
         await this.states.set(name, value)
     }
 

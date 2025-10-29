@@ -156,7 +156,11 @@ export class N3DShop {
                 }
             }))
             z.dispose = async()=>{
-                await Promise.all(disposers.map(d=>d?.()))
+                try{
+                    await Promise.all(disposers.map(d=>d?.()))
+                }catch(e){
+                    console.error(e)
+                }
             }
         })()
     }
