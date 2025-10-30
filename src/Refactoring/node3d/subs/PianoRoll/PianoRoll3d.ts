@@ -198,6 +198,10 @@ class PianoRollN3DGUI implements Node3DGUI {
 
   // Allow runtime hot-swap of strategy (e.g., connect to drum sampler)
   public setStrategy(strategy: GridStrategy) {
+    // Only reset grid if the actual constructor changes (strategy type), not just instance
+    if (this.strategy && this.strategy.constructor === strategy.constructor) {
+      return; // Same grid type, no need to reset anything
+    }
     this.strategy = strategy;
     this.rows = this.strategy.getRowCount();
 
@@ -1161,7 +1165,7 @@ export class PianoRollN3D implements Node3D {
   // Music grid timing
   private tempo = 120;               // BPM
   private timeSignatureNumerator = 4;
-  private timeSignatureDenominator = 4; // also “beats per bar” in the step grid sense
+  private timeSignatureDenominator = 4; // also "beats per bar" in the step grid sense
   private ticksPerColumn = 6;        // 1 column = 6 ticks by default
   private beatDuration: number;      // seconds per beat (1/quarter)
   private cellDuration: number;      // seconds per column
@@ -1268,7 +1272,7 @@ export class PianoRollN3D implements Node3D {
     // Settings menu (columns/rows/tempo…)
     this.menu = new PianoRollSettingsMenu(this.gui.context.scene, this);
 
-    // “A” to draw/extend control sequences
+    // "A" to draw/extend control sequences
     window.addEventListener("keydown", (e) => {
       if (e.key.toLowerCase() === "a") this.isAKeyPressed = true;
     });
@@ -1469,10 +1473,14 @@ private onInstrumentDisconnected(_wamNode: WamNode) {
 
   /** GUI strategy changed (e.g., switched to drum pads) */
   public onGridChanged(): void {
+    // If PianoRollN3D instance is attached, ensure all notes stop on true reset
+    if ((this as any).owner?.stopAllNotes) {
+      (this as any).owner.stopAllNotes(); // Let the controller cancel all sounds
+    }
     const rows = this.gui.strategy.getRowCount();
     const cols = this.gui.cols;
 
-    // reset on strategy switch (or remap MIDI→row if you prefer)
+    // reset (visuals and notes)
     this.isActive = Array.from({ length: rows }, () => Array(cols).fill(false));
     this.mode    = Array.from({ length: rows }, () => Array(cols).fill("normal"));
     this.pattern.notes = [];
@@ -1489,7 +1497,7 @@ private onInstrumentDisconnected(_wamNode: WamNode) {
     this.wamInstance = await WamInitializer.getInstance()
       .initWamInstance("https://www.webaudiomodules.com/community/plugins/burns-audio/pianoroll/index.js");
 
-    // // Expose a MIDI Output tied to the plugin’s AudioNode (for your patchbay)
+    // // Expose a MIDI Output tied to the plugin's AudioNode (for your patchbay)
     // const output = new MidiN3DConnectable.Output(
     //   "midiOutput",
     //   [this.gui.midiOutput],
@@ -1974,6 +1982,20 @@ private onInstrumentDisconnected(_wamNode: WamNode) {
   async dispose(): Promise<void> {
     if (this.unsubscribeTransport) this.unsubscribeTransport();
     if (this.wamInstance?.audioNode) this.transport.unregister(this.wamInstance.audioNode);
+  }
+
+  /** Stop all currently playing notes (MIDI all-notes-off if possible) */
+  public stopAllNotes(): void {
+    const audioNode: any = this.wamInstance?.audioNode;
+    if (audioNode && typeof audioNode.allNotesOff === "function") {
+      audioNode.allNotesOff();
+    } else if (audioNode && typeof audioNode.noteOff === "function") {
+      // Fallback: try sending noteOff for all unique notes in the current pattern
+      const allNotes = Array.from(new Set(this.pattern.notes.map(n => n.number)));
+      allNotes.forEach(number => {
+        try { audioNode.noteOff(number); } catch (_) {}
+      });
+    }
   }
 }
 

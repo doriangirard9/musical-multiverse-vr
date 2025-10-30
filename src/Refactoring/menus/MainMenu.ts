@@ -18,6 +18,11 @@ import voxampImg from "./img/voxamp.png"
 import { Node3dManager } from "../app/Node3dManager.ts";
 import { N3DRendering } from "../node3d/instance/utils/N3DRendering.ts";
 import { SceneManager } from "../app/SceneManager.ts";
+import drumImg from "./img/drum.png";
+import modalImg from "./img/modal.png";
+import effectImg from "./img/effect.png";
+import instrumentImg from "./img/instrument.png";
+import audioOutputImg from "./img/audioOutput.png";
 //-------------------------------------------------
 export class MainMenu extends AbstractMenu {
     private readonly _menuConfig: MenuConfig;
@@ -45,7 +50,19 @@ export class MainMenu extends AbstractMenu {
         // WAM plugins
         this._menuConfig.categories.forEach((category, index: number): void => {
             const button = new GUI.TouchHolographicButton(category.name);
-            button.imageUrl = "https://raw.githubusercontent.com/microsoft/MixedRealityToolkit-Unity/main/Assets/MRTK/SDK/StandardAssets/Textures/IconStar.png"
+            // Set icon according to category name
+            if (category.name.toLowerCase().includes("effect")) {
+                button.imageUrl = effectImg;
+            } else if (category.name.toLowerCase().includes("instrument")) {
+                button.imageUrl = instrumentImg;
+            } else if (category.name.toLowerCase().includes("audio output")) {
+                button.imageUrl = audioOutputImg;
+            } else if (category.name.toLowerCase().includes("generator")) {
+                button.imageUrl = modalImg; // or generator-specific icon if available
+            } else {
+                // fallback star
+                button.imageUrl = "https://raw.githubusercontent.com/microsoft/MixedRealityToolkit-Unity/main/Assets/MRTK/SDK/StandardAssets/Textures/IconStar.png";
+            }
             button.text = category.name;
             button.onPointerUpObservable.add((): void => this._createPluginsMenu(index));
             this._menu.addButton(button);
@@ -104,6 +121,16 @@ export class MainMenu extends AbstractMenu {
                     break;
                 case "livepiano":
                     url = pianoImg;
+                    break;
+                case "wam3d-Drum":
+                    url = drumImg;
+                    break;
+                case "wam3d-Modal":
+                    url = modalImg;
+                    break;
+                case "audiooutput":
+                case "AudioOutput":
+                    url = audioOutputImg;
                     break;
                 // aliases & fallback
                 case "wam3d-disto_machine":
