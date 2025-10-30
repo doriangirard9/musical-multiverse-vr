@@ -6,11 +6,12 @@ const https = require('https');
 
 const app = express()
 
+/*
 const credentials = {
     key: fs.readFileSync('../localhost.key', 'utf8'),
     cert: fs.readFileSync('../localhost.crt', 'utf8')
 }
-
+*/
 
 const port = 3000
 // Serve only the static files form the dist directory

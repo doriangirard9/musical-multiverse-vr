@@ -15,7 +15,7 @@ import { SpeakerN3DFactory } from "../node3d/subs/speaker/SpeakerN3D.ts";
 import {PianoRollN3DFactory} from "../node3d/subs/PianoRoll/PianoRoll3d.ts";
 
 
-const WAM_CONFIGS_URL: string = "https://wamjamparty.i3s.univ-cotedazur.fr/config"//"http://localhost:3000";
+const WAM_CONFIGS_URL: string = "https://wamjamparty.i3s.univ-cotedazur.fr/config";//"http://localhost:3000";
 
 export type Node3DConfig = { name: string, wam3d: WAMGuiInitCode }
 
