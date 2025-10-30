@@ -33,10 +33,10 @@ export class SpeakerN3DGUI implements Node3DGUI{
         this.speaker = await B.ImportMeshAsync(SPEAKER_URL, context.scene) .then(it=>it.meshes[0])
         this.speaker.parent = this.root
 
-        this.audioInput = B.CreateSphere("audio output input", {diameter:.5}, context.scene)
+        this.audioInput = B.CreateSphere("audio output input", {diameter:.7}, context.scene)
         MeshUtils.setColor(this.audioInput, new B.Color4(0,1,0,1))
         this.audioInput.parent = this.root
-        this.audioInput.position.set(-0.5,0,0)
+        this.audioInput.position.set(-0.7,0,0)
 
         /* FallOff selon l'idée de michel, il veut que ça soit tout le temps visible,
            au départ je voulais afficher uniquement si on drag puis uniquement si on est a l'extérieur
