@@ -3,7 +3,7 @@ import {XRManager} from "../xr/XRManager.ts";
 import {Node3dManager} from "./Node3dManager.ts";
 import {AppOrchestrator} from "./AppOrchestrator.ts";
 import ControlsUI from "./ControlsUI.ts";
-import {CreateAudioEngineAsync, ImportMeshAsync} from "@babylonjs/core";
+import {CreateAudioEngineAsync, CreatePlane, ImportMeshAsync, StandardMaterial} from "@babylonjs/core";
 import {N3DShop, N3DShopOptions} from "../world/shop/N3DShop.ts";
 import { InputManager } from "../xr/inputs/InputManager.ts";
 import { parallel } from "../utils/utils.ts";
@@ -11,6 +11,7 @@ import { UIManager } from "./UIManager.ts";
 import { NetworkManager } from "../network/NetworkManager.ts";
 import { PlayerManager } from "./PlayerManager.ts";
 import { ConnectionManager } from "../iomanager/ConnectionManager.ts";
+import { N3DRendering } from "../node3d/instance/utils/N3DRendering.ts";
 export class NewApp {
     private static readonly DEBUG_LOG = false;
     private controlsUI?: ControlsUI;
@@ -89,6 +90,20 @@ export class NewApp {
             }
             else if(e.key=="i"){
                 scene.debugLayer.show()
+            }
+            else if(e.key=="u"){
+                let prompt = window.prompt("Enter URL to import:")
+                let factory = await node3dManager.builder.getFactory(prompt||"")
+                const plane = CreatePlane("imported plane", {size: 4}, scene)
+
+                const texture = await N3DRendering.renderThumbnail(
+                    SceneManager.getInstance().getScene(),
+                    factory!!,
+                    512
+                )
+
+                plane.material = new StandardMaterial("mat", scene)
+                ;(plane.material as StandardMaterial).diffuseTexture = texture
             }
         })
 
