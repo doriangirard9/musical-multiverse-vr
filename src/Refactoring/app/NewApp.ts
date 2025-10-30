@@ -91,7 +91,7 @@ export class NewApp {
             else if(e.key=="i"){
                 scene.debugLayer.show()
             }
-            else if(e.key=="u"){
+            else if(e.key=="q"){
                 let prompt = window.prompt("Enter URL to import:")
                 let factory = (await node3dManager.builder.getFactory(prompt||""))!!
 
