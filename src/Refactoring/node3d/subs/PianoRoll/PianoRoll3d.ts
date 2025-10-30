@@ -1423,15 +1423,15 @@ const stopScrolling = () => {
 };
 
 // Start scrolling when thumbstick is pushed
-im.left_thumbstick.on_up_down.add(() => startScrolling(-1));
-im.left_thumbstick.on_down_down.add(() => startScrolling(1));
+im.right_thumbstick.on_up_down.add(() => startScrolling(-1));
+im.right_thumbstick.on_down_down.add(() => startScrolling(1));
 
 // Stop scrolling when thumbstick is released
-im.left_thumbstick.on_up_up.add(() => stopScrolling());
-im.left_thumbstick.on_down_up.add(() => stopScrolling());
+im.right_thumbstick.on_up_up.add(() => stopScrolling());
+im.right_thumbstick.on_down_up.add(() => stopScrolling());
 
 // Also stop when thumbstick returns to center
-im.left_thumbstick.on_value_change.add(({ x, y }) => {
+im.right_thumbstick.on_value_change.add(({ x, y }) => {
   const deadzone = 0.1;
   const isInDeadzone = Math.abs(x) < deadzone && Math.abs(y) < deadzone;
   
