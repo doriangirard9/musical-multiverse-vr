@@ -93,17 +93,19 @@ export class NewApp {
             }
             else if(e.key=="u"){
                 let prompt = window.prompt("Enter URL to import:")
-                let factory = await node3dManager.builder.getFactory(prompt||"")
-                const plane = CreatePlane("imported plane", {size: 4}, scene)
+                let factory = (await node3dManager.builder.getFactory(prompt||""))!!
 
                 const texture = await N3DRendering.renderThumbnail(
                     SceneManager.getInstance().getScene(),
-                    factory!!,
+                    factory,
                     512
                 )
-
-                plane.material = new StandardMaterial("mat", scene)
-                ;(plane.material as StandardMaterial).diffuseTexture = texture
+                
+                const url = await N3DRendering.textureToImageURL(texture)
+                const a = document.createElement('a')
+                a.href = url
+                a.download = `${factory.label}.png` 
+                a.click()
             }
         })
 
