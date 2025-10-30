@@ -10,6 +10,7 @@ import { parallel } from "../../utils/utils";
 export interface N3DShopOptions{
     kinds?: string[],
     categories?: Record<string, string[]>,
+    forcedOption?: Record<string, any>,
 }
 
 export interface N3DShopObject {
@@ -63,6 +64,8 @@ export class N3DShop {
         readonly inputs: InputManager,
         readonly shopOptions: N3DShopOptions = {},
     ){
+        const forcedOption = shopOptions.forcedOption ?? {}
+
         for(const mesh of target.getChildMeshes(false)){
             try{
                 const splitted = mesh.name.split(".")
@@ -77,7 +80,9 @@ export class N3DShop {
                     .replace(/"\s*"/g,'", "') // Relaxed absent commas
                     .replace(/(?<=[,{]\s*)([a-z0-9A-Z_]+)(?=\s*[,}])/g,'"$1":true') // Relaxed boolean without value
 
-                const options = JSON.parse(realJson) as any
+                const options = {...(JSON.parse(realJson) as any), ...(forcedOption[type]??{})}
+                console.log(options, forcedOption[type], type)
+                
                 
                 const zone = options.zone ?? "default"
 

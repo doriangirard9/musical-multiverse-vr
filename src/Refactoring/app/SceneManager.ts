@@ -19,7 +19,7 @@ export class SceneManager {
 
     private constructor(canvas: HTMLCanvasElement) {
         this.canvas = canvas;
-        this.engine = new B.Engine(this.canvas, true);
+        this.engine = new B.Engine(this.canvas, true, { stencil: true});
         this.scene = new B.Scene(this.engine);
         this.shadowGenerator = this.initializeShadowGenerator();
         this.ground = this.createGround();

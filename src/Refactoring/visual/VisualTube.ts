@@ -24,10 +24,10 @@ export class VisualTube{
             tessellation: 6
         },this.scene)
         
-        // Add arrow for direction indication (same as N3DConnectionInstance)
+        // Add arrow for direction indication (smaller diameter to facilitate connections)
         this.arrow = CreateCylinder("connection arrow",{
             height: 1,
-            diameterBottom: .5,
+            diameterBottom: .3,
             diameterTop: 0,
             tessellation: 6,
         },this.scene)

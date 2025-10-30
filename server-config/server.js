@@ -24,6 +24,8 @@ var corsOptions = {
 app.use(cors(corsOptions));
 
 app.use(express.static(__dirname + "/public"));
+app.use('/config', express.static(path.join(__dirname, 'public')));
+
 // Middleware to set headers for all responses
 app.use((req, res, next) => {
     res.setHeader('Content-Type', 'application/json');

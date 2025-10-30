@@ -130,7 +130,12 @@ export class NewApp {
                     }))
                     const options: N3DShopOptions = {
                         categories: Object.fromEntries(Object.entries(categories).map(([key, value]) => [key, [...value]])),
-                        kinds: [...kinds]
+                        kinds: [...kinds],
+                        forcedOption: {
+                            display: {
+                                alphabetical: true
+                            }
+                        }
                     }
 
                     const model = (await ImportMeshAsync(N3DShop.BASE_SHOP_MODEL_URL, scene)).meshes[0]
