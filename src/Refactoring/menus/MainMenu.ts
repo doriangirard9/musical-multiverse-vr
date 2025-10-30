@@ -161,7 +161,7 @@ export class MainMenu extends AbstractMenu {
                     const texture = await N3DRendering.renderThumbnail(
                         SceneManager.getInstance().getScene(),
                         factory,
-                        512
+                        128
                     )
                 
                     url = await N3DRendering.textureToImageURL(texture)
