@@ -74,32 +74,52 @@ export class MainMenu extends AbstractMenu {
             let url;
             switch (plugin.kind) {
                 case "wam3d-Big Muff":
-                    url = bigMuffImg
-                    break;
-                case "wam3d-disto_machine":
-                    url = distoImg
-                    break;
-                case "wam3d-flute":
-                    url = fluteImg
+                    url = bigMuffImg;
                     break;
                 case "wam3d-Grey Hole":
-                    url = greyholeImg
+                    url = greyholeImg;
                     break;
-                case "wam3d-guitar":
-                    url = guitarImg
-                    break;
-                case "livepiano":
-                    url = pianoImg
-                    break;
-                case "wam3d-voxamp":
-                    url = voxampImg
-                    break;
-                case "wam3d-kverb":
-                    url = kbverbImg
+                case "wam3d-Disto Machine":
+                    url = distoImg;
                     break;
                 case "wam3d-Ping Pong Delay":
-                    url = pingPongDelay
+                    url = pingPongDelay;
                     break;
+                case "wam3d-Vox Amp 30":
+                    url = voxampImg;
+                    break;
+                case "wam3d-KVerb":
+                    url = kbverbImg;
+                    break;
+                case "wam3d-Faust Flute":
+                    url = fluteImg;
+                    break;
+                case "wam3d-FAUST Guitar":
+                    url = guitarImg;
+                    break;
+                case "livepiano":
+                    url = pianoImg;
+                    break;
+                // aliases & fallback
+                case "wam3d-disto_machine":
+                    url = distoImg;
+                    break;
+                case "wam3d-flute":
+                    url = fluteImg;
+                    break;
+                case "wam3d-guitar":
+                    url = guitarImg;
+                    break;
+                case "wam3d-voxamp":
+                    url = voxampImg;
+                    break;
+                case "wam3d-kverb":
+                    url = kbverbImg;
+                    break;
+                case "wam3d-pingpongdelay":
+                    url = pingPongDelay;
+                    break;
+                // add others as you add icons
             }
             button.imageUrl = url || "https://raw.githubusercontent.com/microsoft/MixedRealityToolkit-Unity/main/Assets/MRTK/SDK/StandardAssets/Textures/IconStar.png";
             button.text = plugin.name;
