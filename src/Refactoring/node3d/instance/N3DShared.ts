@@ -15,7 +15,7 @@ export class N3DShared{
     ){}
 
 
-    readonly highlightLayer = new HighlightLayer(`node3D highlight layer`, this.scene)
+    readonly highlightLayer = new HighlightLayer(`node3D highlight layer`, this.scene, {renderingGroupId:0})
  
     readonly materialMat = (()=>{
         const mat = new StandardMaterial("node3d shared material mat")
