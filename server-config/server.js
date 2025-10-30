@@ -74,7 +74,8 @@ app.get('/wamsConfig/:name', (req, res) => {
 const httpsServer = https.createServer(credentials, app)
 httpsServer.listen(port, () => {
   console.log(`HTTPS Server running on port ${port}`);
-})*/
+})
+  */
 
 // HTTP (laisser TLS à Nginx)
 app.listen(port, () => {
