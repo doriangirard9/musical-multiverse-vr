@@ -94,10 +94,10 @@ export class NewApp {
             else if(e.key=="u"){
                 let prompt = window.prompt("Enter URL to import:")
                 let factory = await node3dManager.builder.getFactory(prompt||"")
-                const plane = CreatePlane("imported plane", {size: 1}, scene)
+                const plane = CreatePlane("imported plane", {size: 4}, scene)
 
                 const texture = await N3DRendering.renderThumbnail(
-                    SceneManager.getInstance().getScene().getEngine(),
+                    SceneManager.getInstance().getScene(),
                     factory!!,
                     512
                 )
