@@ -16,7 +16,7 @@ import {PianoRollN3DFactory} from "../node3d/subs/PianoRoll/PianoRoll3d.ts";
 
 
 
-const WAM_CONFIGS_URL: string = `https://${window.location.hostname}:3000`;
+const WAM_CONFIGS_URL: string = `http://${window.location.hostname}:3000`;
 export type Node3DConfig = { name: string, wam3d: WAMGuiInitCode }
 
 export class Node3DBuilder {
