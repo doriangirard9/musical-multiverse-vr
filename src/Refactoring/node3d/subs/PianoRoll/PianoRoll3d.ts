@@ -1495,7 +1495,7 @@ private onInstrumentDisconnected(_wamNode: WamNode) {
   }
 
   /** GUI strategy changed (e.g., switched to drum pads) */
-  public onGridChanged(oldStrategy?: GridStrategy): void {
+  public onGridChanged(_oldStrategy?: GridStrategy): void {
     // If PianoRollN3D instance is attached, ensure all notes stop on true reset
     if ((this as any).owner?.stopAllNotes) {
       (this as any).owner.stopAllNotes(); // Let the controller cancel all sounds
@@ -1503,12 +1503,9 @@ private onInstrumentDisconnected(_wamNode: WamNode) {
     const rows = this.gui.strategy.getRowCount();
     const cols = this.gui.cols;
 
-    // Check if we're switching from DrumPadsStrategy to Piano88Strategy
-    const isDrumToPiano = oldStrategy instanceof DrumPadsStrategy && 
-                          this.gui.strategy instanceof Piano88Strategy;
-    
-    // Preserve pattern notes if switching from drum to piano
-    const savedPattern = isDrumToPiano && this.pattern.notes.length > 0
+    // Always preserve all pattern notes before switching strategies
+    // This ensures notes are kept even if they're not displayed in the new strategy
+    const savedPattern = this.pattern.notes.length > 0
       ? { ...this.pattern, notes: [...this.pattern.notes] }
       : null;
 
@@ -1516,14 +1513,15 @@ private onInstrumentDisconnected(_wamNode: WamNode) {
     this.isActive = Array.from({ length: rows }, () => Array(cols).fill(false));
     this.mode    = Array.from({ length: rows }, () => Array(cols).fill("normal"));
     
-    // Clear pattern notes (we'll restore them if we have a saved pattern)
+    // Clear pattern notes array (we'll restore them after rebuilding the grid)
     this.pattern.notes = [];
     
     Object.values(this.rowControlBorders).flat().forEach(m => m.dispose());
     this.rowControlBorders = {};
     
-    // If we preserved notes, reapply them to the new strategy
-    // This will translate MIDI notes from drum pads to piano rows
+    // Always restore all preserved notes when switching strategies
+    // Notes that can't be mapped to the new strategy will be kept in the pattern
+    // but won't be displayed (e.g., piano notes when switching to drum)
     if (savedPattern && savedPattern.notes.length > 0) {
       this._applyPattern(savedPattern);
       this._safeSendPatternToPianoRoll();
