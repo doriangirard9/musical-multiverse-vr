@@ -202,6 +202,7 @@ class PianoRollN3DGUI implements Node3DGUI {
     if (this.strategy && this.strategy.constructor === strategy.constructor) {
       return; // Same grid type, no need to reset anything
     }
+    const oldStrategy = this.strategy;
     this.strategy = strategy;
     this.rows = this.strategy.getRowCount();
 
@@ -209,8 +210,30 @@ class PianoRollN3DGUI implements Node3DGUI {
     if (sugg) this.visibleRowCount = Math.min(this.rows, sugg);
     if (this.rows < this.visibleRowCount) this.visibleRowCount = this.rows;
 
-    // Reset start window safely
-    this._startRowIndex = Math.min(this._startRowIndex, Math.max(0, this.rows - this.visibleRowCount));
+    // When connecting to Piano88Strategy, scroll to the first playing note
+    if (strategy instanceof Piano88Strategy) {
+      const owner = (this as any).owner as PianoRollN3D | undefined;
+      const firstPlayingNoteRow = owner?.getFirstPlayingNoteRow?.(strategy);
+      if (firstPlayingNoteRow !== undefined && firstPlayingNoteRow >= 0) {
+        // Scroll to the first playing note, with some padding to center it nicely
+        const targetRow = Math.max(0, firstPlayingNoteRow - Math.floor(this.visibleRowCount / 4));
+        this._startRowIndex = Math.min(targetRow, Math.max(0, this.rows - this.visibleRowCount));
+      } else {
+        // No playing notes, scroll to C4 (middle note)
+        const c4Row = strategy.getRowForNote("C4");
+        if (c4Row >= 0) {
+          // Center C4 in the visible window
+          const targetRow = Math.max(0, c4Row - Math.floor(this.visibleRowCount / 2));
+          this._startRowIndex = Math.min(targetRow, Math.max(0, this.rows - this.visibleRowCount));
+        } else {
+          // Fallback to top if C4 not found (shouldn't happen)
+          this._startRowIndex = 0;
+        }
+      }
+    } else {
+      // Reset start window safely for other strategies
+      this._startRowIndex = Math.min(this._startRowIndex, Math.max(0, this.rows - this.visibleRowCount));
+    }
 
     // Recalculate scaling for new strategy dimensions
     this._calculateAndApplyScaling();
@@ -219,8 +242,8 @@ class PianoRollN3DGUI implements Node3DGUI {
     this.createGrid();
     this.updateRowVisibility();
 
-    // Notify controller if attached
-    (this as any).owner?.onGridChanged?.();
+    // Notify controller if attached, passing old strategy for note preservation
+    (this as any).owner?.onGridChanged?.(oldStrategy);
   }
 
   // ───────────────────────────────────────────────────────────────────────────
@@ -1472,7 +1495,7 @@ private onInstrumentDisconnected(_wamNode: WamNode) {
   }
 
   /** GUI strategy changed (e.g., switched to drum pads) */
-  public onGridChanged(): void {
+  public onGridChanged(oldStrategy?: GridStrategy): void {
     // If PianoRollN3D instance is attached, ensure all notes stop on true reset
     if ((this as any).owner?.stopAllNotes) {
       (this as any).owner.stopAllNotes(); // Let the controller cancel all sounds
@@ -1480,13 +1503,33 @@ private onInstrumentDisconnected(_wamNode: WamNode) {
     const rows = this.gui.strategy.getRowCount();
     const cols = this.gui.cols;
 
-    // reset (visuals and notes)
+    // Check if we're switching from DrumPadsStrategy to Piano88Strategy
+    const isDrumToPiano = oldStrategy instanceof DrumPadsStrategy && 
+                          this.gui.strategy instanceof Piano88Strategy;
+    
+    // Preserve pattern notes if switching from drum to piano
+    const savedPattern = isDrumToPiano && this.pattern.notes.length > 0
+      ? { ...this.pattern, notes: [...this.pattern.notes] }
+      : null;
+
+    // reset visuals
     this.isActive = Array.from({ length: rows }, () => Array(cols).fill(false));
     this.mode    = Array.from({ length: rows }, () => Array(cols).fill("normal"));
+    
+    // Clear pattern notes (we'll restore them if we have a saved pattern)
     this.pattern.notes = [];
+    
     Object.values(this.rowControlBorders).flat().forEach(m => m.dispose());
     this.rowControlBorders = {};
-    this.gui.repaintVisibleFromState();
+    
+    // If we preserved notes, reapply them to the new strategy
+    // This will translate MIDI notes from drum pads to piano rows
+    if (savedPattern && savedPattern.notes.length > 0) {
+      this._applyPattern(savedPattern);
+      this._safeSendPatternToPianoRoll();
+    } else {
+      this.gui.repaintVisibleFromState();
+    }
   }
 
   // ───────────────────────────────────────────────────────────────────────────
@@ -1718,6 +1761,35 @@ private onInstrumentDisconnected(_wamNode: WamNode) {
     const rows = this.gui.strategy.getRowCount();
     for (let r = 0; r < rows; r++) if (this.gui.strategy.getMidiForRow(r) === midi) return r;
     return -1;
+  }
+
+  /** Get the row index of the first playing note in the pattern, or -1 if no notes */
+  public getFirstPlayingNoteRow(strategy?: GridStrategy): number {
+    if (!this.pattern.notes || this.pattern.notes.length === 0) {
+      return -1;
+    }
+
+    // Use provided strategy or fall back to current GUI strategy
+    const strategyToUse = strategy || this.gui.strategy;
+
+    // Find the minimum row index from all notes in the pattern
+    let minRow = Infinity;
+    for (const note of this.pattern.notes) {
+      // Convert MIDI to row using the specified strategy
+      const rows = strategyToUse.getRowCount();
+      let row = -1;
+      for (let r = 0; r < rows; r++) {
+        if (strategyToUse.getMidiForRow(r) === note.number) {
+          row = r;
+          break;
+        }
+      }
+      if (row >= 0 && row < minRow) {
+        minRow = row;
+      }
+    }
+
+    return minRow === Infinity ? -1 : minRow;
   }
 
   private updatePattern(row: number, col: number, isActive: boolean): void {
