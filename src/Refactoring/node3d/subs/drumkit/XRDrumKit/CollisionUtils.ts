@@ -103,6 +103,7 @@ export class CollisionUtils {
         duration: number
     ): void {
         if (!wamInstance) {
+            console.warn("[CollisionUtils] WAM instance not available");
             return;
         }
 

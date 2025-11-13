@@ -77,6 +77,18 @@ export class DrumKitN3DGUI implements Node3DGUI {
         // Get physics plugin
         let hk = scene.getPhysicsEngine()?.getPhysicsPlugin();
         
+        // Calculate eventMask for collision events
+        let eventMask = 0;
+        if (hk && (hk as any)._hknp) {
+            const started = (hk as any)._hknp.EventType.COLLISION_STARTED.value;
+            const continued = (hk as any)._hknp.EventType.COLLISION_CONTINUED.value;
+            const finished = (hk as any)._hknp.EventType.COLLISION_FINISHED.value;
+            eventMask = started | continued | finished;
+            console.log("[DrumKitN3DGUI] Calculated eventMask:", eventMask);
+        } else {
+            console.warn("[DrumKitN3DGUI] Could not calculate eventMask - hk._hknp not available");
+        }
+        
         // Create AssetsManager for loading drum models
         const assetsManager = new AssetsManager(scene);
         
@@ -85,7 +97,7 @@ export class DrumKitN3DGUI implements Node3DGUI {
         this.drumKit = new XRDrumKit(
             audioContext,
             scene,
-            0, // eventMask (not used in current implementation)
+            eventMask,
             xr,
             hk,
             assetsManager

@@ -193,14 +193,11 @@ class XRCymbal implements XRDrumComponent {
             const cymbalName = this.name + "Trigger";
             const isThisCymbal = CollisionUtils.isCollisionWithTrigger(collision, cymbalName);
             
-            // CRITICAL: Only respond to COLLISION_STARTED, not COLLISION_CONTINUED
-            // COLLISION_CONTINUED fires every physics frame while objects are touching
-            // This would create sound spam - we only want ONE sound per hit
             if (collision.type === "COLLISION_STARTED" && isThisCymbal) {
                 this.logger.logCollision(collision);
                 
                 if (!this.xrDrumKit.drumSoundsEnabled) {
-                    return; // Do not play sounds if drum sounds are disabled
+                    return;
                 }
 
                 // Find which drumstick hit the cymbal
@@ -267,8 +264,6 @@ class XRCymbal implements XRDrumComponent {
                 
                 this.logger.logSound(midiKey, currentVelocity);
             }
-            // Ignore all other collision types (COLLISION_CONTINUED, COLLISION_ENDED, etc.)
-            // and all collisions that don't involve this cymbal
         });
     }
 
