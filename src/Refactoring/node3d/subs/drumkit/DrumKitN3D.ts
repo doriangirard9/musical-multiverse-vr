@@ -100,11 +100,18 @@ export class DrumKitN3DGUI implements Node3DGUI {
             hk,
             assetsManager
         );
-    
+
+        await this.drumKit.loadMesh();
+        this.drumKit.initializeDrumKit();
+        
+        // The drumContainer is created in XRDrumKit constructor
+        // Re-parent everything to the drumContainer
+        this.midiOutputMesh.parent = this.drumKit.drumContainer;
+        
         this.drumKit.drumContainer.parent = this.root;
         this.drumKit.drumContainer.position.setAll(0)
         this.drumKit.drumContainer.rotation.setAll(0)
-        this.drumKit.drumContainer.scaling.setAll(1)
+        this.drumKit.drumContainer.scaling.setAll(.5)
         
         // Wait for the drumkit assets to load
         // await new Promise<void>((resolve) => {
@@ -133,6 +140,7 @@ export class DrumKitN3DGUI implements Node3DGUI {
         // Note: Don't dispose drumKit here as it manages its own resources
     }
 }
+
 
 /**
  * Logic component for the VR Drum Kit Node3D

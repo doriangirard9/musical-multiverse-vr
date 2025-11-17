@@ -4,6 +4,7 @@ import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { TransformNode } from "@babylonjs/core";
 import { WebXRDefaultExperience } from "@babylonjs/core";
 import { AssetsManager } from "@babylonjs/core";
+import { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
 
 import XRDrumComponent from "./XRDrumComponent/XRDrumComponent";
 import XRDrumstick from "./XRDrumstick";
@@ -36,8 +37,10 @@ class XRDrumKit {
     drumComponents: XRDrumComponent[];
     drumContainer: TransformNode;
     xr: WebXRDefaultExperience;
+    assetsManager: AssetsManager;
     drumsticks: XRDrumstick[] = [];
     drumSoundsEnabled: boolean;
+    loadedMeshes: AbstractMesh[] | undefined; // Store loaded meshes
     kick : XRDrum | undefined;
     snare: XRDrum | undefined;
     snareKey: number = 38;
@@ -57,6 +60,7 @@ class XRDrumKit {
     path = DRUMKIT_CONFIG.model.path; // Path to the 3D model folder
     log = false;
     scaleFactor: number = DRUMKIT_CONFIG.model.scaleFactor; // Scale factor for physics trigger shapes (0.7 = 70% of visual size)
+    xrLogger: XRLogger;
 
     constructor(audioContext: AudioContext, scene: Scene, eventMask: number, xr: WebXRDefaultExperience, hk: any, assetsManager: AssetsManager) {
         this.audioContext = audioContext;
@@ -64,119 +68,150 @@ class XRDrumKit {
         this.xr = xr;
         this.scene = scene;
         this.eventMask = eventMask;
+        this.assetsManager = assetsManager;
         this.wamInstance = null;
         this.drumComponents = [];
         this.drumContainer = new TransformNode("drumContainer", this.scene);
+        this.drumSoundsEnabled = false;
+        this.xrLogger = new XRLogger(xr, scene);
+        
+        // Initialize WAM plugin
         this.initializeWAMPlugin().then((wamInstance) => {
             this.wamInstance = wamInstance;
         });
 
-        const meshTask = assetsManager.addMeshTask("drum3DModel", "", this.path, DRUMKIT_CONFIG.model.fileName);
-        
-                //@ts-ignore
-        meshTask.onError = (task, message, exception) => {
-            console.error(`Failed to load mesh for ${name}:`, message, exception);
-        };
+       
+    }
 
-        assetsManager.load();
-        
-        meshTask.onSuccess = (task) => {
-            const drumMeshes = task.loadedMeshes
-            if(this.log){
-                console.log("Available meshes:", drumMeshes.map(mesh => mesh.name)); // Log available meshes for debugging
-            }
+    /**
+     * Load the drum kit mesh from the assets manager
+     * @returns Promise that resolves with the loaded meshes
+     */
+    async loadMesh(): Promise<AbstractMesh[]> {
+        return new Promise((resolve, reject) => {
+            const meshTask = this.assetsManager.addMeshTask("drum3DModel", "", this.path, DRUMKIT_CONFIG.model.fileName);
+            
+            //@ts-ignore
+            meshTask.onError = (task, message, exception) => {
+                console.error(`Failed to load mesh for drum kit:`, message, exception);
+                reject(new Error(`Failed to load mesh: ${message}`));
+            };
 
-            this.kick = new XRDrum("kick", DRUMKIT_CONFIG.midi.keys.kick, this, drumMeshes); //Create kick
-            this.snare = new XRDrum("snare", DRUMKIT_CONFIG.midi.keys.snare, this, drumMeshes); // Create snare drum
-            this.floorTom = new XRDrum("floorTom", DRUMKIT_CONFIG.midi.keys.floorTom, this, drumMeshes); // Create floor tom
-            this.midTom = new XRDrum("midTom", DRUMKIT_CONFIG.midi.keys.midTom, this, drumMeshes); // Create mid tom
-            this.highTom = new XRDrum("highTom", DRUMKIT_CONFIG.midi.keys.highTom, this, drumMeshes); // Create high tom
-            this.crashCymbal1 = new XRCymbal("crashCymbal1", DRUMKIT_CONFIG.midi.keys.crashCymbal, this, drumMeshes); // Create crash cymbal
-            this.crashCymbal2 = new XRCymbal("crashCymbal2", DRUMKIT_CONFIG.midi.keys.crashCymbal, this, drumMeshes); // Create crash cymbal
-            this.rideCymbal = new XRCymbal("rideCymbal", DRUMKIT_CONFIG.midi.keys.rideCymbal, this, drumMeshes); // Create ride cymbal
-            this.hiHat = new XRHiHat("hiHat", DRUMKIT_CONFIG.midi.keys.closedHiHat, this, drumMeshes); // Create Hi-Hat with tremble animation
-        
-            //Stands
-            const stands = drumMeshes.filter(mesh => mesh.name.startsWith("stand") || mesh.name.startsWith("kickPedal") || mesh.name.startsWith("hiHatPedal")); // Find all primitives
-            if (stands.length === 0) {
-                console.error(`Failed to find a mesh with name starting with 'stand'`);
+            meshTask.onSuccess = (task) => {
+                this.loadedMeshes = task.loadedMeshes;
                 if(this.log){
-                    console.log("Available meshes:", drumMeshes.map(mesh => mesh.name)); // Log available meshes for debugging
+                    console.log("Available meshes:", this.loadedMeshes.map(mesh => mesh.name));
                 }
-                return;
-            }
-        
-            stands.forEach(stand => this.drumContainer.addChild(stand)); // Attach primitives to the parent node
+                this.drumContainer.addChild(this.loadedMeshes[0]);
+                resolve(this.loadedMeshes);
+            };
 
-            //Throne
-            const thronePrimitives = drumMeshes.filter(mesh => (mesh.name === "throne" || mesh.name.startsWith("throne_primitive"))); // Find all primitives
-            if (thronePrimitives.length === 0) {
-                console.error(`Failed to find the main body mesh with name 'throne' or its primitives in the provided drum3Dmodel.`);
-                if(this.log){
-                    console.log("Available meshes:", drumMeshes.map(mesh => mesh.name)); // Log available meshes for debugging
-                }
-                return;
-            }
-            const throneContainer = new TransformNode("throneContainer", this.scene);
-            thronePrimitives.forEach(primitive => throneContainer.addChild(primitive)); // Attach primitives to the parent node
-            
-            this.drumContainer.addChild(throneContainer); // Attach the throne container to the drum container
-            this.throne = throneContainer; // Store the throne container
-            
-            // Initialize throne controller for sit/stand functionality
-            this.throneController = new ThroneController(xr, this, throneContainer, this.scene);
-            
-            // Initialize throne UI for visual feedback
-            this.throneUI = new ThroneUI(this.scene, xr, this.throneController);
-        
-            //RESCALE: 
-            this.drumContainer.scaling = new Vector3(
-                DRUMKIT_CONFIG.model.scaleFactor, 
-                DRUMKIT_CONFIG.model.scaleFactor, 
-                DRUMKIT_CONFIG.model.scaleFactor
-            ); // Rescale the drum container
-            //this.crashCymbal1.drumComponentContainer.scaling = new Vector3(0.7, 0.7, 0.7); // Rescale crash cymbal 1
-            // PERFORMANCE OPTIMIZATIONS for rendering
-            // 1. Freeze materials to prevent unnecessary shader recompilations
-            this.drumContainer.getChildMeshes().forEach(mesh => {
-                if (mesh.material) {
-                    mesh.material.freeze();
-                }
-                
-                // 2. Disable frustum culling - drumkit is always in view when playing
-                // This prevents meshes from disappearing when user gets close
-                mesh.alwaysSelectAsActiveMesh = true;
-                
-                // 3. Disable unnecessary features for static meshes
-                mesh.doNotSyncBoundingInfo = true; // Static meshes don't need bounding updates
-            });
-            
-            // Note: World matrix freezing is done AFTER initial positioning in add6DofBehavior
-            // to prevent the "jump" issue when unfreezing
-        
-            /*
-            //TEST FOR COLLISIONS
-            console.log(this.drumContainer.getChildMeshes());
-            this.drumContainer.getChildMeshes().forEach(mesh => mesh.isVisible = false);
-            */
-            
-            // Enable physics viewer for ALL drum components after they're created
-            if (DRUMKIT_CONFIG.debug.enablePhysicsViewer) {
-                this.enablePhysicsViewerForAll();
-            }
+            this.assetsManager.load();
+        });
+    }
+
+    /**
+     * Initialize the drum kit components from the loaded mesh
+     * This should be called after loadMesh() has successfully completed
+     */
+    initializeDrumKit(): void {
+        if (!this.loadedMeshes) {
+            console.error("Cannot initialize drum kit: meshes not loaded. Call loadMesh() first.");
+            return;
         }
 
-        // 6DOF behavior is now added externally from xrSceneWithHavok
-        this.drumSoundsEnabled = false; // Initialize to false and set to true only when controllers are added
-        let xrLogger = new XRLogger(xr, scene);
-        for (var i = 0; i < 2; i++) {
-            this.drumsticks[i] = new XRDrumstick(xr, this, this.scene, this.eventMask, i+1, xrLogger);
+        this.drumContainer.removeChild(this.loadedMeshes[0]); // Clear any existing children
+
+         for (var i = 0; i < 2; i++) {
+            this.drumsticks[i] = new XRDrumstick(this.xr, this, this.scene, this.eventMask, i+1, this.xrLogger);
         }
         
         // Set references so drumsticks can detect collisions with each other (only if feature enabled)
         if (DRUMKIT_CONFIG.drumstick.enableCollisionDetection) {
             this.drumsticks[0].setOtherDrumstick(this.drumsticks[1]);
             this.drumsticks[1].setOtherDrumstick(this.drumsticks[0]);
+        }
+
+        const drumMeshes = this.loadedMeshes;
+
+        // Create drum components
+        this.kick = new XRDrum("kick", DRUMKIT_CONFIG.midi.keys.kick, this, drumMeshes); //Create kick
+        this.snare = new XRDrum("snare", DRUMKIT_CONFIG.midi.keys.snare, this, drumMeshes); // Create snare drum
+        this.floorTom = new XRDrum("floorTom", DRUMKIT_CONFIG.midi.keys.floorTom, this, drumMeshes); // Create floor tom
+        this.midTom = new XRDrum("midTom", DRUMKIT_CONFIG.midi.keys.midTom, this, drumMeshes); // Create mid tom
+        this.highTom = new XRDrum("highTom", DRUMKIT_CONFIG.midi.keys.highTom, this, drumMeshes); // Create high tom
+        this.crashCymbal1 = new XRCymbal("crashCymbal1", DRUMKIT_CONFIG.midi.keys.crashCymbal, this, drumMeshes); // Create crash cymbal
+        this.crashCymbal2 = new XRCymbal("crashCymbal2", DRUMKIT_CONFIG.midi.keys.crashCymbal, this, drumMeshes); // Create crash cymbal
+        this.rideCymbal = new XRCymbal("rideCymbal", DRUMKIT_CONFIG.midi.keys.rideCymbal, this, drumMeshes); // Create ride cymbal
+        this.hiHat = new XRHiHat("hiHat", DRUMKIT_CONFIG.midi.keys.closedHiHat, this, drumMeshes); // Create Hi-Hat with tremble animation
+    
+        //Stands
+        const stands = drumMeshes.filter(mesh => mesh.name.startsWith("stand") || mesh.name.startsWith("kickPedal") || mesh.name.startsWith("hiHatPedal")); // Find all primitives
+        if (stands.length === 0) {
+            console.error(`Failed to find a mesh with name starting with 'stand'`);
+            if(this.log){
+                console.log("Available meshes:", drumMeshes.map(mesh => mesh.name)); // Log available meshes for debugging
+            }
+            return;
+        }
+    
+        stands.forEach(stand => this.drumContainer.addChild(stand)); // Attach primitives to the parent node
+
+        //Throne
+        const thronePrimitives = drumMeshes.filter(mesh => (mesh.name === "throne" || mesh.name.startsWith("throne_primitive"))); // Find all primitives
+        if (thronePrimitives.length === 0) {
+            console.error(`Failed to find the main body mesh with name 'throne' or its primitives in the provided drum3Dmodel.`);
+            if(this.log){
+                console.log("Available meshes:", drumMeshes.map(mesh => mesh.name)); // Log available meshes for debugging
+            }
+            return;
+        }
+        const throneContainer = new TransformNode("throneContainer", this.scene);
+        thronePrimitives.forEach(primitive => throneContainer.addChild(primitive)); // Attach primitives to the parent node
+        
+        this.drumContainer.addChild(throneContainer); // Attach the throne container to the drum container
+        this.throne = throneContainer; // Store the throne container
+        
+        // Initialize throne controller for sit/stand functionality
+        this.throneController = new ThroneController(this.xr, this, throneContainer, this.scene);
+        
+        // Initialize throne UI for visual feedback
+        this.throneUI = new ThroneUI(this.scene, this.xr, this.throneController);
+    
+        //RESCALE: 
+        this.drumContainer.scaling = new Vector3(
+            DRUMKIT_CONFIG.model.scaleFactor, 
+            DRUMKIT_CONFIG.model.scaleFactor, 
+            DRUMKIT_CONFIG.model.scaleFactor
+        ); // Rescale the drum container
+        //this.crashCymbal1.drumComponentContainer.scaling = new Vector3(0.7, 0.7, 0.7); // Rescale crash cymbal 1
+        // PERFORMANCE OPTIMIZATIONS for rendering
+        // 1. Freeze materials to prevent unnecessary shader recompilations
+        this.drumContainer.getChildMeshes().forEach(mesh => {
+            if (mesh.material) {
+                mesh.material.freeze();
+            }
+            
+            // 2. Disable frustum culling - drumkit is always in view when playing
+            // This prevents meshes from disappearing when user gets close
+            mesh.alwaysSelectAsActiveMesh = true;
+            
+            // 3. Disable unnecessary features for static meshes
+            mesh.doNotSyncBoundingInfo = true; // Static meshes don't need bounding updates
+        });
+        
+        // Note: World matrix freezing is done AFTER initial positioning in add6DofBehavior
+        // to prevent the "jump" issue when unfreezing
+    
+        /*
+        //TEST FOR COLLISIONS
+        console.log(this.drumContainer.getChildMeshes());
+        this.drumContainer.getChildMeshes().forEach(mesh => mesh.isVisible = false);
+        */
+        
+        // Enable physics viewer for ALL drum components after they're created
+        if (DRUMKIT_CONFIG.debug.enablePhysicsViewer) {
+            this.enablePhysicsViewerForAll();
         }
     }
 

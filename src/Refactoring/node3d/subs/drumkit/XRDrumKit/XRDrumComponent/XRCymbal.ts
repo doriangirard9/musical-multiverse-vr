@@ -143,7 +143,12 @@ class XRCymbal implements XRDrumComponent {
             const visualMesh = trigger;
             
             //LIMIT THE MOVEMENT ON X AND Z AXES (TILT), ALLOW FREE ROTATION ON Y AXIS (SPIN):
-            this.xrDrumKit.scene.onBeforeRenderObservable.add(() => {
+            const o = this.xrDrumKit.scene.onBeforeRenderObservable.add(() => {
+                if(triggerAggregate.body.isDisposed){
+                    o.remove()
+                    return;
+                }
+
                 // Lock position to prevent any linear movement (no falling)
                 triggerAggregate.transformNode.position.copyFrom(originalPosition);
                 triggerAggregate.body.setLinearVelocity(Vector3.Zero());

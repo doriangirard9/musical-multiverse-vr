@@ -67,7 +67,11 @@ export class ThroneController {
         this.setupControllers();
         
         // Monitor proximity to throne
-        this.scene.onBeforeRenderObservable.add(() => {
+        const o = this.scene.onBeforeRenderObservable.add(() => {
+            if(throneNode.isDisposed()){
+                o.remove()
+                return;
+            }
             this.checkProximity();
             if (this.isSitting) {
                 this.handleHeightAdjustment();

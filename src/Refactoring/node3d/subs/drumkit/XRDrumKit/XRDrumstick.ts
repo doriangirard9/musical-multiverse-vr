@@ -45,7 +45,13 @@ class XRDrumstick {
         this.drumstickAggregate = this.createDrumstick(xr, stickNumber);
         this.xrDrumKit = xrDrumKit;
         // Only update transform when attached - no need for manual velocity calculation
-        scene.onBeforeRenderObservable.add(() => this.updateTransform());
+        const o = scene.onBeforeRenderObservable.add(() => {
+            if(this.drumstickAggregate.body.isDisposed){
+                    o.remove()
+                    return;
+            }
+            this.updateTransform()
+        });
         this.xrLogger = xrLogger; // Initialize the logger
         
         // Only initialize collision detection if enabled in config
