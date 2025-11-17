@@ -81,6 +81,7 @@ class PianoRollN3DGUI implements Node3DGUI {
   public playhead!: B.Mesh;
   public menuButton!: B.Mesh;
   public midiOutput!: B.Mesh;
+  public midiInput!: B.Mesh;
   public btnStartStop!: B.Mesh;
   public preventClickBetweenNotesMesh!: B.Mesh;
 
@@ -273,6 +274,16 @@ class PianoRollN3DGUI implements Node3DGUI {
     this.midiOutput.position.set(baseLength, baseY, baseZ + 1);
     this.midiOutput.scaling.setAll(0.5);
     this.midiOutput.parent = this.root;
+
+    this.midiInput = B.CreateIcoSphere(
+      "piano roll midi input",
+      { radius: this.buttonWidth * 2 },
+      this.context.scene
+    );
+    this.tool.MeshUtils.setColor(this.midiInput, MidiN3DConnectable.InputColor.toColor4());
+    this.midiInput.position.set(-baseLength, baseY, baseZ);  // Position on opposite side
+    this.midiInput.scaling.setAll(0.5);
+    this.midiInput.parent = this.root;
 
     this.startStopButton();
 
@@ -1212,6 +1223,7 @@ export class PianoRollN3D implements Node3D {
   private isReady = false;
   private pendingPattern: Pattern | null = null;
   private midiOutputConnectable: InstanceType<typeof MidiN3DConnectable.ListOutput>;
+  private midiInputConnectable?: InstanceType<typeof MidiN3DConnectable.Input>;
 
   constructor(context: Node3DContext, gui: PianoRollN3DGUI) {
     this.context = context;
@@ -1273,6 +1285,9 @@ export class PianoRollN3D implements Node3D {
 
     context.createConnectable(this.midiOutputConnectable);
 
+    // Note: MIDI input connectable will be created after WAM initialization
+    // because it needs this.wamInstance.audioNode to exist
+    
 
     // ---- Shared Transport ----
     this.transport = WamTransportManager.getInstance(context.audioCtx);
@@ -1552,6 +1567,14 @@ private onInstrumentDisconnected(_wamNode: WamNode) {
           this.wamInstance.audioNode.connectEvents(wamNode.instanceId);
       });
   
+    // Now that WAM instance is initialized, create the MIDI input connectable
+    this.midiInputConnectable = new this.context.tools.MidiN3DConnectable.Input(
+      `midiinput_pianoRollInput`,
+      [this.gui.midiInput],
+      "Recording MIDI Input",
+      this.wamInstance.audioNode
+    );
+    this.context.createConnectable(this.midiInputConnectable);
 
     // Join shared transport group
     this.transport.register(this.wamInstance.audioNode);
