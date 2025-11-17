@@ -41,7 +41,7 @@ export class DrumKitN3DGUI implements Node3DGUI {
         );
 
         this.midiOutputMesh.parent = this.root;
-        this.midiOutputMesh.position.set(.75, -0.05, 0);
+        this.midiOutputMesh.position.set(.83, -0.05, 0);
         
         T.MeshUtils.setColor(this.midiOutputMesh, T.MidiN3DConnectable.OutputColor.toColor4());
     }
