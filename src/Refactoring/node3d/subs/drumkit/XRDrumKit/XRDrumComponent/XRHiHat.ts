@@ -9,6 +9,7 @@ import { DRUMKIT_CONFIG } from "../XRDrumKitConfig";
 import { CollisionUtils } from "../CollisionUtils";
 import { AnimationUtils } from "../AnimationUtils";
 import { DrumComponentLogger } from "./XRDrumComponentLogger";
+import { COLLISION_GROUP } from "../CollisionGroups";
 
 class XRHiHat implements XRDrumComponent {
 
@@ -102,11 +103,11 @@ class XRHiHat implements XRDrumComponent {
                 this.logger.logBoundingBox(trigger.name);
             }
             
-            // Set collision filter: Hi-Hat is group 2 (like cymbals), collide with drumsticks only
+            // COLLISION FILTERING: Hi-Hat is like a cymbal, only collides with drumsticks
             if (triggerAggregate.body.shape) {
                 triggerAggregate.body.shape.isTrigger = true;
-                triggerAggregate.body.shape.filterMembershipMask = 2; // Group 2 (cymbals/Hi-Hat)
-                triggerAggregate.body.shape.filterCollideMask = 1; // Only collide with group 1 (drumsticks)
+                triggerAggregate.body.shape.filterMembershipMask = COLLISION_GROUP.CYMBAL;
+                triggerAggregate.body.shape.filterCollideMask = COLLISION_GROUP.DRUMSTICK;
             }
             
             this.logger.logDebug("Created static Hi-Hat trigger with tremble animation support");

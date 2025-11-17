@@ -8,6 +8,7 @@ import XRDrumKit from "../XRDrumKit";
 import { DRUMKIT_CONFIG } from "../XRDrumKitConfig";
 import { CollisionUtils } from "../CollisionUtils";
 import { DrumComponentLogger } from "./XRDrumComponentLogger";
+import { COLLISION_GROUP } from "../CollisionGroups";
 
 class XRCymbal implements XRDrumComponent {
 
@@ -17,6 +18,7 @@ class XRCymbal implements XRDrumComponent {
     xrDrumKit: XRDrumKit;
     private logger: DrumComponentLogger;
     private lastHitTime: Map<string, number> = new Map(); // Track last hit time per drumstick
+    //@ts-ignore
     private cymbalAggregate: PhysicsAggregate | null = null; // Store reference to apply impulses
 
     //@ts-ignore
@@ -80,6 +82,23 @@ class XRCymbal implements XRDrumComponent {
             const triggerAggregate = new PhysicsAggregate(trigger, PhysicsShapeType.MESH, { mass: DRUMKIT_CONFIG.physics.cymbal.mass }, this.xrDrumKit.scene);
             triggerAggregate.transformNode.id = this.name + "Trigger"; // Add trigger to aggregate name for cymbals
             
+            // CRITICAL: Set custom moment of inertia to make cymbals feel heavier
+            // For a disc rotating around its center, I = 0.5 * mass * radius²
+            // We artificially increase this to make rotation harder (more realistic cymbal feel)
+            const inertiaMultiplier = DRUMKIT_CONFIG.physics.cymbal.inertia;
+            const massProps = triggerAggregate.body.getMassProperties();
+            if (massProps.inertia) {
+                const scaledInertia = massProps.inertia.scale(inertiaMultiplier);
+                triggerAggregate.body.setMassProperties({
+                    inertia: scaledInertia
+                });
+                
+                if (DRUMKIT_CONFIG.debug.logCymbalPhysics) {
+                    this.logger.logCymbalPhysics(`[${this.name}] Default inertia: ${massProps.inertia}`);
+                    this.logger.logCymbalPhysics(`[${this.name}] Scaled inertia (×${inertiaMultiplier}): ${scaledInertia}`);
+                }
+            }
+            
             // CRITICAL: Restore the visual mesh to its original scale
             // This keeps the visual at full size while the physics shape remains at 0.7x
             trigger.scaling.copyFrom(originalScale);
@@ -97,6 +116,12 @@ class XRCymbal implements XRDrumComponent {
             triggerAggregate.body.setCollisionCallbackEnabled(true);
             triggerAggregate.body.setEventMask(this.xrDrumKit.eventMask);
             
+            // COLLISION FILTERING: Cymbals only collide with drumsticks
+            if (triggerAggregate.body.shape) {
+                triggerAggregate.body.shape.filterMembershipMask = COLLISION_GROUP.CYMBAL;
+                triggerAggregate.body.shape.filterCollideMask = COLLISION_GROUP.DRUMSTICK;
+            }
+            
             triggerAggregate.body.setMotionType(PhysicsMotionType.DYNAMIC);
             // TELEPORT prestep keeps cymbal following the drum kit when it moves
             // This is necessary for when the entire drum kit position is changed
@@ -107,8 +132,7 @@ class XRCymbal implements XRDrumComponent {
             
             // Store the original position and rotation for limiting
             const originalPosition = trigger.position.clone();
-            const maxRotationUp = DRUMKIT_CONFIG.physics.cymbal.maxRotationUp;
-            const maxRotationDown = DRUMKIT_CONFIG.physics.cymbal.maxRotationDown;
+            const maxRotationXY = DRUMKIT_CONFIG.physics.cymbal.maxRotationXY; // 35 degrees on X and Y
             
             // Get the initial rotation quaternion from the physics body
             const originalBodyRotation = triggerAggregate.body.transformNode.rotationQuaternion!.clone();
@@ -118,7 +142,7 @@ class XRCymbal implements XRDrumComponent {
             // Store reference to the visual mesh to sync its rotation
             const visualMesh = trigger;
             
-            //LIMIT THE MOVEMENT ON EVERY AXIS :
+            //LIMIT THE MOVEMENT ON X AND Z AXES (TILT), ALLOW FREE ROTATION ON Y AXIS (SPIN):
             this.xrDrumKit.scene.onBeforeRenderObservable.add(() => {
                 // Lock position to prevent any linear movement (no falling)
                 triggerAggregate.transformNode.position.copyFrom(originalPosition);
@@ -126,63 +150,142 @@ class XRCymbal implements XRDrumComponent {
                 
                 // Get the PHYSICS BODY rotation (not the transformNode!)
                 const bodyQuat = triggerAggregate.body.transformNode.rotationQuaternion!;
-                const bodyEuler = bodyQuat.toEulerAngles();
                 
-                // Get original rotation as euler
-                const origEuler = originalBodyRotation.toEulerAngles();
+                // DEBUG: Log quaternions to verify transformation
+                if (DRUMKIT_CONFIG.debug.logCymbalPhysics) {
+                    const bodyEuler = bodyQuat.toEulerAngles();
+                    const origEuler = originalBodyRotation.toEulerAngles();
+                    if (Math.abs(bodyEuler.x - origEuler.x) > 0.01 || Math.abs(bodyEuler.z - origEuler.z) > 0.01) {
+                        this.logger.logCymbalPhysics(
+                            `[${this.name}] Original Quat: (${origEuler.x.toFixed(3)}, ${origEuler.y.toFixed(3)}, ${origEuler.z.toFixed(3)})`
+                        );
+                        this.logger.logCymbalPhysics(
+                            `[${this.name}] Current Quat:  (${bodyEuler.x.toFixed(3)}, ${bodyEuler.y.toFixed(3)}, ${bodyEuler.z.toFixed(3)})`
+                        );
+                    }
+                }
                 
-                // Calculate rotation offset on X-axis
-                let offsetX = bodyEuler.x - origEuler.x;
+                // Calculate the relative rotation from original
+                const relativeQuat = originalBodyRotation.conjugate().multiply(bodyQuat);
+                const relativeEuler = relativeQuat.toEulerAngles();
                 
-                // Normalize angle to [-PI, PI] range
+                // Normalize angles to [-PI, PI] range
+                let offsetX = relativeEuler.x;
+                let offsetY = relativeEuler.y; // Y is free to spin (vertical axis)
+                let offsetZ = relativeEuler.z;
+                
                 while (offsetX > Math.PI) offsetX -= 2 * Math.PI;
                 while (offsetX < -Math.PI) offsetX += 2 * Math.PI;
+                while (offsetZ > Math.PI) offsetZ -= 2 * Math.PI;
+                while (offsetZ < -Math.PI) offsetZ += 2 * Math.PI;
                 
                 // Get current angular velocity
                 const angularVelocity = triggerAggregate.body.getAngularVelocity();
                 
-                // Prevent Y and Z-axis rotation completely
-                triggerAggregate.body.setAngularVelocity(new Vector3(angularVelocity.x, 0, 0));
-                
                 // Debug logging
-                if (Math.abs(offsetX) > 0.01) {
-                    this.logger.logCymbalPhysics(`Rotation: offsetX=${(offsetX * 180/Math.PI).toFixed(1)}°, vel=${angularVelocity.x.toFixed(3)}`);
+                if (Math.abs(offsetX) > 0.01 || Math.abs(offsetZ) > 0.01) {
+                    if (DRUMKIT_CONFIG.debug.logCymbalPhysics) {
+                        this.logger.logCymbalPhysics(
+                            `Rotation: X=${(offsetX * 180/Math.PI).toFixed(1)}°, Y=${(offsetY * 180/Math.PI).toFixed(1)}° (free), Z=${(offsetZ * 180/Math.PI).toFixed(1)}°`
+                        );
+                    }
                 }
                 
-                // Apply spring force to return to original position (like real cymbal between pads)
-                const springStrength = DRUMKIT_CONFIG.physics.cymbal.springStrength;
-                const springDamping = DRUMKIT_CONFIG.physics.cymbal.springDamping;
+                // Check limits for X and Z axes (tilt axes)
+                const isXAtLimit = Math.abs(offsetX) >= maxRotationXY;
+                const isZAtLimit = Math.abs(offsetZ) >= maxRotationXY;
                 
-                // Calculate spring force: F = -k * x (Hooke's law)
-                const springForce = -offsetX * springStrength;
-                const dampingForce = -angularVelocity.x * springDamping;
-                const totalTorque = springForce + dampingForce;
+                let newAngularVelocity = angularVelocity.clone();
+                let needsRotationClamp = false;
+                let clampedX = offsetX;
+                let clampedZ = offsetZ;
                 
-                // Apply torque to pull cymbal back to rest position
-                triggerAggregate.body.applyAngularImpulse(new Vector3(totalTorque * 0.016, 0, 0)); // 0.016 ≈ 1/60 for frame time
-                
-                // Asymmetric bounce limits: different max for up vs down
-                const maxLimit = offsetX > 0 ? maxRotationUp : maxRotationDown;
-                
-                if (Math.abs(offsetX) > maxLimit) {
-                    this.logger.logCymbalPhysics(`ROTATION LIMIT HIT: ${(offsetX * 180/Math.PI).toFixed(1)}°, bouncing back!`);
-                    
-                    // Clamp to just INSIDE the limit (95% of max) to avoid infinite bouncing
-                    const clampedX = Math.sign(offsetX) * maxLimit * 0.95;
-                    const newEuler = new Vector3(origEuler.x + clampedX, origEuler.y, origEuler.z);
-                    const newQuat = Quaternion.FromEulerAngles(newEuler.x, newEuler.y, newEuler.z);
-                    triggerAggregate.body.transformNode.rotationQuaternion = newQuat;
-                    
-                    // REVERSE angular velocity for bounce-back (with energy loss)
-                    triggerAggregate.body.setAngularVelocity(new Vector3(-angularVelocity.x * DRUMKIT_CONFIG.physics.cymbal.bounceEnergyLoss, 0, 0));
+                // Handle X-axis limiting (tilt forward/backward)
+                if (isXAtLimit) {
+                    if (DRUMKIT_CONFIG.debug.logCymbalPhysics) {
+                        this.logger.logCymbalPhysics(`X-AXIS LIMIT HIT: ${(offsetX * 180/Math.PI).toFixed(1)}°`);
+                    }
+                    clampedX = Math.sign(offsetX) * maxRotationXY;
+                    // Bounce back with energy loss
+                    newAngularVelocity.x = -angularVelocity.x * DRUMKIT_CONFIG.physics.cymbal.bounceEnergyRetained;
+                    needsRotationClamp = true;
                 }
+                
+                // Handle Z-axis limiting (tilt left/right)
+                if (isZAtLimit) {
+                    if (DRUMKIT_CONFIG.debug.logCymbalPhysics) {
+                        this.logger.logCymbalPhysics(`Z-AXIS LIMIT HIT: ${(offsetZ * 180/Math.PI).toFixed(1)}°`);
+                    }
+                    clampedZ = Math.sign(offsetZ) * maxRotationXY;
+                    // Bounce back with energy loss
+                    newAngularVelocity.z = -angularVelocity.z * DRUMKIT_CONFIG.physics.cymbal.bounceEnergyRetained;
+                    needsRotationClamp = true;
+                }
+                
+                // Drastically reduce Y-axis (spin) rotation - keep only 5% of the velocity
+                newAngularVelocity.y = angularVelocity.y * 0.95;
+                
+                // ALWAYS apply spring forces to return X and Z to center (for bounce-back effect)
+                // These forces work in LOCAL space and need to be transformed to WORLD space
+                if (!isXAtLimit || !isZAtLimit) {
+                    // Calculate spring forces in local space - ONLY position-based (constant for a given offset)
+                    const springForceX = !isXAtLimit ? -offsetX * DRUMKIT_CONFIG.physics.cymbal.springStrength : 0;
+                    const springForceZ = !isZAtLimit ? -offsetZ * DRUMKIT_CONFIG.physics.cymbal.springStrength : 0;
+                    
+                    // Add damping to stop oscillation near rest position (critical damping)
+                    // This prevents endless bouncing but doesn't affect the initial restoration strength
+                    const dampingX = !isXAtLimit ? -angularVelocity.x * DRUMKIT_CONFIG.physics.cymbal.springDamping : 0;
+                    const dampingZ = !isZAtLimit ? -angularVelocity.z * DRUMKIT_CONFIG.physics.cymbal.springDamping : 0;
+                    
+                    // Combine spring and damping
+                    const localTorqueX = (springForceX + dampingX) * 0.016;
+                    const localTorqueZ = (springForceZ + dampingZ) * 0.016;
+                    
+                    // Create local torque vector (no Y torque - free spin)
+                    const localTorque = new Vector3(localTorqueX, 0, localTorqueZ);
+                    
+                    // Transform to world space using the cymbal's current rotation
+                    const worldTorque = localTorque.applyRotationQuaternion(bodyQuat);
+                    
+                    // Apply the world-space torque
+                    triggerAggregate.body.applyAngularImpulse(worldTorque);
+                    
+                    // Debug logging for spring forces
+                    if (DRUMKIT_CONFIG.debug.logCymbalPhysics && (Math.abs(localTorqueX) > 0.001 || Math.abs(localTorqueZ) > 0.001)) {
+                        this.logger.logCymbalPhysics(
+                            `[${this.name}] Offset: X=${(offsetX * 180/Math.PI).toFixed(1)}°, Z=${(offsetZ * 180/Math.PI).toFixed(1)}°`
+                        );
+                        this.logger.logCymbalPhysics(
+                            `[${this.name}] SpringForce: X=${springForceX.toFixed(4)}, Z=${springForceZ.toFixed(4)}`
+                        );
+                        this.logger.logCymbalPhysics(
+                            `[${this.name}] Local Torque: X=${localTorqueX.toFixed(4)}, Z=${localTorqueZ.toFixed(4)}`
+                        );
+                        this.logger.logCymbalPhysics(
+                            `[${this.name}] World Torque: X=${worldTorque.x.toFixed(4)}, Y=${worldTorque.y.toFixed(4)}, Z=${worldTorque.z.toFixed(4)}`
+                        );
+                        this.logger.logCymbalPhysics(
+                            `[${this.name}] AngularVelocity: X=${angularVelocity.x.toFixed(4)}, Y=${angularVelocity.y.toFixed(4)}, Z=${angularVelocity.z.toFixed(4)}`
+                        );
+                    }
+                }
+                
+                // If we hit a limit, clamp the rotation
+                if (needsRotationClamp) {
+                    const clampedRelativeQuat = Quaternion.FromEulerAngles(clampedX, offsetY, clampedZ);
+                    const clampedWorldQuat = originalBodyRotation.multiply(clampedRelativeQuat);
+                    triggerAggregate.body.transformNode.rotationQuaternion = clampedWorldQuat;
+                }
+                
+                // Update angular velocity (Y-axis remains unchanged for free spin)
+                triggerAggregate.body.setAngularVelocity(newAngularVelocity);
                 
                 // CRITICAL: Sync visual mesh rotation with physics body rotation
                 // This ensures the visual cymbal ALWAYS matches the physics-limited rotation
                 if (!visualMesh.rotationQuaternion) {
                     visualMesh.rotationQuaternion = Quaternion.Identity();
                 }
-                visualMesh.rotationQuaternion.copyFrom(bodyQuat);
+                visualMesh.rotationQuaternion.copyFrom(triggerAggregate.body.transformNode.rotationQuaternion!);
             });
         }
     }
@@ -193,11 +296,16 @@ class XRCymbal implements XRDrumComponent {
             const cymbalName = this.name + "Trigger";
             const isThisCymbal = CollisionUtils.isCollisionWithTrigger(collision, cymbalName);
             
+            // CRITICAL: Only respond to COLLISION_STARTED, not COLLISION_CONTINUED
+            // COLLISION_CONTINUED fires every physics frame while objects are touching
+            // This would create sound spam - we only want ONE sound per hit
             if (collision.type === "COLLISION_STARTED" && isThisCymbal) {
-                this.logger.logCollision(collision);
+                if (DRUMKIT_CONFIG.debug.logCollisions) {
+                    this.logger.logCollision(collision);
+                }
                 
                 if (!this.xrDrumKit.drumSoundsEnabled) {
-                    return;
+                    return; // Do not play sounds if drum sounds are disabled
                 }
 
                 // Find which drumstick hit the cymbal
@@ -211,7 +319,9 @@ class XRCymbal implements XRDrumComponent {
 
                 // DEBOUNCE: Prevent multiple triggers from same hit
                 if (!CollisionUtils.checkDebounce(drumstickId, this.lastHitTime)) {
-                    this.logger.logDebounce();
+                    if (DRUMKIT_CONFIG.debug.logCollisions) {
+                        this.logger.logDebounce();
+                    }
                     return;
                 }
                 
@@ -225,30 +335,66 @@ class XRCymbal implements XRDrumComponent {
                 const combinedSpeed = linear.length() + (angular.length() * DRUMKIT_CONFIG.velocity.angularWeight);
 
                 // Log velocity calculations
-                this.logger.logVelocity(linear, angular, currentVelocity, combinedSpeed);
+                if (DRUMKIT_CONFIG.debug.logVelocity) {
+                    this.logger.logVelocity(linear, angular, currentVelocity, combinedSpeed);
+                }
 
-                // MANUAL IMPULSE APPLICATION:
+                // MANUAL IMPULSE APPLICATION - COMMENTED OUT:
+                // With ACTION prestep type, drumsticks now transfer momentum naturally through physics
+                // Manual impulse is no longer needed and makes cymbals feel too light
+                /*
                 // Since drumsticks use TELEPORT prestep, they don't transfer momentum naturally
                 // We need to manually apply an angular impulse to the cymbal based on the stick velocity
                 if (this.cymbalAggregate) {
-                    // Determine hit direction: hitting from top (negative Y velocity) should swing the cymbal down
-                    // This creates torque around the X axis
-                    const hitFromTop = linear.y < 0;
-                    
                     // Calculate impulse strength based on combined velocity
-                    // Scale factor converts m/s to appropriate angular impulse
                     const impulseScale = DRUMKIT_CONFIG.physics.cymbal.impulseScale;
-                    const angularImpulse = combinedSpeed * impulseScale;
                     
-                    // Apply torque on X-axis (swing motion) in the direction of the hit
-                    const torqueDirection = hitFromTop ? -1 : 1;
-                    const torque = new Vector3(angularImpulse * torqueDirection, 0, 0);
+                    // Transform hit velocity from world space to cymbal's local space
+                    // This accounts for the cymbal's initial rotation/orientation
+                    const cymbalQuat = this.cymbalAggregate.body.transformNode.rotationQuaternion!;
+                    const inverseQuat = cymbalQuat.conjugate();
+                    const localHitVector = linear.clone().applyRotationQuaternion(inverseQuat);
                     
-                    // Apply the angular impulse
-                    this.cymbalAggregate.body.applyAngularImpulse(torque);
+                    // Now we work in the cymbal's local coordinate system:
+                    // - Local Y-axis is perpendicular to cymbal surface (free spin)
+                    // - Local X-axis: tilt axis (front/back)
+                    // - Local Z-axis: tilt axis (left/right)
                     
-                    this.logger.logCymbalPhysics(`Applied angular impulse: ${torque.x.toFixed(3)} (hit from ${hitFromTop ? 'top' : 'bottom'})`);
+                    // For a hit with velocity in local space:
+                    // - Hit from above/below (local Y) doesn't create tilt, but can create spin
+                    // - Hit along local X creates Z-axis rotation (tilt left/right)
+                    // - Hit along local Z creates X-axis rotation (tilt front/back)
+                    
+                    // Calculate LOCAL torques
+                    const localTorqueX = localHitVector.z * impulseScale; // Local Z velocity creates X rotation
+                    const localTorqueY = (localHitVector.x * 0.5 + angular.length() * 0.3) * impulseScale; // Spin from tangential hits
+                    const localTorqueZ = -localHitVector.x * impulseScale; // Local X velocity creates Z rotation
+                    
+                    const localTorque = new Vector3(localTorqueX, localTorqueY, localTorqueZ);
+                    
+                    // CRITICAL: Transform the torque back to world space
+                    // The physics engine expects world-space torques
+                    const worldTorque = localTorque.applyRotationQuaternion(cymbalQuat);
+                    
+                    // Apply the angular impulse (in world space)
+                    this.cymbalAggregate.body.applyAngularImpulse(worldTorque);
+                    
+                    if (DRUMKIT_CONFIG.debug.logCymbalPhysics) {
+                        this.logger.logCymbalPhysics(
+                            `Hit velocity (world): X=${linear.x.toFixed(3)}, Y=${linear.y.toFixed(3)}, Z=${linear.z.toFixed(3)}`
+                        );
+                        this.logger.logCymbalPhysics(
+                            `Hit velocity (local): X=${localHitVector.x.toFixed(3)}, Y=${localHitVector.y.toFixed(3)}, Z=${localHitVector.z.toFixed(3)}`
+                        );
+                        this.logger.logCymbalPhysics(
+                            `Torque (local): X=${localTorque.x.toFixed(3)}, Y=${localTorque.y.toFixed(3)}, Z=${localTorque.z.toFixed(3)}`
+                        );
+                        this.logger.logCymbalPhysics(
+                            `Torque (world): X=${worldTorque.x.toFixed(3)}, Y=${worldTorque.y.toFixed(3)}, Z=${worldTorque.z.toFixed(3)}`
+                        );
+                    }
                 }
+                */
 
                 // Vibrate the controller
                 CollisionUtils.triggerHapticFeedback(drumstick.controllerAttached, currentVelocity);
@@ -262,8 +408,12 @@ class XRCymbal implements XRDrumComponent {
                     duration
                 );
                 
-                this.logger.logSound(midiKey, currentVelocity);
+                if (DRUMKIT_CONFIG.debug.logCollisions) {
+                    this.logger.logSound(midiKey, currentVelocity);
+                }
             }
+            // Ignore all other collision types (COLLISION_CONTINUED, COLLISION_ENDED, etc.)
+            // and all collisions that don't involve this cymbal
         });
     }
 

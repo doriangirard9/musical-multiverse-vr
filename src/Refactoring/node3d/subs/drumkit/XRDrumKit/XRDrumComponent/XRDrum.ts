@@ -9,6 +9,7 @@ import { DRUMKIT_CONFIG } from "../XRDrumKitConfig";
 import { CollisionUtils } from "../CollisionUtils";
 import { AnimationUtils } from "../AnimationUtils";
 import { DrumComponentLogger } from "./XRDrumComponentLogger";
+import { COLLISION_GROUP } from "../CollisionGroups";
 
 class XRDrum implements XRDrumComponent {
 
@@ -119,6 +120,10 @@ class XRDrum implements XRDrumComponent {
             
             if (triggerAggregate.body.shape) {
                 triggerAggregate.body.shape.isTrigger = true;
+                
+                // COLLISION FILTERING: Drums only collide with drumsticks
+                triggerAggregate.body.shape.filterMembershipMask = COLLISION_GROUP.DRUM;
+                triggerAggregate.body.shape.filterCollideMask = COLLISION_GROUP.DRUMSTICK;
             }
         }
     }
