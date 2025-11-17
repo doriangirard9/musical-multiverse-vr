@@ -36,8 +36,8 @@ export class N3DRendering {
         camera.rotation.z = Math.PI
         camera.fov = 0.48;
 
-        const light = new B.HemisphericLight("light", new B.Vector3(0, 1, 0), renderscene);
-        light.intensity = 1.0;
+        const light = new B.HemisphericLight("light", new B.Vector3(3, 10, 3), renderscene);
+        light.intensity = 1;
         
         renderscene.activeCamera = camera
 
@@ -50,6 +50,44 @@ export class N3DRendering {
         renderscene.dispose()
 
         return renderTarget
+    }
+
+    static async textureToImageURL(texture: B.RenderTargetTexture): Promise<string> {
+        const data = await texture.readPixels() as Float32Array|Int32Array
+        const width = texture.getSize().width
+        const height = texture.getSize().height
+        const canvas = document.createElement('canvas')
+        canvas.width = width
+        canvas.height = height
+        const ctx = canvas.getContext('2d')!!
+        const imageData = ctx.createImageData(width, height)
+        
+        if(data instanceof Float32Array){
+            for(let y = 0; y < height; y++){
+                for(let x = 0; x < width; x++){
+                    const srcIdx = (y * width + x) * 4
+                    const dstIdx = ((height - 1 - y) * width + x) * 4
+                    imageData.data[dstIdx + 0] = Math.min(255, Math.max(0, data[srcIdx + 0] * 255))
+                    imageData.data[dstIdx + 1] = Math.min(255, Math.max(0, data[srcIdx + 1] * 255))
+                    imageData.data[dstIdx + 2] = Math.min(255, Math.max(0, data[srcIdx + 2] * 255))
+                    imageData.data[dstIdx + 3] = Math.min(255, Math.max(0, data[srcIdx + 3] * 255))
+                }
+            }
+        } else {
+            for(let y = 0; y < height; y++){
+                for(let x = 0; x < width; x++){
+                    const srcIdx = (y * width + x) * 4
+                    const dstIdx = ((height - 1 - y) * width + x) * 4
+                    imageData.data[dstIdx + 0] = data[srcIdx + 0]
+                    imageData.data[dstIdx + 1] = data[srcIdx + 1]
+                    imageData.data[dstIdx + 2] = data[srcIdx + 2]
+                    imageData.data[dstIdx + 3] = data[srcIdx + 3]
+                }
+            }
+        }
+        
+        ctx.putImageData(imageData, 0, 0)
+        return canvas.toDataURL()
     }
 
 }

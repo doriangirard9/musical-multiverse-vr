@@ -15,6 +15,9 @@ import kbverbImg from "./img/kbverb.png"
 import pianoImg from "./img/piano.png"
 import pingPongDelay from "./img/pingpongdelay.png"
 import voxampImg from "./img/voxamp.png"
+import { Node3dManager } from "../app/Node3dManager.ts";
+import { N3DRendering } from "../node3d/instance/utils/N3DRendering.ts";
+import { SceneManager } from "../app/SceneManager.ts";
 import drumImg from "./img/drum.png";
 import modalImg from "./img/modal.png";
 import effectImg from "./img/effect.png";
@@ -78,12 +81,14 @@ export class MainMenu extends AbstractMenu {
         // Add options specific buttons here
     }
 
+    private image: Record<string,string> = {}
+
     private _createPluginsMenu(categoryIndex: number): void {
         this._clearMenu();
         this._createBackButton();
 
         // Plugins
-        this._menuConfig.categories[categoryIndex].plugins.forEach((plugin): void => {
+        this._menuConfig.categories[categoryIndex].plugins.forEach(async(plugin) => {
             const button = new GUI.TouchHolographicButton(plugin.name);
             /**
              * Pas beau, permet d'avoir des images pour les boutons import des img en haut du fichier
@@ -146,6 +151,23 @@ export class MainMenu extends AbstractMenu {
                 case "wam3d-pingpongdelay":
                     url = pingPongDelay;
                     break;
+                default:
+                    if(this.image[plugin.kind]){
+                        url = this.image[plugin.kind]
+                        break
+                    }
+                    let factory = (await Node3dManager.getInstance().builder.getFactory(plugin.kind))
+                    if(!factory)break
+                    const texture = await N3DRendering.renderThumbnail(
+                        SceneManager.getInstance().getScene(),
+                        factory,
+                        128
+                    )
+                
+                    url = await N3DRendering.textureToImageURL(texture)
+                    this.image[plugin.kind] = url
+
+                    texture.dispose()
                 // add others as you add icons
             }
             button.imageUrl = url || "https://raw.githubusercontent.com/microsoft/MixedRealityToolkit-Unity/main/Assets/MRTK/SDK/StandardAssets/Textures/IconStar.png";

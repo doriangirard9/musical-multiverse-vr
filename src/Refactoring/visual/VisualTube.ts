@@ -31,6 +31,9 @@ export class VisualTube{
             diameterTop: 0,
             tessellation: 6,
         },this.scene)
+
+        this.tube.isPickable = false;
+        this.arrow.isPickable = false;
     }
 
     // Connection
