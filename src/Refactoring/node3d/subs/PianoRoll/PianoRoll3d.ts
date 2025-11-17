@@ -83,6 +83,7 @@ class PianoRollN3DGUI implements Node3DGUI {
   public midiOutput!: B.Mesh;
   public midiInput!: B.Mesh;
   public btnStartStop!: B.Mesh;
+  public btnRecord!: B.Mesh; // Recording button
   public preventClickBetweenNotesMesh!: B.Mesh;
 
   // Scroll arrows
@@ -286,6 +287,7 @@ class PianoRollN3DGUI implements Node3DGUI {
     this.midiInput.parent = this.root;
 
     this.startStopButton();
+    this.createRecordButton(); // Add recording button next to start/stop
 
   }
 
@@ -903,6 +905,22 @@ class PianoRollN3DGUI implements Node3DGUI {
     this.btnStartStop.isVisible = true;
   }
 
+  public createRecordButton(): void {
+    this.btnRecord = this.createBox(
+      "recordButton",
+      { width: 2, height: 0.6, depth: 0.4 },
+      B.Color3.Red(),
+      new B.Vector3(
+        this.startX - (this.buttonWidth + this.buttonSpacing) + 8, 
+        0.2,
+        this.endZ + (this.buttonDepth + this.buttonSpacing)
+      ),
+      this.root
+    );
+    this.btnRecord.isVisible = true;
+    this.createLabelForMesh(this.btnRecord, "REC", {textColor: "#fff"});
+  }
+
   public createMenuButton(): void {
     this.menuButton = this.createBox(
       "menuButton",
@@ -1306,6 +1324,9 @@ export class PianoRollN3D implements Node3D {
 
     // Start/Stop toggling
     this.toggleStartStopBtn();
+    
+    // Recording button
+    this.setupRecordingButton();
 
     // Settings menu (columns/rows/tempo…)
     this.menu = new PianoRollSettingsMenu(this.gui.context.scene, this);
@@ -1653,6 +1674,41 @@ private onInstrumentDisconnected(_wamNode: WamNode) {
         mat.diffuseColor = this.transport.getPlaying() ? B.Color3.Green() : B.Color3.Red();
       })
     );
+  }
+
+  private setupRecordingButton(): void {
+    if (!this.gui.btnRecord.actionManager)
+      this.gui.btnRecord.actionManager = new B.ActionManager(this.gui.context.scene);
+
+    // Initialize recording state
+    let isRecording = false;
+
+    this.gui.btnRecord.actionManager.registerAction(
+      new B.ExecuteCodeAction(B.ActionManager.OnPickTrigger, () => {
+        isRecording = !isRecording;
+        
+        // Toggle WAM recording state
+        if (this.wamInstance?.audioNode) {
+          // Enable/disable plugin recording
+          const pianoRoll = (this.wamInstance.audioNode as any)._processor?.pianoRoll;
+          if (pianoRoll) {
+            pianoRoll.armPluginRecording(isRecording);
+            pianoRoll.armHostRecording(isRecording);
+          }
+        }
+        
+        // Update button appearance
+        const mat = this.gui.btnRecord.material as B.StandardMaterial;
+        mat.diffuseColor = isRecording ? B.Color3.Red() : new B.Color3(0.5, 0.5, 0.5);
+        mat.emissiveColor = isRecording ? new B.Color3(0.5, 0, 0) : B.Color3.Black();
+        
+        console.log(`Piano Roll recording ${isRecording ? 'enabled' : 'disabled'}`);
+      })
+    );
+    
+    // Set initial color to gray (not recording)
+    const mat = this.gui.btnRecord.material as B.StandardMaterial;
+    mat.diffuseColor = new B.Color3(0.5, 0.5, 0.5);
   }
 
   // ───────────────────────────────────────────────────────────────────────────
