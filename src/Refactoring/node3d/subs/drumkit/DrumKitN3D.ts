@@ -106,12 +106,11 @@ export class DrumKitN3DGUI implements Node3DGUI {
         
         // The drumContainer is created in XRDrumKit constructor
         // Re-parent everything to the drumContainer
-        this.midiOutputMesh.parent = this.drumKit.drumContainer;
         
         this.drumKit.drumContainer.parent = this.root;
         this.drumKit.drumContainer.position.setAll(0)
         this.drumKit.drumContainer.rotation.setAll(0)
-        this.drumKit.drumContainer.scaling.setAll(.5)
+        this.drumKit.drumContainer.scaling.setAll(.3)
         
         // Wait for the drumkit assets to load
         // await new Promise<void>((resolve) => {
