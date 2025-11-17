@@ -106,7 +106,7 @@ export const DRUMKIT_CONFIG = {
     
     // Drum kit 3D model configuration
     model: {
-        path: "/drum_3D_model/",
+        path: "./src/Refactoring/node3d/subs/drumkit/",
         fileName: "drum3DModel.glb",
         scaleFactor: 0.7, // Overall scale for the entire drum kit
     },
