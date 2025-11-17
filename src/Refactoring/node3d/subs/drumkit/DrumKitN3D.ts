@@ -13,7 +13,7 @@ export class DrumKitN3DGUI implements Node3DGUI {
     root!: TransformNode;
     midiOutputMesh!: AbstractMesh;
     drumKit?: XRDrumKit;
-    boundingBoxMesh!: AbstractMesh; // For Node3D system to use
+    baseMesh!: AbstractMesh; // For Node3D system to use
     
     // Store context for later initialization
     private context!: Node3DGUIContext;
@@ -28,10 +28,10 @@ export class DrumKitN3DGUI implements Node3DGUI {
         this.root = new B.TransformNode("drumkit-root", scene);
         
         // Create a bounding box mesh for the Node3D system (invisible)
-        this.boundingBoxMesh = B.CreateBox("drumkit-boundingbox", { size: 2 }, scene);
-        this.boundingBoxMesh.isVisible = false;
-        this.boundingBoxMesh.parent = this.root;
-        this.boundingBoxMesh.position.y = 0.5; // Center it at drum height
+        this.baseMesh = B.CreateBox("drumkit-boundingbox", { size: 1.5, height:.1 }, scene);
+        //this.baseMesh.isVisible = false;
+        this.baseMesh.parent = this.root;
+        this.baseMesh.position.y = -0.1; // Center it at drum height
         
         // Create MIDI output sphere
         this.midiOutputMesh = B.CreateSphere(
@@ -39,13 +39,11 @@ export class DrumKitN3DGUI implements Node3DGUI {
             { diameter: 0.3 }, 
             scene
         );
-        
-        // Color it with the MIDI output color (purple/pink)
-        T.MeshUtils.setColor(this.midiOutputMesh, T.MidiN3DConnectable.OutputColor.toColor4());
-        
-        // Position the ball at a visible location
-        this.midiOutputMesh.position.set(1.5, 1.0, 0);
+
         this.midiOutputMesh.parent = this.root;
+        this.midiOutputMesh.position.set(.75, -0.05, 0);
+        
+        T.MeshUtils.setColor(this.midiOutputMesh, T.MidiN3DConnectable.OutputColor.toColor4());
     }
 
     /**
@@ -102,34 +100,30 @@ export class DrumKitN3DGUI implements Node3DGUI {
             hk,
             assetsManager
         );
-        
-        // The drumContainer is created in XRDrumKit constructor
-        // Re-parent everything to the drumContainer
-        this.midiOutputMesh.parent = this.drumKit.drumContainer;
-        
-        // Dispose temporary root and use drumContainer instead
-        const oldRoot = this.root;
-        this.root = this.drumKit.drumContainer;
-        oldRoot.dispose();
+    
+        this.drumKit.drumContainer.parent = this.root;
+        this.drumKit.drumContainer.position.setAll(0)
+        this.drumKit.drumContainer.rotation.setAll(0)
+        this.drumKit.drumContainer.scaling.setAll(1)
         
         // Wait for the drumkit assets to load
-        await new Promise<void>((resolve) => {
-            setTimeout(() => {
-                console.log("[DrumKitN3DGUI] XRDrumKit initialization complete");
+        // await new Promise<void>((resolve) => {
+        //     setTimeout(() => {
+        //         console.log("[DrumKitN3DGUI] XRDrumKit initialization complete");
                 
-                // Reposition MIDI output near throne if it exists
-                if (this.drumKit && this.drumKit.throne) {
-                    const thronePos = this.drumKit.throne.getAbsolutePosition();
-                    this.midiOutputMesh.position.set(
-                        thronePos.x + 0.8,  // Right of throne
-                        thronePos.y + 1.2,  // At chest height
-                        thronePos.z
-                    );
-                }
+        //         // Reposition MIDI output near throne if it exists
+        //         if (this.drumKit && this.drumKit.throne) {
+        //             const thronePos = this.drumKit.throne.getAbsolutePosition();
+        //             this.midiOutputMesh.position.set(
+        //                 thronePos.x + 0.8,  // Right of throne
+        //                 thronePos.y + 1.2,  // At chest height
+        //                 thronePos.z
+        //             );
+        //         }
                 
-                resolve();
-            }, 2000); // Increased wait time for asset loading
-        });
+        //         resolve();
+        //     }, 2000); // Increased wait time for asset loading
+        // });
 
         console.log("[DrumKitN3DGUI] Fully initialized with MIDI output");
     }
@@ -153,19 +147,13 @@ export class DrumKitN3D implements Node3D {
         context: Node3DContext, 
         private gui: DrumKitN3DGUI
     ) {
-        const { tools: T, audioCtx } = context;
-        
+        const { tools: T } = context;
+            
+        this.drumKit = gui.drumKit;
+        this.setupMidiRouting();
+
         // Add the bounding box to the Node3D system for dragging
-        context.addToBoundingBox(gui.boundingBoxMesh);
-        
-        // Initialize the drumkit now that we have audioContext
-        gui.initDrumKit(audioCtx).then(() => {
-            this.drumKit = gui.drumKit;
-            // Set up MIDI routing after drumkit is ready
-            this.setupMidiRouting();
-        }).catch(error => {
-            console.error("[DrumKitN3D] Failed to initialize drumkit:", error);
-        });
+       context.addToBoundingBox(this.gui.baseMesh);
         
         // Create MIDI output connectable
         this.midiOutput = new T.MidiN3DConnectable.ListOutput(
@@ -302,6 +290,7 @@ export const DrumKitN3DFactory: Node3DFactory<DrumKitN3DGUI, DrumKitN3D> = {
     },
 
     create: async (context: Node3DContext, gui: DrumKitN3DGUI) => {
+        await gui.initDrumKit(context.audioCtx);
         return new DrumKitN3D(context, gui);
     }
 };
