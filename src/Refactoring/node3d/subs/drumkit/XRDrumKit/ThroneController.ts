@@ -8,6 +8,7 @@ import { Quaternion } from "@babylonjs/core/Maths/math.vector";
 import { WebXRFeatureName } from "@babylonjs/core/XR/webXRFeaturesManager";
 import { WebXRAbstractMotionController } from "@babylonjs/core/XR/motionController/webXRAbstractMotionController";
 import { WebXRControllerComponent } from "@babylonjs/core/XR/motionController/webXRControllerComponent";
+import { InputManager } from "../../../../xr/inputs/InputManager";
 
 /**
  * ThroneController - Manages sitting/standing at the drum throne
@@ -22,10 +23,6 @@ import { WebXRControllerComponent } from "@babylonjs/core/XR/motionController/we
  * - Height adjustment with left stick while seated (0.5m-1.5m)
  */
 export class ThroneController {
-    private xr: WebXRDefaultExperience;
-    private xrDrumKit: XRDrumKit;
-    private scene: Scene;
-    private throneNode: TransformNode;
     
     // State tracking
     private isSitting: boolean = false;
@@ -55,11 +52,12 @@ export class ThroneController {
     
     private log: boolean = true;
     
-    constructor(xr: WebXRDefaultExperience, xrDrumKit: XRDrumKit, throneNode: TransformNode, scene: Scene) {
-        this.xr = xr;
-        this.xrDrumKit = xrDrumKit;
-        this.throneNode = throneNode;
-        this.scene = scene;
+    constructor(
+        private xr: WebXRDefaultExperience,
+        private xrDrumKit: XRDrumKit,
+        private throneNode: TransformNode,
+        private scene: Scene
+    ) {
         
         // Don't calculate position here - do it when sitting (after drum kit is positioned)
         
@@ -147,39 +145,28 @@ export class ThroneController {
      * Setup controller button listeners
      */
     private setupControllers(): void {
-        this.xr.input.onControllerAddedObservable.add((controller: WebXRInputSource) => {
-            controller.onMotionControllerInitObservable.add((motionController: any) => {
-                if (this.log) {
-                    console.log(`[ThroneController] Controller added: ${motionController.handedness}`);
-                }
-                
-                // X button (or A button on right controller) - Sit down
-                const xButton = motionController.getComponent("x-button") || 
-                               motionController.getComponent("a-button");
-                
-                if (xButton) {
-                    xButton.onButtonStateChangedObservable.add((component: any) => {
-                        if (component.pressed && !this.isSitting && this.isNearThrone) {
-                            this.sitDown();
-                        }
-                    });
-                }
-                
-                // B button (or Y button) - Stand up (hold)
-                const bButton = motionController.getComponent("b-button") ||
-                               motionController.getComponent("y-button");
-                
-                if (bButton) {
-                    bButton.onButtonStateChangedObservable.add((component: any) => {
-                        if (component.pressed && this.isSitting) {
-                            this.onStandUpButtonPressed();
-                        } else if (!component.pressed && this.isSitting) {
-                            this.onStandUpButtonReleased();
-                        }
-                    });
-                }
-            });
-        });
+        const inputs = InputManager.getInstance()
+
+        const o = inputs.x_button.on_down.add(() => {
+            if(this.throneNode.isDisposed()){ o.remove(); return }
+            if (!this.isSitting && this.isNearThrone) {
+                this.sitDown();
+            }
+        })
+        
+        const o2 = inputs.b_button.on_down.add(() => {
+            if(this.throneNode.isDisposed()){ o2.remove(); return }
+            if (this.isSitting) {
+                this.onStandUpButtonPressed();
+            }
+        })
+
+        const o3 = inputs.b_button.on_up.add(() => {
+            if(this.throneNode.isDisposed()){ o3.remove(); return }
+            if (this.isSitting) {
+                this.onStandUpButtonReleased();
+            }
+        })
     }
     
     /**
@@ -189,7 +176,7 @@ export class ThroneController {
         if (this.isSitting) return;
         
         const camera = this.xr.baseExperience.camera;
-        const cameraPos = camera.position;
+        const cameraPos = camera.globalPosition;
         
         // Calculate sitting position on the fly to get latest throne position
         const thronePos = this.throneNode.getAbsolutePosition();
@@ -201,7 +188,7 @@ export class ThroneController {
         );
         
         const wasNear = this.isNearThrone;
-        this.isNearThrone = horizontalDistance <= this.proximityDistance;
+        this.isNearThrone = horizontalDistance <= this.proximityDistance*this.throneNode.absoluteScaling.x;
         
         // Log when entering/exiting proximity
         if (this.isNearThrone && !wasNear && this.log) {
@@ -249,7 +236,7 @@ export class ThroneController {
         // Get drum kit rotation
         const drumContainer = this.xrDrumKit.drumContainer;
         if (!drumContainer.rotationQuaternion) {
-            drumContainer.rotationQuaternion = new Quaternion(0, 0, 0, 1);
+            drumContainer.rotationQuaternion = Quaternion.FromEulerVector(drumContainer.rotation);
         }
         
         // Create Y-only quaternion from drum kit (set X and Z to 0)
@@ -556,32 +543,21 @@ export class ThroneController {
      * Only active when sitting down
      */
     private handleHeightAdjustment(): void {
-        const controllers = this.xr.input.controllers;
+        const inputs = InputManager.getInstance();
         
-        // Find the left controller
-        for (const controller of controllers) {
-            if (controller.inputSource.handedness === 'left' && controller.motionController) {
-                const motionController = controller.motionController as WebXRAbstractMotionController;
-                const leftStick = motionController.getComponent("xr-standard-thumbstick");
-                
-                if (leftStick && leftStick.axes) {
-                    const yAxis = leftStick.axes.y;
-                    
-                    // Only adjust if there's meaningful input (deadzone)
-                    if (Math.abs(yAxis) > 0.1) {
-                        const camera = this.xr.baseExperience.camera;
-                        
-                        // Adjust height: stick up = higher, stick down = lower
-                        const heightChange = -yAxis * this.HEIGHT_ADJUSTMENT_SPEED;
-                        const newHeight = camera.position.y + heightChange;
-                        
-                        // Clamp to min/max range
-                        if (newHeight >= this.MIN_SITTING_HEIGHT && newHeight <= this.MAX_SITTING_HEIGHT) {
-                            camera.position.y = newHeight;
-                        }
-                    }
-                }
-                break; // Found left controller, no need to continue
+        const yAxis = -inputs.left_thumbstick.y
+        
+        // Only adjust if there's meaningful input (deadzone)
+        if (Math.abs(yAxis) > 0.1) {
+            const camera = this.xr.baseExperience.camera;
+            
+            // Adjust height: stick up = higher, stick down = lower
+            const heightChange = -yAxis * this.HEIGHT_ADJUSTMENT_SPEED;
+            const newHeight = camera.position.y + heightChange;
+            
+            // Clamp to min/max range
+            if (newHeight >= this.MIN_SITTING_HEIGHT && newHeight <= this.MAX_SITTING_HEIGHT) {
+                camera.position.y = newHeight;
             }
         }
     }

@@ -29,7 +29,7 @@ import ThroneUI from "./ThroneUI";
     //Ajouter signature de la batterie
 
 class XRDrumKit {
-    audioContext: AudioContext;
+    audioContext?: AudioContext;
     hk: any;
     scene: Scene;
     eventMask: number; //retirer ?
@@ -62,8 +62,7 @@ class XRDrumKit {
     scaleFactor: number = DRUMKIT_CONFIG.model.scaleFactor; // Scale factor for physics trigger shapes (0.7 = 70% of visual size)
     xrLogger: XRLogger;
 
-    constructor(audioContext: AudioContext, scene: Scene, eventMask: number, xr: WebXRDefaultExperience, hk: any, assetsManager: AssetsManager) {
-        this.audioContext = audioContext;
+    constructor(scene: Scene, eventMask: number, xr: WebXRDefaultExperience, hk: any, assetsManager: AssetsManager) {
         this.hk = hk;
         this.xr = xr;
         this.scene = scene;
@@ -74,13 +73,7 @@ class XRDrumKit {
         this.drumContainer = new TransformNode("drumContainer", this.scene);
         this.drumSoundsEnabled = false;
         this.xrLogger = new XRLogger(xr, scene);
-        
-        // Initialize WAM plugin
-        this.initializeWAMPlugin().then((wamInstance) => {
-            this.wamInstance = wamInstance;
-        });
-
-       
+    
     }
 
     /**
@@ -215,7 +208,9 @@ class XRDrumKit {
         }
     }
 
-    async initializeWAMPlugin() {
+    async initializeWAMPlugin(audioContext: AudioContext) {
+        this.audioContext = audioContext;
+        
         const hostGroupId = await setupWamHost(this.audioContext);
         //const wamURIDrumSampler = 'https://www.webaudiomodules.com/community/plugins/burns-audio/drumsampler/index.js';
         const wamURIDrumSampler = DRUMKIT_CONFIG.wam.wamUri;
@@ -227,6 +222,8 @@ class XRDrumKit {
         await wamInstance.audioNode.setState(state);
 
         wamInstance.audioNode.connect(this.audioContext.destination);
+
+        this.wamInstance = wamInstance;
 
         return wamInstance;
     }

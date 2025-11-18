@@ -97,12 +97,12 @@ export class CollisionUtils {
      */
     static scheduleSound(
         wamInstance: any,
-        audioContext: AudioContext,
+        audioContext: AudioContext|undefined,
         midiKey: number,
         velocity: number,
         duration: number
     ): void {
-        if (!wamInstance) {
+        if (!wamInstance || !audioContext) {
             return;
         }
 
