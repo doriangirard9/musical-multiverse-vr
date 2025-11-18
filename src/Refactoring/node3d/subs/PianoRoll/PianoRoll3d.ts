@@ -282,7 +282,7 @@ class PianoRollN3DGUI implements Node3DGUI {
       this.context.scene
     );
     this.tool.MeshUtils.setColor(this.midiInput, MidiN3DConnectable.InputColor.toColor4());
-    this.midiInput.position.set(-baseLength, baseY, baseZ);  // Position on opposite side
+    this.midiInput.position.set(-baseLength - this.buttonWidth, baseY, baseZ);  // Position on opposite side
     this.midiInput.scaling.setAll(0.5);
     this.midiInput.parent = this.root;
 
@@ -1242,6 +1242,11 @@ export class PianoRollN3D implements Node3D {
   private pendingPattern: Pattern | null = null;
   private midiOutputConnectable: InstanceType<typeof MidiN3DConnectable.ListOutput>;
   private midiInputConnectable?: InstanceType<typeof MidiN3DConnectable.Input>;
+  private isRecording = false; // Track recording state
+  
+  // MIDI Note Recording state (adapted from MIDINoteRecorder.ts)
+  private noteStates: Array<{onTick?: number; onVelocity?: number}> = [];
+  private recordingChannel = -1; // -1 means all channels
 
   constructor(context: Node3DContext, gui: PianoRollN3DGUI) {
     this.context = context;
@@ -1265,8 +1270,14 @@ export class PianoRollN3D implements Node3D {
     // back-reference for GUI callbacks
     (this.gui as any).owner = this;
 
+    // Initialize MIDI note recording states (128 MIDI notes)
+    for (let i = 0; i < 128; i++) {
+      this.noteStates.push({});
+    }
+
     // bounding volume
     context.addToBoundingBox(gui.block);
+
 
     this.midiOutputConnectable = new this.context.tools.MidiN3DConnectable.ListOutput(
       "midioutput", 
@@ -1587,15 +1598,43 @@ private onInstrumentDisconnected(_wamNode: WamNode) {
         this.midiOutputConnectable.connections.forEach(wamNode => {
           this.wamInstance.audioNode.connectEvents(wamNode.instanceId);
       });
-  
-    // Now that WAM instance is initialized, create the MIDI input connectable
+
+    // Create a wrapper WamNode to intercept incoming MIDI for recording
+    const pianoRollAudioNode = this.wamInstance.audioNode;
+    const originalScheduleEvents = pianoRollAudioNode.scheduleEvents.bind(pianoRollAudioNode);
+    
+    // Wrap scheduleEvents to intercept MIDI for recording
+    pianoRollAudioNode.scheduleEvents = (event: any) => {
+      // Debug: Log ALL incoming events to diagnose the issue
+      console.log('[PianoRoll] scheduleEvents called with event:', {
+        type: event.type,
+        time: event.time,
+        data: event.data,
+        isRecording: this.isRecording
+      });
+      
+      // Forward to original (for audio output)
+      originalScheduleEvents(event);
+      
+      // If recording and this is a MIDI event, capture it
+      if (this.isRecording && event.type === 'wam-midi') {
+        console.log('[PianoRoll] Intercepted MIDI event for recording');
+        this.onMidiEventForRecording(event.data.bytes, event.time);
+      }
+    };
+    
+    // Now create the MIDI input connectable
     this.midiInputConnectable = new this.context.tools.MidiN3DConnectable.Input(
       `midiinput_pianoRollInput`,
       [this.gui.midiInput],
       "Recording MIDI Input",
-      this.wamInstance.audioNode
+      pianoRollAudioNode
     );
     this.context.createConnectable(this.midiInputConnectable);
+    
+    console.log('[PianoRoll] MIDI input connectable created with recording interception');
+
+
 
     // Join shared transport group
     this.transport.register(this.wamInstance.audioNode);
@@ -1649,6 +1688,143 @@ private onInstrumentDisconnected(_wamNode: WamNode) {
     this.highlightActiveButtons(currentCol);
   }
 
+  /**
+   * Process incoming MIDI event for recording (adapted from MIDINoteRecorder.onMIDI)
+   */
+  private onMidiEventForRecording(bytes: Uint8Array | number[], timestamp: number): void {
+    console.log('[PianoRoll] onMidiEventForRecording called', { bytes, timestamp });
+    
+    const event = Array.isArray(bytes) ? bytes : Array.from(bytes);
+    console.log('[PianoRoll] MIDI event array:', event);
+    
+    let isNoteOn = (event[0] & 0xF0) === 0x90;  // MIDI Note ON
+    let isNoteOff = (event[0] & 0xF0) === 0x80; // MIDI Note OFF
+    console.log('[PianoRoll] Note type:', { isNoteOn, isNoteOff, status: event[0].toString(16) });
+    
+    // Check channel filter
+    if ((isNoteOn || isNoteOff) && this.recordingChannel !== -1 && (event[0] & 0x0F) !== this.recordingChannel) {
+      console.log('[PianoRoll] Wrong channel, ignoring');
+      return; // Wrong channel, ignore
+    }
+    
+    // Treat note on with 0 velocity as note off
+    if (isNoteOn && event[2] === 0) {
+      isNoteOn = false;
+      isNoteOff = true;
+      console.log('[PianoRoll] Converted note on with 0 velocity to note off');
+    }
+    
+    const noteNumber = event[1];
+    const velocity = event[2];
+    const state = this.noteStates[noteNumber];
+    
+    console.log('[PianoRoll] Processing note:', { noteNumber, velocity, currentState: state });
+    
+    const currentTick = this.getCurrentTick(timestamp);
+    console.log('[PianoRoll] Current tick:', currentTick);
+    
+    if (isNoteOff && state.onTick !== undefined) {
+      console.log('[PianoRoll] Finalizing note off');
+      this.finalizeRecordedNote(noteNumber, currentTick);
+    }
+    
+    if (isNoteOn && state.onTick !== undefined) {
+      // Note already held, finalize old one first
+      console.log('[PianoRoll] Finalizing previous note on');
+      this.finalizeRecordedNote(noteNumber, currentTick);
+    }
+    
+    if (isNoteOn) {
+      console.log('[PianoRoll] Recording note on at tick', currentTick);
+      this.noteStates[noteNumber] = {
+        onTick: currentTick,
+        onVelocity: velocity
+      };
+    }
+  }
+  
+  /**
+   * Get current tick position based on transport time (adapted from MIDINoteRecorder.getTick)
+   */
+  private getCurrentTick(_timestamp: number): number {
+    const elapsed = this.transport.getElapsedSeconds();
+    const beatPosition = (elapsed / this.beatDuration);
+    const tickPosition = Math.floor(beatPosition * this.ticksPerColumn);
+    return tickPosition % this.pattern.length;
+  }
+  
+  /**
+   * Finalize a recorded note and add it to the pattern
+   */
+  private finalizeRecordedNote(noteNumber: number, endTick: number): void {
+    const state = this.noteStates[noteNumber];
+    if (!state.onTick || !state.onVelocity) return;
+    
+    const startTick = state.onTick;
+    let duration = endTick - startTick;
+    
+    // Handle wrap-around at pattern end
+    if (duration < 0) {
+      duration += this.pattern.length;
+    }
+    
+    // Ensure minimum duration of 1 tick for drum hits (they often have very short duration)
+    if (duration === 0) {
+      duration = 1;
+    }
+    
+    // Only add notes with positive duration
+    if (duration > 0) {
+      // Remove any existing note at this position
+      const existingIdx = this.pattern.notes.findIndex(
+        n => n.number === noteNumber && n.tick === startTick
+      );
+      if (existingIdx !== -1) {
+        this.pattern.notes.splice(existingIdx, 1);
+      }
+      
+      // Add the new note
+      this.pattern.notes.push({
+        tick: startTick,
+        number: noteNumber,
+        duration: duration,
+        velocity: state.onVelocity
+      });
+      
+      console.log(`[PianoRoll] Recorded note ${noteNumber} at tick ${startTick}, duration ${duration}`);
+      
+      // Update the 3D visualization
+      this._applyPattern(this.pattern);
+      
+      // Notify network sync
+      this.context.notifyStateChange("pattern");
+    }
+    
+    // Clear the state
+    this.noteStates[noteNumber] = {};
+  }
+  
+  /**
+   * Finalize all currently held notes (called when stopping recording)
+   */
+  private finalizeAllRecordingNotes(): void {
+    const currentTick = this.getCurrentTick(this.context.audioCtx.currentTime);
+    for (let i = 0; i < 128; i++) {
+      if (this.noteStates[i].onTick !== undefined) {
+        this.finalizeRecordedNote(i, currentTick);
+      }
+    }
+  }
+  
+  /**
+   * Clear all recording note states (called when starting new recording)
+   */
+  private clearRecordingNoteStates(): void {
+    for (let i = 0; i < 128; i++) {
+      this.noteStates[i] = {};
+    }
+  }
+
   private highlightActiveButtons(currentCol: number): void {
     for (let row = 0; row < this.gui.strategy.getRowCount(); row++) {
       if (this.isActive[row]?.[currentCol]) {
@@ -1680,35 +1856,43 @@ private onInstrumentDisconnected(_wamNode: WamNode) {
     if (!this.gui.btnRecord.actionManager)
       this.gui.btnRecord.actionManager = new B.ActionManager(this.gui.context.scene);
 
-    // Initialize recording state
-    let isRecording = false;
-
     this.gui.btnRecord.actionManager.registerAction(
       new B.ExecuteCodeAction(B.ActionManager.OnPickTrigger, () => {
-        isRecording = !isRecording;
+        this.isRecording = !this.isRecording;
         
-        // Toggle WAM recording state
-        if (this.wamInstance?.audioNode) {
-          // Enable/disable plugin recording
-          const pianoRoll = (this.wamInstance.audioNode as any)._processor?.pianoRoll;
-          if (pianoRoll) {
-            pianoRoll.armPluginRecording(isRecording);
-            pianoRoll.armHostRecording(isRecording);
-          }
-        }
+        console.log(`[PianoRoll] Recording toggled - isRecording: ${this.isRecording}`);
         
         // Update button appearance
         const mat = this.gui.btnRecord.material as B.StandardMaterial;
-        mat.diffuseColor = isRecording ? B.Color3.Red() : new B.Color3(0.5, 0.5, 0.5);
-        mat.emissiveColor = isRecording ? new B.Color3(0.5, 0, 0) : B.Color3.Black();
+        mat.diffuseColor = this.isRecording ? B.Color3.Red() : new B.Color3(0.5, 0.5, 0.5);
+        mat.emissiveColor = this.isRecording ? new B.Color3(0.5, 0, 0) : B.Color3.Black();
         
-        console.log(`Piano Roll recording ${isRecording ? 'enabled' : 'disabled'}`);
+        if (this.isRecording) {
+          // Clear any held notes from previous recording
+          this.clearRecordingNoteStates();
+          
+          // Start transport if not already playing
+          if (!this.transport.getPlaying()) {
+            console.log('[PianoRoll] Auto-starting transport for recording');
+            this.transport.toggle();
+            const startStopMat = this.gui.btnStartStop.material as B.StandardMaterial;
+            startStopMat.diffuseColor = B.Color3.Green();
+          }
+          
+          console.log('[PianoRoll] Recording armed - listening for MIDI input');
+        } else {
+          // When stopping recording, finalize any held notes
+          this.finalizeAllRecordingNotes();
+          console.log('[PianoRoll] Recording disarmed');
+        }
       })
     );
     
     // Set initial color to gray (not recording)
     const mat = this.gui.btnRecord.material as B.StandardMaterial;
     mat.diffuseColor = new B.Color3(0.5, 0.5, 0.5);
+    
+    console.log('[PianoRoll] Recording button setup complete');
   }
 
   // ───────────────────────────────────────────────────────────────────────────
@@ -1732,6 +1916,12 @@ private onInstrumentDisconnected(_wamNode: WamNode) {
   }
   private _safeSendPatternToPianoRoll(): void {
     try {
+      // Don't send pattern to WAM while recording (WAM is the source of truth during recording)
+      if (this.isRecording) {
+        console.log('[PianoRoll] Skipping pattern send to WAM - currently recording');
+        return;
+      }
+      
       if (!this.wamInstance?.audioNode) return;
       const instanceId = (this.wamInstance.audioNode as any).instanceId;
       if (!instanceId) return;

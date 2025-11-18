@@ -45,6 +45,18 @@ class XRCymbal implements XRDrumComponent {
         this.createDrumComponentTrigger(cymbal3DMesh);
 
         this.playSoundOnTrigger(midiKey, DRUMKIT_CONFIG.midi.durations.cymbals);
+
+        /* TO TEST PIANO ROLL EASILY
+        setInterval(() => {
+            CollisionUtils.scheduleSound(
+                this.xrDrumKit.wamInstance,
+                this.xrDrumKit.audioContext,
+                midiKey,
+                100,
+                10
+            );
+        }, 1000);
+        */
     }
 
     createDrumComponentBody(body: TransformNode | TransformNode[]) {

@@ -115,8 +115,8 @@ export const DRUMKIT_CONFIG = {
     debug: {
         showBoundingBoxes: false,
         enablePhysicsViewer: false,
-        logCollisions: true,
-        logVelocity: true, 
+        logCollisions: false,
+        logVelocity: false, 
         logCymbalPhysics: false, // cymbal-specific physics debugging
         logDrumstickCollisions: false, // Log drumstick-to-drumstick collisions
     }
