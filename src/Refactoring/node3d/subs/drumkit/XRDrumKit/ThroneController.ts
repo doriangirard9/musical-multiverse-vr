@@ -113,13 +113,10 @@ export class ThroneController {
         const drumContainer = this.xrDrumKit.drumContainer;
         let drumKitRotation = 0;
         
-        if (drumContainer.rotationQuaternion) {
-            // 6DOF uses quaternion rotation - convert to Euler Y angle
-            drumKitRotation = drumContainer.rotationQuaternion.toEulerAngles().y;
-        } else {
-            // Fall back to regular rotation
-            drumKitRotation = drumContainer.rotation.y;
-        }
+        // IMPORTANT: Use absolute rotation quaternion to account for parent transforms
+        // This is crucial when the drumkit is parented to a Node3D root that can be rotated
+        const absoluteRotation = drumContainer.absoluteRotationQuaternion;
+        drumKitRotation = absoluteRotation.toEulerAngles().y;
         
         // Calculate forward offset in world space (toward drums)
         // In Babylon.js with Y-up, negative Z is typically forward when rotation is 0
@@ -246,14 +243,12 @@ export class ThroneController {
         // Calculate target sitting position (where we want the XR rig base to be)
         const targetSittingPos = this.calculateSittingPosition();
         
-        // Get drum kit rotation
+        // Get drum kit rotation using absolute rotation to account for parent transforms
         const drumContainer = this.xrDrumKit.drumContainer;
-        if (!drumContainer.rotationQuaternion) {
-            drumContainer.rotationQuaternion = new Quaternion(0, 0, 0, 1);
-        }
+        const drumAbsoluteRotation = drumContainer.absoluteRotationQuaternion;
         
         // Create Y-only quaternion from drum kit (set X and Z to 0)
-        const drumYOnly = new Quaternion(0, drumContainer.rotationQuaternion._y, 0, drumContainer.rotationQuaternion._w).normalize();
+        const drumYOnly = new Quaternion(0, drumAbsoluteRotation._y, 0, drumAbsoluteRotation._w).normalize();
         
         // Get current camera Y-only rotation
         const currentYOnly = new Quaternion(0, camera.rotationQuaternion._y, 0, camera.rotationQuaternion._w).normalize();
