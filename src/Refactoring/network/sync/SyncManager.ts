@@ -145,6 +145,13 @@ export class SyncManager<
     }
 
     /**
+     * List all the saved instances with their id.
+     */
+    public entries(){
+        return this.instances.entries()
+    }
+
+    /**
      * Get the id of an instance
      * @param instance The instance
      * @returns The id of the instance
