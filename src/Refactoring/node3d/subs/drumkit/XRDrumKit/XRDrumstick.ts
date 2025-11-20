@@ -8,7 +8,7 @@ import { Vector3, Quaternion } from "@babylonjs/core/Maths/math";
 //import { Axis } from "@babylonjs/core/Maths/math";
 //import { PhysicsImpostor } from "@babylonjs/core/Physics/physicsImpostor";
 import XRDrumKit from "./XRDrumKit";
-import XRLogger from "../XRLogger";
+//import XRLogger from "./XRLogger";
 import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { WebXRDefaultExperience } from "@babylonjs/core/XR/webXRDefaultExperience";
 import { COLLISION_GROUP } from "./CollisionGroups";
@@ -26,7 +26,7 @@ class XRDrumstick {
     controllerAttached: WebXRInputSource | null = null;
     private transitionTimeout: number | null = null; // Timeout for TELEPORT -> ACTION transition
     log = false;
-    xrLogger : XRLogger; //To get controller positions, consider moving this logic outside this class
+    //xrLogger : XRLogger; //To get controller positions, consider moving this logic outside this class
     
     // Drumstick collision detection (using Babylon.js collision system, not Havok)
     private collisionStick: Mesh | null = null; // Invisible sphere at tip for collision detection
@@ -36,7 +36,7 @@ class XRDrumstick {
     private isCurrentlyColliding: boolean = false; // Track if currently in collision to prevent repeated triggers
     private pickupTime: number = 0; // Track when drumstick was picked up to prevent immediate collision sound
 
-    constructor(xr : WebXRDefaultExperience, xrDrumKit: XRDrumKit, scene: Scene, eventMask: number, stickNumber : Number, xrLogger : XRLogger) {
+    constructor(xr : WebXRDefaultExperience, xrDrumKit: XRDrumKit, scene: Scene, eventMask: number, stickNumber : Number, /*xrLogger : XRLogger*/) {
         
         this.eventMask = eventMask;
         this.scene = scene;
@@ -52,7 +52,7 @@ class XRDrumstick {
             }
             this.updateTransform()
         });
-        this.xrLogger = xrLogger; // Initialize the logger
+        //this.xrLogger = xrLogger; // Initialize the logger
         
         // Only initialize collision detection if enabled in config
         if (DRUMKIT_CONFIG.drumstick.enableCollisionDetection) {
@@ -156,12 +156,12 @@ class XRDrumstick {
                 if (controller.grip) {
                     const controllerPos = controller.grip.position;
                     const controllerRot = controller.grip.rotationQuaternion || Quaternion.Identity();
-                    this.xrLogger.updateControllerPositions(controllerPos, controllerRot, controller.inputSource.handedness);
+                    //this.xrLogger.updateControllerPositions(controllerPos, controllerRot, controller.inputSource.handedness);
                     
                     // Get velocities directly from physics body (automatically calculated by ACTION prestep)
                     const linearVel = this.drumstickAggregate.body.getLinearVelocity();
                     const angularVel = this.drumstickAggregate.body.getAngularVelocity();
-                    this.xrLogger.updateControllerVelocity(linearVel, angularVel, this.drumstickAggregate.transformNode.id);
+                    //this.xrLogger.updateControllerVelocity(linearVel, angularVel, this.drumstickAggregate.transformNode.id);
                 }
             });
         });
