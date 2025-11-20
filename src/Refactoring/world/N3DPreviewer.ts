@@ -89,6 +89,7 @@ export class N3DPreviewer{
 
         const action = hitbox.actionManager ??= new ActionManager()
         action.registerAction(new ExecuteCodeAction(ActionManager.OnPointerOverTrigger, ()=>{
+            this.shared.highlightLayer.removeExcludedMesh(hitbox);
             this.shared.highlightLayer.addMesh(hitbox, Color3.Green())
             text.updatePosition()
             text.show()

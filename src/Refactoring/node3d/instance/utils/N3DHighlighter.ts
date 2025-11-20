@@ -13,6 +13,10 @@ export class N3DHighlighter{
         readonly layer: HighlightLayer
     ){}
 
+    getLayer(){
+        return this.layer
+    }
+
     highlight(node: Node, color: Color3){
         if(node instanceof Mesh){
             this.layer.addMesh(node,color)
@@ -25,7 +29,12 @@ export class N3DHighlighter{
         if(node instanceof Mesh && this.highlighteds.delete(node)){
             this.layer.removeMesh(node)
         }
-        for(const child of node.getChildren()) this.unhighlight(child)
+        for(const child of node.getChildren()) {
+            this.unhighlight(child);
+            if(child instanceof Mesh){
+            this.getLayer().addExcludedMesh(child);
+            }
+        }
     }
 
     binded(){
