@@ -200,6 +200,8 @@ export class Node3DInstance implements Synchronized{
         //this.bounding_mesh.isVisible = false
         this.bounding_mesh.visibility = 0.1
         this.bounding_mesh.receiveShadows
+        this.bounding_mesh.checkCollisions = false
+        this.bounding_mesh.isPickable = false
 
         this.root_transform.parent = this.bounding_mesh
 

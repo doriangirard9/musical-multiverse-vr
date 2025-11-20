@@ -16,9 +16,14 @@ export default defineConfig({
   esbuild: {
     target: "es2022"
   },
-  optimizeDeps:{
+  optimizeDeps: {
+    exclude: ['@babylonjs/havok'],
     esbuildOptions: {
       target: "es2022",
     }
+  },
+  assetsInclude: ['**/*.wasm'],
+  worker: {
+    format: 'es'
   }
 });

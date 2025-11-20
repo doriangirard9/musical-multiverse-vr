@@ -13,6 +13,7 @@ import { LivePianoN3DFactory } from "../node3d/subs/LivePianoN3D.ts";
 import {NoteBoxN3DFactory} from "../node3d/subs/NoteBoxN3D.ts";
 import { SpeakerN3DFactory } from "../node3d/subs/speaker/SpeakerN3D.ts";
 import {PianoRollN3DFactory} from "../node3d/subs/PianoRoll/PianoRoll3d.ts";
+import { DrumKitN3DFactory } from "../node3d/subs/drumkit/DrumKitN3D.ts";
 
 
 
@@ -25,7 +26,7 @@ export class Node3DBuilder {
      * Some of the valid kinds of Node3D.
      */
     FACTORY_KINDS = [
-        "audiooutput", "oscillator", "maracas", "livepiano", "notesbox","pianoroll", "pro54michel",
+        "audiooutput", "oscillator", "maracas", "livepiano", "notesbox","pianoroll", "drumkit", "pro54michel",
         ...Object.keys(examples).map(k => `wam3d-${k}`),
     ]
 
@@ -57,6 +58,7 @@ export class Node3DBuilder {
         if(kind=="livepiano") return LivePianoN3DFactory
         if(kind=="notesbox") return NoteBoxN3DFactory
         if(kind=="pianoroll") return PianoRollN3DFactory
+        if(kind=="drumkit") return DrumKitN3DFactory
 
         // Wam3DGenerator examples
         if(kind.startsWith("wam3d-")) {

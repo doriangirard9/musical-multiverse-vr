@@ -3,7 +3,7 @@ import {XRManager} from "../xr/XRManager.ts";
 import {Node3dManager} from "./Node3dManager.ts";
 import {AppOrchestrator} from "./AppOrchestrator.ts";
 import ControlsUI from "./ControlsUI.ts";
-import {CreateAudioEngineAsync, CreatePlane, ImportMeshAsync, StandardMaterial} from "@babylonjs/core";
+import {CreateAudioEngineAsync, CreateCylinder, CreatePlane, CreateSphere, ImportMeshAsync, InstancedMesh, Mesh, StandardMaterial, Vector2, Vector3} from "@babylonjs/core";
 import {N3DShop, N3DShopOptions} from "../world/shop/N3DShop.ts";
 import { InputManager } from "../xr/inputs/InputManager.ts";
 import { parallel } from "../utils/utils.ts";
@@ -12,6 +12,7 @@ import { NetworkManager } from "../network/NetworkManager.ts";
 import { PlayerManager } from "./PlayerManager.ts";
 import { ConnectionManager } from "../iomanager/ConnectionManager.ts";
 import { N3DRendering } from "../node3d/instance/utils/N3DRendering.ts";
+import { VisualRope } from "../visual/VisualRope.ts";
 export class NewApp {
     private static readonly DEBUG_LOG = false;
     private controlsUI?: ControlsUI;
@@ -108,8 +109,6 @@ export class NewApp {
                 a.click()
             }
         })
-
-        // setTimeout(()=>Inspector.Show(scene,{}), 10000)
 
         //// LE SUPER MAGASIN ////
         {
