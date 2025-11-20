@@ -221,8 +221,6 @@ class XRDrumKit {
         //state.values.patchName = "Drum Sampler WAM";
         await wamInstance.audioNode.setState(state);
 
-        wamInstance.audioNode.connect(this.audioContext.destination);
-
         this.wamInstance = wamInstance;
 
         return wamInstance;
