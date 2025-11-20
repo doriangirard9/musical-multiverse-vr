@@ -24,8 +24,13 @@ export default defineConfig(({ mode }) => ({
     target: "es2022"
   },
   optimizeDeps: {
+    exclude: ['@babylonjs/havok'],
     esbuildOptions: {
       target: "es2022",
     }
+  },
+  assetsInclude: ['**/*.wasm'],
+  worker: {
+    format: 'es'
   }
 }))

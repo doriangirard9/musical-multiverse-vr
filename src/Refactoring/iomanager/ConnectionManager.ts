@@ -57,6 +57,8 @@ export class ConnectionManager {
         switch (pickType) {
             case "down":
                 this.currentPort = data.connectable
+                
+                // Preview
                 const tube = new VisualTube(this.scene, NetworkManager.getInstance().visual.tubes)
                 tube.setColor(this.currentPort!!.config.color.toColor4(1))
                 NetworkManager.getInstance().visual.tubes.add(RandomUtils.randomID(), tube)
@@ -68,7 +70,6 @@ export class ConnectionManager {
                     InputManager.getInstance().pointer_move.remove(o)
                     tube.dispose()
                 }
-                //this.connectionManager.startConnectionPreview(this.currentPort.nodeid, this.currentPort.meshes[0], this.currentPort.id)
                 break
 
             case "up":

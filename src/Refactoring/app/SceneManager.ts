@@ -1,6 +1,8 @@
 import * as B from "@babylonjs/core";
 import {Inspector} from "@babylonjs/inspector";
 import {GridMaterial} from "@babylonjs/materials";
+import HavokPhysics from "@babylonjs/havok";
+import { HavokPlugin } from "@babylonjs/core/Physics/v2/Plugins/havokPlugin";
 // // Enable GLTF/GLB loader for loading controller models from WebXR Input registry
 import '@babylonjs/loaders/glTF';
 import '@babylonjs/core/Materials/Node/Blocks';
@@ -15,6 +17,7 @@ export class SceneManager {
     private readonly shadowGenerator: B.ShadowGenerator;
     //@ts-ignore
     private readonly ground: B.Mesh;
+    private physicsInitialized: boolean = false;
 
 
     private constructor(canvas: HTMLCanvasElement) {
@@ -23,6 +26,9 @@ export class SceneManager {
         this.scene = new B.Scene(this.engine);
         this.shadowGenerator = this.initializeShadowGenerator();
         this.ground = this.createGround();
+        
+        // Initialize physics asynchronously
+        this.initializePhysics();
 
         // Handle window resize
         window.addEventListener("resize", () => {
@@ -74,6 +80,34 @@ export class SceneManager {
 
     public getShadowGenerator(): B.ShadowGenerator {
         return this.shadowGenerator
+    }
+
+    /**
+     * Initialize Havok physics engine
+     */
+    private async initializePhysics(): Promise<void> {
+        try {
+            console.log("[SceneManager] Initializing Havok physics...");
+            const havokInstance = await HavokPhysics();
+            const hk = new HavokPlugin(true, havokInstance);
+            this.scene.enablePhysics(new B.Vector3(0, -9.8, 0), hk);
+            this.physicsInitialized = true;
+            console.log("[SceneManager] Havok physics initialized ✓");
+            
+            // Add physics to ground
+            new B.PhysicsAggregate(
+                this.ground, 
+                B.PhysicsShapeType.BOX, 
+                { mass: 0 }, 
+                this.scene
+            );
+        } catch (error) {
+            console.error("[SceneManager] Failed to initialize Havok physics:", error);
+        }
+    }
+
+    public isPhysicsReady(): boolean {
+        return this.physicsInitialized;
     }
 
 

@@ -161,12 +161,14 @@ export class XRManager {
             uiOptions: { sessionMode: 'immersive-vr' },
         });
         this.xrFeaturesManager = xrExperience.baseExperience.featuresManager;
+        
         return xrExperience;
     }
 
     private _initXRFeatures(): void {
         const featuresManager: B.WebXRFeaturesManager = this.xrHelper.baseExperience.featuresManager
         featuresManager.disableFeature(B.WebXRFeatureName.TELEPORTATION)
+        featuresManager.disableFeature(B.WebXRNearInteraction.name) //Deactivated for performance (XR Drumkit)
         this.setMovement(["rotation", "translation"])
     }
 
