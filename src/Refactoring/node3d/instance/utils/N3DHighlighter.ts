@@ -28,6 +28,7 @@ export class N3DHighlighter{
     unhighlight(node: Node){
         if(node instanceof Mesh && this.highlighteds.delete(node)){
             this.layer.removeMesh(node)
+            this.getLayer().addExcludedMesh(node);
         }
         for(const child of node.getChildren()) {
             this.unhighlight(child);
