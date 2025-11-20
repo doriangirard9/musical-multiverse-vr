@@ -160,9 +160,10 @@ class XRDrumKit {
             return;
         }
         const throneContainer = new TransformNode("throneContainer", this.scene);
+        this.drumContainer.addChild(throneContainer); // Attach the throne container to the drum container
+        throneContainer.position.setAll(0)
         thronePrimitives.forEach(primitive => throneContainer.addChild(primitive)); // Attach primitives to the parent node
         
-        this.drumContainer.addChild(throneContainer); // Attach the throne container to the drum container
         this.throne = throneContainer; // Store the throne container
         
         // Initialize throne controller for sit/stand functionality

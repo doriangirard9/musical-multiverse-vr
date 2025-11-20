@@ -9,6 +9,7 @@ import { WebXRFeatureName } from "@babylonjs/core/XR/webXRFeaturesManager";
 import { WebXRAbstractMotionController } from "@babylonjs/core/XR/motionController/webXRAbstractMotionController";
 import { WebXRControllerComponent } from "@babylonjs/core/XR/motionController/webXRControllerComponent";
 import { InputManager } from "../../../../xr/inputs/InputManager";
+import { VisualRope, VisualRopeInfo } from "../../../../visual/VisualRope";
 
 /**
  * ThroneController - Manages sitting/standing at the drum throne
@@ -185,7 +186,7 @@ export class ThroneController {
         );
         
         const wasNear = this.isNearThrone;
-        this.isNearThrone = horizontalDistance <= this.proximityDistance*this.throneNode.absoluteScaling.x;
+        this.isNearThrone = horizontalDistance <= this.proximityDistance*this.throneNode.absoluteScaling.x*2;
         
         // Log when entering/exiting proximity
         if (this.isNearThrone && !wasNear && this.log) {
