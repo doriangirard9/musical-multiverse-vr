@@ -11,7 +11,7 @@ import XRDrumstick from "./XRDrumstick";
 import XRDrum from "./XRDrumComponent/XRDrum";
 import XRCymbal from "./XRDrumComponent/XRCymbal"
 import XRHiHat from "./XRDrumComponent/XRHiHat";
-import XRLogger from "./XRLogger";
+//import XRLogger from "./XRLogger";
 import { DRUMKIT_CONFIG } from "./XRDrumKitConfig";
 import ThroneController from "./ThroneController";
 import ThroneUI from "./ThroneUI";
@@ -60,7 +60,7 @@ class XRDrumKit {
     path = DRUMKIT_CONFIG.model.path; // Path to the 3D model folder
     log = false;
     scaleFactor: number = DRUMKIT_CONFIG.model.scaleFactor; // Scale factor for physics trigger shapes (0.7 = 70% of visual size)
-    xrLogger: XRLogger;
+    //xrLogger: XRLogger;
 
     constructor(audioContext: AudioContext, scene: Scene, eventMask: number, xr: WebXRDefaultExperience, hk: any, assetsManager: AssetsManager) {
         this.audioContext = audioContext;
@@ -73,7 +73,7 @@ class XRDrumKit {
         this.drumComponents = [];
         this.drumContainer = new TransformNode("drumContainer", this.scene);
         this.drumSoundsEnabled = false;
-        this.xrLogger = new XRLogger(xr, scene);
+        //this.xrLogger = new XRLogger(xr, scene);
         
         // Initialize WAM plugin
         this.initializeWAMPlugin().then((wamInstance) => {
@@ -123,7 +123,7 @@ class XRDrumKit {
         this.drumContainer.removeChild(this.loadedMeshes[0]); // Clear any existing children
 
          for (var i = 0; i < 2; i++) {
-            this.drumsticks[i] = new XRDrumstick(this.xr, this, this.scene, this.eventMask, i+1, this.xrLogger);
+            this.drumsticks[i] = new XRDrumstick(this.xr, this, this.scene, this.eventMask, i+1, /*this.xrLogger*/);
         }
         
         // Set references so drumsticks can detect collisions with each other (only if feature enabled)
