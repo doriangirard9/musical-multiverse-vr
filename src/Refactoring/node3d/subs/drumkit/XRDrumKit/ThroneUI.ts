@@ -145,9 +145,9 @@ export class ThroneUI {
             const drumKitRotation = this.throneController.getDrumKitRotation();
             
             if (drumKitPos && drumKitRotation) {
-                // Position UI 1m forward from drum kit center and 2m up
-                const forwardOffset = 1.0; // 1 meter forward
-                const heightOffset = 2.0; // 2 meters up
+                // Position UI 2.5m forward from drum kit center and 2m up
+                const forwardOffset = -1.5;
+                const heightOffset = 2.0; 
                 
                 // Calculate forward direction based on drum kit rotation
                 const forwardX = -forwardOffset * Math.sin(drumKitRotation.y);
