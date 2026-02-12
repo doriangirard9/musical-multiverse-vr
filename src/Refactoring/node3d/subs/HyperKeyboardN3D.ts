@@ -246,7 +246,7 @@ export class HyperKeyboardN3DFactory implements Node3DFactory<HyperKeyboardN3DGU
         public description: string,
     ) { }
 
-    tags = ["hyperkeyboard", "midi", "generator", "live_instrument", "drag"]
+    tags = ["hyperkeyboard", "keyboard", "midi", "generator", "live_instrument", "drag"]
 
     async createGUI(context: Node3DGUIContext) {
         const ret = new HyperKeyboardN3DGUI(this)

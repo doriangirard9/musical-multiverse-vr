@@ -109,9 +109,9 @@ export const AutomationControllerN3DFactory: Node3DFactory<AutomationControllerN
 
     label: "Automation Controller",
 
-    description: "",
+    description: "A simple rotatable controller that can be used to control any automation parameter. It can be used to create knobs, wheels, or any other circular controllers.",
 
-    tags: ["automation controller", "midi", "generator", "live_instrument", "drag"],
+    tags: ["automationcontroller", "automation", "drag"],
 
     async createGUI(context: Node3DGUIContext) {
         const ret = new AutomationControllerN3DGUI()

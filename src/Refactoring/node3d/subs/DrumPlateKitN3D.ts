@@ -356,7 +356,7 @@ export class DrumPlateKitN3DFactory implements Node3DFactory<DrumPlateKitN3DGUI,
         console.assert(count >= 1, "Plate count must at least 1")
     }
 
-    tags = ["hyperkeyboard", "midi", "generator", "live_instrument", "drag"]
+    tags = ["drumkit", "midi", "automation", "generator", "live_instrument"]
 
     async createGUI(context: Node3DGUIContext) {
         const ret = new DrumPlateKitN3DGUI(this)
@@ -370,8 +370,8 @@ export class DrumPlateKitN3DFactory implements Node3DFactory<DrumPlateKitN3DGUI,
 
     static SMALL = new DrumPlateKitN3DFactory(
         5,
-        "Small HyperKeyboard",
-        "A 3D hyperkeyboard with 5 keys in width, 3 in height and 1 in depth"
+        "Modular Drum Kit",
+        "A modular drum kit with 5 plates."
     )
 
 }
