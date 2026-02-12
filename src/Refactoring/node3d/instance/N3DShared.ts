@@ -19,6 +19,7 @@ export class N3DShared{
  
     readonly materialMat = (()=>{
         const mat = new StandardMaterial("node3d shared material mat")
+        mat.alphaCutOff= 0.5
         mat.specularColor = Color3.Black()
         return mat
     })()

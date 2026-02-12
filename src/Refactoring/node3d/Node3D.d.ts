@@ -7,6 +7,12 @@ type Serializable = { [key: string]: Serializable } | Serializable[] | string | 
 
 /**
  * Représente l'interface d'un Node3D.
+ * Les coordonnées des éléments de la GUI fonctionnent comme ci:
+ * - Elles sont comprise entre -0.5 et 0.5 pour x, y et z.
+ * - X corresponds à l'axe gauche-droite
+ * - Y corresponds à l'axe arrière-avant
+ * - Z corresponds à l'axe bas-haut 
+ * - Le point 0,0,0 correspond au centre de la GUI
  */
 export interface Node3DGUI{
 

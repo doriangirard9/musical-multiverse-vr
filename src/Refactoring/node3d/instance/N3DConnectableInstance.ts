@@ -25,6 +25,8 @@ export class N3DConnectableInstance {
         readonly config: Node3DConnectable,
         highlightLayer: HighlightLayer,
         ioEventBus: IOEventBus,
+        targetOnly: boolean = false,
+        hoveringHelp: boolean = true
     ) {
         const disposes: (()=>void)[] = []
 
@@ -63,21 +65,32 @@ export class N3DConnectableInstance {
         for(const mesh of meshes) {
             const action = mesh.actionManager ??= new ActionManager(mesh.getScene())
         
-            const _onover = action.registerAction(new ExecuteCodeAction(ActionManager.OnPointerOverTrigger, hover))!!
-            const _onout = action.registerAction(new ExecuteCodeAction(ActionManager.OnPointerOutTrigger, unhover))!!
-            
-            const _onleftpick = action.registerAction(new ExecuteCodeAction(ActionManager.OnLeftPickTrigger, onleftpick))!!
             const _onpickup = action.registerAction(new ExecuteCodeAction(ActionManager.OnPickUpTrigger, onpickup))!!
-            const _onpickout = action.registerAction(new ExecuteCodeAction(ActionManager.OnPickOutTrigger, onpickout))!!
 
             disposes.push(() => {
-                action.unregisterAction(_onover)
-                action.unregisterAction(_onout)
-                action.unregisterAction(_onleftpick)
                 action.unregisterAction(_onpickup)
-                action.unregisterAction(_onpickout)
                 unhover()
             })
+            
+            if(!targetOnly){
+                const _onleftpick = action.registerAction(new ExecuteCodeAction(ActionManager.OnLeftPickTrigger, onleftpick))!!
+                const _onpickout = action.registerAction(new ExecuteCodeAction(ActionManager.OnPickOutTrigger, onpickout))!!
+                disposes.push(()=>{
+                    action.unregisterAction(_onleftpick)
+                    action.unregisterAction(_onpickout)
+                })
+            }
+
+            if(hoveringHelp){
+                const _onover = action.registerAction(new ExecuteCodeAction(ActionManager.OnPointerOverTrigger, hover))!!
+                const _onout = action.registerAction(new ExecuteCodeAction(ActionManager.OnPointerOutTrigger, unhover))!!
+                disposes.push(() => {
+                    action.unregisterAction(_onover)
+                    action.unregisterAction(_onout)
+                    unhover()
+                })
+            }
+            
         }
 
         this.dispose = ()=>{

@@ -14,6 +14,10 @@ import {NoteBoxN3DFactory} from "../node3d/subs/NoteBoxN3D.ts";
 import { SpeakerN3DFactory } from "../node3d/subs/speaker/SpeakerN3D.ts";
 import {PianoRollN3DFactory} from "../node3d/subs/PianoRoll/PianoRoll3d.ts";
 import { DrumKitN3DFactory } from "../node3d/subs/drumkit/DrumKitN3D.ts";
+import { HyperKeyboardN3DFactory } from "../node3d/subs/HyperKeyboardN3D.ts";
+import { DrumPlateKitN3DFactory } from "../node3d/subs/DrumPlateKitN3D.ts";
+import { AutomationControllerN3DFactory } from "../node3d/subs/AutomationControllerN3D.ts";
+import { PositionCubeN3DFactory } from "../node3d/subs/PositionCubeN3D.ts";
 
 
 
@@ -59,6 +63,10 @@ export class Node3DBuilder {
         if(kind=="notesbox") return NoteBoxN3DFactory
         if(kind=="pianoroll") return PianoRollN3DFactory
         if(kind=="drumkit") return DrumKitN3DFactory
+        if(kind=="hyperkeyboard") return HyperKeyboardN3DFactory.SMALL
+        if(kind=="drumplatekit") return DrumPlateKitN3DFactory.SMALL
+        if(kind=="automation_controller") return AutomationControllerN3DFactory
+        if(kind=="the_cube") return PositionCubeN3DFactory.DEFAULT
 
         // Wam3DGenerator examples
         if(kind.startsWith("wam3d-")) {

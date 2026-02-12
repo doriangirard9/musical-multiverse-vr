@@ -29,7 +29,7 @@ export class N3DConnectionInstance{
     ){
         this.tube = CreateCylinder("connection tube",{
             height: 1,
-            diameter: .25,
+            diameter: .25*Node3DInstance.CONNECTION_SIZE_MULTIPLIER,
             tessellation: 6
         },this.scene)
 
@@ -154,8 +154,8 @@ export class N3DConnectionInstance{
 
         if(![input.config.direction, output.config.direction].includes("bidirectional")){
             this.arrow = CreateCylinder("connection arrow",{
-                height: 1,
-                diameterBottom: .5,
+                height: Node3DInstance.CONNECTION_SIZE_MULTIPLIER,
+                diameterBottom: .5*Node3DInstance.CONNECTION_SIZE_MULTIPLIER,
                 diameterTop: 0,
                 tessellation: 6,
             },this.scene)
@@ -170,7 +170,7 @@ export class N3DConnectionInstance{
                 // Some calculations
                 const offset = inputMesh.absolutePosition.subtract(outputMesh.absolutePosition)
                 const length = offset.length()
-                const tubeLength = (length - 1)
+                const tubeLength = (length - Node3DInstance.CONNECTION_SIZE_MULTIPLIER)
                 offset.normalize()
 
                 const pointA = outputMesh.absolutePosition

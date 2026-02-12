@@ -30,7 +30,7 @@ export class InputManager {
     readonly on_button_change = new Observable<ButtonInputEvent>()
 
     readonly left_trigger = new PressableInput("xr-standard-trigger", "left", "q")
-    readonly right_trigger = new PressableInput("xr-standard-trigger", "right", "s")
+    readonly right_trigger = new PressableInput("xr-standard-trigger", "right", "s", 0)
     readonly left_squeeze = new PressableInput("xr-standard-squeeze", "left", "w")
     readonly right_squeeze = new PressableInput("xr-standard-squeeze", "right", "x")
     readonly on_trigger_change = new Observable<PressableInputEvent>()

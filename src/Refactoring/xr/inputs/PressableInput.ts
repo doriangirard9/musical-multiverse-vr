@@ -83,7 +83,8 @@ export class PressableInput {
     constructor(
         readonly name: "xr-standard-trigger"|"xr-standard-squeeze",
         readonly side: "none"|"left"|"right",
-        readonly key: string
+        readonly key: string,
+        readonly mouseKey?: number,
     ){}
 
     private state = {value:0, is_pressed:false, is_touched:false}
@@ -131,7 +132,13 @@ export class PressableInput {
             this._notify({ pressable: this, pressed:true, touched:this.state.is_touched, value: 1 })
             isPressed = true
         }
+        const onmousedown = (event: MouseEvent) => {
+            if(event.button !== this.mouseKey) return
+            this._notify({ pressable: this, pressed:true, touched:this.state.is_touched, value: 1 })
+            isPressed = true
+        }
         document.addEventListener("keydown", onkeydown)
+        document.addEventListener("pointerdown", onmousedown)
 
 
         // Handle keyup events
@@ -140,8 +147,14 @@ export class PressableInput {
             this._notify({ pressable: this, pressed:false, touched:this.state.is_touched, value: 0 })
             isPressed = false
         }
+        const onmouseup = (event: MouseEvent) => {
+            if(event.button !== this.mouseKey) return
+            this._notify({ pressable: this, pressed:false, touched:this.state.is_touched, value: 0 })
+            isPressed = false
+        }
 
         document.addEventListener("keyup", onkeyup)
+        document.addEventListener("pointerup", onmouseup)
 
         // Call keydown on blur to ensure the button is released when the window loses focus
         // This is useful to prevent the button from being stuck pressed when the user switches to another tab

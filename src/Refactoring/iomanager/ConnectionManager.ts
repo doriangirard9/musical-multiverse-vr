@@ -59,7 +59,9 @@ export class ConnectionManager {
                 this.currentPort = data.connectable
                 
                 // Preview
-                const tube = new VisualTube(this.scene, NetworkManager.getInstance().visual.tubes)
+                const tube = new VisualTube(this.scene, NetworkManager.getInstance().visual.tubes, (mesh)=>{
+                    mesh.isPickable = false
+                })
                 tube.setColor(this.currentPort!!.config.color.toColor4(1))
                 NetworkManager.getInstance().visual.tubes.add(RandomUtils.randomID(), tube)
                 const o = InputManager.getInstance().pointer_move.add((event)=>{

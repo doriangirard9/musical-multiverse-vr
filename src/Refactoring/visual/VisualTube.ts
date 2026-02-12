@@ -1,8 +1,9 @@
-import { Color4, CreateCylinder, Quaternion, Scene, Vector3, VertexBuffer } from "@babylonjs/core"
+import { AbstractMesh, Color4, CreateCylinder, Mesh, Quaternion, Scene, Vector3, VertexBuffer } from "@babylonjs/core"
 import { SyncSerializable } from "../network/sync/SyncSerializable"
 import { Doc } from "yjs"
 import { SyncManager } from "../network/sync/SyncManager"
 import { MeshUtils } from "../node3d/tools"
+import { Node3DInstance } from "../node3d/instance/Node3DInstance"
 
 /**
  * Une connection entre deux connectable de deux Node3D.
@@ -17,20 +18,23 @@ export class VisualTube{
     constructor(
         private scene: Scene,
         private tubes: SyncManager<VisualTube,any>,
+        private onMesh?: (mesh:AbstractMesh)=>void 
     ){
         this.tube = CreateCylinder("connection tube",{
             height: 1,
-            diameter: .25,
+            diameter: .25*Node3DInstance.CONNECTION_SIZE_MULTIPLIER,
             tessellation: 6
         },this.scene)
+        this.onMesh?.(this.tube)
         
         // Add arrow for direction indication (smaller diameter to facilitate connections)
         this.arrow = CreateCylinder("connection arrow",{
             height: 1,
-            diameterBottom: .3,
+            diameterBottom: .3*Node3DInstance.CONNECTION_SIZE_MULTIPLIER,
             diameterTop: 0,
             tessellation: 6,
         },this.scene)
+        this.onMesh?.(this.arrow)
     }
 
     // Connection
@@ -58,7 +62,7 @@ export class VisualTube{
             const orientation = Quaternion.FromUnitVectorsToRef(Vector3.Up(), direction, new Quaternion())
             
             // Reserve 1 unit for the arrow, rest is tube
-            const arrowLength = 1
+            const arrowLength = Node3DInstance.CONNECTION_SIZE_MULTIPLIER
             const tubeLength = Math.max(0.1, totalLength - arrowLength)
             
             // Tube: from A to (almost) B, leaving space for arrow

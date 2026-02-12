@@ -13,6 +13,7 @@ import { PlayerManager } from "./PlayerManager.ts";
 import { ConnectionManager } from "../iomanager/ConnectionManager.ts";
 import { N3DRendering } from "../node3d/instance/utils/N3DRendering.ts";
 import { VisualRope } from "../visual/VisualRope.ts";
+import { Node3DInstance } from "../node3d/instance/Node3DInstance.ts";
 export class NewApp {
     private static readonly DEBUG_LOG = false;
     private controlsUI?: ControlsUI;
@@ -109,6 +110,11 @@ export class NewApp {
                 a.click()
             }
         })
+
+        //// TESTS ////
+        const node = await node3dBuilder.create("the_cube") as Node3DInstance
+        //const node = await node3dBuilder.create("drumplatekit") as Node3DInstance
+        node.boundingBoxMesh.position.z += 5
 
         //// LE SUPER MAGASIN ////
         {

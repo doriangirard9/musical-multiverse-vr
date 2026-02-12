@@ -33,6 +33,7 @@ export interface VisualRopeInfo{
  * With some animations utilities to make lightning like effects.
  */
 export class VisualRope {
+    
 
     /**
      * 
@@ -206,4 +207,15 @@ export class VisualRope {
         }
     }
 
+    /** A simple line looking rope */
+    static Line = class Line implements VisualRopeInfo{
+
+        segments = [CreateCylinder("tube",{diameter:.05,height:1, tessellation:5})]
+
+        length = 1
+
+        dispose(){
+            this.segments[0].dispose()
+        }
+    }
 }
