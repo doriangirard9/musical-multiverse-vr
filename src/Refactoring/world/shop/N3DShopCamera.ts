@@ -30,7 +30,7 @@ export class N3DShopCamera implements N3DShopType {
         if(this.cameras.length==1){
             const camera = XRManager.getInstance().xrHelper.baseExperience.camera
             
-            shop.inputs.y_button.on_down.add(()=>{
+            shop.inputs.y_button.onDown.add(()=>{
                 if(DEBUG_LOG) console.log(`[Y Button] pressed - selected: ${this.selected}, to_show: ${this.to_show}`)
                 this.animation = this.animation.then(async()=>{
                     if(this.selected==-1) await this.show(this.to_show)
@@ -41,7 +41,7 @@ export class N3DShopCamera implements N3DShopType {
                     
                 })
             })
-            shop.inputs.b_button.on_down.add(()=>{
+            shop.inputs.b_button.onDown.add(()=>{
                 this.animation = this.animation.then(async()=>{
                     if(this.selected!=-1){
                         await this.show(-1)

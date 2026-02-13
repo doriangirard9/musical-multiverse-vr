@@ -187,7 +187,7 @@ export class HyperKeyboardN3D implements Node3D {
         context.addToBoundingBox(gui.base)
 
         // Keys
-        this.observers.push(inputs.on_trigger_change.add(({ pressed }) => {
+        this.observers.push(inputs.onTriggerChange.add(({ pressed }) => {
             this.set(this.x, this.y, this.z, pressed)
         }))
 

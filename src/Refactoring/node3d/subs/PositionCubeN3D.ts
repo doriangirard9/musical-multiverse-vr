@@ -177,8 +177,8 @@ export class PositionCubeN3D implements Node3D {
 
 
         // Détection de position (trigger requis)
-        this.observers.push(inputs.pointer_move.add(e => {
-            if(!inputs.left_trigger.isPressed() && !inputs.right_trigger.isPressed()) return
+        this.observers.push(inputs.left.pointer.onMove.add(e => {
+            if(!inputs.left.trigger.isPressed() && !inputs.right.trigger.isPressed()) return
             const position = e.origin.clone()
             if(gui.localize(position)){
                 gui.set(position.x, position.y, position.z)

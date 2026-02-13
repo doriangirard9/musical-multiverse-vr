@@ -145,21 +145,21 @@ export class ThroneController {
     private setupControllers(): void {
         const inputs = InputManager.getInstance()
 
-        const o = inputs.x_button.on_down.add(() => {
+        const o = inputs.x_button.onDown.add(() => {
             if(this.throneNode.isDisposed()){ o.remove(); return }
             if (!this.isSitting && this.isNearThrone) {
                 this.sitDown();
             }
         })
         
-        const o2 = inputs.b_button.on_down.add(() => {
+        const o2 = inputs.b_button.onDown.add(() => {
             if(this.throneNode.isDisposed()){ o2.remove(); return }
             if (this.isSitting) {
                 this.onStandUpButtonPressed();
             }
         })
 
-        const o3 = inputs.b_button.on_up.add(() => {
+        const o3 = inputs.b_button.onUp.add(() => {
             if(this.throneNode.isDisposed()){ o3.remove(); return }
             if (this.isSitting) {
                 this.onStandUpButtonReleased();

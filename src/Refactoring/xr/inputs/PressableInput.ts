@@ -1,4 +1,5 @@
 import { Observable, WebXRAbstractMotionController } from "@babylonjs/core"
+import { ControllerInput } from "./ControllerInput"
 
 
 export interface PressableInputEvent{
@@ -15,22 +16,22 @@ export interface PressableInputEvent{
 export class PressableInput {
 
     /** Observable that notifies when the pressable input state changes.  */
-    readonly on_change = new Observable<PressableInputEvent>()
+    readonly onChange = new Observable<PressableInputEvent>()
     
     /** Observable that notifies when the button is pressed down.  */
-    readonly on_down = new Observable<PressableInputEvent>()
+    readonly onDown = new Observable<PressableInputEvent>()
     
     /** Observable that notifies when the button is released (up).  */
-    readonly on_up = new Observable<PressableInputEvent>()
+    readonly onUp = new Observable<PressableInputEvent>()
     
     /** Observable that notifies when the button is touched.  */
-    readonly on_touch = new Observable<PressableInputEvent>()
+    readonly onTouch = new Observable<PressableInputEvent>()
     
     /** Observable that notifies when the button stop being touched.  */
-    readonly on_untouch = new Observable<PressableInputEvent>()
+    readonly onUntouch = new Observable<PressableInputEvent>()
 
     /** Observable that notifies when the value of the pressable input changes.  */
-    readonly on_value_change = new Observable<PressableInputEvent>()
+    readonly onValueChange = new Observable<PressableInputEvent>()
 
     /**
      * Is the button currently pressed?
@@ -61,26 +62,27 @@ export class PressableInput {
     setPressInterval(interval: number, on_tick: (value:number) => void, on_press?: () => void, on_release?: () => void): {remove():void} {
         let intervol: any = null
 
-        let o1 = this.on_down.add(() => {
+        let o1 = this.onDown.add(() => {
             on_press?.()
             intervol = setInterval(()=>on_tick(this.state.value), interval)
         })
 
-        let o2 = this.on_up.add(() => {
+        let o2 = this.onUp.add(() => {
             on_release?.()
             clearInterval(intervol)
             intervol = null
         })
 
         return {remove:() => {
-            this.on_down.remove(o1)
-            this.on_up.remove(o2)
+            this.onDown.remove(o1)
+            this.onUp.remove(o2)
             if(intervol) clearInterval(intervol)
         }}
     }
 
 
     constructor(
+        readonly controller: ControllerInput|null,
         readonly name: "xr-standard-trigger"|"xr-standard-squeeze",
         readonly side: "none"|"left"|"right",
         readonly key: string,
@@ -94,12 +96,12 @@ export class PressableInput {
      * @param event 
      */
     _notify(event: PressableInputEvent){
-        this.on_change.notifyObservers(event)
-        if(event.pressed && !this.state.is_pressed) this.on_down.notifyObservers(event)
-        if(!event.pressed && this.state.is_pressed) this.on_up.notifyObservers(event)
-        if(event.touched && !this.state.is_touched) this.on_touch.notifyObservers(event)
-        if(!event.touched && this.state.is_touched) this.on_untouch.notifyObservers(event)
-        if(event.value !== this.state.value) { this.on_value_change.notifyObservers(event)}
+        this.onChange.notifyObservers(event)
+        if(event.pressed && !this.state.is_pressed) this.onDown.notifyObservers(event)
+        if(!event.pressed && this.state.is_pressed) this.onUp.notifyObservers(event)
+        if(event.touched && !this.state.is_touched) this.onTouch.notifyObservers(event)
+        if(!event.touched && this.state.is_touched) this.onUntouch.notifyObservers(event)
+        if(event.value !== this.state.value) { this.onValueChange.notifyObservers(event)}
         this.state.value = event.value
         this.state.is_pressed = event.pressed
         this.state.is_touched = event.touched

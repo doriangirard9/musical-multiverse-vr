@@ -1,7 +1,9 @@
-import { Immutable, Observable, PointerEventTypes, Scene, Vector3, WebXRDefaultExperience, WebXRInputSource } from "@babylonjs/core";
+import { Immutable, Observable, Scene, Vector3, WebXRDefaultExperience, WebXRInputSource } from "@babylonjs/core";
 import { ButtonInput, ButtonInputEvent } from "./ButtonInput";
-import { PressableInput, PressableInputEvent } from "./PressableInput";
-import { AxisInput, AxisInputEvent } from "./AxisInput";
+import { PressableInputEvent } from "./PressableInput";
+import { AxisInputEvent } from "./AxisInput";
+import { ControllerInput } from "./ControllerInput";
+import { PointerInput } from "./PointerInput";
 
 export interface PointerMovementEvent {
     origin: Immutable<Vector3>,
@@ -29,29 +31,40 @@ export class InputManager {
     readonly b_button = new ButtonInput("b-button", "right", "b")
     readonly on_button_change = new Observable<ButtonInputEvent>()
 
-    readonly left_trigger = new PressableInput("xr-standard-trigger", "left", "q")
-    readonly right_trigger = new PressableInput("xr-standard-trigger", "right", "s", 0)
-    readonly left_squeeze = new PressableInput("xr-standard-squeeze", "left", "w")
-    readonly right_squeeze = new PressableInput("xr-standard-squeeze", "right", "x")
-    readonly on_trigger_change = new Observable<PressableInputEvent>()
-    readonly on_squeeze_change = new Observable<PressableInputEvent>()
-    readonly on_pressable_change = new Observable<PressableInputEvent>()
+    readonly left = new ControllerInput(
+        "left",
+        {
+            trigger: "z",
+            squeeze: "s",
+            thumbstick: ["k", "m", "o", "l"],
+        }
+    )
 
-    readonly left_thumbstick = new AxisInput("left", ["k", "m", "o", "l"])
-    readonly right_thumbstick = new AxisInput("right", ["arrowleft", "arrowright", "arrowup", "arrowdown"])
-    readonly on_thumbstick_change = new Observable<AxisInputEvent>()
+    readonly right = new ControllerInput(
+        "right",
+        {
+            trigger: "e",
+            squeeze: "d",
+            thumbstick: ["arrowleft", "arrowright", "arrowup", "arrowdown"],
+        }
+    )
 
-    readonly pointer_move = new Observable<PointerMovementEvent>()
+    readonly screen = new ControllerInput(
+        "none",
+        {
+            trigger: "r",
+            squeeze: "f",
+            thumbstick: ["_", "_", "_", "_"],
+        }
+    )
 
-    public current_pointer: PointerMovementEvent = {
-        origin: Vector3.Zero(),
-        forward: Vector3.Forward(),
-        up: Vector3.Up(),
-        right: Vector3.Right(),
-        target: Vector3.Forward(),
-    }
+    get controllers() { return [this.left, this.right, this.screen] }
 
-
+    readonly onTriggerChange = new Observable<PressableInputEvent>()
+    readonly onSqueezeChange = new Observable<PressableInputEvent>()
+    readonly onPressableChange = new Observable<PressableInputEvent>()
+    readonly onThumbstickChange = new Observable<AxisInputEvent>()
+    readonly onNewtarget = new Observable<PointerInput>()
 
     private constructor(
         xrHelper: WebXRDefaultExperience,
@@ -59,29 +72,34 @@ export class InputManager {
     ){
         const im = this
         
+        // Link observers
+        for(const button of [im.x_button, im.y_button, im.a_button, im.b_button]) {
+            button.onChange.add((event) => im.on_button_change.notifyObservers(event))
+        }
+
+        for(const controller of [im.left, im.right]) {
+            controller._registerDocumentObserver(scene)
+            controller.thumbstick.on_change.add((event) => im.onThumbstickChange.notifyObservers(event))
+            controller.squeeze.onChange.add((event) => im.onSqueezeChange.notifyObservers(event))
+            controller.trigger.onChange.add((event) => im.onTriggerChange.notifyObservers(event))
+            controller.onPressableChange.add((event) => im.onPressableChange.notifyObservers(event))
+            controller.pointer.onNewTarget.add((event) => im.onNewtarget.notifyObservers(event))
+        }
+
+        // Register document observers
         for(const button of [im.x_button, im.y_button, im.a_button, im.b_button]) {
             button._registerDocumentObserver()
-            button.on_change.add((event) => im.on_button_change.notifyObservers(event))
         }
 
-        for(const pressable of [im.left_trigger, im.right_trigger, im.left_squeeze, im.right_squeeze]) {
-            pressable._registerDocumentObserver()
-            pressable.on_change.add((event) => im.on_pressable_change.notifyObservers(event))
+        for(const controller of [im.left, im.right]) {
+            controller._registerDocumentObserver(scene)
         }
 
-        for(const trigger of [im.left_trigger, im.right_trigger])
-            trigger.on_change.add((event) => im.on_trigger_change.notifyObservers(event))
+        this.screen._registerDocumentObserver(scene)
+        this.screen.pointer._registerMouseObserver(scene)
+        im.left.thumbstick._registerMouseWheelObserver()
 
-        for(const squeeze of [im.left_squeeze, im.right_squeeze])
-            squeeze.on_change.add((event) => im.on_squeeze_change.notifyObservers(event))
-        
-        for(const thumbstick of [im.left_thumbstick, im.right_thumbstick]) {
-            thumbstick._registerDocumentObserver()
-            thumbstick.on_change.add((event) => im.on_thumbstick_change.notifyObservers(event))
-        }
-        im.left_thumbstick._registerMouseWheelObserver()
-
-        //// Notify the observers with the controllers inputs ////
+        // Register XR observers
         function initController(controller: WebXRInputSource){
             controller.onMotionControllerInitObservable.addOnce(()=>{
                 const {motionController} = controller
@@ -91,48 +109,13 @@ export class InputManager {
                     button._registerXRObserver(motionController)
                 }
 
-                for(const pressable of [im.left_trigger, im.right_trigger, im.left_squeeze, im.right_squeeze]) {
-                    pressable._registerXRObserver(motionController)
-                }
-
-                for(const axis of [im.left_thumbstick, im.right_thumbstick]) {
-                    axis._registerXRObserver(motionController)
+                for(const cinput of [im.left, im.right]) {
+                    cinput._registerXRObserver(controller, scene)
                 }
                 
             })
         }
         xrHelper.input.onControllerAddedObservable.add(initController)
         xrHelper.input.controllers.forEach(initController)
-
-        //// Pointer movements ////
-        let last_mouse_movement = Date.now()
-        scene.onPointerObservable.add((event) => {
-            if(event.type !== PointerEventTypes.POINTERMOVE) return // Only handle pointer move events
-
-            // A pointer movement caused by the mouse will deactivate the XR controllers movements
-            if(!event.pickInfo?.originMesh) last_mouse_movement = Date.now()
-            else if(Date.now() - last_mouse_movement < 5000) return
-
-            let origin!: Vector3
-            let forward!: Vector3
-            let right!: Vector3
-            let up!: Vector3
-            if(event.pickInfo?.aimTransform){
-                origin = event.pickInfo.aimTransform.position.clone()
-                forward = event.pickInfo.aimTransform.forward.clone()
-                right = event.pickInfo.aimTransform.right.clone()
-                up = event.pickInfo.aimTransform.up.clone()
-            } else if(event.pickInfo?.ray) {
-                origin = event.pickInfo?.ray?.origin!!.clone()
-                forward = event.pickInfo?.ray?.direction?.normalizeToNew()!!
-                right = forward.cross(Vector3.Up()).negateInPlace().normalize()
-                up = right.cross(forward).scaleInPlace(-1).normalize()
-            }
-            const target = event.pickInfo?.pickedPoint ?? origin.add(forward.scale(5))
-
-            const pointer_event = {origin, forward, up, right, target}
-            this.current_pointer = pointer_event
-            if(event.pickInfo)this.pointer_move.notifyObservers(pointer_event)
-        })
     }
 }

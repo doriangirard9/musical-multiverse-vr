@@ -1,4 +1,5 @@
 import { Observable, WebXRAbstractMotionController } from "@babylonjs/core"
+import { ControllerInput } from "./ControllerInput"
 
 
 export interface AxisInputEvent{
@@ -86,7 +87,11 @@ export class AxisInput {
     }
 
 
-    constructor(readonly side: "left"|"right", readonly keys: [string,string,string,string]){}
+    constructor(
+        readonly controller: ControllerInput|null,
+        readonly side: "left"|"right"|"none",
+        readonly keys: [string,string,string,string]
+    ){}
 
     private state = {x:0, y:0, direction: null as "left"|"right"|"up"|"down"|null}
 

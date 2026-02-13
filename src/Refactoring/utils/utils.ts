@@ -1,3 +1,5 @@
+import { Node } from "@babylonjs/core";
+
 /**
  * Ajoute un timeout à une promesse
  * @param promise La promesse originale
@@ -42,4 +44,13 @@ export function withTimeout<T>(
  */
 export function parallel<T>(...promises: (() => Promise<T>)[]): Promise<T[]> {
     return Promise.all(promises.map(p => p()))
+}
+
+/**
+ * Associe la durée de vie d'un observer à celle d'un node.
+ * Quand le node est disposé, l'observer est automatiquement supprimé.
+ */
+export function usingWith<T extends Node>(node: T, observer: {remove():void}): T{
+    node.onDisposeObservable.addOnce(() => observer.remove())
+    return node
 }

@@ -14,6 +14,7 @@ export class N3DText{
         const plane = this.plane = CreatePlane(`${label} text plane`, { size: 1, width: 5 }, targets[0].getScene())
         plane.billboardMode = AbstractMesh.BILLBOARDMODE_ALL
         plane.setEnabled(false)
+        plane.isPickable = false
 
         const texture = this.texture = AdvancedDynamicTexture.CreateForMesh(plane, 1024, Math.floor(1024/5))
         

@@ -77,7 +77,7 @@ export class NewApp {
         this.controlsUI = new ControlsUI();
         
         // Setup X button to toggle controls UI
-        InputManager.getInstance().x_button.on_change.add((event) => {
+        InputManager.getInstance().x_button.onChange.add((event) => {
             if (event.pressed) {
                 this.controlsUI?.toggle();
             }
@@ -165,7 +165,7 @@ export class NewApp {
                     model.scaling.scaleInPlace(.6)
                     
                     let shop: N3DShop|null
-                    InputManager.getInstance().y_button.on_down.addOnce(async()=>{
+                    InputManager.getInstance().y_button.onDown.addOnce(async()=>{
                         if(shop){
                             shop.dispose()
                         }
