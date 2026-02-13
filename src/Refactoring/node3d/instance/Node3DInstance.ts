@@ -32,7 +32,7 @@ import { N3DButtonInstance } from "./N3DButtonInstance.ts";
 export class Node3DInstance implements Synchronized {
 
     static readonly SIZE_MULTIPLIER = .2
-    static readonly CONNECTION_SIZE_MULTIPLIER = .3
+    static readonly CONNECTION_SIZE_MULTIPLIER = .1
 
     constructor(
         private shared: N3DShared,
@@ -68,6 +68,7 @@ export class Node3DInstance implements Synchronized {
             babylon, tools, scene,
 
             materialLight: this.shared.materialLight,
+            materialTransparent: this.shared.materialTransparent,
             materialMat: this.shared.materialMat,
             materialMetal: this.shared.materialMetal,
             materialShiny: this.shared.materialShiny,

@@ -132,7 +132,7 @@ export class DrumPlateKitN3DGUI implements Node3DGUI {
         let width = countx / maxaxe
         let height = county / maxaxe
         let plateSize = 1 / maxaxe
-        this.worldSize = maxaxe * 4
+        this.worldSize = maxaxe
 
         // Root
         this.root = new B.TransformNode("hyperkeyboard root")

@@ -15,6 +15,7 @@ export class PositionCubeN3DGUI implements Node3DGUI {
     root!: TransformNode
 
     base!: AbstractMesh
+    cube!: AbstractMesh
     edges!: AbstractMesh
 
     axes!: AbstractMesh[]
@@ -39,6 +40,14 @@ export class PositionCubeN3DGUI implements Node3DGUI {
         this.base.material = context.materialMat
         this.base.parent = this.root
         this.base.position.set(0, -0.55, 0)
+
+        // Cube
+        this.cube = B.CreateBox("position_cube_cube", {width:1, height:1, depth:1}, context.scene)
+        this.cube.hasVertexAlpha = true
+        this.cube.material = context.materialTransparent
+        this.cube.parent = this.root
+        this.cube.isPickable = false
+        this.cube.position.set(0, 0, 0)
 
         // Box segments
         this.edges = this.createCubeEdge(1, 1, 1)
@@ -80,6 +89,8 @@ export class PositionCubeN3DGUI implements Node3DGUI {
             createOutput("position_output_y", new Vector3(.55, -.5, 0), new Color4(0, 0.6, 0, 1)), // Y
             createOutput("position_output_z", new Vector3(.55, -.5, 0.25), new Color4(0, 0, 0.6, 1))  // Z
         ]
+
+        this.set(.5,.5,.5)
     }
 
     private line(base: Vector3, direction: Vector3) {
@@ -124,6 +135,7 @@ export class PositionCubeN3DGUI implements Node3DGUI {
         const color = new B.Color4(x, y, z, 1)
         T.MeshUtils.setColor(this.point, color)
         T.MeshUtils.setColor(this.edges, color)
+        T.MeshUtils.setColor(this.cube, new B.Color4(x, y, z, .25))
     }
 
     localize(target: Vector3): boolean{

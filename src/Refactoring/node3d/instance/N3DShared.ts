@@ -3,6 +3,7 @@ import * as tools from "../tools"
 import * as babylonjs from "@babylonjs/core"
 import { UIManager } from "../../app/UIManager";
 import { N3DMenuManager } from "./utils/N3DMenuManager";
+import noiseTexture from "./utils/noise.png?url"
 
 export class N3DShared{
 
@@ -40,6 +41,23 @@ export class N3DShared{
     readonly materialLight = (()=>{
         const mat = new StandardMaterial("node3d shared material light")
         mat.emissiveColor = Color3.White()
+        return mat
+    })()
+
+    readonly materialTransparent = (()=>{
+        const noise = new babylonjs.Texture(noiseTexture, this.scene, {
+            noMipmap:true,
+            format:babylonjs.Engine.TEXTUREFORMAT_LUMINANCE,
+            samplingMode: babylonjs.Texture.NEAREST_NEAREST
+        })
+        noise.hasAlpha = true
+        noise.getAlphaFromRGB = true
+        const mat = new StandardMaterial("node3d shared material transparent")
+        mat.opacityTexture = noise
+        mat.alphaCutOff= .2
+        mat.transparencyMode = babylonjs.Material.MATERIAL_ALPHATEST
+        mat.specularColor = Color3.Black()
+        mat.backFaceCulling = false
         return mat
     })()
 

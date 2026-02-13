@@ -35,6 +35,9 @@ export interface Node3DGUIContext{
     /** Shared material with a white emissive color */
     readonly materialLight: BABYLON.StandardMaterial
 
+    /** Shared material with dithered transparency */
+    readonly materialTransparent: BABYLON.StandardMaterial
+
 
     /**
      * Ajoute un effet de surbrillance autour d'un objet.

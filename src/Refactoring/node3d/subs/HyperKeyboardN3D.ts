@@ -18,7 +18,7 @@ export class HyperKeyboardN3DGUI implements Node3DGUI {
 
     outputs!: AbstractMesh[]
 
-    get worldSize() { return Math.max(this.factory.x, this.factory.y, this.factory.z) }
+    get worldSize() { return Math.max(this.factory.x, this.factory.y, this.factory.z)/2 }
 
     constructor(
         public factory: HyperKeyboardN3DFactory
