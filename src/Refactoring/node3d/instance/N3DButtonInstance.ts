@@ -1,4 +1,4 @@
-import { ActionManager, Behavior, ExecuteCodeAction, HighlightLayer, TransformNode } from "@babylonjs/core"
+import { ActionManager, Behavior, ExecuteCodeAction, HighlightLayer, TransformNode, UtilityLayerRenderer } from "@babylonjs/core"
 import { Node3DButton } from "../Node3DButton"
 import { NodeCompUtils } from "../tools/utils/NodeCompUtils"
 import { N3DText } from "./utils/N3DText"
@@ -26,13 +26,14 @@ export class N3DButtonInstance {
     constructor(
         root: TransformNode,
         highlightLayer: HighlightLayer,
+        utilityLayer: UtilityLayerRenderer,
         readonly config: Node3DButton,
     ) {
         const {meshes} = config
 
         /* Parameter value text visual */
         // Gère l'affichage du texte de la valeur du paramètre
-        const text = this.text = new N3DText(`button ${config.id}`, config.meshes)
+        const text = this.text = new N3DText(`button ${config.id}`, config.meshes, utilityLayer.utilityLayerScene)
         /* */
 
 

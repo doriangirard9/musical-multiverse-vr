@@ -1,4 +1,4 @@
-import { ActionManager, Color3, ExecuteCodeAction, HighlightLayer, PickingInfo, SixDofDragBehavior, TransformNode, Vector3 } from "@babylonjs/core"
+import { ActionManager, Color3, ExecuteCodeAction, HighlightLayer, PickingInfo, SixDofDragBehavior, TransformNode, UtilityLayerRenderer, Vector3 } from "@babylonjs/core"
 import { NodeCompUtils } from "../tools/utils/NodeCompUtils"
 import { Node3DParameter } from "../Node3DParameter"
 import { N3DText } from "./utils/N3DText"
@@ -26,13 +26,14 @@ export class N3DParameterInstance {
     constructor(
         root: TransformNode,
         highlightLayer: HighlightLayer,
+        utilityLayer: UtilityLayerRenderer,
         readonly config: Node3DParameter,
     ) {
         const {getLabel, getStepCount, getValue, setValue, stringify, meshes:draggables} = config
 
         /* Parameter value text visual */
         // Gère l'affichage du texte de la valeur du paramètre
-        const text = this.text = new N3DText(`parameter ${config.id}`, config.meshes)
+        const text = this.text = new N3DText(`parameter ${config.id}`, config.meshes, utilityLayer.utilityLayerScene)
         /* */
 
 

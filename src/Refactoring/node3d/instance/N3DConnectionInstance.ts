@@ -1,4 +1,4 @@
-import { AbstractMesh, Color3, CreateCylinder, Observer, Quaternion, Scene, Vector3 } from "@babylonjs/core"
+import { AbstractMesh, Color3, CreateCylinder, Observer, Quaternion, Scene, UtilityLayerRenderer, Vector3 } from "@babylonjs/core"
 import { SyncManager } from "../../network/sync/SyncManager"
 import { N3DConnectableInstance } from "./N3DConnectableInstance"
 import { Node3DInstance } from "./Node3DInstance"
@@ -25,7 +25,7 @@ export class N3DConnectionInstance{
         private scene: Scene,
         private nodes: SyncManager<Node3DInstance,any>,
         private connections: SyncManager<N3DConnectionInstance,any>,
-        private messages: UIManager
+        private messages: UIManager,
     ){
         this.tube = CreateCylinder("connection tube",{
             height: 1,

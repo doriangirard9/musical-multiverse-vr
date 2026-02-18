@@ -1,5 +1,7 @@
-import { AbstractMesh, CreatePlane } from "@babylonjs/core";
+import { AbstractMesh, CreatePlane, Scene } from "@babylonjs/core";
 import { AdvancedDynamicTexture, TextBlock } from "@babylonjs/gui";
+
+const TEXT_SCALE = .5
 
 /**
  * A simple text display used for parameters and buttons.
@@ -10,8 +12,8 @@ export class N3DText{
     block
     texture
 
-    constructor(label:string, private targets: AbstractMesh[]){
-        const plane = this.plane = CreatePlane(`${label} text plane`, { size: 1, width: 5 }, targets[0].getScene())
+    constructor(label:string, private targets: AbstractMesh[], scene: Scene) {
+        const plane = this.plane = CreatePlane(`${label} text plane`, { size: 1*TEXT_SCALE, width: 5*TEXT_SCALE }, scene)
         plane.billboardMode = AbstractMesh.BILLBOARDMODE_ALL
         plane.setEnabled(false)
         plane.isPickable = false

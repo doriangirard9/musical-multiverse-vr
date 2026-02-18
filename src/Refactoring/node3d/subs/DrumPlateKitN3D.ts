@@ -340,7 +340,7 @@ export class DrumPlateKitN3DFactory implements Node3DFactory<DrumPlateKitN3DGUI,
         console.assert(count >= 1, "Plate count must at least 1")
     }
 
-    tags = ["drumkit", "midi", "automation", "generator", "live_instrument"]
+    tags = ["drumkit", "midi", "automation", "generator", "live_instrument", "controller"]
 
     async createGUI(context: Node3DGUIContext) {
         const ret = new DrumPlateKitN3DGUI(this)

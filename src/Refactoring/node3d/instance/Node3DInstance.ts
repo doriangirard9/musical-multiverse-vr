@@ -6,7 +6,8 @@ import {
     MeshBuilder,
 
     Vector3,
-    Quaternion, Color3
+    Quaternion, Color3,
+    UtilityLayerRenderer
 } from "@babylonjs/core";
 import { Node3DConnectable } from "../Node3DConnectable";
 import { Node3DParameter } from "../Node3DParameter";
@@ -50,7 +51,7 @@ export class Node3DInstance implements Synchronized {
     public on_dispose = () => { }
 
     async instantiate() {
-        const { scene, highlightLayer, babylon, tools } = this.shared
+        const { scene, highlightLayer, utilityLayer, babylon, tools } = this.shared
 
         const instance = this
         const label = this.node_factory.label
@@ -96,7 +97,7 @@ export class Node3DInstance implements Synchronized {
 
             // Les paramètres draggables
             createParameter(info: Node3DParameter) {
-                const param = new N3DParameterInstance(instance.root_transform, highlightLayer, info)
+                const param = new N3DParameterInstance(instance.root_transform, highlightLayer, utilityLayer, info)
                 instance.parameters.set(info.id, param)
                 const connectableinfo = new AutomationN3DConnectable.Input(
                     `${info.id}_connectable`,
@@ -110,7 +111,7 @@ export class Node3DInstance implements Synchronized {
                         lock(isLocked) { },
                     },
                 )
-                const connectable = new N3DConnectableInstance(instance, connectableinfo, highlightLayer, IOEventBus.getInstance(), true, false)
+                const connectable = new N3DConnectableInstance(instance, connectableinfo, highlightLayer, utilityLayer, IOEventBus.getInstance(), true, false)
                 instance.connectables.set(connectableinfo.id, connectable)
             },
             removeParameter(id: Node3DParameter["id"]) {
@@ -121,7 +122,7 @@ export class Node3DInstance implements Synchronized {
 
             // Les outputs et inputs que l'on peut connecter
             createConnectable(info: Node3DConnectable) {
-                const connectable = new N3DConnectableInstance(instance, info, highlightLayer, IOEventBus.getInstance())
+                const connectable = new N3DConnectableInstance(instance, info, highlightLayer, utilityLayer, IOEventBus.getInstance())
                 instance.connectables.set(info.id, connectable)
             },
             removeConnectable(id: Node3DConnectable["id"]) {
@@ -130,7 +131,7 @@ export class Node3DInstance implements Synchronized {
             },
 
             createButton(info) {
-                const button = new N3DButtonInstance(instance.root_transform, highlightLayer, info)
+                const button = new N3DButtonInstance(instance.root_transform, highlightLayer, utilityLayer, info)
                 instance.buttons.set(info.id, button)
             },
             removeButton(id) {

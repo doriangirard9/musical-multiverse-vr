@@ -1,4 +1,4 @@
-import { ActionManager, ExecuteCodeAction, HighlightLayer } from "@babylonjs/core";
+import { ActionManager, ExecuteCodeAction, HighlightLayer, UtilityLayerRenderer } from "@babylonjs/core";
 import { NodeCompUtils } from "../tools/utils/NodeCompUtils";
 import { Node3DConnectable } from "../Node3DConnectable";
 import { Node3DInstance } from "./Node3DInstance";
@@ -29,6 +29,7 @@ export class N3DConnectableInstance {
         readonly instance: Node3DInstance,
         readonly config: Node3DConnectable,
         highlightLayer: HighlightLayer,
+        utilityLayer: UtilityLayerRenderer,
         ioEventBus: IOEventBus,
         targetOnly: boolean = false,
         hoveringHelp: boolean = true
@@ -41,7 +42,7 @@ export class N3DConnectableInstance {
 
         const connectable = this
 
-        const text = new N3DText(`text ${config.id}`, config.meshes)
+        const text = new N3DText(`text ${config.id}`, config.meshes, utilityLayer.utilityLayerScene)
         text.set(config.label)
 
         function hover(){

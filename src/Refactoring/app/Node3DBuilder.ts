@@ -18,6 +18,7 @@ import { HyperKeyboardN3DFactory } from "../node3d/subs/HyperKeyboardN3D.ts";
 import { DrumPlateKitN3DFactory } from "../node3d/subs/DrumPlateKitN3D.ts";
 import { AutomationControllerN3DFactory } from "../node3d/subs/AutomationControllerN3D.ts";
 import { PositionCubeN3DFactory } from "../node3d/subs/PositionCubeN3D.ts";
+import { HarpN3DFactory } from "../node3d/subs/HarpN3D.ts";
 
 
 
@@ -31,7 +32,7 @@ export class Node3DBuilder {
      */
     FACTORY_KINDS = [
         "audiooutput", "oscillator", "maracas", "livepiano", "notesbox","pianoroll", "drumkit", "pro54michel",
-        "hyperkeyboard", "drumplatekit", "automation_controller", "the_cube",
+        "hyperkeyboard", "drumplatekit", "automation_controller", "the_cube", "harp", "large_harp",
         ...Object.keys(examples).map(k => `wam3d-${k}`),
     ]
 
@@ -68,6 +69,8 @@ export class Node3DBuilder {
         if(kind=="drumplatekit") return DrumPlateKitN3DFactory.SMALL
         if(kind=="automation_controller") return AutomationControllerN3DFactory
         if(kind=="the_cube") return PositionCubeN3DFactory.DEFAULT
+        if(kind=="harp") return HarpN3DFactory.DEFAULT
+        if(kind=="large_harp") return HarpN3DFactory.LARGE
 
         // Wam3DGenerator examples
         if(kind.startsWith("wam3d-")) {

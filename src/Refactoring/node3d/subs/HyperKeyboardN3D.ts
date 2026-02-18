@@ -195,10 +195,6 @@ export class HyperKeyboardN3D implements Node3D {
         context.addToBoundingBox(gui.base)
 
         // Keys
-        this.observers.push(inputs.onTriggerChange.add(({ pressed }) => {
-            this.set(this.x, this.y, this.z, pressed)
-        }))
-
         gui.forKeys((x, y, z, key) => {
             const hover = new InputHoverBehavior(
                 () =>  this.setHighlighted(x, y, z, true),
@@ -264,7 +260,7 @@ export class HyperKeyboardN3DFactory implements Node3DFactory<HyperKeyboardN3DGU
         public description: string,
     ) { }
 
-    tags = ["hyperkeyboard", "keyboard", "midi", "generator", "live_instrument", "drag"]
+    tags = ["hyperkeyboard", "keyboard", "midi", "generator", "live_instrument", "automation", "controller"]
 
     async createGUI(context: Node3DGUIContext) {
         const ret = new HyperKeyboardN3DGUI(this)

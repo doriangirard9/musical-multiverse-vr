@@ -13,10 +13,14 @@ export class N3DShared{
         readonly audioContext: AudioContext,
         readonly audioEngine: babylonjs.AudioEngineV2,
         readonly groupId: string,
-    ){}
+    ){
+        this.utilityLayer = new babylonjs.UtilityLayerRenderer(this.scene)
+    }
 
 
     readonly highlightLayer = new HighlightLayer(`node3D highlight layer`, this.scene, {renderingGroupId:0})
+
+    readonly utilityLayer
  
     readonly materialMat = (()=>{
         const mat = new StandardMaterial("node3d shared material mat")
