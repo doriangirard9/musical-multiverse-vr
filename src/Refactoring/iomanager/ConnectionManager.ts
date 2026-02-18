@@ -6,7 +6,6 @@ import { N3DConnectionInstance } from "../node3d/instance/N3DConnectionInstance.
 import { SceneManager } from "../app/SceneManager.ts";
 import { UIManager } from "../app/UIManager.ts";
 import { VisualTube } from "../visual/VisualTube.ts";
-import { InputManager } from "../xr/inputs/InputManager.ts";
 
 export class ConnectionManager {
     private static readonly DEBUG_LOG = false;
@@ -47,11 +46,10 @@ export class ConnectionManager {
     private _cancelAndResetConnection(): void {
         this.disposePreview?.()
         this.disposePreview = null
-        this.currentPort = null
     }
 
     private connectHandler(data: IOEventPayload['IO_CONNECT']) {
-        const {pickType} = data
+        const {pickType,pointer} = data
 
         if (ConnectionManager.DEBUG_LOG) console.log(`[IOManager] Pick type: ${pickType} | ${data}`)
         switch (pickType) {
@@ -64,12 +62,12 @@ export class ConnectionManager {
                 })
                 tube.setColor(this.currentPort!!.config.color.toColor4(1))
                 NetworkManager.getInstance().visual.tubes.add(RandomUtils.randomID(), tube)
-                const o = InputManager.getInstance().pointer_move.add((event)=>{
-                    const pos = event.target
+                const o = pointer.onMove.add((event)=>{
+                    const pos = event.hit ? event.target : event.origin.add(event.forward)
                     tube.move(this.currentPort!!.config.meshes[0].absolutePosition, pos)
                 })
                 this.disposePreview = () => {
-                    InputManager.getInstance().pointer_move.remove(o)
+                    pointer.onMove.remove(o)
                     tube.dispose()
                 }
                 break

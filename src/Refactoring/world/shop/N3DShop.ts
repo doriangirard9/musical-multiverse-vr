@@ -81,7 +81,6 @@ export class N3DShop {
                     .replace(/(?<=[,{]\s*)([a-z0-9A-Z_]+)(?=\s*[,}])/g,'"$1":true') // Relaxed boolean without value
 
                 const options = {...(JSON.parse(realJson) as any), ...(forcedOption[type]??{})}
-                console.log(options, forcedOption[type], type)
                 
                 
                 const zone = options.zone ?? "default"

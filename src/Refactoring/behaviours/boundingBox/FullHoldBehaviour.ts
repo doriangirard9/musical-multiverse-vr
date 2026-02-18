@@ -2,6 +2,7 @@ import { Behavior, TransformNode } from "@babylonjs/core";
 import { InputManager } from "../../xr/inputs/InputManager";
 import { MoveHoldBehaviour } from "./MoveHoldBehaviour";
 import { RotateHoldBehaviour } from "./RotateHoldBehaviour";
+import { PointerInput } from "../../xr/inputs/PointerInput";
 
 /**
  * A mix of MoveHoldBehaviour and RotateHoldBehaviour.
@@ -21,27 +22,25 @@ export class FullHoldBehaviour implements Behavior<TransformNode> {
     on_move: () => void = () => {}
     on_rotate: () => void = () => {}
 
-    constructor(){}
+    constructor(readonly pointer: PointerInput){}
 
     private target!: TransformNode
     private disposables: {remove():void}[] = []
 
     init(): void {}
 
-
     attach(target: TransformNode): void {
         this.target = target
 
-        const inputs = InputManager.getInstance()
-
         // Switch mode
-        this.rotate = inputs.right_squeeze.isPressed()
+        this.rotate = this.pointer.controller.squeeze.isPressed()
         this.disposables.push(
-            inputs.right_squeeze.on_down.add(()=>{
+            this.pointer.controller.squeeze.onDown.add(()=>{
                 this.rotate = true
+                console.log("Squeeze down, rotate mode")
                 this.update()
             }),
-            inputs.right_squeeze.on_up.add(()=>{
+            this.pointer.controller.squeeze.onUp.add(()=>{
                 this.rotate = false
                 this.update()
             }),
@@ -67,7 +66,7 @@ export class FullHoldBehaviour implements Behavior<TransformNode> {
         if(this.rotate){
             if(!this.holdBehavior || !(this.holdBehavior instanceof RotateHoldBehaviour)){
                 if(this.holdBehavior) this.target.removeBehavior(this.holdBehavior)
-                this.holdBehavior = new RotateHoldBehaviour()
+                this.holdBehavior = new RotateHoldBehaviour(this.pointer)
                 this.holdBehavior.on_rotate = ()=> this.on_rotate()
                 this.target.addBehavior(this.holdBehavior)
             }
@@ -76,7 +75,7 @@ export class FullHoldBehaviour implements Behavior<TransformNode> {
         else {
             if(!this.holdBehavior || !(this.holdBehavior instanceof MoveHoldBehaviour)){
                 if(this.holdBehavior) this.target.removeBehavior(this.holdBehavior)
-                this.holdBehavior = new MoveHoldBehaviour()
+                this.holdBehavior = new MoveHoldBehaviour(this.pointer)
                 this.holdBehavior.on_move = ()=> this.on_move()
                 this.target.addBehavior(this.holdBehavior)
             }

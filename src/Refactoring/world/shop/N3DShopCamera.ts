@@ -49,13 +49,13 @@ export class N3DShopCamera implements N3DShopType {
                     }
                 })
             })
-            shop.inputs.left_thumbstick.on_left_down.add(()=>{
+            shop.inputs.left.thumbstick.on_left_down.add(()=>{
                 this.animation = this.animation.then(async()=>{
                     if(this.selected!=-1) await this.switch(-1)
                 })
                 
             })
-            shop.inputs.left_thumbstick.on_right_down.add(()=>{
+            shop.inputs.left.thumbstick.on_right_down.add(()=>{
                 this.animation = this.animation.then(async()=>{
                     if(this.selected!=-1) await this.switch(1)
                 })

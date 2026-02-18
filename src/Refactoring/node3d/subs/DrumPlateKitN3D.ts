@@ -274,28 +274,28 @@ export class DrumPlateKitN3D implements Node3D {
         context.addToBoundingBox(gui.base)
 
         // Hit
-        var wasInside = false
-        const position = new Vector3()
-        const before = new Vector3()
-        this.observers.push(inputs.pointer_move.add(e => {
-            position.copyFrom(e.origin)
-            const aabb = gui.root.getHierarchyBoundingVectors()
-            const isInside = aabb.min.x <= position.x && position.x <= aabb.max.x &&
-                aabb.min.y <= position.y && position.y <= aabb.max.y &&
-                aabb.min.z <= position.z && position.z <= aabb.max.z
+        for(const controller of inputs.controllers){
+            var wasInside = false
+            const position = new Vector3()
+            const before = new Vector3()
+            this.observers.push(controller.pointer.onMove.add(e => {
+                position.copyFrom(e.origin)
+                const aabb = gui.root.getHierarchyBoundingVectors()
+                const isInside = aabb.min.x <= position.x && position.x <= aabb.max.x &&
+                    aabb.min.y <= position.y && position.y <= aabb.max.y &&
+                    aabb.min.z <= position.z && position.z <= aabb.max.z
 
-            if (!wasInside && isInside) T.MeshUtils.setColor(gui.base, new Color4(0, 1, 0, 1))
-            else if (wasInside && !isInside) T.MeshUtils.setColor(gui.base, new Color4(1, 0, 0, 1))
-
-            if (isInside) {
-                for (const plate of this.plates) {
-                    plate.move(this, before, position)
+                if (isInside) {
+                    for (const plate of this.plates) {
+                        plate.move(this, before, position)
+                    }
                 }
-            }
 
-            wasInside = isInside
-            before.copyFrom(position)
-        }))
+                wasInside = isInside
+                before.copyFrom(position)
+            }))
+        }
+        
 
         // Outputs
         this.output = new T.MidiN3DConnectable.ListOutput(
@@ -315,22 +315,6 @@ export class DrumPlateKitN3D implements Node3D {
 
         // Plates
         this.plates = gui.plates.map((plate, i) => new PlateBehaviour(gui, this, context, i, plate, 60 + i))
-
-        /*
-                // Keys
-                this.observers.push(inputs.on_trigger_change.add(({pressed})=>{
-                    this.set(this.x, this.y, this.z, pressed)
-                }))
-        
-                gui.forKeys((x,y,z,key)=>{
-                    const actions = key.actionManager = new B.ActionManager(scene)
-                    actions.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPointerOverTrigger, ()=>{
-                        this.set(x,y,z, this.isPressed)
-                    }))
-                    actions.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPointerOutTrigger, ()=>{
-                        this.set(-1,-1,-1, this.isPressed)
-                    }))
-                })*/
     }
 
     async setState(key: string, value: any) { }

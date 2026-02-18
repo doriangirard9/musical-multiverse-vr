@@ -4,6 +4,10 @@ import { Node3DConnectable } from "../Node3DConnectable";
 import { Node3DInstance } from "./Node3DInstance";
 import { IOEventBus } from "../../eventBus/IOEventBus";
 import { N3DConnectionInstance } from "./N3DConnectionInstance";
+import { InputHoverBehavior } from "../../xr/inputs/tools/InputHoverBehavior";
+import { InputGrabBehavior } from "../../xr/inputs/tools/InputGrabBehavior";
+import { PointerInput } from "../../xr/inputs/PointerInput";
+import { InputDropBehavior } from "../../xr/inputs/tools/InputDropBehavior";
 
 /**
  * A simple connection node that is used to connect to other nodes.
@@ -50,44 +54,44 @@ export class N3DConnectableInstance {
             }
         }
 
-        function onleftpick(){
-            ioEventBus.emit('IO_CONNECT', { pickType : "down", connectable })
+        function onpickdown(pointer: PointerInput){
+            ioEventBus.emit('IO_CONNECT', { pickType : "down", connectable, pointer })
         }
 
-        function onpickup(){
-            ioEventBus.emit('IO_CONNECT', { pickType : "up", connectable })
+        function onpickup(pointer: PointerInput){
+            ioEventBus.emit('IO_CONNECT', { pickType : "up", connectable, pointer })
         }
 
-        function onpickout(){
-            ioEventBus.emit('IO_CONNECT', { pickType : "out", connectable })
+        function onpickout(pointer: PointerInput){
+            ioEventBus.emit('IO_CONNECT', { pickType : "out", connectable, pointer })
         }
 
         for(const mesh of meshes) {
-            const action = mesh.actionManager ??= new ActionManager(mesh.getScene())
-        
-            const _onpickup = action.registerAction(new ExecuteCodeAction(ActionManager.OnPickUpTrigger, onpickup))!!
-
-            disposes.push(() => {
-                action.unregisterAction(_onpickup)
-                unhover()
-            })
-            
             if(!targetOnly){
-                const _onleftpick = action.registerAction(new ExecuteCodeAction(ActionManager.OnLeftPickTrigger, onleftpick))!!
-                const _onpickout = action.registerAction(new ExecuteCodeAction(ActionManager.OnPickOutTrigger, onpickout))!!
+                const grab = new InputGrabBehavior(
+                    pointer => onpickdown(pointer),
+                    pointer => {
+                        onpickout(pointer)
+                    },
+                )
+
+                const drop = new InputDropBehavior((pointer)=>{
+                    console.log("drop", config.label)
+                    onpickup(pointer)
+                })
+
+                mesh.addBehavior(grab).addBehavior(drop)
+
                 disposes.push(()=>{
-                    action.unregisterAction(_onleftpick)
-                    action.unregisterAction(_onpickout)
+                    mesh.removeBehavior(grab).removeBehavior(drop)
                 })
             }
 
             if(hoveringHelp){
-                const _onover = action.registerAction(new ExecuteCodeAction(ActionManager.OnPointerOverTrigger, hover))!!
-                const _onout = action.registerAction(new ExecuteCodeAction(ActionManager.OnPointerOutTrigger, unhover))!!
+                const hoverb = new InputHoverBehavior(hover, unhover)
+                mesh.addBehavior(hoverb)
                 disposes.push(() => {
-                    action.unregisterAction(_onover)
-                    action.unregisterAction(_onout)
-                    unhover()
+                    mesh.removeBehavior(hoverb)
                 })
             }
             

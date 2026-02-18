@@ -4,7 +4,9 @@ import { PressableInput, PressableInputEvent } from "./PressableInput";
 import { AxisInput } from "./AxisInput";
 
 
-
+/**
+ * Class representing the inputs of a controller. It provides access to the pointer, trigger, squeeze and thumbstick inputs of the controller.
+ */
 export class ControllerInput {
 
 
@@ -26,16 +28,11 @@ export class ControllerInput {
     constructor(
         /** The side of the controller. Can be "left" or "right". */
         readonly side: "left"|"right"|"none",
-        private keys: {
-            trigger: string,
-            squeeze: string,
-            thumbstick: [string, string, string, string],
-        }
     ){
         this.pointer = new PointerInput(this)
-        this.trigger = new PressableInput(this, "xr-standard-trigger", this.side, this.keys.trigger)
-        this.squeeze = new PressableInput(this, "xr-standard-squeeze", this.side, this.keys.squeeze)
-        this.thumbstick = new AxisInput(this, this.side, this.keys.thumbstick)
+        this.trigger = new PressableInput(this, "xr-standard-trigger", this.side)
+        this.squeeze = new PressableInput(this, "xr-standard-squeeze", this.side)
+        this.thumbstick = new AxisInput(this, this.side)
 
         for(const pressable of [this.trigger, this.squeeze]) {
             pressable.onChange.add((event) => this.onPressableChange.notifyObservers(event))
@@ -57,17 +54,26 @@ export class ControllerInput {
         }
     }
 
-    _registerDocumentObserver(scene: Scene): { remove(): void } {
-        const observers = [
-            this.trigger._registerDocumentObserver(),
-            this.squeeze._registerDocumentObserver(),
-            this.thumbstick._registerDocumentObserver(),
-        ]
+    _registerDocumentObserver(
+        scene: Scene,
+        trigger: string|number|null = null,
+        squeeze: string|number|null = null,
+        thumbstick: [string,string,string,string]|null = null,
+        thumbstickScroll = false,
+        pointerMovement = false,
+    ): { remove(): void } {
+        const observers: {remove(): void}[] = []
+        if(trigger!=null) observers.push(this.trigger._registerDocumentObserver(trigger))
+        if(squeeze!=null) observers.push(this.squeeze._registerDocumentObserver(squeeze))
+        if(thumbstick!=null) observers.push(this.thumbstick._registerKeyObserver(...thumbstick))
+        if(thumbstickScroll) observers.push(this.thumbstick._registerMouseWheelObserver())
+        if(pointerMovement) observers.push(this.pointer._registerMouseObserver(scene))
         return {
             remove() {
                 observers.forEach(o => o.remove())
             }
         }   
     }
+    
 
 }

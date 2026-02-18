@@ -82,11 +82,9 @@ export class PressableInput {
 
 
     constructor(
-        readonly controller: ControllerInput|null,
+        readonly controller: ControllerInput,
         readonly name: "xr-standard-trigger"|"xr-standard-squeeze",
         readonly side: "none"|"left"|"right",
-        readonly key: string,
-        readonly mouseKey?: number,
     ){}
 
     private state = {value:0, is_pressed:false, is_touched:false}
@@ -96,15 +94,19 @@ export class PressableInput {
      * @param event 
      */
     _notify(event: PressableInputEvent){
-        this.onChange.notifyObservers(event)
-        if(event.pressed && !this.state.is_pressed) this.onDown.notifyObservers(event)
-        if(!event.pressed && this.state.is_pressed) this.onUp.notifyObservers(event)
-        if(event.touched && !this.state.is_touched) this.onTouch.notifyObservers(event)
-        if(!event.touched && this.state.is_touched) this.onUntouch.notifyObservers(event)
-        if(event.value !== this.state.value) { this.onValueChange.notifyObservers(event)}
+        const oldState = {...this.state}
+
         this.state.value = event.value
         this.state.is_pressed = event.pressed
         this.state.is_touched = event.touched
+
+        this.onChange.notifyObservers(event)
+        if(event.pressed && !oldState.is_pressed) this.onDown.notifyObservers(event)
+        if(!event.pressed && oldState.is_pressed) this.onUp.notifyObservers(event)
+        if(event.touched && !oldState.is_touched) this.onTouch.notifyObservers(event)
+        if(!event.touched && oldState.is_touched) this.onUntouch.notifyObservers(event)
+        if(event.value !== oldState.value) { this.onValueChange.notifyObservers(event)}
+        
     }
 
 
@@ -120,47 +122,25 @@ export class PressableInput {
             this._notify({ pressable: this, pressed, touched: event.touched, value: event.value || 0})
         })
     }
-
-    /**
-     * Make the button input state change on keyboard and mouse inputs
-     * @param inputSource 
-     */
-    _registerDocumentObserver(): {remove(): void} {
+    
+    _registerKeyObserver(key: string): {remove(): void} {
         let isPressed = false
 
-        // Handle keydown events
         const onkeydown = (event: KeyboardEvent) => {
-            if(event.repeat || event.key.toLocaleLowerCase()!=this.key) return
-            this._notify({ pressable: this, pressed:true, touched:this.state.is_touched, value: 1 })
-            isPressed = true
-        }
-        const onmousedown = (event: MouseEvent) => {
-            if(event.button !== this.mouseKey) return
+            if(event.repeat || event.key.toLocaleLowerCase()!=key) return
             this._notify({ pressable: this, pressed:true, touched:this.state.is_touched, value: 1 })
             isPressed = true
         }
         document.addEventListener("keydown", onkeydown)
-        document.addEventListener("pointerdown", onmousedown)
 
-
-        // Handle keyup events
         const onkeyup = (event: {key:string}) => {
-            if(event.key.toLocaleLowerCase()!=this.key) return
+            if(event.key.toLocaleLowerCase()!=key) return
             this._notify({ pressable: this, pressed:false, touched:this.state.is_touched, value: 0 })
             isPressed = false
         }
-        const onmouseup = (event: MouseEvent) => {
-            if(event.button !== this.mouseKey) return
-            this._notify({ pressable: this, pressed:false, touched:this.state.is_touched, value: 0 })
-            isPressed = false
-        }
-
         document.addEventListener("keyup", onkeyup)
-        document.addEventListener("pointerup", onmouseup)
 
-        // Call keydown on blur to ensure the button is released when the window loses focus
-        // This is useful to prevent the button from being stuck pressed when the user switches to another tab
-        const onblur = ()=>{ if(isPressed) onkeyup({key:this.key}) }
+        const onblur = ()=>{ if(isPressed) onkeyup({key:key}) }
         window.addEventListener("blur", onblur)
 
         return {
@@ -168,9 +148,48 @@ export class PressableInput {
                 document.removeEventListener("keydown", onkeydown)
                 document.removeEventListener("keyup", onkeyup)
                 window.removeEventListener("blur", onblur)
-            },
+            }
         }
     }
 
+    _registerMouseObserver(mouseKey: number): {remove(): void} {
+        let isPressed = false
+
+        const onmousedown = (event: MouseEvent) => {
+            if(event.button !== mouseKey) return
+            this._notify({ pressable: this, pressed:true, touched:this.state.is_touched, value: 1 })
+            isPressed = true
+        }
+
+        const onmouseup = (event: MouseEvent) => {
+            if(event.button !== mouseKey) return
+            this._notify({ pressable: this, pressed:false, touched:this.state.is_touched, value: 0 })
+            isPressed = false
+        }
+
+        const onblur = ()=>{
+            if(!isPressed) return
+            this._notify({ pressable: this, pressed:false, touched:this.state.is_touched, value: 0 })
+            isPressed = false
+        }
+
+
+        document.addEventListener("mousedown", onmousedown)
+        document.addEventListener("mouseup", onmouseup)
+        window.addEventListener("blur", onblur)
+
+        return {
+            remove() {
+                document.removeEventListener("mousedown", onmousedown)
+                document.removeEventListener("mouseup", onmouseup)
+                window.removeEventListener("blur", onblur)
+            }
+        }
+    }
+
+    _registerDocumentObserver(input: string|number): {remove(): void} {
+        if(typeof input === "string") return this._registerKeyObserver(input)
+        else return this._registerMouseObserver(input)
+    }
 
 }

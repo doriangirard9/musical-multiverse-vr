@@ -4,6 +4,9 @@ import type { Node3DContext } from "../Node3DContext";
 import type { Node3DGUIContext } from "../Node3DGUIContext";
 import { InputManager } from "../../xr/inputs/InputManager";
 import { AutomationN3DConnectable } from "../tools";
+import { InputMultiPressBehavior } from "../../xr/inputs/tools/InputMultiPressBehavior";
+import { ControllerInput } from "../../xr/inputs/ControllerInput";
+import { InputPressBehavior } from "../../xr/inputs/tools/InputPressBehavior";
 
 // Constantes pour l'espace normalisé 1x1x1
 const EDGE_THICKNESS = 0.01
@@ -39,18 +42,18 @@ export class PositionCubeN3DGUI implements Node3DGUI {
         this.base = B.CreateBox("position_cube_base", {width:1, height:0.1, depth:1}, context.scene)
         this.base.material = context.materialMat
         this.base.parent = this.root
-        this.base.position.set(0, -0.55, 0)
+        this.base.position.set(0, -0.6, 0)
 
         // Cube
         this.cube = B.CreateBox("position_cube_cube", {width:1, height:1, depth:1}, context.scene)
         this.cube.hasVertexAlpha = true
         this.cube.material = context.materialTransparent
         this.cube.parent = this.root
-        this.cube.isPickable = false
         this.cube.position.set(0, 0, 0)
 
         // Box segments
         this.edges = this.createCubeEdge(1, 1, 1)
+        this.edges.isPickable = false
         this.edges.material = context.materialMat
         this.edges.parent = this.root
         this.edges.position.set(0, 0, 0)
@@ -58,6 +61,7 @@ export class PositionCubeN3DGUI implements Node3DGUI {
         // Creates cursors axes
         function line(base: Vector3, direction: Vector3, color: Color4) {
             const mesh = that.line(base,direction)
+            mesh.isPickable = false
             T.MeshUtils.setColor(mesh, color)
             mesh.material = context.materialMat
             mesh.parent = that.root
@@ -72,6 +76,7 @@ export class PositionCubeN3DGUI implements Node3DGUI {
 
         // Create cursor point
         this.point = B.CreateSphere("position_cursor_point", { diameter: 0.05 }, context.scene)
+        this.point.isPickable = false
         this.point.material = context.materialMat
         this.point.parent = this.root
 
@@ -153,7 +158,7 @@ export class PositionCubeN3DGUI implements Node3DGUI {
 export class PositionCubeN3D implements Node3D {
 
     private outputs: InstanceType<(typeof AutomationN3DConnectable)["Output"]>[] = []
-    private observers: Observer<any>[] = []
+    private observers: {remove(): void}[] = []
 
     constructor(context: Node3DContext, private gui: PositionCubeN3DGUI) {
         const { tools: T } = context
@@ -177,16 +182,41 @@ export class PositionCubeN3D implements Node3D {
 
 
         // Détection de position (trigger requis)
-        this.observers.push(inputs.left.pointer.onMove.add(e => {
-            if(!inputs.left.trigger.isPressed() && !inputs.right.trigger.isPressed()) return
-            const position = e.origin.clone()
-            if(gui.localize(position)){
-                gui.set(position.x, position.y, position.z)
-                this.outputs[0].value = position.x
-                this.outputs[1].value = position.y
-                this.outputs[2].value = position.z
+        let firstController: ControllerInput | null = null
+        let lastObserver: Observer<any> | null = null
+        const press = new InputPressBehavior(
+            controller=>{
+                if(firstController==null){
+                    firstController = controller
+                    lastObserver = controller.pointer.onMove.add(e => {
+                        const position = e.origin.clone()
+                        if(gui.localize(position)){
+                            gui.set(position.x, position.y, position.z)
+                            this.outputs[0].value = position.x
+                            this.outputs[1].value = position.y
+                            this.outputs[2].value = position.z
+                        }
+                    })
+                }
+            },
+            controller=>{
+                if(controller===firstController){
+                    lastObserver?.remove()
+                    lastObserver = null
+                    firstController = null
+                }
             }
-        }))
+        )
+
+        gui.cube.addBehavior(press)
+
+        this.observers.push({
+            remove() {
+                gui.cube.removeBehavior(press)
+            }
+        })
+
+        this
     }
 
     async setState(key: string, value: any) { }

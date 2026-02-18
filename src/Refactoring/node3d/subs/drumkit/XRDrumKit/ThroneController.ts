@@ -1,15 +1,12 @@
 import { Vector3 } from "@babylonjs/core/Maths/math";
 import { WebXRDefaultExperience } from "@babylonjs/core/XR/webXRDefaultExperience";
-import { WebXRInputSource } from "@babylonjs/core/XR/webXRInputSource";
 import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import XRDrumKit from "./XRDrumKit";
 import { Scene } from "@babylonjs/core/scene";
 import { Quaternion } from "@babylonjs/core/Maths/math.vector";
 import { WebXRFeatureName } from "@babylonjs/core/XR/webXRFeaturesManager";
-import { WebXRAbstractMotionController } from "@babylonjs/core/XR/motionController/webXRAbstractMotionController";
 import { WebXRControllerComponent } from "@babylonjs/core/XR/motionController/webXRControllerComponent";
 import { InputManager } from "../../../../xr/inputs/InputManager";
-import { VisualRope, VisualRopeInfo } from "../../../../visual/VisualRope";
 
 /**
  * ThroneController - Manages sitting/standing at the drum throne
@@ -542,7 +539,7 @@ export class ThroneController {
     private handleHeightAdjustment(): void {
         const inputs = InputManager.getInstance();
         
-        const yAxis = -inputs.left_thumbstick.y
+        const yAxis = -inputs.left.thumbstick.y
         
         // Only adjust if there's meaningful input (deadzone)
         if (Math.abs(yAxis) > 0.1) {

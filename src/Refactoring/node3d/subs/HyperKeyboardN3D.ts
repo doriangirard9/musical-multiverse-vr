@@ -4,6 +4,8 @@ import type { Node3DContext } from "../Node3DContext";
 import type { Node3DGUIContext } from "../Node3DGUIContext";
 import { InputManager } from "../../xr/inputs/InputManager";
 import { AutomationN3DConnectable, MidiN3DConnectable } from "../tools";
+import { InputHoverBehavior } from "../../xr/inputs/tools/InputHoverBehavior";
+import { InputMultiPressBehavior } from "../../xr/inputs/tools/InputMultiPressBehavior";
 
 
 
@@ -120,34 +122,41 @@ export class HyperKeyboardN3DGUI implements Node3DGUI {
 
 export class HyperKeyboardN3D implements Node3D {
 
-    x: number = -1
-    y: number = -1
-    z: number = -1
-    isPressed: boolean = false
+    presseds: Set<string> = new Set()
+    hovereds: Set<string> = new Set()
+
+    updateVisual(x: number, y: number, z: number){
+        const id = `${x},${y},${z}`
+        if(this.presseds.has(id)) this.gui.skin(x, y, z, "pressed")
+        else if(this.hovereds.has(id)) this.gui.skin(x, y, z, "highlight")
+        else this.gui.skin(x, y, z, "default")
+    }
+
+    setHighlighted(x: number, y: number, z: number, isHighlighted: boolean) {
+        const id = `${x},${y},${z}`
+        if(isHighlighted) this.hovereds.add(id)
+        else this.hovereds.delete(id)
+        this.updateVisual(x, y, z)
+    }
 
     set(x: number, y: number, z: number, isPressed: boolean) {
-        if (this.x !== x || this.y !== y || this.z !== z) {
-            if (this.x != -1) {
-                this.gui.skin(this.x, this.y, this.z, "default")
-                if (this.isPressed) this.onUp(this.x, this.y, this.z)
-            }
-            if (x != -1) {
-                this.gui.skin(x, y, z, isPressed ? "pressed" : "highlight")
-                if (isPressed) this.onDown(x, y, z)
-            }
-        }
-        else {
-            if (this.isPressed !== isPressed && x != -1) {
-                this.gui.skin(x, y, z, isPressed ? "pressed" : "highlight")
-                if (isPressed) this.onDown(x, y, z)
-                else this.onUp(x, y, z)
-            }
+        const id = `${x},${y},${z}`
+        const wasPressed = this.presseds.has(id)
+
+        if(isPressed) this.presseds.add(id)
+        else this.presseds.delete(id)
+
+        // Send key down
+        if(isPressed && !wasPressed){
+            this.onDown(x, y, z)
         }
 
-        this.x = x
-        this.y = y
-        this.z = z
-        this.isPressed = isPressed
+        // Send key up
+        if (!isPressed && wasPressed) {
+            this.onUp(x, y, z)
+        }
+
+        this.updateVisual(x, y, z)
     }
 
     onDown(x: number, y: number, z: number) {
@@ -172,15 +181,14 @@ export class HyperKeyboardN3D implements Node3D {
         })
     }
 
-    private observers: Observer<any>[] = []
+    private observers: {remove():void}[] = []
 
     private output!: InstanceType<(typeof MidiN3DConnectable)["ListOutput"]>
 
     private automationOutputs: InstanceType<(typeof AutomationN3DConnectable)["Output"]>[] = []
 
     constructor(context: Node3DContext, private gui: HyperKeyboardN3DGUI) {
-        const { tools: T, audioCtx } = context
-        const { babylon: B, scene } = gui.context
+        const { tools: T } = context
         const inputs = InputManager.getInstance()
 
         // Hitbox
@@ -192,13 +200,23 @@ export class HyperKeyboardN3D implements Node3D {
         }))
 
         gui.forKeys((x, y, z, key) => {
-            const actions = key.actionManager = new B.ActionManager(scene)
-            actions.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPointerOverTrigger, () => {
-                this.set(x, y, z, this.isPressed)
-            }))
-            actions.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPointerOutTrigger, () => {
-                this.set(-1, -1, -1, this.isPressed)
-            }))
+            const hover = new InputHoverBehavior(
+                () =>  this.setHighlighted(x, y, z, true),
+                () => this.setHighlighted(x, y, z, false),
+            )
+
+            const press = new InputMultiPressBehavior(
+                () => this.set(x, y, z, true),
+                () => this.set(x, y, z, false),
+            )
+
+            key .addBehavior(hover) .addBehavior(press)
+
+            this.observers.push({
+                remove: () => {
+                    key .removeBehavior(hover) .removeBehavior(press)
+                }
+            })
         })
 
         // Outputs

@@ -3,7 +3,7 @@ import {XRManager} from "../xr/XRManager.ts";
 import {Node3dManager} from "./Node3dManager.ts";
 import {AppOrchestrator} from "./AppOrchestrator.ts";
 import ControlsUI from "./ControlsUI.ts";
-import {CreateAudioEngineAsync, CreateCylinder, CreatePlane, CreateSphere, ImportMeshAsync, InstancedMesh, Mesh, StandardMaterial, Vector2, Vector3} from "@babylonjs/core";
+import {CreateAudioEngineAsync, CreateCylinder, CreateIcoSphere, CreatePlane, CreateSphere, ImportMeshAsync, InstancedMesh, Mesh, StandardMaterial, Vector2, Vector3} from "@babylonjs/core";
 import {N3DShop, N3DShopOptions} from "../world/shop/N3DShop.ts";
 import { InputManager } from "../xr/inputs/InputManager.ts";
 import { parallel } from "../utils/utils.ts";
@@ -14,6 +14,11 @@ import { ConnectionManager } from "../iomanager/ConnectionManager.ts";
 import { N3DRendering } from "../node3d/instance/utils/N3DRendering.ts";
 import { VisualRope } from "../visual/VisualRope.ts";
 import { Node3DInstance } from "../node3d/instance/Node3DInstance.ts";
+import { InputHoverBehavior } from "../xr/inputs/tools/InputHoverBehavior.ts";
+import { InputVisualPointer } from "../xr/inputs/tools/InputVisualPointer.ts";
+import { InputGrabBehavior } from "../xr/inputs/tools/InputGrabBehavior.ts";
+import { InputMultiPressBehavior } from "../xr/inputs/tools/InputMultiPressBehavior.ts";
+import { InputPressBehavior } from "../xr/inputs/tools/InputPressBehavior.ts";
 export class NewApp {
     private static readonly DEBUG_LOG = false;
     private controlsUI?: ControlsUI;
@@ -110,6 +115,26 @@ export class NewApp {
                 a.click()
             }
         })
+
+        //// POINTERS ////
+        InputVisualPointer.CreateSimple(scene, InputManager.getInstance().left.pointer)
+        InputVisualPointer.CreateSimple(scene, InputManager.getInstance().right.pointer)
+
+
+        /// SPHERE ///
+        for(let i=0; i<10; i++){
+            const sphere = CreateSphere(`sphere${i}`, {diameter: .5}, scene)
+            sphere.position.set(Math.random()*4-2, Math.random()*2+1, Math.random()*4-2)
+            const press = new InputPressBehavior(
+                () => {
+                    sphere.scaling.set(1.5, 1.5, 1.5)
+                },
+                () => {
+                    sphere.scaling.set(1, 1, 1)
+                }
+            )
+            sphere.addBehavior(press)
+        }
 
         //// TESTS ////
         const node = await node3dBuilder.create("the_cube") as Node3DInstance

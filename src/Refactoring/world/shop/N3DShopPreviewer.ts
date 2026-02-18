@@ -25,7 +25,6 @@ export class N3DShopPreviewer implements N3DShopType {
                 // Filter
                 if(!options.unfiltered) kinds = kinds.filter(k=>!this.shown.has(k))
                 
-                console.log(options)
                 // Get one
                 let kind = null as string|null
                 if(kinds.length === 0) kind = null

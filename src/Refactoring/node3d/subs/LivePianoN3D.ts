@@ -102,6 +102,7 @@ export class LivePianoN3D implements Node3D{
                 label: NOTE_NAME[note%OCTAVE],
                 color: Color3.Blue(),
                 meshes: [mesh],
+                supportSwipe: true,
                 press() {
                     mesh.scaling.y = .6
                     output.connections.forEach(conn => {

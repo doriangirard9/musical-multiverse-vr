@@ -90,7 +90,6 @@ export class AxisInput {
     constructor(
         readonly controller: ControllerInput|null,
         readonly side: "left"|"right"|"none",
-        readonly keys: [string,string,string,string]
     ){}
 
     private state = {x:0, y:0, direction: null as "left"|"right"|"up"|"down"|null}
@@ -153,9 +152,10 @@ export class AxisInput {
      * Make the button input state change on keyboard and mouse inputs
      * @param inputSource 
      */
-    _registerDocumentObserver(): {remove(): void} {
+    _registerKeyObserver(left: string, right: string, up: string, down: string): {remove(): void} {
         const im = this
         
+        let keys = [left, right, up, down].map(k => k.toLocaleLowerCase())
         let presseds = [false, false, false, false]
 
         function updateState() {
@@ -171,7 +171,7 @@ export class AxisInput {
         // Handle keydown events
         const onkeydown = (event: KeyboardEvent) => {
             if(event.repeat) return
-            const keyIndex = this.keys.indexOf(event.key.toLocaleLowerCase())
+            const keyIndex = keys.indexOf(event.key.toLocaleLowerCase())
             if(keyIndex === -1) return
 
             presseds[keyIndex] = true
@@ -182,7 +182,7 @@ export class AxisInput {
 
         // Handle keyup events
         const onkeyup = (event: {key:string}) => {
-            const keyIndex = this.keys.indexOf(event.key.toLocaleLowerCase())
+            const keyIndex = keys.indexOf(event.key.toLocaleLowerCase())
             if(keyIndex === -1) return
 
             presseds[keyIndex] = false

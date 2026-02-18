@@ -1355,7 +1355,7 @@ export class PianoRollN3D implements Node3D {
     
 
 // Right grip (squeeze) acts like holding "A" for long-note editing
-InputManager.getInstance().right_squeeze.on_change.add((event) => {
+InputManager.getInstance().right.squeeze.on_change.add((event) => {
   const active = (event.value ?? 0) > 0 || !!event.pressed; // optional: change 0 -> 0.1 as deadzone
   if (active) {
     this.isAKeyPressed = true;
@@ -1497,12 +1497,12 @@ const stopScrolling = () => {
 };
 
 // Start scrolling when thumbstick is pushed
-im.right_thumbstick.on_up_down.add(() => startScrolling(-1));
-im.right_thumbstick.on_down_down.add(() => startScrolling(1));
+im.right_thumbstick.onUp_down.add(() => startScrolling(-1));
+im.right_thumbstick.onDown_down.add(() => startScrolling(1));
 
 // Stop scrolling when thumbstick is released
-im.right_thumbstick.on_up_up.add(() => stopScrolling());
-im.right_thumbstick.on_down_up.add(() => stopScrolling());
+im.right_thumbstick.onUp_up.add(() => stopScrolling());
+im.right_thumbstick.onDown_up.add(() => stopScrolling());
 
 // Also stop when thumbstick returns to center
 im.right_thumbstick.on_value_change.add(({ x, y }) => {

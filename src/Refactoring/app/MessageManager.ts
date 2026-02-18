@@ -22,6 +22,7 @@ public showMessage(messageText: string, duration: number=0): void {
 
     // Increase the plane size to accommodate larger text
     const messagePlane = B.MeshBuilder.CreatePlane("messagePlane", { width: 4, height: 2 }, this._scene); // Increase width and height of the plane
+    messagePlane.isPickable = false;
     this._currentMessagePlane = messagePlane;
 
     // Create an AdvancedDynamicTexture and add the TextBlock to it

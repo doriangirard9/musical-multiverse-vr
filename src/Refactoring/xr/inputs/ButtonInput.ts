@@ -83,13 +83,16 @@ export class ButtonInput {
      * @param event 
      */
     _notify(event: ButtonInputEvent){
-        this.onChange.notifyObservers(event)
-        if(event.pressed && !this.state.is_pressed) this.onDown.notifyObservers(event)
-        if(!event.pressed && this.state.is_pressed) this.onUp.notifyObservers(event)
-        if(event.touched && !this.state.is_touched) this.onTouch.notifyObservers(event)
-        if(!event.touched && this.state.is_touched) this.onUntouch.notifyObservers(event)
+        const oldState = {...this.state}
+
         this.state.is_pressed = event.pressed
         this.state.is_touched = event.touched
+
+        this.onChange.notifyObservers(event)
+        if(event.pressed && !oldState.is_pressed) this.onDown.notifyObservers(event)
+        if(!event.pressed && oldState.is_pressed) this.onUp.notifyObservers(event)
+        if(event.touched && !oldState.is_touched) this.onTouch.notifyObservers(event)
+        if(!event.touched && oldState.is_touched) this.onUntouch.notifyObservers(event)   
     }
 
 

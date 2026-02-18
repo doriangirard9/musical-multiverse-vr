@@ -30,6 +30,12 @@ export interface Node3DButton{
     readonly color: Color3
 
     /**
+     * Indique si le bouton supporte les swipe. (Le bouton est pressé si on passe le pointeur dessus alors que le bouton est déjà pressé, et relâché si le pointeur sort alors que le bouton est encore pressé)
+     * Idéale pour les pianos.
+     */
+    readonly supportSwipe?: bool
+
+    /**
      * Appelé lorsque le bouton est cliqué.
      * @param pressed 
      */

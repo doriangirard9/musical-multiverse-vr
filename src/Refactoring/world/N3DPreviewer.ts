@@ -6,6 +6,7 @@ import { Node3dManager } from "../app/Node3dManager";
 import { Node3DInstance } from "../node3d/instance/Node3DInstance";
 import { N3DText } from "../node3d/instance/utils/N3DText";
 import { HoldableBehaviour } from "../behaviours/boundingBox/HoldableBehaviour";
+import { InputHoverBehavior } from "../xr/inputs/tools/InputHoverBehavior";
 
 
 /**
@@ -87,17 +88,18 @@ export class N3DPreviewer{
             if(!this.inWorldSize)hitbox.scaling.setAll(1)
         })
 
-        const action = hitbox.actionManager ??= new ActionManager()
-        action.registerAction(new ExecuteCodeAction(ActionManager.OnPointerOverTrigger, ()=>{
-            this.shared.highlightLayer.addMesh(hitbox, Color3.Green())
-            text.updatePosition()
-            text.show()
-        }))!!
-        
-        action.registerAction(new ExecuteCodeAction(ActionManager.OnPointerOutTrigger, ()=>{
-            this.shared.highlightLayer.removeMesh(hitbox)
-            text.hide()
-        }))!!
+        const hover = new InputHoverBehavior(
+            ()=>{
+                this.shared.highlightLayer.addMesh(hitbox, Color3.Green())
+                text.updatePosition()
+                text.show()
+            },
+            ()=>{
+                this.shared.highlightLayer.removeMesh(hitbox)
+                text.hide()
+            }
+        )
+        hitbox.addBehavior(hover)
     }
 
     dispose(){

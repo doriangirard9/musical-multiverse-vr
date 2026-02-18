@@ -1,26 +1,57 @@
 import { AbstractMesh, Matrix, Observable, Ray, Scene, Vector3, WebXRAbstractMotionController, WebXRInputSource } from "@babylonjs/core";
 import { ControllerInput } from "./ControllerInput";
 
+/**
+ * Class representing the pointer input of a controller. It provides the position and orientation of the pointer, as well as the mesh it is targeting (if any).
+ */
 export class PointerInput {
 
     constructor(
-        readonly controller: ControllerInput|null
+        readonly controller: ControllerInput
     ){}
 
+    /**
+      * The matrix that represents the pointer position and orientation in world space.
+      * Forward is +Z
+      * Up is +Y
+      * Right is +X
+      */
     readonly matrix = Matrix.Identity()
+
+    /** The position of the pointer in world space. */
     readonly origin = new Vector3(0, 0, 0)
+
+    /** The forward vector of the pointer in world space. */
     readonly forward = new Vector3(0, 0, 0)
+
+    /** The up vector of the pointer in world space. */
     readonly up = new Vector3(0, 0, 0)
+
+    /** The right vector of the pointer in world space. */
     readonly right = new Vector3(0, 0, 0)
 
+    /** The target point of the pointer in world space. Valid only if {@link hit} is true */
     readonly target = new Vector3(0, 0, 0)
+
+    /** The mesh targeted by the pointer. Null if no mesh is targeted. */
     public targetMesh = null as AbstractMesh | null
+
+    /** The mesh previously targeted by the pointer. Null if no mesh was previously targeted. */
     public previousMesh: AbstractMesh | null = null
+
+    /** Whether the pointer is hitting a mesh. */
     public hit = false
 
+    /** The observable that is notified when the pointer moves. */
     readonly onMove = new Observable<PointerInput>()
+
+    /** The observable that is notified when the pointer targets a new mesh. */
     readonly onNewTarget = new Observable<PointerInput>()
+
+    /** The observable that is notified when the pointer is removed. */
     readonly onRemove = new Observable<PointerInput>()
+
+    /** The observable that is notified when the pointer is initialized. */
     readonly onInit = new Observable<PointerInput>()
 
 
@@ -35,9 +66,7 @@ export class PointerInput {
 
         const o = controller.onDisposeObservable.addOnce(() => disposed = true)
 
-        const motionController = controller.motionController!!
-
-        requestAnimationFrame(function tick() {
+        scene.onAfterPhysicsObservable.add(function tick() {
             that.onInit.notifyObservers(that)
             if (disposed) {
                 if(that.targetMesh!=null){
@@ -46,40 +75,39 @@ export class PointerInput {
                     that.onNewTarget.notifyObservers(that)
                 }
                 that.onRemove.notifyObservers(that)
+                scene.onAfterPhysicsObservable.removeCallback(tick)
                 return
             }
 
             // Copy position
-            const root = motionController.rootMesh
-            if (!root) return
-            that.matrix.copyFrom(root.getWorldMatrix())
-            that.origin.copyFrom(root.position)
-            that.forward.copyFrom(root.forward)
-            that.up.copyFrom(root.up)
-            that.right.copyFrom(root.right)
+            const root = controller.pointer
+            if (root){
+                that.matrix.copyFrom(root.getWorldMatrix())
+                that.origin.copyFrom(root.position)
+                that.forward.copyFrom(root.forward)
+                that.up.copyFrom(root.up)
+                that.right.copyFrom(root.right)
 
-            // Ray casting
-            const ray = new Ray(that.origin, that.forward)
-            const pickInfo = scene.pickWithRay(ray)
-            if (pickInfo) {
-                that.hit = pickInfo.hit
-                if (pickInfo.pickedPoint) that.target.copyFrom(pickInfo.pickedPoint!)
-                that.targetMesh = pickInfo.pickedMesh
+                // Ray casting
+                const ray = new Ray(that.origin, that.forward)
+                const pickInfo = scene.pickWithRay(ray)
+                if (pickInfo) {
+                    that.hit = pickInfo.hit
+                    if (pickInfo.pickedPoint) that.target.copyFrom(pickInfo.pickedPoint!)
+                    that.targetMesh = pickInfo.pickedMesh
+                }
+                else {
+                    that.hit = false
+                    that.targetMesh = null
+                }
+
+                that.onMove.notifyObservers(that)
+
+                if (that.targetMesh != that.previousMesh) {
+                    that.onNewTarget.notifyObservers(that)
+                    that.previousMesh = that.targetMesh
+                }
             }
-            else {
-                that.hit = false
-                that.targetMesh = null
-            }
-
-            that.onMove.notifyObservers(that)
-
-            if (that.targetMesh != that.previousMesh) {
-                that.onNewTarget.notifyObservers(that)
-                that.previousMesh = that.targetMesh
-            }
-
-
-            requestAnimationFrame(tick)
         })
 
         return {
@@ -133,11 +161,11 @@ export class PointerInput {
             }
         }
 
-        window.addEventListener("mousemove", mousemove)
+        window.addEventListener("pointermove", mousemove)
 
         return {
             remove() {
-                window.removeEventListener("mousemove", mousemove)
+                window.removeEventListener("pointermove", mousemove)
                 that.onRemove.notifyObservers(that)
             }
         }

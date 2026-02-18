@@ -1,5 +1,7 @@
 import { AbstractMesh, ActionManager, Behavior, ExecuteCodeAction, Observable, PointerEventTypes } from "@babylonjs/core"
 import { FullHoldBehaviour } from "./FullHoldBehaviour"
+import { InputGrabBehavior } from "../../xr/inputs/tools/InputGrabBehavior"
+import { PointerInput } from "../../xr/inputs/PointerInput"
 
 
 
@@ -30,31 +32,28 @@ export class HoldableBehaviour implements Behavior<AbstractMesh> {
     attach(target: AbstractMesh): void {
         this.target = target
 
-        // On grab
-        const action = target.actionManager ??= new ActionManager(target.getScene())
-
         this.target.isPickable = true
-        const onPickDown = new ExecuteCodeAction(ActionManager.OnPickDownTrigger, ()=>{
-            this.grab()
-            const o = this.target.getScene().onPointerObservable.add((evt) => {
-                if(evt.type === PointerEventTypes.POINTERUP){ // PointerUp
-                    o.remove()
-                    this.release()
-                }
-            })
-        })
-        action.registerAction(onPickDown)
+        const grab = new InputGrabBehavior(
+            pointer=>{
+                this.grab(pointer)
+            },
+            _=>{
+                this.release()
+            },
+        )
+
+        target.addBehavior(grab)
+
         this.detach = ()=>{
-            this.release()
-            action.unregisterAction(onPickDown)
+            target.removeBehavior(grab)
         }
     }
 
-    grab(){
+    grab(pointer: PointerInput){
         this._isDragging = true
         if(!this.holdBehaviour){
             this.onGrabObservable.notifyObservers()
-            this.holdBehaviour = new FullHoldBehaviour()
+            this.holdBehaviour = new FullHoldBehaviour(pointer)
             this.holdBehaviour.on_move = ()=>this.onMoveObservable.notifyObservers()
             this.holdBehaviour.on_rotate = ()=>this.onRotateObservable.notifyObservers()
             this.target.addBehavior(this.holdBehaviour)
