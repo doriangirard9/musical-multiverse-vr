@@ -8,6 +8,7 @@ import { InputHoverBehavior } from "../../xr/inputs/tools/InputHoverBehavior";
 import { InputGrabBehavior } from "../../xr/inputs/tools/InputGrabBehavior";
 import { PointerInput } from "../../xr/inputs/PointerInput";
 import { InputDropBehavior } from "../../xr/inputs/tools/InputDropBehavior";
+import { N3DText } from "./utils/N3DText";
 
 /**
  * A simple connection node that is used to connect to other nodes.
@@ -40,9 +41,14 @@ export class N3DConnectableInstance {
 
         const connectable = this
 
+        const text = new N3DText(`text ${config.id}`, config.meshes)
+        text.set(config.label)
+
         function hover(){
             if(!hovered) {
                 hovered = true
+                text.show()
+                text.updatePosition()
                 for(const mesh of meshes) NodeCompUtils.highlight(highlightLayer, mesh, color)
             }
         }
@@ -50,6 +56,7 @@ export class N3DConnectableInstance {
         function unhover(){
             if(hovered) {
                 hovered = false
+                text.hide()
                 for(const mesh of meshes) NodeCompUtils.unhighlight(highlightLayer, mesh)
             }
         }
@@ -100,6 +107,7 @@ export class N3DConnectableInstance {
         this.dispose = ()=>{
             this.connections.forEach(c => c.remove())
             disposes.forEach(d => d())
+            text.dispose()
         }
     }
 
