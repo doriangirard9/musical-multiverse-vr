@@ -140,7 +140,7 @@ export class NewApp {
         // node.boundingBoxMesh.position.z += 5
         // node2.boundingBoxMesh.position.z += 5
         // node2.boundingBoxMesh.position.x += 1
-        const node = await node3dBuilder.create("gaze") as Node3DInstance
+        const node = await node3dBuilder.create("voice") as Node3DInstance
 
         //// LE SUPER MAGASIN ////
         {
