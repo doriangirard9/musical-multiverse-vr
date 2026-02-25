@@ -54,7 +54,6 @@ export interface Node3DConnectable{
     /**
      * Appelé lorsque l'entrée est connectée à une sortie.
      * Est appelé d'abord pour la sortie, puis pour l'entrée.
-     * Le callback donné est unique pour chaque connectable.
      * @param sender Une fonction qui peut être appelée pour envoyer une valeur au connectable à l'autre bout de la connexion.
      */
     connect(sender: (value:any)=>void): void
@@ -62,8 +61,6 @@ export interface Node3DConnectable{
     /**
      * Appelé lorsque l'entrée est déconnectée d'une sortie.
      * Est appelé d'abord pour la sortie, puis pour l'entrée.
-     * Le callback donné est uniquer pour chaque connectable et est le même que celui donné à la fonction connect, il
-     * peut donc être utilisé pour identifier la connexion.
      * @param sender Une fonction qui peut être appelée pour envoyer une valeur au connectable à l'autre bout de la connexion.
      */
     disconnect(sender: (value:any)=>void): void

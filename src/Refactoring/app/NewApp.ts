@@ -3,7 +3,7 @@ import {XRManager} from "../xr/XRManager.ts";
 import {Node3dManager} from "./Node3dManager.ts";
 import {AppOrchestrator} from "./AppOrchestrator.ts";
 import ControlsUI from "./ControlsUI.ts";
-import {CreateAudioEngineAsync, CreateSphere, ImportMeshAsync} from "@babylonjs/core";
+import {Color3, CreateAudioEngineAsync, CreateSphere, ImportMeshAsync} from "@babylonjs/core";
 import {N3DShop, N3DShopOptions} from "../world/shop/N3DShop.ts";
 import { InputManager } from "../xr/inputs/InputManager.ts";
 import { parallel } from "../utils/utils.ts";
@@ -14,7 +14,7 @@ import { ConnectionManager } from "../iomanager/ConnectionManager.ts";
 import { N3DRendering } from "../node3d/instance/utils/N3DRendering.ts";
 import { Node3DInstance } from "../node3d/instance/Node3DInstance.ts";
 import { InputVisualPointer } from "../xr/inputs/tools/InputVisualPointer.ts";
-import { InputPressBehavior } from "../xr/inputs/tools/InputPressBehavior.ts";
+import { MeshUtils } from "../node3d/tools/index.ts";
 export class NewApp {
     private static readonly DEBUG_LOG = false;
     private controlsUI?: ControlsUI;
@@ -121,23 +121,26 @@ export class NewApp {
         for(let i=0; i<10; i++){
             const sphere = CreateSphere(`sphere${i}`, {diameter: .5}, scene)
             sphere.position.set(Math.random()*4-2, Math.random()*2+1, Math.random()*4-2)
-            const press = new InputPressBehavior(
-                () => {
-                    sphere.scaling.set(1.5, 1.5, 1.5)
-                },
-                () => {
-                    sphere.scaling.set(1, 1, 1)
+            let hasGaze = false
+            InputManager.getInstance().head.onNewTarget.add(e=>{
+                if(e.targetMesh===sphere){
+                    if(!hasGaze) MeshUtils.setColor(sphere, Color3.Red().toColor4())
+                    hasGaze = true
                 }
-            )
-            sphere.addBehavior(press)
+                else{
+                    if(hasGaze) MeshUtils.setColor(sphere, Color3.White().toColor4())
+                    hasGaze = false
+                }
+            })
         }
 
         //// TESTS ////
-        const node = await node3dBuilder.create("harp") as Node3DInstance
-        const node2 = await node3dBuilder.create("large_harp") as Node3DInstance
-        node.boundingBoxMesh.position.z += 5
-        node2.boundingBoxMesh.position.z += 5
-        node2.boundingBoxMesh.position.x += 1
+        // const node = await node3dBuilder.create("harp") as Node3DInstance
+        // const node2 = await node3dBuilder.create("large_harp") as Node3DInstance
+        // node.boundingBoxMesh.position.z += 5
+        // node2.boundingBoxMesh.position.z += 5
+        // node2.boundingBoxMesh.position.x += 1
+        const node = await node3dBuilder.create("gaze") as Node3DInstance
 
         //// LE SUPER MAGASIN ////
         {

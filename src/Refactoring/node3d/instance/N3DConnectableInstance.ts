@@ -63,14 +63,17 @@ export class N3DConnectableInstance {
         }
 
         function onpickdown(pointer: PointerInput){
+            console.log("pick down", config.id)
             ioEventBus.emit('IO_CONNECT', { pickType : "down", connectable, pointer })
         }
 
         function onpickup(pointer: PointerInput){
+            console.log("pick up", config.id)
             ioEventBus.emit('IO_CONNECT', { pickType : "up", connectable, pointer })
         }
 
         function onpickout(pointer: PointerInput){
+            console.log("pick out", config.id)
             ioEventBus.emit('IO_CONNECT', { pickType : "out", connectable, pointer })
         }
 
@@ -83,17 +86,20 @@ export class N3DConnectableInstance {
                     },
                 )
 
-                const drop = new InputDropBehavior((pointer)=>{
-                    console.log("drop", config.label)
-                    onpickup(pointer)
-                })
-
-                mesh.addBehavior(grab).addBehavior(drop)
+                mesh.addBehavior(grab)
 
                 disposes.push(()=>{
-                    mesh.removeBehavior(grab).removeBehavior(drop)
+                    mesh.removeBehavior(grab)
                 })
             }
+
+            const drop = new InputDropBehavior((pointer)=>onpickup(pointer))
+            mesh.addBehavior(drop)
+
+            disposes.push(()=>{
+                mesh.removeBehavior(drop)
+            })
+
 
             if(hoveringHelp){
                 const hoverb = new InputHoverBehavior(hover, unhover)

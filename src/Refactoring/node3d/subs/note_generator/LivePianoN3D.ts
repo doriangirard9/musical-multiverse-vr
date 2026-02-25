@@ -1,7 +1,7 @@
 import { AbstractMesh, Color3, Color4, TransformNode } from "@babylonjs/core";
-import type { Node3D, Node3DFactory, Node3DGUI } from "../Node3D";
-import type { Node3DContext } from "../Node3DContext";
-import type { Node3DGUIContext } from "../Node3DGUIContext";
+import type { Node3D, Node3DFactory, Node3DGUI } from "../../Node3D";
+import type { Node3DContext } from "../../Node3DContext";
+import type { Node3DGUIContext } from "../../Node3DGUIContext";
 
 
 const MIN_NOTE = 36

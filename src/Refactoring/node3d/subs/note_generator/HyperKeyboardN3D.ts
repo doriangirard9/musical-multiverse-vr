@@ -1,11 +1,11 @@
 import type { AbstractMesh, Observer, TransformNode } from "@babylonjs/core";
-import type { Node3D, Node3DFactory, Node3DGUI } from "../Node3D";
-import type { Node3DContext } from "../Node3DContext";
-import type { Node3DGUIContext } from "../Node3DGUIContext";
-import { InputManager } from "../../xr/inputs/InputManager";
-import { AutomationN3DConnectable, MidiN3DConnectable } from "../tools";
-import { InputHoverBehavior } from "../../xr/inputs/tools/InputHoverBehavior";
-import { InputMultiPressBehavior } from "../../xr/inputs/tools/InputMultiPressBehavior";
+import type { Node3D, Node3DFactory, Node3DGUI } from "../../Node3D";
+import type { Node3DContext } from "../../Node3DContext";
+import type { Node3DGUIContext } from "../../Node3DGUIContext";
+import { InputManager } from "../../../xr/inputs/InputManager";
+import { AutomationN3DConnectable, MidiN3DConnectable } from "../../tools";
+import { InputHoverBehavior } from "../../../xr/inputs/tools/InputHoverBehavior";
+import { InputMultiPressBehavior } from "../../../xr/inputs/tools/InputMultiPressBehavior";
 
 
 

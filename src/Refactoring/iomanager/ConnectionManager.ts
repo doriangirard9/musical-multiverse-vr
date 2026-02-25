@@ -75,6 +75,7 @@ export class ConnectionManager {
             case "up":
                 if(this.currentPort){
                     this.connect(this.currentPort, data.connectable)
+                    this.currentPort = null
                 }
                 this._cancelAndResetConnection()
                 break;

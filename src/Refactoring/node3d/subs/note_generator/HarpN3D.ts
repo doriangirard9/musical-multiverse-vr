@@ -1,13 +1,13 @@
 import { AbstractMesh, Color3, Color4, TransformNode, Vector3 } from "@babylonjs/core";
-import type { Node3D, Node3DFactory, Node3DGUI } from "../Node3D";
-import type { Node3DContext } from "../Node3DContext";
-import type { Node3DGUIContext } from "../Node3DGUIContext";
-import { InputManager } from "../../xr/inputs/InputManager";
-import { InputPressBehavior } from "../../xr/inputs/tools/InputPressBehavior";
+import type { Node3D, Node3DFactory, Node3DGUI } from "../../Node3D";
+import type { Node3DContext } from "../../Node3DContext";
+import type { Node3DGUIContext } from "../../Node3DGUIContext";
+import { InputManager } from "../../../xr/inputs/InputManager";
+import { InputPressBehavior } from "../../../xr/inputs/tools/InputPressBehavior";
 
 
 const LINE_IN_ONE = 8
-const LINE_WIDTH = 0.05
+const LINE_WIDTH = 0.08
 
 export class HarpN3DGUI implements Node3DGUI {
 

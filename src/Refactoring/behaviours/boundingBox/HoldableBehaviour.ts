@@ -1,4 +1,4 @@
-import { AbstractMesh, ActionManager, Behavior, ExecuteCodeAction, Observable, PointerEventTypes } from "@babylonjs/core"
+import { AbstractMesh, ActionManager, Behavior, ExecuteCodeAction, Observable, PointerEventTypes, TransformNode } from "@babylonjs/core"
 import { FullHoldBehaviour } from "./FullHoldBehaviour"
 import { InputGrabBehavior } from "../../xr/inputs/tools/InputGrabBehavior"
 import { PointerInput } from "../../xr/inputs/PointerInput"
@@ -19,7 +19,7 @@ export class HoldableBehaviour implements Behavior<AbstractMesh> {
     onGrabObservable = new Observable<void>()
     onReleaseObservable = new Observable<void>()
 
-    constructor(){}
+    constructor(private moved?: TransformNode){}
 
     get isDragging(): boolean { return this._isDragging }
 
@@ -52,19 +52,21 @@ export class HoldableBehaviour implements Behavior<AbstractMesh> {
     grab(pointer: PointerInput){
         this._isDragging = true
         if(!this.holdBehaviour){
+            const target = this.moved ?? this.target
             this.onGrabObservable.notifyObservers()
             this.holdBehaviour = new FullHoldBehaviour(pointer)
             this.holdBehaviour.on_move = ()=>this.onMoveObservable.notifyObservers()
             this.holdBehaviour.on_rotate = ()=>this.onRotateObservable.notifyObservers()
-            this.target.addBehavior(this.holdBehaviour)
+            target.addBehavior(this.holdBehaviour)
         }
     }
 
     release(){
         this._isDragging = false
         if(this.holdBehaviour){
+            const target = this.moved ?? this.target
             this.onReleaseObservable.notifyObservers()
-            this.target.removeBehavior(this.holdBehaviour)
+            target.removeBehavior(this.holdBehaviour)
             this.holdBehaviour = undefined
         }
     }

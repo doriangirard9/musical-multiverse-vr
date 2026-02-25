@@ -9,16 +9,17 @@ import { Wam3DGeneratorN3DFactory } from "../node3d/subs/Wam3DGeneratorN3D.ts";
 import { SequencerN3DFactory } from "../node3d/subs/SequencerN3D.ts";
 import { N3DShared } from "../node3d/instance/N3DShared.ts";
 import { MaracasN3DFactory } from "../node3d/subs/maracas/MaracasN3D.ts";
-import { LivePianoN3DFactory } from "../node3d/subs/LivePianoN3D.ts";
-import {NoteBoxN3DFactory} from "../node3d/subs/NoteBoxN3D.ts";
+import { NoteBoxN3DFactory } from "../node3d/subs/NoteBoxN3D.ts";
 import { SpeakerN3DFactory } from "../node3d/subs/speaker/SpeakerN3D.ts";
-import {PianoRollN3DFactory} from "../node3d/subs/PianoRoll/PianoRoll3d.ts";
+import { PianoRollN3DFactory } from "../node3d/subs/PianoRoll/PianoRoll3d.ts";
 import { DrumKitN3DFactory } from "../node3d/subs/drumkit/DrumKitN3D.ts";
-import { HyperKeyboardN3DFactory } from "../node3d/subs/HyperKeyboardN3D.ts";
-import { DrumPlateKitN3DFactory } from "../node3d/subs/DrumPlateKitN3D.ts";
-import { AutomationControllerN3DFactory } from "../node3d/subs/AutomationControllerN3D.ts";
-import { PositionCubeN3DFactory } from "../node3d/subs/PositionCubeN3D.ts";
-import { HarpN3DFactory } from "../node3d/subs/HarpN3D.ts";
+import { LivePianoN3DFactory } from "../node3d/subs/note_generator/LivePianoN3D.ts";
+import { HyperKeyboardN3DFactory } from "../node3d/subs/note_generator/HyperKeyboardN3D.ts";
+import { DrumPlateKitN3DFactory } from "../node3d/subs/note_generator/DrumPlateKitN3D.ts";
+import { AutomationControllerN3DFactory } from "../node3d/subs/automation/AutomationControllerN3D.ts";
+import { PositionCubeN3DFactory } from "../node3d/subs/automation/PositionCubeN3D.ts";
+import { HarpN3DFactory } from "../node3d/subs/note_generator/HarpN3D.ts";
+import { GazeControllerN3DFactory } from "../node3d/subs/automation/GazeControllerN3D.ts";
 
 
 
@@ -71,6 +72,7 @@ export class Node3DBuilder {
         if(kind=="the_cube") return PositionCubeN3DFactory.DEFAULT
         if(kind=="harp") return HarpN3DFactory.DEFAULT
         if(kind=="large_harp") return HarpN3DFactory.LARGE
+        if(kind=="gaze") return GazeControllerN3DFactory
 
         // Wam3DGenerator examples
         if(kind.startsWith("wam3d-")) {

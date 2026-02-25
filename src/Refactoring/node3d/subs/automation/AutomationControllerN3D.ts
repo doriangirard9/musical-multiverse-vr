@@ -1,8 +1,8 @@
 import type { AbstractMesh, TransformNode } from "@babylonjs/core";
-import type { Node3D, Node3DFactory, Node3DGUI } from "../Node3D";
-import type { Node3DContext } from "../Node3DContext";
-import type { Node3DGUIContext } from "../Node3DGUIContext";
-import type { AutomationN3DConnectable } from "../tools";
+import type { Node3D, Node3DFactory, Node3DGUI } from "../../Node3D";
+import type { Node3DContext } from "../../Node3DContext";
+import type { Node3DGUIContext } from "../../Node3DGUIContext";
+import type { AutomationN3DConnectable } from "../../tools";
 
 
 export class AutomationControllerN3DGUI implements Node3DGUI {

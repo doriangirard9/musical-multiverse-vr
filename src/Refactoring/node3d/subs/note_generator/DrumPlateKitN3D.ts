@@ -1,9 +1,10 @@
-import { BoundingBox, Color4, Quaternion, Vector2, Vector3, type AbstractMesh, type Observer, type TransformNode } from "@babylonjs/core";
-import type { Node3D, Node3DFactory, Node3DGUI } from "../Node3D";
-import type { Node3DContext } from "../Node3DContext";
-import type { Node3DGUIContext } from "../Node3DGUIContext";
-import { InputManager } from "../../xr/inputs/InputManager";
-import { AutomationN3DConnectable, MidiN3DConnectable } from "../tools";
+import { Quaternion, Vector2, Vector3, type AbstractMesh, type Observer, type TransformNode } from "@babylonjs/core";
+import type { Node3D, Node3DFactory, Node3DGUI } from "../../Node3D";
+import type { Node3DContext } from "../../Node3DContext";
+import type { Node3DGUIContext } from "../../Node3DGUIContext";
+import { InputManager } from "../../../xr/inputs/InputManager";
+import { AutomationN3DConnectable, MidiN3DConnectable } from "../../tools";
+import { HoldableBehaviour } from "../../../behaviours/boundingBox/HoldableBehaviour";
 
 const MINIMUM_STRENGTH = 0.1
 const MAXIMUM_STRENGTH = 1
@@ -199,6 +200,7 @@ class PlateBehaviour {
         public note: number
     ) {
         const { babylon: B } = gui.context
+
         context.createParameter({
             id: `plate_${i}_note`,
             meshes: [plate.noteSelector],
@@ -211,11 +213,16 @@ class PlateBehaviour {
                 return NOTE_NAME[note % OCTAVE] + " " + Math.floor(note / OCTAVE + 1)
             },
         })
+
         const action = plate.plate.actionManager = new B.ActionManager(gui.context.scene)
         action.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickTrigger, () => {
             plate.startAnimation()
             n3d.play(note)
         }))
+
+        const holdable = new HoldableBehaviour(plate.root)
+        holdable.onMoveObservable.add(() => gui.plates[i].updatePosition())
+        holdable.attach(plate.handle)
     }
 
     move(n3d: DrumPlateKitN3D, before: Vector3, after: Vector3) {

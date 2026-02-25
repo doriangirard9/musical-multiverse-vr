@@ -1,11 +1,9 @@
-import { AbstractMesh, Color3, Color4, Observer, Quaternion, TransformNode, Vector3, Vector4 } from "@babylonjs/core";
-import type { Node3D, Node3DFactory, Node3DGUI } from "../Node3D";
-import type { Node3DContext } from "../Node3DContext";
-import type { Node3DGUIContext } from "../Node3DGUIContext";
-import { InputManager } from "../../xr/inputs/InputManager";
-import { AutomationN3DConnectable } from "../tools";
-import { ControllerInput } from "../../xr/inputs/ControllerInput";
-import { InputPressBehavior } from "../../xr/inputs/tools/InputPressBehavior";
+import { AbstractMesh, Color3, Color4, TransformNode, Vector3 } from "@babylonjs/core";
+import type { Node3D, Node3DFactory, Node3DGUI } from "../../Node3D";
+import type { Node3DContext } from "../../Node3DContext";
+import type { Node3DGUIContext } from "../../Node3DGUIContext";
+import { InputManager } from "../../../xr/inputs/InputManager";
+import { AutomationN3DConnectable } from "../../tools";
 
 // Constantes pour l'espace normalisé 1x1x1
 const EDGE_THICKNESS = 0.01

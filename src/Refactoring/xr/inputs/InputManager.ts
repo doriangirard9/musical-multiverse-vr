@@ -4,6 +4,7 @@ import { PressableInputEvent } from "./PressableInput";
 import { AxisInputEvent } from "./AxisInput";
 import { ControllerInput } from "./ControllerInput";
 import { PointerInput } from "./PointerInput";
+import { AbstractPointerInput } from "./AbstractPointerInput";
 
 export interface PointerMovementEvent {
     origin: Immutable<Vector3>,
@@ -48,6 +49,9 @@ export class InputManager {
 
     /** The screen controller input. Controlled by the mouse and keyboard. */
     readonly screen = new ControllerInput("none")
+
+    /** The camera pointer input. Controlled by the camera's forward direction. */
+    readonly head = new AbstractPointerInput()
 
     /** Returns an array of all controllers. */
     get controllers() { return [this.left, this.right, this.screen] }
@@ -179,5 +183,7 @@ export class InputManager {
         }
         xrHelper.input.onControllerAddedObservable.add(initController)
         xrHelper.input.controllers.forEach(initController)
+
+        this.head._registerCameraObserver(scene)
     }
 }
