@@ -19,8 +19,7 @@ export class N3DPreviewer{
     gui!: Node3DGUI
     highlighter!: N3DHighlighter
     drag!: HoldableBehaviour
-    name!: N3DText
-    description!: N3DText
+    text!: N3DText
     on_start_drag?: ()=>void
     on_drop?: (node3d:Node3DInstance)=>void
     on_no_drop?: ()=>void
@@ -51,10 +50,12 @@ export class N3DPreviewer{
         hitbox.visibility = .3
 
         // Create a text display
-        const name = this.name = new N3DText(`n3preview ${this.kind} name`, [hitbox], shared.utilityLayer.utilityLayerScene)
-        name.set(factory.label)
-        const desc = this.description = new N3DText(`n3preview ${this.kind} description`, [hitbox], shared.utilityLayer.utilityLayerScene, 30, -.2)
-        desc.set(factory.description+"\n|"+factory.tags.join(", ")+"|")
+        const text = this.text = new N3DText(`n3preview ${this.kind} name`, [hitbox], shared.utilityLayer.utilityLayerScene)
+        text.set([
+            {content: factory.label},
+            {content: factory.description, size: .5},
+            {content: factory.tags.join(", "), size: .4, color: "#ffffff9d"},
+        ])
 
         gui.root.parent = hitbox
         hitbox.parent = this.root
@@ -94,15 +95,12 @@ export class N3DPreviewer{
         const hover = new InputHoverBehavior(
             ()=>{
                 this.shared.highlightLayer.addMesh(hitbox, Color3.Green())
-                name.updatePosition()
-                name.show()
-                desc.updatePosition()
-                desc.show()
+                text.updatePosition()
+                text.show()
             },
             ()=>{
                 this.shared.highlightLayer.removeMesh(hitbox)
-                name.hide()
-                desc.hide()
+                text.hide()
             }
         )
         hitbox.addBehavior(hover)
@@ -112,6 +110,6 @@ export class N3DPreviewer{
         this.highlighter.dispose()
         this.gui.dispose()
         this.root.dispose()
-        this.name.dispose()
+        this.text.dispose()
     }
 }

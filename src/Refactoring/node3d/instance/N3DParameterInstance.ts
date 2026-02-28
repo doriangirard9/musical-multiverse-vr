@@ -68,7 +68,10 @@ export class N3DParameterInstance {
         /* Shared functions */
         function updateText(){
             text.updatePosition()
-            text.set(getLabel() + "\n" + stringify(getValue()))
+            text.set([
+                {content: getLabel()},
+                {content: stringify(getValue()), size: .7}
+            ])
         }
         /* */
 
