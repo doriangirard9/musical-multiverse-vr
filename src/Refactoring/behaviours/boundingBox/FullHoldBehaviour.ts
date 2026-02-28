@@ -55,6 +55,7 @@ export class FullHoldBehaviour implements Behavior<TransformNode> {
         this.disposables.length = 0
         if(this.holdBehavior) this.target.removeBehavior(this.holdBehavior)
         this.holdBehavior = undefined
+        this.rotate = false
     }
     
     private rotate = false

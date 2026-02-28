@@ -1,4 +1,4 @@
-import { AbstractMesh, CreatePlane, Scene } from "@babylonjs/core";
+import { AbstractMesh, CreatePlane, Scene, Vector3 } from "@babylonjs/core";
 import { AdvancedDynamicTexture, TextBlock } from "@babylonjs/gui";
 
 const TEXT_SCALE = .5
@@ -25,6 +25,7 @@ export class N3DText{
         block.color = 'white'
         block.outlineColor = 'black'
         block.outlineWidth = 5
+        block.lineSpacing = 25
         texture.addControl(block)
     }
 
@@ -49,9 +50,17 @@ export class N3DText{
     updatePosition(){
         const target = this.targets.reduce((a,b)=>a.absolutePosition.y>b.absolutePosition.y?a:b)
 
+        const distance = target.getAbsolutePosition().subtract(target.getScene().activeCamera!!.position).length()
+        const globalScale = new Vector3().setAll(TEXT_SCALE*distance)
+        const localScale = globalScale.divide(target.absoluteScaling)
+        this.plane.scaling.copyFrom(localScale)
+
+        this.plane.computeWorldMatrix(true)
+        this.plane.refreshBoundingInfo(true,true)
+
         const position = target.getBoundingInfo().boundingBox.centerWorld.clone()
         position.y += target.getBoundingInfo().boundingBox.extendSizeWorld.y/2
-        position.y += this.plane.getBoundingInfo().boundingBox.extendSizeWorld.y
+        position.y += this.plane.getBoundingInfo().boundingBox.extendSizeWorld.y/2
         this.plane.setAbsolutePosition(position)
     }
 

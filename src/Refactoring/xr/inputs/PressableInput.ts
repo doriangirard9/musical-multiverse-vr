@@ -157,26 +157,34 @@ export class PressableInput {
 
         const onmousedown = (event: MouseEvent) => {
             if(event.button !== mouseKey) return
-            this._notify({ pressable: this, pressed:true, touched:this.state.is_touched, value: 1 })
+            if(!isPressed) this._notify({ pressable: this, pressed:true, touched:this.state.is_touched, value: 1 })
             isPressed = true
         }
 
         const onmouseup = (event: MouseEvent) => {
             if(event.button !== mouseKey) return
-            this._notify({ pressable: this, pressed:false, touched:this.state.is_touched, value: 0 })
+            if(isPressed) this._notify({ pressable: this, pressed:false, touched:this.state.is_touched, value: 0 })
             isPressed = false
         }
 
         const onblur = ()=>{
-            if(!isPressed) return
-            this._notify({ pressable: this, pressed:false, touched:this.state.is_touched, value: 0 })
+            if(isPressed) this._notify({ pressable: this, pressed:false, touched:this.state.is_touched, value: 0 })
             isPressed = false
+        }
+
+        const onfocus = (e:MouseEvent)=>{
+            if(isPressed && (e.buttons & (1 << mouseKey))==0){
+                this._notify({ pressable: this, pressed:false, touched:this.state.is_touched, value: 1 })
+                isPressed = false
+                console.log("force mouse up")
+            }
         }
 
 
         document.addEventListener("mousedown", onmousedown)
         document.addEventListener("mouseup", onmouseup)
         window.addEventListener("blur", onblur)
+        document.addEventListener("mouseenter", onfocus)
 
         return {
             remove() {

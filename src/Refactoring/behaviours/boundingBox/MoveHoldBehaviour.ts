@@ -40,7 +40,7 @@ export class MoveHoldBehaviour implements Behavior<TransformNode> {
       (_,y)=>{
         power += 0.1
         this.distance += y/4*power
-        if(this.distance < 1) this.distance = 1 // Prevent negative distance
+        if(this.distance < 0.1) this.distance = 0.1 // Prevent negative distance
         this.updatePos()
       },
       ()=>{
