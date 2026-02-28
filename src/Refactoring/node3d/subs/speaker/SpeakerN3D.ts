@@ -139,7 +139,9 @@ export class SpeakerPannerNodeN3D implements Node3D{
         pannerNode.connect(analyserNode)
         analyserNode.connect(audioCtx.destination)
 
-        let max = 0
+        let i=0
+        let speed = 0
+        let prev = 0
         // TODO: audioCtx.listener ne devrait pas être changé par un Node3d car c'est un paramètre général
         // Il faut déplacer ça dehors.
         this.interval = setInterval(() => {
@@ -178,11 +180,20 @@ export class SpeakerPannerNodeN3D implements Node3D{
 
             // Effet visuel
             analyserNode.getByteFrequencyData(data)
-            const red = (data[0]+data[1]+data[2])/3/255
-            const green = (data[3]+data[4]+data[5])/3/255
-            const blue = (data[6]+data[7]+data[8])/3/255
-            console.log([...data])
-            context.sendSignal(gui.root.absolutePosition, (red-green-blue)*5, (green-blue)*5, blue*5)
+
+            let volume = 0
+            for(let j=0; j<data.length; j++) volume = Math.max(volume, data[j])
+            let prevSpeed = speed
+            speed = speed*.5 + (volume-prev)*.5
+            prev = volume
+            
+            console.log("acc",speed,"prev",prev,"volume",volume)
+            if(Math.sign(speed) !== Math.sign(prevSpeed) && speed > 2 && volume > 10){
+                const red = (data[0]+data[1]+data[2])/3/255
+                const green = (data[3]+data[4]+data[5])/3/255
+                const blue = (data[6]+data[7]+data[8])/3/255
+                context.sendSignal(gui.root.absolutePosition, (red-green-blue), (green-blue), blue)
+            }
 
         },50)
 

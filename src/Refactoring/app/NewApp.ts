@@ -3,7 +3,7 @@ import {XRManager} from "../xr/XRManager.ts";
 import {Node3dManager} from "./Node3dManager.ts";
 import {AppOrchestrator} from "./AppOrchestrator.ts";
 import ControlsUI from "./ControlsUI.ts";
-import {Color3, CreateAudioEngineAsync, CreateSphere, ImportMeshAsync} from "@babylonjs/core";
+import {Color3, CreateAudioEngineAsync, CreatePolygon, CreateSphere, ImportMeshAsync, Mesh, Vector2, Vector3} from "@babylonjs/core";
 import {N3DShop, N3DShopOptions} from "../world/shop/N3DShop.ts";
 import { InputManager } from "../xr/inputs/InputManager.ts";
 import { parallel } from "../utils/utils.ts";
@@ -118,21 +118,16 @@ export class NewApp {
 
 
         /// SPHERE ///
-        for(let i=0; i<10; i++){
-            const sphere = CreateSphere(`sphere${i}`, {diameter: .5}, scene)
-            sphere.position.set(Math.random()*4-2, Math.random()*2+1, Math.random()*4-2)
-            let hasGaze = false
-            InputManager.getInstance().head.onNewTarget.add(e=>{
-                if(e.targetMesh===sphere){
-                    if(!hasGaze) MeshUtils.setColor(sphere, Color3.Red().toColor4())
-                    hasGaze = true
-                }
-                else{
-                    if(hasGaze) MeshUtils.setColor(sphere, Color3.White().toColor4())
-                    hasGaze = false
-                }
-            })
+        const outside = [] as Vector3[]
+        const inside = [] as Vector3[]
+        for(let i=0; i<15; i++){
+            let x = Math.sin(i/15*Math.PI*2)
+            let y = -Math.cos(i/15*Math.PI*2)
+            outside.push(new Vector3(x, 0, y))
+            inside.push(new Vector3(x*0.8, 0, y*0.8))
         }
+        const polygon = CreatePolygon("polygon", {shape: outside, holes: [inside], depth:.05}, scene)
+        polygon.visibility = 0.5
 
         //// TESTS ////
         // const node = await node3dBuilder.create("harp") as Node3DInstance

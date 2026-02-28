@@ -7,6 +7,7 @@ import '@babylonjs/loaders/glTF';
 import '@babylonjs/core/Materials/Node/Blocks';
 import {NetworkManager} from "../network/NetworkManager.ts";
 import { WaveGround } from "../world/ground/WaveGround.ts";
+import { SoundwaveEmitter } from "../world/soundwave/SoundwaveEmitter.ts";
 
 export class SceneManager {
     private static _instance: SceneManager | null = null;
@@ -16,6 +17,7 @@ export class SceneManager {
     private readonly scene: B.Scene;
     private readonly shadowGenerator: B.ShadowGenerator;
     private waveGround!: WaveGround;
+    private soundwaveEmitter!: SoundwaveEmitter;
     //@ts-ignore
     private readonly ground: B.Mesh;
     private physicsInitialized: boolean = false;
@@ -89,6 +91,10 @@ export class SceneManager {
         return this.shadowGenerator
     }
 
+    public getSoundwaveEmitter(): SoundwaveEmitter {
+        return this.soundwaveEmitter
+    }
+
     /**
      * Initialize Havok physics engine
      */
@@ -135,11 +141,15 @@ export class SceneManager {
         const wallHeight = 2;
         const wallThickness = 1;
 
+
+        // Soundwave emitter
+        this.soundwaveEmitter = new SoundwaveEmitter(this.scene, -2+.5+.1, 80)
+
         // Ground
         const waveGround = this.waveGround = new WaveGround(50,50)
         waveGround.put(15,15,5,5,0)
-        waveGround.root.scaling.copyFromFloats(groundSize.width, 1, groundSize.depth)
-        waveGround.root.position.copyFromFloats(0, -2, 0)
+        waveGround.root.scaling.copyFromFloats(groundSize.width, .1, groundSize.depth)
+        waveGround.root.position.copyFromFloats(0, -2+.45, 0)
 
         setInterval(() => {
             waveGround.update()

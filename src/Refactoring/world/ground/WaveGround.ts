@@ -31,7 +31,7 @@ export class WaveGround {
             const block = that.ground.get(x,y)
             if(block) {
                 block.instancedBuffers.color = color
-                block.scaling.y = .1 + height/4
+                block.scaling.y = 1 + height*2
             }
         }
 

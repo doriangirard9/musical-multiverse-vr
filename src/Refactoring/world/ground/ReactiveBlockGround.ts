@@ -15,6 +15,7 @@ export class ReactiveBlockGround {
         this.root = new TransformNode("reactive block group")
 
         this.block = CreateBox("reactive block", {size:1})
+        this.block.position.y = 1000
         this.block.registerInstancedBuffer("color", 4)
         this.block.instancedBuffers.color = Color3.White().toColor4(1) 
 

@@ -1,4 +1,4 @@
-import { AbstractMesh, Color3, CreateCylinder, Observer, Quaternion, Scene, UtilityLayerRenderer, Vector3 } from "@babylonjs/core"
+import { AbstractMesh, Color3, Color4, CreateCylinder, Observer, Quaternion, Scene, Vector3 } from "@babylonjs/core"
 import { SyncManager } from "../../network/sync/SyncManager"
 import { N3DConnectableInstance } from "./N3DConnectableInstance"
 import { Node3DInstance } from "./Node3DInstance"
@@ -8,6 +8,7 @@ import { UIManager } from "../../app/UIManager"
 import { MeshUtils } from "../tools"
 import { ShakeBehavior } from "../../behaviours/ShakeBehavior"
 import { SceneManager } from "../../app/SceneManager"
+import { Node3DConnectable } from "../Node3DConnectable"
 
 /**
  * Une connection entre deux connectable de deux Node3D.
@@ -41,7 +42,7 @@ export class N3DConnectionInstance{
             this.tube.visibility = Math.max(0, 1 - power / 10)
             if(counter>5) connections.remove(this)
         }
-        this.shake.on_stop = (power, counter) => {
+        this.shake.on_stop = (_, __) => {
             this.tube.visibility = .8
         }
         this.shake.on_pick = () => {
@@ -73,12 +74,18 @@ export class N3DConnectionInstance{
 
     get isConnecting(){ return this.cOutput!=null && this.cInput!=null }
 
+
+
     // Connection
     private cOutput = null as N3DConnectableInstance|null
     private cInput = null as N3DConnectableInstance|null
     private observables = [] as Observer<any>[]
     private color = Color3.White().toColor4(1)
     private buildTimeout?: any
+
+    private outputFn?: Parameters<Node3DConnectable["connect"]>[0]
+    private inputFn?: Parameters<Node3DConnectable["connect"]>[0]
+    private impulseFn?: Parameters<Node3DConnectable["connect"]>[1]
 
     /**
      * Connect la node3D à deux connections. Pas de synchronisation.
@@ -137,8 +144,12 @@ export class N3DConnectionInstance{
         })()
 
         // Logical connection
-        output.config.connect(input.config.receive.bind(input.config))
-        input.config.connect(output.config.receive.bind(output.config))
+        this.inputFn = output.config.receive.bind(output.config)
+        this.outputFn = input.config.receive.bind(input.config)
+        this.impulseFn = (strength,tone) => this.pulse(strength, tone)
+        
+        output.config.connect(this.outputFn, this.impulseFn)
+        input.config.connect(this.inputFn, this.impulseFn)
         
         this.cOutput = output
         this.cInput = input
@@ -208,8 +219,8 @@ export class N3DConnectionInstance{
     private disconnect(){
         const {cOutput,cInput} = this
         if(cOutput && cInput){
-            cOutput.config.disconnect(cInput.config.receive.bind(cInput.config))
-            cInput.config.disconnect(cOutput.config.receive.bind(cOutput.config))
+            cOutput.config.disconnect(this.outputFn!, this.impulseFn!)
+            cInput.config.disconnect(this.inputFn!, this.impulseFn!)
             cOutput.connections.delete(this)
             cInput.connections.delete(this)
             this.cInput = null
@@ -218,6 +229,21 @@ export class N3DConnectionInstance{
             this.arrow?.dispose()
         }
     }
+
+
+    //// Pulse Visual ////
+    private pulseTimeout?: any
+    public pulse(strength: number, tone: number){
+        if(this.pulseTimeout) clearTimeout(this.pulseTimeout)
+
+        const color = Color3.FromHSV(tone*360, 1-strength, 1).toColor4(1).multiplyInPlace(this.color)
+        MeshUtils.setColor(this.tube, color)
+
+        this.pulseTimeout = setTimeout(()=>{
+            MeshUtils.setColor(this.tube, this.color)
+        }, 100)
+    }
+
 
     //// Synchronization ////
     private set_states: (key: string) => void = () => {}

@@ -40,9 +40,6 @@ export class WaveSimulator {
         this.pointset2 = temp
         this.pointset.clear()
 
-                console.log("updated", this.pointset2.size)
-
-
         for(const key of this.pointset2){
             const [x,y] = key.split(",").map(Number)
 

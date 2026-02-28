@@ -28,8 +28,6 @@ export class InputMultiPressBehavior implements Behavior<AbstractMesh> {
             return (c.pointer.targetMesh===target) && c.trigger.isPressed()
         })
 
-        console.log("new pressers", new_pressers)
-
         const shouldBePressed = new_pressers.length > 0
         const isPressed = this._pressers.size > 0
 

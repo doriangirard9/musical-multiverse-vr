@@ -7,7 +7,8 @@ import {
 
     Vector3,
     Quaternion, Color3,
-    UtilityLayerRenderer
+    UtilityLayerRenderer,
+    Vector2
 } from "@babylonjs/core";
 import { Node3DConnectable } from "../Node3DConnectable";
 import { Node3DParameter } from "../Node3DParameter";
@@ -165,6 +166,7 @@ export class Node3DInstance implements Synchronized {
             },
             sendSignal(position, red, green, blue) {
                 SceneManager.getInstance().getWaveGround().putWorldSpace(position, red, green, blue)
+                SceneManager.getInstance().getSoundwaveEmitter().spawn(new Vector2(position.x, position.z), new Color3(red, green, blue))
             },
 
             getPlayerPosition() {

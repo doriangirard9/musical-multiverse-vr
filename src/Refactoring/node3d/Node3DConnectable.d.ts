@@ -54,16 +54,26 @@ export interface Node3DConnectable{
     /**
      * Appelé lorsque l'entrée est connectée à une sortie.
      * Est appelé d'abord pour la sortie, puis pour l'entrée.
+     * Les mêmes fonctions seront passées à la déconnexion, donc elles peuvent servir d'identifiant pour la connexion.
      * @param sender Une fonction qui peut être appelée pour envoyer une valeur au connectable à l'autre bout de la connexion.
+     * @param power Une fonction qui peut être appelée pour envoyer une impulsion, utilisé pour les visuels. (les deux entre 0 et 1, un ton de 0 à 1 pour les connexions de type "signal", ou un ton de 0 est équivalent à un ton de 1).
      */
-    connect(sender: (value:any)=>void): void
+    connect(
+        sender: (value:any)=>void,
+        impulse: (strength:number, tone:number)=>void
+    ): void
    
     /**
      * Appelé lorsque l'entrée est déconnectée d'une sortie.
      * Est appelé d'abord pour la sortie, puis pour l'entrée.
+     * Les mêmes fonctions seront passées à la déconnexion, donc elles peuvent servir d'identifiant pour la connexion.
      * @param sender Une fonction qui peut être appelée pour envoyer une valeur au connectable à l'autre bout de la connexion.
+     * @param power Une fonction qui peut être appelée pour envoyer une impulsion, utilisé pour les visuels. (les deux entre 0 et 1, un ton de 0 à 1 pour les connexions de type "signal", ou un ton de 0 est équivalent à un ton de 1)
      */
-    disconnect(sender: (value:any)=>void): void
+    disconnect(
+        sender: (value:any)=>void,
+        power: (strength:number, tone:number)=>void
+    ): void
 
     /**
      * Appelé lorsque une valeur est envoyée à la connexion par la connexion à l'autre bout.
