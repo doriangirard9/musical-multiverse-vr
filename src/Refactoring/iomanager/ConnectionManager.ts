@@ -46,6 +46,7 @@ export class ConnectionManager {
     private _cancelAndResetConnection(): void {
         this.disposePreview?.()
         this.disposePreview = null
+        this.currentPort = null
     }
 
     private connectHandler(data: IOEventPayload['IO_CONNECT']) {
@@ -75,7 +76,6 @@ export class ConnectionManager {
             case "up":
                 if(this.currentPort){
                     this.connect(this.currentPort, data.connectable)
-                    this.currentPort = null
                 }
                 this._cancelAndResetConnection()
                 break;

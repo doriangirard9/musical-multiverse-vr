@@ -6,6 +6,9 @@ import { PointerInput } from "../PointerInput";
 /**
  * A behaviours that call two callback when the target is grabbed and stop being grabbed.
  * Can also call a callback when the target is moved while being grabbed.
+ * 
+ *  * **Ordering**:
+ * - OnUp is called after InputDropBehavior#onDrop
  */
 export class InputGrabBehavior implements Behavior<AbstractMesh> {
 

@@ -8,6 +8,9 @@ import { PointerInput } from "../PointerInput";
  * Useful to handle "dropping" an object on a target, or to handle connections between nodes by "dropping" a connection on a connectable.
  * Note that this behaviour only handles the "drop" part, and not the "grab" part. So it can be used independently of any grab behavior, to handle cases where the user doesn't need to grab an object to connect it to a node for example.
  * Also note that this behaviour will only trigger if the pointer is pointing at the target when the trigger is released, so it can be used together with a grab behavior without interfering with it, to handle cases where the user needs to grab an object before connecting it to a node for example.
+ * 
+ * **Ordering**:
+ * - Called before InputGrabBehavior#onUp
  */
 export class InputDropBehavior implements Behavior<AbstractMesh> {
 
@@ -29,7 +32,7 @@ export class InputDropBehavior implements Behavior<AbstractMesh> {
             const pointer = e.pressable.controller?.pointer
             if(!pointer)return
             if(pointer.targetMesh===target) this.onDrop(pointer)
-        })
+        }, undefined, true)
     }
 
     detach(): void {
