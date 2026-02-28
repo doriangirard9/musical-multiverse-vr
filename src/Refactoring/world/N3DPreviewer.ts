@@ -50,7 +50,7 @@ export class N3DPreviewer{
         hitbox.visibility = .3
 
         // Create a text display
-        const text = this.text = new N3DText(`n3preview ${this.kind} name`, [hitbox])
+        const text = this.text = new N3DText(`n3preview ${this.kind} name`, [hitbox], shared.utilityLayer.utilityLayerScene)
         text.set(factory.label)
 
         gui.root.parent = hitbox
