@@ -118,7 +118,7 @@ export class GazeControllerN3D implements Node3D {
         // Parameter
         context.createParameter({
             id: "automation_parameter_enabled",
-            meshes: [gui.enabledRotator],
+            meshes: [gui.enabledRotator, ...gui.enabledRotator.getChildMeshes()],
             getLabel() { return output.name },
             getStepCount() { return output.stepCount },
             getValue() { return that.enabledValue },
@@ -134,7 +134,7 @@ export class GazeControllerN3D implements Node3D {
 
         context.createParameter({
             id: "automation_parameter_disabled",
-            meshes: [gui.disabledRotator],
+            meshes: [gui.disabledRotator, ...gui.disabledRotator.getChildMeshes()],
             getLabel() { return output.name },
             getStepCount() { return output.stepCount },
             getValue() { return that.disabledValue },

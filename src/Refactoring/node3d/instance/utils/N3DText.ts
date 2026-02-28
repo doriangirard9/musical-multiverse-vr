@@ -12,27 +12,28 @@ export class N3DText{
     block
     texture
 
-    constructor(label:string, private targets: AbstractMesh[], scene: Scene) {
-        const plane = this.plane = CreatePlane(`${label} text plane`, { size: 1*TEXT_SCALE, width: 5*TEXT_SCALE }, scene)
+    constructor(label:string, private targets: AbstractMesh[], scene: Scene, fontSize: number = 50, private placement: number = .5){
+        const plane = this.plane = CreatePlane(`${label} text plane`, { size: 1*TEXT_SCALE, width: 4*TEXT_SCALE }, scene)
         plane.billboardMode = AbstractMesh.BILLBOARDMODE_ALL
         plane.setEnabled(false)
         plane.isPickable = false
 
-        const texture = this.texture = AdvancedDynamicTexture.CreateForMesh(plane, 1024, Math.floor(1024/5))
+        const texture = this.texture = AdvancedDynamicTexture.CreateForMesh(plane, 1024, Math.floor(1024/4))
         
         const block = this.block = new TextBlock()
-        block.fontSize = 50
+        block.fontSize = fontSize
         block.color = 'white'
         block.outlineColor = 'black'
-        block.outlineWidth = 5
-        block.lineSpacing = 25
+        block.outlineWidth = fontSize/10
+        block.lineSpacing = fontSize/2
+        block.textWrapping = true
         texture.addControl(block)
     }
 
     set(value: string){
         this.block.text = value
     }
-
+    
     show(){
         this.plane.setEnabled(true)
     }
@@ -51,16 +52,15 @@ export class N3DText{
         const target = this.targets.reduce((a,b)=>a.absolutePosition.y>b.absolutePosition.y?a:b)
 
         const distance = target.getAbsolutePosition().subtract(target.getScene().activeCamera!!.position).length()
-        const globalScale = new Vector3().setAll(TEXT_SCALE*distance)
-        const localScale = globalScale.divide(target.absoluteScaling)
-        this.plane.scaling.copyFrom(localScale)
+        const globalScale = new Vector3().setAll(TEXT_SCALE*distance*2)
+        this.plane.scaling.copyFrom(globalScale)
 
         this.plane.computeWorldMatrix(true)
         this.plane.refreshBoundingInfo(true,true)
 
         const position = target.getBoundingInfo().boundingBox.centerWorld.clone()
         position.y += target.getBoundingInfo().boundingBox.extendSizeWorld.y/2
-        position.y += this.plane.getBoundingInfo().boundingBox.extendSizeWorld.y/2
+        position.y += this.plane.getBoundingInfo().boundingBox.extendSizeWorld.y * this.placement
         this.plane.setAbsolutePosition(position)
     }
 

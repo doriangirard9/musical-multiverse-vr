@@ -1,4 +1,4 @@
-import { ActionManager, Color3, CreateBox, ExecuteCodeAction, PointerDragBehavior, TransformNode } from "@babylonjs/core";
+import { Color3, CreateBox, TransformNode } from "@babylonjs/core";
 import { N3DShared } from "../node3d/instance/N3DShared";
 import { Node3DGUI } from "../node3d/Node3D";
 import { N3DHighlighter } from "../node3d/instance/utils/N3DHighlighter";
@@ -19,7 +19,8 @@ export class N3DPreviewer{
     gui!: Node3DGUI
     highlighter!: N3DHighlighter
     drag!: HoldableBehaviour
-    text!: N3DText
+    name!: N3DText
+    description!: N3DText
     on_start_drag?: ()=>void
     on_drop?: (node3d:Node3DInstance)=>void
     on_no_drop?: ()=>void
@@ -50,8 +51,10 @@ export class N3DPreviewer{
         hitbox.visibility = .3
 
         // Create a text display
-        const text = this.text = new N3DText(`n3preview ${this.kind} name`, [hitbox], shared.utilityLayer.utilityLayerScene)
-        text.set(factory.label)
+        const name = this.name = new N3DText(`n3preview ${this.kind} name`, [hitbox], shared.utilityLayer.utilityLayerScene)
+        name.set(factory.label)
+        const desc = this.description = new N3DText(`n3preview ${this.kind} description`, [hitbox], shared.utilityLayer.utilityLayerScene, 30, -.2)
+        desc.set(factory.description+"\n|"+factory.tags.join(", ")+"|")
 
         gui.root.parent = hitbox
         hitbox.parent = this.root
@@ -91,12 +94,15 @@ export class N3DPreviewer{
         const hover = new InputHoverBehavior(
             ()=>{
                 this.shared.highlightLayer.addMesh(hitbox, Color3.Green())
-                text.updatePosition()
-                text.show()
+                name.updatePosition()
+                name.show()
+                desc.updatePosition()
+                desc.show()
             },
             ()=>{
                 this.shared.highlightLayer.removeMesh(hitbox)
-                text.hide()
+                name.hide()
+                desc.hide()
             }
         )
         hitbox.addBehavior(hover)
@@ -106,6 +112,6 @@ export class N3DPreviewer{
         this.highlighter.dispose()
         this.gui.dispose()
         this.root.dispose()
-        this.text.dispose()
+        this.name.dispose()
     }
 }

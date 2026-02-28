@@ -134,7 +134,7 @@ export class VoiceVolumeControllerN3D implements Node3D {
         // Parameter
         context.createParameter({
             id: "voice_parameter_enabled",
-            meshes: [gui.enabledRotator],
+            meshes: [gui.enabledRotator, ...gui.enabledRotator.getChildMeshes()],
             getLabel() { return volume.name },
             getStepCount() { return volume.stepCount },
             getValue() { return that.enabledValue },
@@ -149,7 +149,7 @@ export class VoiceVolumeControllerN3D implements Node3D {
 
         context.createParameter({
             id: "voice_parameter_disabled",
-            meshes: [gui.disabledRotator],
+            meshes: [gui.disabledRotator, ...gui.disabledRotator.getChildMeshes()],
             getLabel() { return volume.name },
             getStepCount() { return volume.stepCount },
             getValue() { return that.disabledValue },
