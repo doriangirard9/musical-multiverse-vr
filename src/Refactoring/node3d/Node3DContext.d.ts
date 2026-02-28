@@ -129,6 +129,13 @@ export interface Node3DContext{
      */
     showMessage(message: string): void
 
+    /**
+     * Envoie un signal coloré.
+     * Il est peut être représenté de différentes façons selon les choix de l'implémentation.
+     * C'est un élément visuel.
+     */
+    sendSignal(position: BABYLON.Vector3, red: number, green: number, blue: number): void
+
 
 
     //// Gestion de la scène ////

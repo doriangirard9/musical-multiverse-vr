@@ -29,6 +29,7 @@ import { AutomationN3DConnectable, MeshUtils } from "../tools";
 import { ShakeBehavior } from "../../behaviours/ShakeBehavior.ts";
 import { NetworkManager } from "../../network/NetworkManager.ts";
 import { N3DButtonInstance } from "./N3DButtonInstance.ts";
+import { SceneManager } from "../../app/SceneManager.ts";
 
 export class Node3DInstance implements Synchronized {
 
@@ -161,6 +162,9 @@ export class Node3DInstance implements Synchronized {
             },
             showMessage(message: string) {
                 menu.print(message)
+            },
+            sendSignal(position, red, green, blue) {
+                SceneManager.getInstance().getWaveGround().putWorldSpace(position, red, green, blue)
             },
 
             getPlayerPosition() {

@@ -1,4 +1,4 @@
-import { AbstractMesh, Vector3, type Mesh, type TransformNode } from "@babylonjs/core";
+import { AbstractMesh, Color3, Vector3, type Mesh, type TransformNode } from "@babylonjs/core";
 import { Node3D, Node3DFactory, Node3DGUI } from "../../Node3D";
 import { Node3DContext } from "../../Node3DContext";
 import { Node3DGUIContext } from "../../Node3DGUIContext";
@@ -110,6 +110,7 @@ export class SpeakerPannerNodeN3D implements Node3D{
     audioCtx!: AudioContext
     interval: any
     pannerNode!: PannerNode
+    analyserNode!: AnalyserNode
 
     constructor(){}
 
@@ -131,11 +132,19 @@ export class SpeakerPannerNodeN3D implements Node3D{
         pannerNode.maxDistance = 200 // Distance maximale à laquelle le son sera réduit, passé cette distance le son ne sera pas réduit
         pannerNode.rolloffFactor = 3 // Vitesse de décroissance du volume en fonction de la distance
 
-        pannerNode.connect(audioCtx.destination)
+        const analyserNode = this.analyserNode = audioCtx.createAnalyser()
+        const data = new Uint8Array(analyserNode.frequencyBinCount)
+        analyserNode.fftSize = 32
 
+        pannerNode.connect(analyserNode)
+        analyserNode.connect(audioCtx.destination)
+
+        let max = 0
         // TODO: audioCtx.listener ne devrait pas être changé par un Node3d car c'est un paramètre général
         // Il faut déplacer ça dehors.
         this.interval = setInterval(() => {
+
+            // Son 3D
             const output_transform = context.getPosition()
             const output_forward = Vector3.Forward().applyRotationQuaternionInPlace(output_transform.rotation)
             const player_transform = context.getPlayerPosition()
@@ -166,6 +175,15 @@ export class SpeakerPannerNodeN3D implements Node3D{
                 // setTargetAtTime change le paramètre de manière progressive et évite les "pop"
                 parameter.setTargetAtTime(value, audioCtx.currentTime, 40/1000)
             }
+
+            // Effet visuel
+            analyserNode.getByteFrequencyData(data)
+            const red = (data[0]+data[1]+data[2])/3/255
+            const green = (data[3]+data[4]+data[5])/3/255
+            const blue = (data[6]+data[7]+data[8])/3/255
+            console.log([...data])
+            context.sendSignal(gui.root.absolutePosition, (red-green-blue)*5, (green-blue)*5, blue*5)
+
         },50)
 
         context.createConnectable(new AudioN3DConnectable.Input("audioInput", [gui.audioInput], "Destination", pannerNode))
@@ -182,7 +200,8 @@ export class SpeakerPannerNodeN3D implements Node3D{
     getStateKeys(): string[] { return [] }
     
     async dispose(){
-        this.pannerNode.disconnect(this.audioCtx.destination)
+        this.pannerNode.disconnect(this.analyserNode)
+        this.analyserNode.disconnect(this.audioCtx.destination)
         clearInterval(this.interval)
     }
 
