@@ -34,7 +34,7 @@ export class Node3DBuilder {
      */
     FACTORY_KINDS = [
         "audiooutput", "oscillator", "maracas", "livepiano", "notesbox","pianoroll", "drumkit", "pro54michel",
-        "hyperkeyboard", "drumplatekit", "automation_controller", "the_cube", "harp", "large_harp",
+        "hyperkeyboard", "drumplatekit", "automation_controller", "the_cube", "harp", "large_harp", "voice", "gaze",
         ...Object.keys(examples).map(k => `wam3d-${k}`),
     ]
 
