@@ -5,7 +5,7 @@ import { Node3DConnectable } from "../../Node3DConnectable";
  * Simple implementations of Node3DConnectable for the "sync" protocol.
  * « Abandonne tout espoir toi qui entre ici »
  */
-export namespace SynxN3DConnectable{
+export namespace SynxN3DConnectable {
 
     export const InputColor = Color3.FromHexString("#fff700")
 
@@ -14,27 +14,32 @@ export namespace SynxN3DConnectable{
     /**
      * A containet that contains the sync informations
      */
-    export class Container{
+    export class Container {
 
-        constructor(duration: number){
+        constructor(duration: number) {
             this._duration = duration
-            this._tail_total = 0
+            this._tail_total = duration
             this._total = duration
             this._start = 0
         }
 
         // Graph
-        _next = new Map<any, (msg:any)=>void>()
-        _previous = new Map<any, (msg:any)=>void>()
+        _next = new Map<any, (msg: any) => void>()
+        _previous = new Map<any, (msg: any) => void>()
 
-        sendUp(msg: any){
-            for(const sender of this._next.keys()){
+
+        get hasUp() { return this._next.size > 0 }
+
+        get hasDown() { return this._previous.size > 0 }
+
+        sendUp(msg: any) {
+            for (const sender of this._next.values()) {
                 sender(msg)
             }
         }
 
-        sendDown(msg: any){
-            for(const sender of this._previous.keys()){
+        sendDown(msg: any) {
+            for (const sender of this._previous.values()) {
                 sender(msg)
             }
         }
@@ -47,54 +52,66 @@ export namespace SynxN3DConnectable{
         _ends = new Map<any, number>()
         _tails = new Map<any, number>()
 
-        resendEnd(){
+        resendEnd() {
             const end = this._start + this._duration
-            this.sendUp({id:this, sendEnd: end})
+            this.sendUp({ id: this, sendEnd: end })
         }
 
-        resendTailTotal(){
-            const tail_total = this._duration - this._tail_total
-            this.sendDown({id:this, sendTailTotal: tail_total})
+        resendTailTotal() {
+            const tail_total = this._tail_total
+            this.sendDown({ id: this, sendTailTotal: tail_total })
         }
 
-        resendTotal(){
-            this.sendUp({id:this, sendTotal: this._total})
+        resendTotal() {
+            this.sendUp({ id: this, sendTotal: this._total })
         }
 
-        onMessage(msg:any){
-            if(msg.sendEnd!=undefined){
+        onMessage(msg: any) {
+            if (msg.sendEnd != undefined) {
                 this._ends.set(msg.id, msg.sendEnd)
-                const start = Math.max(...this._ends.values())
-                if(start!=this._start){
+                const start = Math.max(...this._ends.values(), 0)
+                if (start != this._start) {
                     this._start = start
-                    this.resendEnd()
+                    if (this.hasUp) this.resendEnd()
+                    else {
+                        this._tail_total = start + this._duration
+                        this.resendTailTotal()
+                    }
                 }
             }
-            if(msg.sendTailTotal!=undefined){
+            if (msg.sendTailTotal != undefined) {
                 this._tails.set(msg.id, msg.sendTailTotal)
-                const newTail = Math.max(...this._tails.values())
-                if(newTail!=this._tail_total){
+                const newTail = Math.max(...this._tails.values(), 0)
+                if (newTail != this._tail_total) {
                     this._tail_total = newTail
-                    this.resendTailTotal()
+                    if (this.hasDown) this.resendTailTotal()
+                    else {
+                        this._total = this._tail_total
+                        this.resendTotal()
+                    }
                 }
             }
-            if(msg.sendTotal!=undefined){
-                if(msg.sendTotal!=this._total){
+            if (msg.sendTotal != undefined) {
+                if (msg.sendTotal != this._total) {
                     this._total = msg.sendTotal
                     this.resendTotal()
                 }
             }
         }
 
-        get start(){ return this._start }
+        get start() { return this._start }
 
-        get duration(){ return this._duration }
+        get duration() { return this._duration }
 
-        get total(){ return this._total }
+        get total() { return this._total }
 
-        set duration(value: number){
+        set duration(value: number) {
             this._duration = value
-            this.resendEnd()
+            if (this.hasUp) this.resendEnd()
+            else {
+                this._tail_total = this._start + this._duration
+                this.resendTailTotal()
+            }
         }
 
     }
@@ -109,16 +126,16 @@ export namespace SynxN3DConnectable{
             readonly meshes: AbstractMesh[],
             readonly label: string,
             readonly container: Container,
-        ){}
+        ) { }
 
-        get type(){ return "sync" }
+        get type() { return "sync" }
 
-        get direction(){ return "input" as "input" }
+        get direction() { return "input" as "input" }
 
-        get color(){ return SynxN3DConnectable.InputColor }
+        get color() { return SynxN3DConnectable.InputColor }
 
         connect(sender: (value: any) => void): void {
-            sender({ id: this, container: this.container, connect:true })
+            sender({ id: this, container: this.container, connect: true })
         }
 
         disconnect(sender: (value: any) => void): void {
@@ -127,15 +144,15 @@ export namespace SynxN3DConnectable{
 
         receive(msg: any): void {
             const container = msg.container as Container
-            if(msg.connect){
-                this.container._next.set(container, msg=>container.onMessage(msg))
+            if (msg.connect) {
+                this.container._previous.set(container, msg => container.onMessage(msg))
             }
-            else{
-
+            else {
+                this.container._previous.delete(container)
             }
         }
     }
-    
+
 
     /**
      * A input connectable that 
@@ -147,36 +164,31 @@ export namespace SynxN3DConnectable{
             readonly meshes: AbstractMesh[],
             readonly label: string,
             readonly container: Container,
-        ){}
+        ) { }
 
-        get type(){ return "sync" }
+        get type() { return "sync" }
 
-        get direction(){ return "output" as "output" }
+        get direction() { return "output" as "output" }
 
-        get color(){ return SynxN3DConnectable.OutputColor }
+        get color() { return SynxN3DConnectable.OutputColor }
 
         connect(sender: (value: any) => void): void {
-            sender({
-                id: this,
-                sendTotal: (total:number) =>{
-                    this.container._totalValues.set(sender, total)
-                    this.container.updateTotal()
-                }
-            })
+            sender({ id: this, container: this.container, connect: true })
         }
 
         disconnect(sender: (value: any) => void): void {
-            sender({
-                id: this
-            })
-            this.container._totalValues.delete(sender)
-            this.container.updateTotal()
+            sender({ id: this, container: this.container })
         }
 
         receive(msg: any): void {
-            if(msg.sendEnd) this.container._sendEnd.set(msg.id, msg.sendEnd)
-            else this.container._sendEnd.delete(msg.id)
-            this.container.updateEnd()
+            const container = msg.container as Container
+            if (msg.connect) {
+                this.container._next.set(container, msg => container.onMessage(msg))
+            }
+            else {
+                this.container._next.delete(container)
+            }
+            this.container.duration = container.duration
         }
     }
 }

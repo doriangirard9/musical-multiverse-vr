@@ -187,7 +187,6 @@ export class SpeakerPannerNodeN3D implements Node3D{
             speed = speed*.5 + (volume-prev)*.5
             prev = volume
             
-            console.log("acc",speed,"prev",prev,"volume",volume)
             if(Math.sign(speed) !== Math.sign(prevSpeed) && speed > 2 && volume > 10){
                 const red = (data[0]+data[1]+data[2])/3/255
                 const green = (data[3]+data[4]+data[5])/3/255

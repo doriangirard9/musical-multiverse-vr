@@ -23,6 +23,8 @@ export interface FunctionKernel {
 
     readonly parameterIds: string[]
 
+    readonly currentTime: number
+
     getParameterState(id: string): number
 
 }

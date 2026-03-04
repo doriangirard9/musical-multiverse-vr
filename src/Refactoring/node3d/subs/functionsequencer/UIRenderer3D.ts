@@ -1,5 +1,5 @@
 import { AbstractMesh, Color3, TransformNode } from "@babylonjs/core"
-import { RemoteUIElement } from "./RemoteUI"
+import { RemoteUIElement } from "./api/RemoteUI"
 import { Node3DGUIContext } from "../../Node3DGUIContext"
 
 /**

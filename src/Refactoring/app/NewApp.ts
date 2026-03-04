@@ -134,9 +134,8 @@ export class NewApp {
         // node.boundingBoxMesh.position.z += 5
         // node2.boundingBoxMesh.position.z += 5
         // node2.boundingBoxMesh.position.x += 1
-        //await node3dBuilder.create("sync_debug") as Node3DInstance
-        //await node3dBuilder.create("sync_debug") as Node3DInstance
-        // await node3dBuilder.create("sync_debug") as Node3DInstance
+        await node3dBuilder.create("sequencer") as Node3DInstance
+        await node3dBuilder.create("sequencer") as Node3DInstance
         // await node3dBuilder.create("function_sequencer") as Node3DInstance
 
         //// LE SUPER MAGASIN ////

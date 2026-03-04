@@ -1,11 +1,8 @@
 import { WamParameterConfiguration, WamTransportData } from "@webaudiomodules/api"
-import { AudioWorkletGlobalScope } from "@webaudiomodules/api"
 import { RemoteUIElement } from "./RemoteUI.ts"
 import { FunctionKernel } from "./FunctionKernel.ts"
 
 const PPQN = 96
-
-const audioWorkletGlobalScope: AudioWorkletGlobalScope = globalThis as unknown as AudioWorkletGlobalScope
 
 export type ParameterDefinition = {
     id: string
@@ -82,7 +79,7 @@ export class FunctionAPI {
      * */
     emitNote(channel: number, note: number, velocity: number, duration: number, startTime?: number) {
         if (startTime === undefined) {
-            startTime = audioWorkletGlobalScope.currentTime
+            startTime = this.#kernel.currentTime
         }
 
         if (!(Number.isInteger(channel) && channel >= 0 && channel <= 15)) {
@@ -118,7 +115,7 @@ export class FunctionAPI {
      * @returns {number} the current audioContext time, in seconds
      */
     getCurrentTime(): number {
-        return audioWorkletGlobalScope.currentTime
+        return this.#kernel.currentTime
     }
 
     /**

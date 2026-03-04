@@ -15,11 +15,13 @@ class SequencerN3DGUI implements Node3DGUI {
     block
     notes: AbstractMesh[][] = [] 
     output
+    syncInput
+    syncOutput
     octave
 
     readonly stepCount = 12
     readonly noteCount = 12
-    readonly firstNote = 0
+    readonly firstNote = this.stepCount*6
 
     constructor(private context: Node3DGUIContext) {
         const {babylon:B,tools:T} = context
@@ -39,14 +41,30 @@ class SequencerN3DGUI implements Node3DGUI {
         // Create base
         const block = this.block = B.CreateBox("sequencer block", {width: width, height: baseSize, depth: height}, context.scene)
         T.MeshUtils.setColor(this.block, Color3.Blue().toColor4())
+        block.material = context.materialMat
         block.position.y = -baseSize/2
         block.parent = this.root
 
         // Create output
         const output = this.output = B.CreateIcoSphere("sequencer output", {radius:baseSize*.7}, context.scene)
         T.MeshUtils.setColor(output, MidiN3DConnectable.OutputColor.toColor4())
+        output.material = context.materialMat
         output.position.set(.5+baseSize*.7, -baseSize*.7, 0)
         output.parent = this.root
+
+        // Create sync input
+        const syncInput = this.syncInput = B.CreateIcoSphere("sequencer sync input", {radius:baseSize*.5}, context.scene)
+        T.MeshUtils.setColor(syncInput, T.SynxN3DConnectable.InputColor.toColor4())
+        syncInput.material = context.materialMat
+        syncInput.position.set(-.5-baseSize*.7, -baseSize*.7, -.25)
+        syncInput.parent = this.root
+
+        // Create sync output
+        const syncOutput = this.syncOutput = B.CreateIcoSphere("sequencer sync output", {radius:baseSize*.5}, context.scene)
+        T.MeshUtils.setColor(syncOutput, T.SynxN3DConnectable.OutputColor.toColor4())
+        syncOutput.material = context.materialMat
+        syncOutput.position.set(.5+baseSize*.7, -baseSize*.7, -.25)
+        syncOutput.parent = this.root
 
         // Create notes
         const createKeyboard = (fx: number, fy: number, tx: number, ty: number)=>{
@@ -105,17 +123,64 @@ class SequencerN3DGUI implements Node3DGUI {
         this.notes = []
     }
 
-    get worldSize() { return 4 }
+    get worldSize() { return 5 }
 }
 
 class SequencerN3D implements Node3D{
 
     private note_states = [] as boolean[][]
 
+    private currentStep = -1
+
+    private sync
+
+    private midi_output
+
+    private updateNote(step: number, note: number) {
+        const state = this.currentStep==-1 ? false : this.note_states[step][note]
+        this.gui.colorize(step, note, light=>{
+            const color = light.clone()
+            if(state) color.addInPlace(Color3.Green().toColor4()).scaleInPlace(.5)
+            if(step===this.currentStep) color.addInPlace(Color3.Red().toColor4()).scaleInPlace(.5)
+            return color
+        })
+    }
+
     private set(step:number,note:number,value:boolean){
         this.note_states[step][note] = value
-        if(value) this.gui.colorize(step, note, (light:Color4)=>Color3.Green().toColor4().addInPlace(light).scaleInPlace(.5))
-        else this.gui.uncolorize(step, note)
+        this.updateNote(step, note)
+    }
+
+    private updateStep(gui: SequencerN3DGUI, audioContext: AudioContext){
+        const loop = (audioContext.currentTime%this.sync.total)
+        const local = (loop-this.sync.start)/this.sync.duration
+
+        let newStep
+        if(local>=0 && local<1) newStep = Math.floor(local*this.note_states.length)
+        else newStep = -1
+
+        if(newStep != this.currentStep){
+            const oldStep = this.currentStep
+            this.currentStep = newStep
+            for(let n=0; n<this.note_states[0].length; n++){
+                if(oldStep!=-1) this.updateNote(oldStep, n)
+                if(newStep!=-1) {
+                    this.updateNote(newStep, n)
+                    if(this.note_states[newStep][n]){
+                        const note = gui.firstNote + n
+                        this.sendNote(audioContext, note, 100, this.sync.duration/this.note_states.length*0.9)
+                    }
+                }
+            }
+        }
+    }
+
+    private sendNote(audioContext: AudioContext, note: number, velocity: number, duration: number){
+        console.log("Send note", note, "velocity", velocity, "duration", duration)
+        for(const cn of this.midi_output.connections){
+            cn.scheduleEvents({ type:'wam-midi', time: audioContext.currentTime, data: { bytes: [0x90, note, velocity] } })
+            cn.scheduleEvents({ type:'wam-midi', time: audioContext.currentTime + duration, data: { bytes: [0x80, note, 0] } })
+        }
     }
 
     constructor(context: Node3DContext, private gui: SequencerN3DGUI){
@@ -125,8 +190,13 @@ class SequencerN3D implements Node3D{
         context.addToBoundingBox(gui.block)
 
         // Create midi output
-        const midi_output = new T.MidiN3DConnectable.ListOutput("midioutput", [gui.output], "MIDI Output")
+        const midi_output = this.midi_output = new T.MidiN3DConnectable.ListOutput("midioutput", [gui.output], "MIDI Output")
         context.createConnectable(midi_output)
+
+        // Sync
+        this.sync = new T.SynxN3DConnectable.Container(5)
+        context.createConnectable(new T.SynxN3DConnectable.Input("syncInput", [gui.syncInput], "Sync Input", this.sync))
+        context.createConnectable(new T.SynxN3DConnectable.Output("syncOutput", [gui.syncOutput], "Sync Output", this.sync))
 
         // Create note buttons
         for(let s=0; s<gui.notes.length; s++){
@@ -149,6 +219,14 @@ class SequencerN3D implements Node3D{
                 sequencer.set(s, n, false)
             }
         }
+
+        const interval = setInterval(()=>{
+            sequencer.updateStep(gui, context.audioCtx)
+        },5)
+
+        this.dispose = async ()=>{
+            clearInterval(interval)
+        }
     }
 
     async setState(key: string, state: any): Promise<void> { }
@@ -157,9 +235,7 @@ class SequencerN3D implements Node3D{
 
     getStateKeys(): string[] { return []}
 
-    async dispose(): Promise<void> {
-        
-    }
+    dispose!: ()=>Promise<void>
 
 }
 

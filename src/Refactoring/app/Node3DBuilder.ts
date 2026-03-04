@@ -77,7 +77,7 @@ export class Node3DBuilder {
         if(kind=="large_harp") return HarpN3DFactory.LARGE
         if(kind=="gaze") return GazeControllerN3DFactory
         if(kind=="voice") return VoiceVolumeControllerN3DFactory
-        if(kind=="function_sequencer") return FunctionSequencerN3DFactory.DEFAULT
+        //if(kind=="function_sequencer") return FunctionSequencerN3DFactory.DEFAULT
 
         // Debug
         if(kind=="sync_debug") return SyncDebugN3DFactory
