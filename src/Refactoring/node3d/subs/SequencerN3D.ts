@@ -137,7 +137,7 @@ class SequencerN3D implements Node3D{
     private midi_output
 
     private updateNote(step: number, note: number) {
-        const state = this.currentStep==-1 ? false : this.note_states[step][note]
+        const state = step==-1 ? false : this.note_states[step][note]
         this.gui.colorize(step, note, light=>{
             const color = light.clone()
             if(state) color.addInPlace(Color3.Green().toColor4()).scaleInPlace(.5)

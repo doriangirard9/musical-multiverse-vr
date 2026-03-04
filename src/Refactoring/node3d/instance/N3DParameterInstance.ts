@@ -116,7 +116,10 @@ export class N3DParameterInstance {
                     changeFactor*=2
 
                     // If stepCount is 2, the value is directly changed
-                    if(stepSize==1)setValue(getValue()<.5 ? 1 : 0)
+                    if(stepSize==1){
+                        setValue(getValue()<.5 ? 1 : 0)
+                        updateText()
+                    }
                     
                     reverseMatrix.copyFrom(input.matrix).invertToRef(reverseMatrix)
                 },
