@@ -5,18 +5,16 @@ import { WamNode } from "@webaudiomodules/api";
 /**
  * Simple implementations of Node3DConnectable for the "audio" protocol.
  */
-export class MidiN3DConnectable{
+export namespace MidiN3DConnectable{
 
-    private constructor(){}
+    export const InputColor = Color3.FromHexString("#33BB88")
 
-    static InputColor = Color3.FromHexString("#33BB88")
-
-    static OutputColor = Color3.FromHexString("#BB3388")
+    export const OutputColor = Color3.FromHexString("#BB3388")
 
     /**
      * A input connectable that connect an WamNode.
      */
-    static Input = class Input implements Node3DConnectable {
+    export class Input implements Node3DConnectable {
 
         constructor(
             readonly id: string,
@@ -46,7 +44,7 @@ export class MidiN3DConnectable{
      * A input connectable that connect an WamNode, its audio node can be changed at any time.
      * It can also contains no audio node.
      */
-    static DynamicInput = class Input implements Node3DConnectable {
+    export class DynamicInput implements Node3DConnectable {
 
         private _audioNode: WamNode|null = null
         private senders: ((value: any) => void)[] = []
@@ -97,7 +95,7 @@ export class MidiN3DConnectable{
     /**
      * A output connectable that connect an WamNode.
      */
-    static Output = class Output implements Node3DConnectable {
+    export class Output implements Node3DConnectable {
 
         constructor(
             readonly id: string,
@@ -133,7 +131,7 @@ export class MidiN3DConnectable{
     /**
      * A output connectable that keep a list of the audio nodes connected to it.
      */
-    static ListOutput = class ListOutput implements Node3DConnectable {
+    export class ListOutput implements Node3DConnectable {
 
         readonly connections: WamNode[] = []
 
@@ -179,7 +177,7 @@ export class MidiN3DConnectable{
      * A output connectable that connect an WamNode, its audio node can be changed at any time.
      * It can also contains no audio node.
      */
-    static DynamicOutput = class DynamicOutput extends MidiN3DConnectable.ListOutput {
+    export class DynamicOutput extends MidiN3DConnectable.ListOutput {
 
         private _audioNode: WamNode|null = null
 

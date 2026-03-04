@@ -21,6 +21,8 @@ import { PositionCubeN3DFactory } from "../node3d/subs/automation/PositionCubeN3
 import { HarpN3DFactory } from "../node3d/subs/note_generator/HarpN3D.ts";
 import { GazeControllerN3DFactory } from "../node3d/subs/automation/GazeControllerN3D.ts";
 import { VoiceVolumeControllerN3DFactory } from "../node3d/subs/automation/VoiceVolumeControllerN3D.ts";
+import { SyncDebugN3DFactory } from "../node3d/subs/debug/SyncDebugN3D.ts";
+import { FunctionSequencerN3DFactory } from "../node3d/subs/functionsequencer/FunctionSequencerN3D.ts";
 
 
 
@@ -75,6 +77,10 @@ export class Node3DBuilder {
         if(kind=="large_harp") return HarpN3DFactory.LARGE
         if(kind=="gaze") return GazeControllerN3DFactory
         if(kind=="voice") return VoiceVolumeControllerN3DFactory
+        if(kind=="function_sequencer") return FunctionSequencerN3DFactory.DEFAULT
+
+        // Debug
+        if(kind=="sync_debug") return SyncDebugN3DFactory
 
         // Wam3DGenerator examples
         if(kind.startsWith("wam3d-")) {

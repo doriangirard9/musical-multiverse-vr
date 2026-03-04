@@ -1,4 +1,4 @@
-import { Color3, Color4, CreatePolygon, Scene, Vector2, Vector3 } from "@babylonjs/core"
+import { Color3, CreatePolygon, Scene, Vector2, Vector3 } from "@babylonjs/core"
 
 
 export class SoundwaveEmitter {

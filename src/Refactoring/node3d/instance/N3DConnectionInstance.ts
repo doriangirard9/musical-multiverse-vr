@@ -1,4 +1,4 @@
-import { AbstractMesh, Color3, Color4, CreateCylinder, Observer, Quaternion, Scene, Vector3 } from "@babylonjs/core"
+import { AbstractMesh, Color3, CreateCylinder, Observer, Quaternion, Scene, Vector3 } from "@babylonjs/core"
 import { SyncManager } from "../../network/sync/SyncManager"
 import { N3DConnectableInstance } from "./N3DConnectableInstance"
 import { Node3DInstance } from "./Node3DInstance"

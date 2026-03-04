@@ -4,18 +4,17 @@ import { Node3DConnectable } from "../../Node3DConnectable";
 /**
  * Simple implementations of Node3DConnectable for the "audio" protocol.
  */
-export class AudioN3DConnectable{
+export namespace AudioN3DConnectable{
 
-    private constructor(){}
 
-    static InputColor = Color3.FromHexString("#00FF00")
+    export const InputColor = Color3.FromHexString("#00FF00")
 
-    static OutputColor = Color3.FromHexString("#FF0000")
+    export const OutputColor = Color3.FromHexString("#FF0000")
 
     /**
      * A input connectable that connect an AudioNode.
      */
-    static Input = class Input implements Node3DConnectable {
+    export class Input implements Node3DConnectable {
 
         constructor(
             readonly id: string,
@@ -28,7 +27,7 @@ export class AudioN3DConnectable{
 
         get direction(){ return "input" as "input" }
 
-        get color(){ return AudioN3DConnectable.OutputColor }
+        get color(){ return OutputColor }
 
         connect(sender: (value: any) => void): void {
             sender({connectAudio:this.audioNode})
@@ -45,7 +44,7 @@ export class AudioN3DConnectable{
      * A input connectable that connect an AudioNode, its audio node can be changed at any time.
      * It can also contains no audio node.
      */
-    static DynamicInput = class Input implements Node3DConnectable {
+    export class DynamicInput implements Node3DConnectable {
 
         private _audioNode: AudioNode|null = null
         private senders: ((value: any) => void)[] = []
@@ -63,7 +62,7 @@ export class AudioN3DConnectable{
 
         get direction(){ return "input" as "input" }
 
-        get color(){ return AudioN3DConnectable.OutputColor }
+        get color(){ return OutputColor }
 
         connect(sender: (value: any) => void): void {
             this.senders.push(sender)
@@ -96,7 +95,7 @@ export class AudioN3DConnectable{
     /**
      * A output connectable that connect an AudioNode.
      */
-    static Output = class Output implements Node3DConnectable {
+    export class Output implements Node3DConnectable {
 
         constructor(
             readonly id: string,
@@ -109,7 +108,7 @@ export class AudioN3DConnectable{
 
         get direction(){ return "output" as "output" }
 
-        get color(){ return AudioN3DConnectable.OutputColor }
+        get color(){ return OutputColor }
 
         connect(_: (value: any) => void): void { }
 
@@ -126,7 +125,7 @@ export class AudioN3DConnectable{
     /**
      * A output connectable that keep a list of the audio nodes connected to it.
      */
-    static ListOutput = class ListOutput implements Node3DConnectable {
+    export class ListOutput implements Node3DConnectable {
 
         readonly connections: AudioNode[] = []
 
@@ -145,7 +144,7 @@ export class AudioN3DConnectable{
 
         get direction(){ return "output" as "output" }
 
-        get color(){ return AudioN3DConnectable.OutputColor }
+        get color(){ return OutputColor }
 
         connect(_: (value: any) => void): void { }
 
@@ -172,7 +171,7 @@ export class AudioN3DConnectable{
      * A output connectable that connect an AudioNode, its audio node can be changed at any time.
      * It can also contains no audio node.
      */
-    static DynamicOutput = class DynamicOutput extends AudioN3DConnectable.ListOutput {
+    export class DynamicOutput extends ListOutput {
 
         private _audioNode: AudioNode|null = null
 

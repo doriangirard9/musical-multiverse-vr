@@ -3,7 +3,7 @@ import {XRManager} from "../xr/XRManager.ts";
 import {Node3dManager} from "./Node3dManager.ts";
 import {AppOrchestrator} from "./AppOrchestrator.ts";
 import ControlsUI from "./ControlsUI.ts";
-import {Color3, CreateAudioEngineAsync, CreatePolygon, CreateSphere, ImportMeshAsync, Mesh, Vector2, Vector3} from "@babylonjs/core";
+import {CreateAudioEngineAsync, CreatePolygon, ImportMeshAsync, Vector3} from "@babylonjs/core";
 import {N3DShop, N3DShopOptions} from "../world/shop/N3DShop.ts";
 import { InputManager } from "../xr/inputs/InputManager.ts";
 import { parallel } from "../utils/utils.ts";
@@ -14,7 +14,6 @@ import { ConnectionManager } from "../iomanager/ConnectionManager.ts";
 import { N3DRendering } from "../node3d/instance/utils/N3DRendering.ts";
 import { Node3DInstance } from "../node3d/instance/Node3DInstance.ts";
 import { InputVisualPointer } from "../xr/inputs/tools/InputVisualPointer.ts";
-import { MeshUtils } from "../node3d/tools/index.ts";
 export class NewApp {
     private static readonly DEBUG_LOG = false;
     private controlsUI?: ControlsUI;
@@ -135,7 +134,10 @@ export class NewApp {
         // node.boundingBoxMesh.position.z += 5
         // node2.boundingBoxMesh.position.z += 5
         // node2.boundingBoxMesh.position.x += 1
-        const node = await node3dBuilder.create("voice") as Node3DInstance
+        //await node3dBuilder.create("sync_debug") as Node3DInstance
+        //await node3dBuilder.create("sync_debug") as Node3DInstance
+        // await node3dBuilder.create("sync_debug") as Node3DInstance
+        // await node3dBuilder.create("function_sequencer") as Node3DInstance
 
         //// LE SUPER MAGASIN ////
         {

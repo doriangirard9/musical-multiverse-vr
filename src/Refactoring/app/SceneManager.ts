@@ -146,7 +146,7 @@ export class SceneManager {
         this.soundwaveEmitter = new SoundwaveEmitter(this.scene, -2+.5+.1, 80)
 
         // Ground
-        const waveGround = this.waveGround = new WaveGround(50,50)
+        const waveGround = this.waveGround = new WaveGround(20,20)
         waveGround.put(15,15,5,5,0)
         waveGround.root.scaling.copyFromFloats(groundSize.width, .1, groundSize.depth)
         waveGround.root.position.copyFromFloats(0, -2+.45, 0)

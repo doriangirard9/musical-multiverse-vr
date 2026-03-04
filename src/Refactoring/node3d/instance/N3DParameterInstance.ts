@@ -1,7 +1,9 @@
-import { ActionManager, Color3, ExecuteCodeAction, HighlightLayer, PickingInfo, SixDofDragBehavior, TransformNode, UtilityLayerRenderer, Vector3 } from "@babylonjs/core"
+import { ActionManager, Color3, HighlightLayer, Matrix, TransformNode, UtilityLayerRenderer, Vector3 } from "@babylonjs/core"
 import { NodeCompUtils } from "../tools/utils/NodeCompUtils"
 import { Node3DParameter } from "../Node3DParameter"
 import { N3DText } from "./utils/N3DText"
+import { InputHoverBehavior } from "../../xr/inputs/tools/InputHoverBehavior"
+import { InputGrabBehavior } from "../../xr/inputs/tools/InputGrabBehavior"
 
 const highlightColor = Color3.Blue()
 
@@ -80,63 +82,76 @@ export class N3DParameterInstance {
         for(const draggable of draggables){
             const action = draggable.actionManager ??= new ActionManager(root.getScene())
         
-            const _onover = action.registerAction(new ExecuteCodeAction(ActionManager.OnPointerOverTrigger, () => {
+            const hover = new InputHoverBehavior(()=>{
                 updateText()
                 visual.offset(1)
-            }))!!
-
-            const _onout = action.registerAction(new ExecuteCodeAction(ActionManager.OnPointerOutTrigger, () => {
+            }, ()=>{
                 visual.offset(-1)
-            }))!!
-
-            const drag = new SixDofDragBehavior()
-            drag.allowMultiPointer = false
-            drag.disableMovement = true
-            drag.rotateWithMotionController = false
-            drag.rotateDraggedObject = false
-            draggable.addBehavior(drag)
-
+            })
     
             let startingValue = 0
             let stepSize = 0.01
             let changeFactor = 0
 
-            // Get the stepCount / change factor / etc...
-            drag.onDragStartObservable.add(() => {
-                visual.offset(1)
+            const reverseMatrix = Matrix.Identity()
+            const relativePosition = new Vector3()
+            const relativeDirection = new Vector3()
+            const temp = new Vector3()
+
+            const drag = new InputGrabBehavior(
+                input=>{
+                    visual.offset(1)
                 
-                const stepCount = getStepCount()
-                if(stepCount<=1){
-                    stepSize = 0.001
-                    changeFactor = 0.2
-                }
-                else{
-                    stepSize = 1/(stepCount-1)
-                    changeFactor = stepSize*4
-                }
-                startingValue = getValue() + stepSize/2
+                    const stepCount = getStepCount()
+                    if(stepCount<=1){
+                        stepSize = 0.001
+                        changeFactor = 0.2
+                    }
+                    else{
+                        stepSize = 1/(stepCount-1)
+                        changeFactor = stepSize*4
+                    }
+                    startingValue = getValue() + stepSize/2
 
-                // If stepCount is 2, the value is directly changed
-                if(stepSize==1)setValue(getValue()<.5 ? 1 : 0)
-            })
+                    changeFactor*=2
 
-            drag.onDragEndObservable.add(() => visual.offset(-1))
+                    // If stepCount is 2, the value is directly changed
+                    if(stepSize==1)setValue(getValue()<.5 ? 1 : 0)
+                    
+                    reverseMatrix.copyFrom(input.matrix).invertToRef(reverseMatrix)
+                },
+                ()=>{
+                    visual.offset(-1)
+                },
+                input=>{
+                    // If stepCount is 2, do nothing on drag
+                    if(stepSize==1)return
+                    
+                    Vector3.TransformCoordinatesToRef(input.origin, reverseMatrix, relativePosition)
+                    Vector3.TransformNormalToRef(input.forward, reverseMatrix, relativeDirection)
+                    
+                    const fromOffset = config.fromOffset ?? ((posOffset, dirOffset) => {
+                        temp.copyFrom(dirOffset).scaleInPlace(2).addInPlace(posOffset)
+                        return temp.y
+                    })
 
-            drag.onDragObservable.add((event: {delta: Vector3, position: Vector3, pickInfo: PickingInfo}): void => {
-                // If stepCount is 2, do nothing on drag
-                if(stepSize==1)return
-                
-                let newvalue = (startingValue + event.delta.y * changeFactor)
-                newvalue = newvalue - newvalue % stepSize
-                newvalue = Math.max(0, Math.min(1, newvalue))
-                setValue(newvalue)
-                draggable.rotationQuaternion = null
-                updateText()
-            })
+                    const offset = fromOffset(relativePosition, relativeDirection)
+
+                    let newvalue = (startingValue + offset * changeFactor)
+                    newvalue = newvalue - newvalue % stepSize
+                    newvalue = Math.max(0, Math.min(1, newvalue))
+                    setValue(newvalue)
+                    draggable.rotationQuaternion = null
+                    updateText()
+                },
+            )
+            
+            draggable.addBehavior(hover)
+            draggable.addBehavior(drag)
+
 
             disposables.push(() => {
-                action.unregisterAction(_onover)
-                action.unregisterAction(_onout)
+                draggable.removeBehavior(hover)
                 draggable.removeBehavior(drag)
             })
         }
