@@ -38,9 +38,10 @@ export class UIManager {
     }
 
     private setupEventListeners(): void {
-        this.AudioEventBus.on("AUDIO_NODE_CREATED", () => this.messageManager.showMessage("Loading...", 0));
-        this.AudioEventBus.on("AUDIO_NODE_LOADED", () => this.messageManager.hideMessage());
-        this.AudioEventBus.on("AUDIO_NODE_ERROR", ({error_message}) => this.messageManager.showMessage(error_message,2000));
+        // Plus de message sur l'écran
+        //this.AudioEventBus.on("AUDIO_NODE_CREATED", () => this.messageManager.showMessage("Loading...", 0));
+        //this.AudioEventBus.on("AUDIO_NODE_LOADED", () => this.messageManager.hideMessage());
+        //this.AudioEventBus.on("AUDIO_NODE_ERROR", ({error_message}) => this.messageManager.showMessage(error_message,2000));
     }
 
     public getGui(): GUI.AdvancedDynamicTexture {

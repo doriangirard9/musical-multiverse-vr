@@ -89,7 +89,7 @@ export class NewApp {
         window.addEventListener("keydown",async(e)=>{
             if(e.key=="p"){
                 let prompt = window.prompt("Enter Node3D kind to create:")
-                if(prompt) node3dManager.createNode3d(`desc:${prompt}`, new Vector3(0,0,5))
+                if(prompt) node3dManager.createNode3d(`${prompt}`, new Vector3(0,0,5))
             }
             else if(e.key=="i"){
                 scene.debugLayer.show()

@@ -59,6 +59,20 @@ export class Node3DBuilder {
             const description = kind.substring(5)
             return await this.parseFactory(description)
         }
+        
+        // Dynamic from url
+        if(kind.startsWith("external:")){
+            const url = new URL(kind.substring("external:".length))
+            const anchor = url.hash.length>1 ? url.hash.substring(1) : null
+            const imported = (await import(url.href))
+
+            let factory
+            if(anchor) factory =  imported[anchor]
+            else factory = imported.default
+            
+            if(!("create" in factory && "createGUI" in factory && "label" in factory)) return null
+            return factory
+        }
 
         // Builtin
         if(kind=="audiooutput") return SpeakerN3DFactory
