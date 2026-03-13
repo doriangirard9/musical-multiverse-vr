@@ -14,6 +14,7 @@ import { ConnectionManager } from "../iomanager/ConnectionManager.ts";
 import { N3DRendering } from "../node3d/instance/utils/N3DRendering.ts";
 import { Node3DInstance } from "../node3d/instance/Node3DInstance.ts";
 import { InputVisualPointer } from "../xr/inputs/tools/InputVisualPointer.ts";
+import { AsyncLoading } from "../world/AsyncLoading.ts";
 export class NewApp {
     private static readonly DEBUG_LOG = false;
     private controlsUI?: ControlsUI;
@@ -88,7 +89,7 @@ export class NewApp {
         window.addEventListener("keydown",async(e)=>{
             if(e.key=="p"){
                 let prompt = window.prompt("Enter Node3D kind to create:")
-                if(prompt) node3dManager.createNode3d(`desc:${prompt}`)
+                if(prompt) node3dManager.createNode3d(`desc:${prompt}`, new Vector3(0,0,5))
             }
             else if(e.key=="i"){
                 scene.debugLayer.show()
@@ -115,27 +116,14 @@ export class NewApp {
         InputVisualPointer.CreateSimple(scene, InputManager.getInstance().left.pointer)
         InputVisualPointer.CreateSimple(scene, InputManager.getInstance().right.pointer)
 
-
-        /// SPHERE ///
-        const outside = [] as Vector3[]
-        const inside = [] as Vector3[]
-        for(let i=0; i<15; i++){
-            let x = Math.sin(i/15*Math.PI*2)
-            let y = -Math.cos(i/15*Math.PI*2)
-            outside.push(new Vector3(x, 0, y))
-            inside.push(new Vector3(x*0.8, 0, y*0.8))
-        }
-        const polygon = CreatePolygon("polygon", {shape: outside, holes: [inside], depth:.05}, scene)
-        polygon.visibility = 0.5
-
         //// TESTS ////
         // const node = await node3dBuilder.create("harp") as Node3DInstance
         // const node2 = await node3dBuilder.create("large_harp") as Node3DInstance
         // node.boundingBoxMesh.position.z += 5
         // node2.boundingBoxMesh.position.z += 5
         // node2.boundingBoxMesh.position.x += 1
-        await node3dBuilder.create("sequencer") as Node3DInstance
-        await node3dBuilder.create("sequencer") as Node3DInstance
+        // await node3dBuilder.create("sequencer") as Node3DInstance
+        // await node3dBuilder.create("sequencer") as Node3DInstance
         // await node3dBuilder.create("function_sequencer") as Node3DInstance
 
         //// LE SUPER MAGASIN ////

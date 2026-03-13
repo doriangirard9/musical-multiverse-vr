@@ -1,6 +1,6 @@
-import { WamParameterConfiguration, WamTransportData } from "@webaudiomodules/api"
-import { RemoteUIElement } from "./RemoteUI.ts"
-import { FunctionKernel } from "./FunctionKernel.ts"
+import type { WamParameterConfiguration, WamTransportData } from "@webaudiomodules/api"
+import type { RemoteUIElement } from "./RemoteUI.ts"
+import type { FunctionKernel } from "./FunctionKernel.ts"
 
 const PPQN = 96
 

@@ -1,6 +1,6 @@
-import { WamEvent } from "@webaudiomodules/api"
-import { NoteDefinition, ParameterDefinition } from "./FunctionAPI"
-import { RemoteUIElement } from "./RemoteUI"
+import type { WamEvent } from "@webaudiomodules/api"
+import type { NoteDefinition, ParameterDefinition } from "./FunctionAPI"
+import type { RemoteUIElement } from "./RemoteUI"
 
 
 export interface FunctionKernel {

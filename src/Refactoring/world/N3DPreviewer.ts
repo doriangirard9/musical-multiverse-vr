@@ -76,20 +76,24 @@ export class N3DPreviewer{
 
         drag_behaviour.onReleaseObservable.add(async()=>{
             const dragDistance = hitbox.position.length()
+            const position = hitbox.absolutePosition.clone()
+            const rotation = hitbox.absoluteRotationQuaternion
+
+            hitbox.position.setAll(0)
+            hitbox.rotationQuaternion?.set(0,0,0,1)
+            hitbox.rotation.setAll(0)
+            if(!this.inWorldSize)hitbox.scaling.setAll(1)
+
             if(dragDistance>hitbox.getBoundingInfo().boundingBox.extendSizeWorld.x*2){
-                const new_node3d = await this.node3DManager.createNode3d(this.kind)
+                const new_node3d = await this.node3DManager.createNode3d(this.kind, position)
                 if(new_node3d!=null){
-                    new_node3d.boundingBoxMesh.setAbsolutePosition(hitbox.absolutePosition.clone())
-                    new_node3d.boundingBoxMesh.rotationQuaternion = hitbox.absoluteRotationQuaternion
+                    new_node3d.boundingBoxMesh.setAbsolutePosition(position.clone())
+                    new_node3d.boundingBoxMesh.rotationQuaternion = rotation
                     this.on_drop?.(new_node3d)
                 }
                 else this.on_no_drop?.()
             }
             else this.on_no_drop?.()
-            hitbox.position.setAll(0)
-            hitbox.rotationQuaternion?.set(0,0,0,1)
-            hitbox.rotation.setAll(0)
-            if(!this.inWorldSize)hitbox.scaling.setAll(1)
         })
 
         const hover = new InputHoverBehavior(

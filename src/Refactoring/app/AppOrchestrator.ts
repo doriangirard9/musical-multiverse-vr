@@ -7,6 +7,7 @@ import {UIManager} from "./UIManager.ts";
 import {AudioEventBus} from "../eventBus/AudioEventBus.ts";
 import {IOEventBus} from "../eventBus/IOEventBus.ts";
 import { Node3DInstance } from "../node3d/instance/Node3DInstance.ts";
+import { Vector3 } from "@babylonjs/core";
 
 
 export class AppOrchestrator{
@@ -42,7 +43,7 @@ export class AppOrchestrator{
     private onMenuEvent(): void {
         this.MenuEventBus!!.on('CREATE_AUDIO_NODE', async (payload) => {
             console.log(`Audio node created: ${payload.name}`);
-            const node = await Node3dManager.getInstance().createNode3d(payload.kind, payload.nodeId)
+            const node = await Node3dManager.getInstance().createNode3d(payload.kind, new Vector3(0, 0, 5), payload.nodeId)
             if (node) {
                 if(!(node instanceof Node3DInstance)){
                     UIManager.getInstance().showMessage(`Error: ${node}`, 2000)

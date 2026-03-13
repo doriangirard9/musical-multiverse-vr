@@ -3,7 +3,9 @@ import { RandomUtils } from "../node3d/tools/utils/RandomUtils.ts";
 import { AudioEventBus } from "../eventBus/AudioEventBus.ts";
 import { NetworkManager } from "../network/NetworkManager.ts";
 import { Node3DBuilder as Node3DBuilder } from "./Node3DBuilder.ts";
-import { AudioEngineV2 } from "@babylonjs/core";
+import { AudioEngineV2, Vector3 } from "@babylonjs/core";
+import { AsyncLoading } from "../world/AsyncLoading.ts";
+import { SceneManager } from "./SceneManager.ts";
 
 export class Node3dManager {
 
@@ -27,20 +29,29 @@ export class Node3dManager {
         return this._instance
     }
 
-    public async createNode3d(kind: string, id?: string): Promise<Node3DInstance|null>{
+    public async createNode3d(kind: string, position: Vector3, id?: string): Promise<Node3DInstance|null>{
         const nodeId = id ?? RandomUtils.randomID()
 
         this.audioEventBus.emit("AUDIO_NODE_CREATED",{nodeId, kind})
-        const node = await this.builder.create(kind)
-        if(node instanceof Node3DInstance){
-            await NetworkManager.getInstance().node3d.nodes.add(nodeId, node, kind)
-            this.audioEventBus.emit("AUDIO_NODE_LOADED",{nodeId, kind, instance:node})
-            return node
-        }
-        else{
-            this.audioEventBus.emit("AUDIO_NODE_ERROR",{nodeId, kind, error_message:node})
-            return null
-        }
+        const spawning = (async()=>{
+            const node = await this.builder.create(kind)
+            if(node instanceof Node3DInstance){
+                node.boundingBoxMesh.setAbsolutePosition(position)
+                await NetworkManager.getInstance().node3d.nodes.add(nodeId, node, kind)
+                this.audioEventBus.emit("AUDIO_NODE_LOADED",{nodeId, kind, instance:node})
+                return node
+            }
+            else{
+                this.audioEventBus.emit("AUDIO_NODE_ERROR",{nodeId, kind, error_message:node})
+                throw new Error(`Error while creating Node3D of kind ${kind} with id ${nodeId}: ${node}`)
+            }
+        })()
+
+        const {root,promise} = AsyncLoading.create(SceneManager.getInstance().getScene(), spawning)
+        root.setAbsolutePosition(position)
+        root.scaling.setAll(0.5)
+
+        return await promise
     }
 
     public getAudioContext(): AudioContext {

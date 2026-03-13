@@ -25,6 +25,7 @@ export class SoundwaveEmitter {
         this.base_model = CreatePolygon("polygon", {shape: outside, holes: [inside], depth:.05}, scene)
         this.base_model.isPickable = false
         this.base_model.checkCollisions = false
+        this.base_model.position.y = 99999
     }
 
     spawn(position: Vector2, color: Color3){

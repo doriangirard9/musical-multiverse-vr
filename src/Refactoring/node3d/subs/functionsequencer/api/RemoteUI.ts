@@ -1,4 +1,4 @@
-import { FunctionKernel } from "./FunctionKernel.ts"
+import type { FunctionKernel } from "./FunctionKernel.ts"
 
 export type RemoteUIElementProperties = {
     width?: number
