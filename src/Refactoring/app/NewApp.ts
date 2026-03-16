@@ -15,6 +15,7 @@ import { N3DRendering } from "../node3d/instance/utils/N3DRendering.ts";
 import { Node3DInstance } from "../node3d/instance/Node3DInstance.ts";
 import { InputVisualPointer } from "../xr/inputs/tools/InputVisualPointer.ts";
 import { AsyncLoading } from "../world/AsyncLoading.ts";
+import { Serialization } from "./Serialization.ts";
 export class NewApp {
     private static readonly DEBUG_LOG = false;
     private controlsUI?: ControlsUI;
@@ -109,6 +110,27 @@ export class NewApp {
                 a.href = url
                 a.download = `${factory.label}.png` 
                 a.click()
+            }
+            else if(e.key=="l"){
+                const state = PlayerManager.getInstance().getPlayerState()!.position
+                const position = new Vector3(state.x, state.y, state.z)
+                
+                let nearest = [...NetworkManager.getInstance().node3d.nodes.entries()]
+                    .map(it=>it[1])
+                    .reduceRight((a,b)=>{
+                        const ad = Vector3.DistanceSquared(a.boundingBoxMesh.position, position)
+                        const bd = Vector3.DistanceSquared(b.boundingBoxMesh.position, position)
+                        return ad<bd?a:b
+                    })
+
+                const serialized = Serialization.getInstance().save([nearest])
+
+                console.log(JSON.stringify(serialized))
+            }
+            else if(e.key=="m"){
+                const str = prompt("Write your state"); if(!str) return
+                const serialized = JSON.parse(str)
+                await Serialization.getInstance().load(serialized)
             }
         })
 

@@ -197,6 +197,54 @@ export class SyncManager<
         return promise
     }
 
+    /**
+     * Get the state of an instance. The state is a record of key-value pairs that are synchronized across all clients. This function is used to get the state of an instance when it is removed, since the instance itself is already removed at this point.
+     * @param id The id of the instance
+     * @returns The state of the instance, as a record of key-value pairs. If the instance does not exist, it returns an empty record.
+     */
+    public getState(id: string): Record<string,SyncSerializable>{
+        const state = Object.fromEntries(this.shared_state.get(id)?.entries()??[])
+        return state
+    }
+
+    /**
+     * Set the state of an instance. The state is a record of key-value pairs that are synchronized across all clients. This function is used to set the state of an instance when it is removed, since the instance itself is already removed at this point.
+     * @param id The id of the instance
+     * @param state The state to set, as a record of key-value pairs. The keys that are not in the new state will be removed, and the keys that are in the new state will be added or updated. If the instance does not exist, this function does nothing.
+     * @returns
+     */
+    public async setState(id: string, state: Record<string,SyncSerializable>){
+        const node = this.getNow(id)
+        if(!node)return
+
+        const oldKeys = this.shared_state.get(id)?.keys()
+        if(!oldKeys)return
+
+        const newKeys = Object.keys(state)
+
+        const removedKeys = new Set(oldKeys)
+        for(const k of newKeys) removedKeys.delete(k)
+
+        for(const k of removedKeys){
+            await node.removeState(k)
+            this.addChange(id,k,"remove")
+        }
+
+        for(const [k,v] of Object.entries(state)){
+            await node.setState(k,v)
+            this.addChange(id,k,"add")
+        }
+    }
+
+    /**
+     * Get the additional data of an instance. This data is set when the instance is added and is not modified by the SyncManager, but it is synchronized across all clients. This function is used to get the data of an instance when it is removed, since the instance itself is already removed at this point.
+     * @param id The id of the instance 
+     * @returns The additional data of the instance. If the instance does not exist, it returns undefined.
+     */
+    public getData(id: string): D|undefined{
+        return this.shared_data.get(id)?.data
+    }
+
 
     //// From Network ////
     private async add_from_network(event: Y.YMapEvent<{data:D}>){

@@ -4,6 +4,8 @@ import { SceneManager } from '../app/SceneManager.ts';
 import { Node3DInstance } from '../node3d/instance/Node3DInstance.ts';
 import { Node3dManager } from '../app/Node3dManager.ts';
 import { UIManager } from '../app/UIManager.ts';
+import { SyncSerializable } from './sync/SyncSerializable.ts';
+import { Quaternion, Vector3 } from '@babylonjs/core';
 
 /**
  * Composant gérant les nœuds audio et leurs états.
@@ -44,5 +46,19 @@ export class Node3DNetwork {
 
         if (Node3DNetwork.DEBUG_LOG) console.log(`[AudioNodeComponent] Initialized`);
     }
+}
 
+export interface Node3DGraphDescription{
+    nodes: {
+        kind: string
+        position: number[]
+        rotation: number[]
+        data: Record<string,SyncSerializable>
+    }[],
+    connections: {
+        from: number
+        to: number
+        fromConnectable: string
+        toConnectable: string
+    }[],
 }

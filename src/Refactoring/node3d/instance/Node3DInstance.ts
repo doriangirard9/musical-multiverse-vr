@@ -296,6 +296,11 @@ export class Node3DInstance implements Synchronized {
         else this.node.setState(key, value)
     }
 
+    public updatePosition(){
+        if(this.disposed) return
+        this.set_state("position")
+    }
+
     async removeState(key: string): Promise<void> { }
 
     disposeSync(): void { this.set_state = () => { } }
