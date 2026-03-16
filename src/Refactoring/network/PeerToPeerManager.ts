@@ -14,7 +14,7 @@ const SIGNALING_SERVER = `https://wamjamparty.i3s.univ-cotedazur.fr/rtc`;
  * - Gérer l'awareness (présence et état des participants)
  * - Notifier des connexions/déconnexions des joueurs
  */
-export class ConnectionManager {
+export class PeerToPeerManager {
     private static readonly DEBUG_LOG = false;
     
     private doc: Y.Doc;
@@ -36,30 +36,34 @@ export class ConnectionManager {
      * @param doc - Document Y.js partagé
      * @param localPlayerId - Identifiant du joueur local
      */
-    constructor(doc: Y.Doc, localPlayerId: string) {
+    constructor(
+        doc: Y.Doc,
+        localPlayerId: string,
+        roomName: string,
+    ) {
         this.doc = doc;
         this.localPlayerId = localPlayerId;
         this.networkEventBus = NetworkEventBus.getInstance();
 
-        if (ConnectionManager.DEBUG_LOG) console.log(`[ConnectionComponent] Initialized with player ID: ${this.localPlayerId}`);
-        this.connect()
+        if (PeerToPeerManager.DEBUG_LOG) console.log(`[ConnectionComponent] Initialized with player ID: ${this.localPlayerId}`);
+        this.connect(roomName)
     }
 
     /**
      * Établit une connexion WebRTC avec la salle spécifiée.
      * @param roomName - Nom de la salle à rejoindre
      */
-    private connect(): void {
+    private connect(roomName: string): void {
 
         // Création du provider WebRTC
-        this.provider = new WebrtcProvider(SIGNALING_SERVER, this.doc, {
-            signaling: [SIGNALING_SERVER]
+        this.provider = new WebrtcProvider(roomName, this.doc, {
+            signaling: [SIGNALING_SERVER], 
         });
 
         // Configuration de l'awareness
         this.setupAwareness();
 
-        if (ConnectionManager.DEBUG_LOG) console.log(`[ConnectionComponent] Connected to room: ${SIGNALING_SERVER}`);
+        if (PeerToPeerManager.DEBUG_LOG) console.log(`[ConnectionComponent] Connected to room: ${SIGNALING_SERVER}`);
     }
 
     /**
@@ -101,7 +105,7 @@ export class ConnectionManager {
             const state = states.get(peerId);
             if (state?.playerId) {
                 const playerId = state.playerId;
-                if (ConnectionManager.DEBUG_LOG) console.log(`[ConnectionComponent] Peer ${peerId} connected with player ID: ${playerId}`);
+                if (PeerToPeerManager.DEBUG_LOG) console.log(`[ConnectionComponent] Peer ${peerId} connected with player ID: ${playerId}`);
 
                 this.peerToPlayerMap.set(String(peerId), playerId);
                 this.lastKnownPlayerIds.set(String(peerId), playerId);
@@ -120,7 +124,7 @@ export class ConnectionManager {
                 const oldPlayerId = this.lastKnownPlayerIds.get(peerIdStr);
                 const newPlayerId = state.playerId;
 
-                if (ConnectionManager.DEBUG_LOG) console.log(`[ConnectionComponent] Peer ${peerId} updated player ID: ${oldPlayerId} -> ${newPlayerId}`);
+                if (PeerToPeerManager.DEBUG_LOG) console.log(`[ConnectionComponent] Peer ${peerId} updated player ID: ${oldPlayerId} -> ${newPlayerId}`);
 
                 // Si l'ID a changé, considérer comme une déconnexion suivie d'une connexion
                 if (oldPlayerId) {
@@ -139,7 +143,7 @@ export class ConnectionManager {
             const playerId = this.peerToPlayerMap.get(peerIdStr);
 
             if (playerId) {
-                if (ConnectionManager.DEBUG_LOG) console.log(`[ConnectionComponent] Peer ${peerId} disconnected with player ID: ${playerId}`);
+                if (PeerToPeerManager.DEBUG_LOG) console.log(`[ConnectionComponent] Peer ${peerId} disconnected with player ID: ${playerId}`);
 
                 this.networkEventBus.emit('PLAYER_DELETED', { playerId });
 

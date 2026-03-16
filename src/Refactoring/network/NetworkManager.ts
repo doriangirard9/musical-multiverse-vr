@@ -2,7 +2,7 @@ import * as Y from 'yjs';
 import {PlayerManager} from "../app/PlayerManager.ts";
 import {PlayerNetwork} from "./PlayerNetwork.ts";
 import {Node3DNetwork} from "./Node3DNetwork.ts";
-import { ConnectionManager } from './ConnectionManager.ts';
+import { PeerToPeerManager } from './PeerToPeerManager.ts';
 import { VisualNetwork } from './VisualNetwork.ts';
 
 
@@ -23,11 +23,11 @@ export class NetworkManager {
 
 
     private constructor() {
+        const roomName = "WamJamParty"+document.location.hash
+
         this.doc = new Y.Doc()
-        
         this.playerId = PlayerManager.getInstance().getId()
-        
-        this.connection = new ConnectionManager(this.doc,this.playerId)
+        this.connection = new PeerToPeerManager(this.doc, this.playerId, roomName)
         this.player = new PlayerNetwork(this.doc, this.playerId)
         this.node3d = new Node3DNetwork(this.doc)
         this.visual = new VisualNetwork(this.doc)
