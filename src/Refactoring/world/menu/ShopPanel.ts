@@ -144,6 +144,7 @@ export class ShopPanel{
             const position = ray.direction.scale(1).addInPlace(ray.origin)
             this.plane.position.addInPlace(position).scaleInPlace(0.5)
             this.plane.rotationQuaternion = Quaternion.FromLookDirectionLH(ray.direction.scale(-1), Vector3.Up())
+                .multiplyInPlace(Quaternion.FromEulerAngles(0.1, 0, 0))
         })
 
         this.plane.onDisposeObservable.addOnce(()=>{

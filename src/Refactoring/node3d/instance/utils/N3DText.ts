@@ -24,6 +24,7 @@ export class N3DText{
         plane.billboardMode = AbstractMesh.BILLBOARDMODE_ALL
         plane.setEnabled(false)
         plane.isPickable = false
+        plane.alphaIndex = -1
 
         const texture = this.texture = AdvancedDynamicTexture.CreateForMesh(plane, 1024, Math.floor(1024/4))
 
