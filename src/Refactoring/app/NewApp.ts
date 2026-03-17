@@ -3,7 +3,7 @@ import {XRManager} from "../xr/XRManager.ts";
 import {Node3dManager} from "./Node3dManager.ts";
 import {AppOrchestrator} from "./AppOrchestrator.ts";
 import ControlsUI from "./ControlsUI.ts";
-import {CreateAudioEngineAsync, CreatePolygon, ImportMeshAsync, Vector3} from "@babylonjs/core";
+import {CreateAudioEngineAsync, ImportMeshAsync, Quaternion, Vector3} from "@babylonjs/core";
 import {N3DShop, N3DShopOptions} from "../world/shop/N3DShop.ts";
 import { InputManager } from "../xr/inputs/InputManager.ts";
 import { parallel } from "../utils/utils.ts";
@@ -12,10 +12,9 @@ import { NetworkManager } from "../network/NetworkManager.ts";
 import { PlayerManager } from "./PlayerManager.ts";
 import { ConnectionManager } from "../iomanager/ConnectionManager.ts";
 import { N3DRendering } from "../node3d/instance/utils/N3DRendering.ts";
-import { Node3DInstance } from "../node3d/instance/Node3DInstance.ts";
 import { InputVisualPointer } from "../xr/inputs/tools/InputVisualPointer.ts";
-import { AsyncLoading } from "../world/AsyncLoading.ts";
 import { Serialization } from "./Serialization.ts";
+import { ShopPanel } from "../world/menu/ShopPanel.ts";
 export class NewApp {
     private static readonly DEBUG_LOG = false;
     private controlsUI?: ControlsUI;
@@ -68,6 +67,7 @@ export class NewApp {
         SceneManager.getInstance().start();
 
         await XRManager.getInstance()!!.init(SceneManager.getInstance().getScene(), audioEngine);
+        
 
         // Get things
         const scene = SceneManager.getInstance().getScene()
@@ -132,6 +132,16 @@ export class NewApp {
                 const serialized = JSON.parse(str)
                 await Serialization.getInstance().load(serialized)
             }
+        })
+
+        let shopPanel: ShopPanel
+        let doing = false
+        InputManager.getInstance().a_button.onDown.add(()=>{
+            if(!shopPanel){
+                shopPanel = new ShopPanel(scene)
+                shopPanel.makeFollow()
+            }
+            else shopPanel.toggle()
         })
 
         //// POINTERS ////

@@ -240,7 +240,7 @@ export class XRInputManager {
      */
     private _initializeMenu(): void {
         if (!this._menu) {
-            this._menu = new MainMenu(menuJson as MenuConfig);
+            //this._menu = new MainMenu(menuJson as MenuConfig);
         }
 
         if (XRControllerManager.Instance.hasButtonListener('right', 'a-button', this.MENU_TOGGLE_ID)) {

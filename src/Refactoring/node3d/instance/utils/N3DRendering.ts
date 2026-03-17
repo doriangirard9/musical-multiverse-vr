@@ -47,6 +47,9 @@ export class N3DRendering {
 
         renderscene.render()
 
+        gui.dispose()
+        gui.root.dispose()
+
         renderscene.dispose()
 
         return renderTarget
