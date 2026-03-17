@@ -1,9 +1,7 @@
 import * as B from "@babylonjs/core";
 import { XRInputStates } from "./types.ts";
 import { XRControllerManager } from "./XRControllerManager";
-import menuJson from "./menuConfig.json";
 import {MainMenu} from "../menus/MainMenu.ts";
-import {MenuConfig} from "../shared/SharedTypes.ts";
 import {MenuEventBus} from "../eventBus/MenuEventBus.ts";
 
 
@@ -243,26 +241,26 @@ export class XRInputManager {
             //this._menu = new MainMenu(menuJson as MenuConfig);
         }
 
-        if (XRControllerManager.Instance.hasButtonListener('right', 'a-button', this.MENU_TOGGLE_ID)) {
-            XRControllerManager.Instance.removeButtonListener('right', 'a-button', this.MENU_TOGGLE_ID);
-        }
+        // if (XRControllerManager.Instance.hasButtonListener('right', 'a-button', this.MENU_TOGGLE_ID)) {
+        //     XRControllerManager.Instance.removeButtonListener('right', 'a-button', this.MENU_TOGGLE_ID);
+        // }
 
         // Attacher le comportement de menu au bouton A du contrôleur droit avec un ID spécifique
-        XRControllerManager.Instance.addButtonListener('right', 'a-button', this.MENU_TOGGLE_ID, (event) => {
-            if (event.pressed) {
-                console.log("Bouton A pressé sur le contrôleur droit");
-                /*
-                    Laisser la gestion ici ou passer par l'eventBus pour gérer ça ailleurs ?
-                 */
-                if (!this._menu!.isMenuOpen) {
-                    this._menu!.show();
-                    MenuEventBus.getInstance().emit('MAIN_MENU_ENABLE', { enable: true });
-                } else {
-                    this._menu!.hide();
-                    MenuEventBus.getInstance().emit('MAIN_MENU_DISABLE', { disable: true });
-                }
-            }
-        });
+        // XRControllerManager.Instance.addButtonListener('right', 'a-button', this.MENU_TOGGLE_ID, (event) => {
+        //     if (event.pressed) {
+        //         console.log("Bouton A pressé sur le contrôleur droit");
+        //         /*
+        //             Laisser la gestion ici ou passer par l'eventBus pour gérer ça ailleurs ?
+        //          */
+        //         if (!this._menu!.isMenuOpen) {
+        //             this._menu!.show();
+        //             MenuEventBus.getInstance().emit('MAIN_MENU_ENABLE', { enable: true });
+        //         } else {
+        //             this._menu!.hide();
+        //             MenuEventBus.getInstance().emit('MAIN_MENU_DISABLE', { disable: true });
+        //         }
+        //     }
+        // });
 
     }
 

@@ -2,7 +2,6 @@ import { CreatePlane, Mesh, Quaternion, Scene, Vector3 } from "@babylonjs/core"
 import { AdvancedDynamicTexture, Button, Image, Rectangle, ScrollViewer, StackPanel, TextBlock } from "@babylonjs/gui"
 import { Node3dManager } from "../../app/Node3dManager"
 import { N3DRendering } from "../../node3d/instance/utils/N3DRendering"
-import { SceneManager } from "../../app/SceneManager"
 import { N3DText } from "../../node3d/instance/utils/N3DText"
 
 
@@ -10,37 +9,69 @@ export class ShopPanel{
 
     plane: Mesh
     texture: AdvancedDynamicTexture
-    root
     label
 
     constructor(
         private scene: Scene
     ){
         
-        this.plane = CreatePlane("shopPanel", {width: 1, height: 1})
-        this.texture = AdvancedDynamicTexture.CreateForMesh(this.plane, 512, 512)
+        this.plane = CreatePlane("shopPanel", {width: 2, height: 1})
+        this.texture = AdvancedDynamicTexture.CreateForMesh(this.plane, 1024, 512)
+        this.label = new N3DText("label", [this.plane], scene)
 
-        this.root = new Rectangle()
-        this.root.background = "rgb(0,0,0,0.5)"
-        this.root.width = "100%"
-        this.root.height = "100%"
-        this.texture.addControl(this.root)
-        
+        const list = this.createItemList(4,[...Node3dManager.getInstance().builder.FACTORY_KINDS])
+        list.width = "65%"
+        list.height = "100%"
+        list.horizontalAlignment = StackPanel.HORIZONTAL_ALIGNMENT_LEFT
+        list.left = "0%"
+        this.texture.addControl(list)
+
+        const clipboard = this.createClipboard()
+        clipboard.width = "35%"
+        clipboard.height = "100%"
+        clipboard.horizontalAlignment = StackPanel.HORIZONTAL_ALIGNMENT_LEFT
+        clipboard.left = "65%"
+        this.texture.addControl(clipboard)
+    }
+
+    private updateClipboard: ()=>void = ()=>{}
+
+    private createClipboard(){
+        const container = new Rectangle()
+        container.background = "rgb(0,0,0,0.5)"
+        this.updateClipboard = async()=>{
+            container.clearControls()
+            const kind = await navigator.clipboard.readText()
+            const item = await this.createItem(kind)
+            if(item){
+                item.width = "300px"
+                item.height = "300px"
+                container.addControl(item)
+            }
+        }
+        this.updateClipboard()
+        return container
+    }
+
+    private createItemList(columns: number, kinds: string[]){
+        const root = new Rectangle()
+        root.background = "rgb(0,0,0,0.5)"
+
         const scroll = new ScrollViewer()
         scroll.width = "100%"
         scroll.height = "100%"
-        this.root.addControl(scroll)
+        root.addControl(scroll)
 
-        const stack = [0,1,2].map(i=>{
+        const stack = Array.from({length:columns},(_,i)=>{
             const stack = new StackPanel()
             scroll.addControl(stack)
-            stack.width = "30%"
+            stack.width = (90/columns)+"%"
             stack.horizontalAlignment = StackPanel.HORIZONTAL_ALIGNMENT_LEFT
-            stack.left = `${i*30+5}%`
+            stack.left = `${i*(90/columns)+5}%`
             return stack
         })
 
-        Promise.all(Node3dManager.getInstance().builder.FACTORY_KINDS.map(async kind=>{
+        Promise.all([...Node3dManager.getInstance().builder.FACTORY_KINDS].map(async kind=>{
             const item = await this.createItem(kind)
             if(!item) return
             item.width = "150px"
@@ -57,7 +88,7 @@ export class ShopPanel{
             stack[index].addControl(item)
         }))
 
-        this.label = new N3DText("shopLabel", [this.plane], this.scene)
+        return root
     }
 
     private async createItem(kind: string){
@@ -124,6 +155,7 @@ export class ShopPanel{
 
     show(){
         this.plane.isVisible = true
+        this.updateClipboard()
     }
 
     hide(){
@@ -131,6 +163,11 @@ export class ShopPanel{
     }
 
     toggle(){
-        this.plane.isVisible = !this.plane.isVisible
+        if(this.plane.isVisible){
+            this.hide()
+        }
+        else{
+            this.show()
+        }
     }
 }
