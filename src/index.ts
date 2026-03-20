@@ -1,5 +1,7 @@
 import { CreateAudioEngineAsync } from "@babylonjs/core";
-import {NewApp} from "./Refactoring/app/NewApp.ts";
+import { NewApp } from "./Refactoring/app/NewApp.ts";
+import { authService, User } from "./Refactoring/auth/AuthService.ts";
+import { LoginUI } from "./Refactoring/auth/LoginUI.ts";
 
 // Filter out spammy wam3dgenerator console logs (memory allocation logs)
 const originalConsoleLog = console.log;
@@ -19,7 +21,7 @@ console.log = function(...args: any[]) {
  * Les objets manipulable et connectables (plugin, sortie audio, clavier,...) sont appelés des
  * Node3D. Pour créer un nouvel objet il faut implémenter les interface Node3D, Node3DFactory et Node3DGUI.
  * La classe Node3DInstance fait le lien entre les implémentation des objets et l'application.
- * 
+ *
  * ## Réseaux
  * La synchronisation réseau est géré par le système SyncManager/Synchronized.
  * Un objet doit implémenter Synchronized pour pouvoir être synchronisé. Le SyncManager est un genre
@@ -30,14 +32,42 @@ console.log = function(...args: any[]) {
 
 const DEBUG_LOG = false;
 
-let onload = async() => {
-    const newApp: NewApp = new NewApp()
-    try{
-        await newApp.start()
+/**
+ * Démarre l'application principale
+ */
+async function startApp(user: User): Promise<void> {
+    if (DEBUG_LOG) console.log("Starting app for user:", user.username);
+
+    const newApp: NewApp = new NewApp();
+    try {
+        await newApp.start();
         if (DEBUG_LOG) console.log("NewApp started");
-    }catch(e){
+    } catch(e) {
         console.error("Error during app initialization:", e);
     }
+}
+
+/**
+ * Point d'entrée principal avec gestion de l'authentification
+ */
+let onload = async() => {
+    // Vérifie si l'utilisateur est déjà connecté
+    if (authService.isAuthenticated()) {
+        const user = authService.getUser();
+        if (user) {
+            // Tente de rafraîchir le token pour vérifier qu'il est toujours valide
+            const refreshed = await authService.refreshAccessToken();
+            if (refreshed) {
+                startApp(user);
+                return;
+            }
+        }
+    }
+
+    // Sinon, affiche le formulaire de login
+    new LoginUI((user: User) => {
+        startApp(user);
+    });
 }
 
 if(document.readyState === "complete") onload()
