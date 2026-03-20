@@ -1,17 +1,23 @@
 {
   "name": "server",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "WAM Jam Party Server with SQLite database",
+  "main": "server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "db:backup": "node scripts/backup-db.js",
+    "test": "node scripts/test-api.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "bcrypt": "^5.1.1",
     "cors": "^2.8.5",
     "express": "^4.19.2",
-    "path": "^0.12.7"
+    "jsonwebtoken": "^9.0.2",
+    "path": "^0.12.7",
+    "uuid": "^10.0.0"
   }
 }
