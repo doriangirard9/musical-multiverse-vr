@@ -28,6 +28,7 @@ import { FunctionSequencerN3DFactory } from "../node3d/subs/functionsequencer/Fu
 
 const WAM_CONFIGS_URL: string = `http://${window.location.hostname}:3000`;
 export type Node3DConfig = { name: string, wam3d: WAMGuiInitCode }
+const additionalConfig: Record<string,any> = await fetch(`${WAM_CONFIGS_URL}/wamsConfig/additionalConfigs.json`).then(r=>r.json())
 
 export class Node3DBuilder {
 
@@ -38,6 +39,7 @@ export class Node3DBuilder {
         "audiooutput", "oscillator", "maracas", "livepiano", "notesbox","pianoroll", "drumkit", "pro54michel",
         "hyperkeyboard", "drumplatekit", "automation_controller", "the_cube", "harp", "large_harp", "voice", "gaze",
         ...Object.keys(examples).map(k => `wam3d-${k}`),
+        ...Object.keys(additionalConfig).map(k=>`add-`+k)
     ]
 
     private async parseFactory(code: string): Promise<Node3DFactory<Node3DGUI,Node3D>|null> {
@@ -99,6 +101,13 @@ export class Node3DBuilder {
         // Wam3DGenerator examples
         if(kind.startsWith("wam3d-")) {
             const config = (examples as Record<string,WAMGuiInitCode>)[kind.substring(6)]
+            if(!config) return null
+            return await Wam3DGeneratorN3DFactory.create(config)
+        }
+
+        // Additional configs from server
+        if(kind.startsWith("add-")){
+            const config = additionalConfig[kind.substring(4)]
             if(!config) return null
             return await Wam3DGeneratorN3DFactory.create(config)
         }

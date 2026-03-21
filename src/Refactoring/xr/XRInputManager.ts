@@ -1,8 +1,6 @@
 import * as B from "@babylonjs/core";
 import { XRInputStates } from "./types.ts";
 import { XRControllerManager } from "./XRControllerManager";
-import {MainMenu} from "../menus/MainMenu.ts";
-import {MenuEventBus} from "../eventBus/MenuEventBus.ts";
 
 
 export class XRInputManager {
@@ -12,11 +10,6 @@ export class XRInputManager {
     public leftInputStates!: XRInputStates;
     private _xrHelper: B.WebXRDefaultExperience;
     private _initialized: boolean = false;
-    private _menu: B.Nullable<MainMenu> = null; // Menu principal pour placer les wams
-
-    // Identifiants des écouteurs pour pouvoir les supprimer spécifiquement si nécessaire
-    private readonly MENU_TOGGLE_ID = "menu-toggle";
-    private readonly DUMMY_BEHAVIOR_ID = "dummy-behavior";
 
     constructor(xrHelper: B.WebXRDefaultExperience) {
         this._xrHelper = xrHelper;
@@ -129,9 +122,6 @@ export class XRInputManager {
                             XRControllerManager.Instance.updateLeftControllerStates(this.leftInputStates);
                         }
 
-                        // Initialiser le menu et les comportements
-                        this._initializeMenu();
-                        //this._initializeDummyBehavior(); // Non util pour l'instant
                         resolve();
                         return true; // Arrêter la vérification périodique
                     } else {
@@ -165,10 +155,6 @@ export class XRInputManager {
                         if (this.leftInputStates) {
                             XRControllerManager.Instance.updateLeftControllerStates(this.leftInputStates);
                         }
-
-                        // Initialiser le menu et les comportements
-                        this._initializeMenu();
-                        //this._initializeDummyBehavior(); // Non util pour l'instant
                     }
 
                     this._initialized = true;
@@ -231,51 +217,6 @@ export class XRInputManager {
         XRControllerManager.Instance.updateRightControllerStates(this.rightInputStates);
         // Set the input source for haptic feedback
         XRControllerManager.Instance.setInputSource('right', controller.inputSource);
-    }
-
-    /**
-     * Initialise le menu et attache les comportements associés
-     */
-    private _initializeMenu(): void {
-        if (!this._menu) {
-            //this._menu = new MainMenu(menuJson as MenuConfig);
-        }
-
-        // if (XRControllerManager.Instance.hasButtonListener('right', 'a-button', this.MENU_TOGGLE_ID)) {
-        //     XRControllerManager.Instance.removeButtonListener('right', 'a-button', this.MENU_TOGGLE_ID);
-        // }
-
-        // Attacher le comportement de menu au bouton A du contrôleur droit avec un ID spécifique
-        // XRControllerManager.Instance.addButtonListener('right', 'a-button', this.MENU_TOGGLE_ID, (event) => {
-        //     if (event.pressed) {
-        //         console.log("Bouton A pressé sur le contrôleur droit");
-        //         /*
-        //             Laisser la gestion ici ou passer par l'eventBus pour gérer ça ailleurs ?
-        //          */
-        //         if (!this._menu!.isMenuOpen) {
-        //             this._menu!.show();
-        //             MenuEventBus.getInstance().emit('MAIN_MENU_ENABLE', { enable: true });
-        //         } else {
-        //             this._menu!.hide();
-        //             MenuEventBus.getInstance().emit('MAIN_MENU_DISABLE', { disable: true });
-        //         }
-        //     }
-        // });
-
-    }
-
-    //@ts-ignore unused
-    private _initializeDummyBehavior(): void {
-
-        if (XRControllerManager.Instance.hasButtonListener('right', 'a-button', this.DUMMY_BEHAVIOR_ID)) {
-            XRControllerManager.Instance.removeButtonListener('right', 'a-button', this.DUMMY_BEHAVIOR_ID);
-        }
-
-        XRControllerManager.Instance.addButtonListener('right', 'a-button', this.DUMMY_BEHAVIOR_ID, (event) => {
-            if (event.pressed) {
-                console.log("DummyButton pressé");
-            }
-        });
     }
 
     /**
