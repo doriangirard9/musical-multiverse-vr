@@ -2,6 +2,8 @@ import { CreateAudioEngineAsync } from "@babylonjs/core";
 import { NewApp } from "./Refactoring/app/NewApp.ts";
 import { authService, User } from "./Refactoring/auth/AuthService.ts";
 import { LoginUI } from "./Refactoring/auth/LoginUI.ts";
+import { GuestConversionUI } from "./Refactoring/ui/GuestConversionUI.ts";
+import { UserMenuUI } from "./Refactoring/ui/UserMenuUI.ts";
 
 // Filter out spammy wam3dgenerator console logs (memory allocation logs)
 const originalConsoleLog = console.log;
@@ -42,6 +44,15 @@ async function startApp(user: User): Promise<void> {
     try {
         await newApp.start();
         if (DEBUG_LOG) console.log("NewApp started");
+
+        // Affiche le menu utilisateur (nom + déconnexion)
+        new UserMenuUI();
+
+        // Affiche le bouton "Sauvegarder mon travail" pour les invités
+        new GuestConversionUI((convertedUser) => {
+            console.log("Account converted:", convertedUser.username);
+        });
+
     } catch(e) {
         console.error("Error during app initialization:", e);
     }
