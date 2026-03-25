@@ -232,18 +232,11 @@ export class ShopPanel{
         return root
     }
 
-    private images = {} as Record<string, string>
-
     private async createItem(kind: string){
         const factory = await Node3dManager.getInstance().builder.getFactory(kind)
         if(!factory) return
 
-        const url = this.images[kind] ??= await (async()=>{
-            const thumbnail = await N3DRendering.renderThumbnail(this.scene, factory, 128)
-            const ret = await N3DRendering.textureToImageURL(thumbnail)
-            thumbnail.dispose()
-            return ret
-        })()
+        const url = await Node3dManager.getInstance().builder.getThumbnail(kind).then(it=>it?.url)
 
         const uiThumbnail = new Image("thumb", url)
         const uiName = new TextBlock("name", factory.label)
@@ -266,7 +259,7 @@ export class ShopPanel{
         }
         container.pointerUpAnimation = ()=>{
             this.hide()
-            Node3dManager.getInstance().createNode3d(kind, this.plane.absolutePosition)
+            Node3dManager.getInstance().createNode3d(kind, this.plane.absolutePosition.clone())
         }
 
         container.addControl(uiThumbnail)

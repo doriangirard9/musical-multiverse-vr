@@ -3,7 +3,7 @@ import {XRManager} from "../xr/XRManager.ts";
 import {Node3dManager} from "./Node3dManager.ts";
 import {AppOrchestrator} from "./AppOrchestrator.ts";
 import ControlsUI from "./ControlsUI.ts";
-import {CreateAudioEngineAsync, ImportMeshAsync, Quaternion, Vector3} from "@babylonjs/core";
+import {CreateAudioEngineAsync, CreatePlane, ImportMeshAsync, Mesh, StandardMaterial, Vector3} from "@babylonjs/core";
 import {N3DShop, N3DShopOptions} from "../world/shop/N3DShop.ts";
 import { InputManager } from "../xr/inputs/InputManager.ts";
 import { parallel } from "../utils/utils.ts";
@@ -15,6 +15,7 @@ import { N3DRendering } from "../node3d/instance/utils/N3DRendering.ts";
 import { InputVisualPointer } from "../xr/inputs/tools/InputVisualPointer.ts";
 import { Serialization } from "./Serialization.ts";
 import { ShopPanel } from "../world/menu/ShopPanel.ts";
+import { N3DPreviewer } from "../world/N3DPreviewer.ts";
 export class NewApp {
     private static readonly DEBUG_LOG = false;
     private controlsUI?: ControlsUI;
@@ -158,8 +159,28 @@ export class NewApp {
         // await node3dBuilder.create("sequencer") as Node3DInstance
         // await node3dBuilder.create("function_sequencer") as Node3DInstance
 
+        ;(async()=>{
+            let i = 0
+            for(const kind of node3dBuilder.FACTORY_KINDS){
+                const y = i%3
+                const x = Math.floor(i/3) - 5
+
+                try{
+                    const previewer = new N3DPreviewer(node3dBuilder.getShared(), kind, node3dManager, false)
+                    await previewer.initialize()
+                    previewer.root.position.set(x*1.5, y*1.5, 10)
+                    previewer.root.rotation.x = -Math.PI/2
+                }catch(e){}
+
+                await new Promise(r=>setTimeout(r,10))
+
+                i++
+            }
+            
+        })()
+
         //// LE SUPER MAGASIN ////
-        {
+        /*{
             await parallel(
                 // Le magasin fixe, remplie entièrement, et accessible en marchant
                 async()=>{
@@ -223,7 +244,7 @@ export class NewApp {
 
                 }
             )
-        }
+        }*/
     }
 
 }

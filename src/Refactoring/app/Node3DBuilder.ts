@@ -22,7 +22,9 @@ import { HarpN3DFactory } from "../node3d/subs/note_generator/HarpN3D.ts";
 import { GazeControllerN3DFactory } from "../node3d/subs/automation/GazeControllerN3D.ts";
 import { VoiceVolumeControllerN3DFactory } from "../node3d/subs/automation/VoiceVolumeControllerN3D.ts";
 import { SyncDebugN3DFactory } from "../node3d/subs/debug/SyncDebugN3D.ts";
-import { FunctionSequencerN3DFactory } from "../node3d/subs/functionsequencer/FunctionSequencerN3D.ts";
+import { N3DRendering } from "../node3d/instance/utils/N3DRendering.ts";
+import { AbstractMesh, CreatePlane, Vector4, VertexBuffer } from "@babylonjs/core";
+import { TextureAtlas } from "../utils/atlas.ts";
 
 
 
@@ -30,6 +32,10 @@ const WAM_CONFIGS_URL: string = `http://${window.location.hostname}:3000`;
 export type Node3DConfig = { name: string, wam3d: WAMGuiInitCode }
 const additionalConfig: Record<string,any> = await fetch(`${WAM_CONFIGS_URL}/wamsConfig/additionalConfigs.json`).then(r=>r.json())
 
+/**
+ * The Node3DBuilder is responsible for creating Node3D instances from their kind name.
+ * It map a kind name to a Node3DFactory.
+ */
 export class Node3DBuilder {
 
     /**
@@ -149,6 +155,58 @@ export class Node3DBuilder {
 
         return await this.instantiateNode3d(factory)
     }
+
+
+    private thumbnails = {} as Record<string,{url:string,uv:Vector4}>
+
+    readonly atlas = new TextureAtlas("thumbnails",SceneManager.getInstance().getScene(), 128, 2048)
+
+    /**
+     * Get a thumbnail image url for a given kind of Node3D. The thumbnail is generated and cached on the first call.
+     * It can block the main thread, so it should be used with care. 
+     * @param kind The kind of Node3D
+     * @returns Return the thumbnail image url 
+     */
+    public async getThumbnail(kind:string): Promise<{url:string,uv:Vector4}|null>{
+        try{
+            const saved = this.thumbnails[kind]
+            if(saved) return saved
+
+            const factory = await this.getFactory(kind)
+            if(!factory) return null
+
+            const thumbnail = await N3DRendering.renderThumbnail(SceneManager.getInstance().getScene(), factory, 128)
+            const url = await N3DRendering.textureToImageURL(thumbnail)
+            thumbnail.dispose()
+
+            const uv = await this.atlas.add(url)
+
+            const ret = {url,uv}
+            this.thumbnails[kind] = ret
+            return ret
+        }catch(e){
+            console.error(`Error generating thumbnail for kind ${kind}:`, e)
+            return null
+        }
+    }
+
+    /**
+     * Create an impostor of a Node3D kind. An impostor is a simple billboard plane with the thumbnail of the Node3D, used for lightweight rendering.
+     * @param kind The kind of Node3D to create the impostor of 
+     * @returns The impostor mesh or null if the thumbnail could not be generated
+     */
+    public async createImpostor(kind:string): Promise<AbstractMesh|null>{
+        const uv = (await this.getThumbnail(kind))?.uv
+        if(!uv) return null
+
+        const billboard = CreatePlane("atlasTester", {size: 1}, SceneManager.getInstance().getScene())
+        billboard.setVerticesData(VertexBuffer.UVKind, [uv.x, uv.y,uv.z, uv.y,uv.z, uv.w,uv.x, uv.w])
+        billboard.billboardMode = AbstractMesh.BILLBOARDMODE_ALL
+        billboard.material = this.atlas.material
+
+        return billboard
+    }
+
 
     private shared: N3DShared|null = null
 

@@ -2,25 +2,30 @@ import { Engine, Scene } from "@babylonjs/core";
 import { Node3DFactory, Node3DGUI } from "../../Node3D";
 import * as B from "@babylonjs/core";
 import * as tools from "../../tools"
+import { Node3DGUIContext } from "../../Node3DGUIContext";
 
 export class N3DRendering {
 
     static async renderThumbnail(scene: B.Scene, node3d: Node3DFactory<Node3DGUI,any>, size: number) {
         const renderscene = new Scene(scene.getEngine())
         
-        const gui = await node3d.createGUI({
+        const ctx: Node3DGUIContext = {
             babylon: B,
             materialLight: new B.StandardMaterial("light", renderscene),
             materialMat: new B.StandardMaterial("mat", renderscene),
             materialMetal: new B.StandardMaterial("metal", renderscene),
             materialShiny: new B.StandardMaterial("shiny", renderscene),
+            materialTransparent: new B.StandardMaterial("transparent", renderscene),
             tools,
             scene: renderscene,
             highlight() { },
             unhighlight() { },
-        })
+        }
 
-        var renderTarget = new B.RenderTargetTexture('render to texture', size, scene)
+        const gui = await node3d.createGUI(ctx)
+        
+
+        var renderTarget = new B.RenderTargetTexture('render to texture', size, scene, {doNotChangeAspectRatio:false})
         renderTarget.clearColor = new B.Color4(0,0,0,0)
         renderTarget.hasAlpha = true
 
@@ -43,13 +48,12 @@ export class N3DRendering {
 
         renderscene.customRenderTargets.push(renderTarget)
 
-        await renderscene.whenReadyAsync()
-
+        await Promise.all(ctx.materialMat.getBindedMeshes().map(mesh=>mesh.material!.forceCompilationAsync(mesh)))
+        await renderscene.whenReadyAsync(true)
         renderscene.render()
 
         gui.dispose()
         gui.root.dispose()
-
         renderscene.dispose()
 
         return renderTarget

@@ -1,4 +1,4 @@
-import { Color3, CreateBox, TransformNode } from "@babylonjs/core";
+import { AbstractMesh, Color3, CreateBox, TransformNode } from "@babylonjs/core";
 import { N3DShared } from "../node3d/instance/N3DShared";
 import { Node3DGUI } from "../node3d/Node3D";
 import { N3DHighlighter } from "../node3d/instance/utils/N3DHighlighter";
@@ -8,6 +8,7 @@ import { N3DText } from "../node3d/instance/utils/N3DText";
 import { HoldableBehaviour } from "../behaviours/boundingBox/HoldableBehaviour";
 import { InputHoverBehavior } from "../xr/inputs/tools/InputHoverBehavior";
 
+const BILLBOARD_MIN_DISTANCE = 5
 
 /**
  * A previewer is a non persisted, non synchronized node3d GUI that, when dragged, create
@@ -17,6 +18,7 @@ export class N3DPreviewer{
     
     root
     gui!: Node3DGUI
+    impostor!: AbstractMesh
     highlighter!: N3DHighlighter
     drag!: HoldableBehaviour
     text!: N3DText
@@ -38,10 +40,17 @@ export class N3DPreviewer{
         const factory = await this.node3DManager.builder.getFactory(this.kind)
         if(!factory)throw new Error(`Node3D factory for kind "${this.kind}" not found`)
 
+        // Initialize the impostor
+        const impostor = this.impostor = (await this.node3DManager.builder.createImpostor(this.kind))!!
+        impostor.parent = this.root
+        impostor.setEnabled(false)
+
         // Intialize the GUI visual
         const highlighter = this.highlighter = new N3DHighlighter(shared.highlightLayer)
         const gui = this.gui = await factory.createGUI({...highlighter.binded(), ...shared})
         if(this.inWorldSize)gui.root.scaling.setAll(gui.worldSize*Node3DInstance.SIZE_MULTIPLIER)
+
+        gui.root.setEnabled(false)
 
         // Create a hitbox
         let size = 1.1
@@ -108,6 +117,22 @@ export class N3DPreviewer{
             }
         )
         hitbox.addBehavior(hover)
+
+        const interval = setInterval(()=>{
+            const distance_to_camera = hitbox.getBoundingInfo().boundingBox.centerWorld.subtract(shared.scene.activeCamera!.position).length()
+            if(distance_to_camera>BILLBOARD_MIN_DISTANCE){
+                this.impostor.setEnabled(true)
+                gui.root.setEnabled(false)
+            }
+            else{
+                this.impostor.setEnabled(false)
+                gui.root.setEnabled(true)
+            }
+        },100)
+
+        this.root.onDisposeObservable.add(()=>{
+            clearInterval(interval)
+        })
     }
 
     dispose(){

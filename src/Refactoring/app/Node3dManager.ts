@@ -33,7 +33,12 @@ export class Node3dManager {
         const nodeId = id ?? RandomUtils.randomID()
 
         this.audioEventBus.emit("AUDIO_NODE_CREATED",{nodeId, kind})
-        const spawning = (async()=>{
+        
+        const initfactory = async()=>{
+           this.builder.getFactory(kind)
+        }
+
+        const spawn = async()=>{
             const node = await this.builder.create(kind)
             if(node instanceof Node3DInstance){
                 node.boundingBoxMesh.setAbsolutePosition(position)
@@ -45,9 +50,22 @@ export class Node3dManager {
                 this.audioEventBus.emit("AUDIO_NODE_ERROR",{nodeId, kind, error_message:node})
                 throw new Error(`Error while creating Node3D of kind ${kind} with id ${nodeId}: ${node}`)
             }
+        }
+
+        const createImpostor = async()=>{
+            const impostor = await this.builder.createImpostor(kind)
+            impostor?.setAbsolutePosition(position)
+            return impostor
+        }
+
+        const all = (async()=>{
+            await initfactory()
+            const [impostor,node] = await Promise.all([createImpostor(), spawn()])
+            impostor?.dispose()
+            return node
         })()
 
-        const {root,promise} = AsyncLoading.create(SceneManager.getInstance().getScene(), spawning)
+        const {root,promise} = AsyncLoading.create(SceneManager.getInstance().getScene(), all)
         root.setAbsolutePosition(position)
         root.scaling.setAll(0.5)
 
