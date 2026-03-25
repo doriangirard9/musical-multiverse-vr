@@ -235,7 +235,6 @@ export class ShopPanel{
     private images = {} as Record<string, string>
 
     private async createItem(kind: string){
-        console.log("Creating item for kind", kind)
         const factory = await Node3dManager.getInstance().builder.getFactory(kind)
         if(!factory) return
 

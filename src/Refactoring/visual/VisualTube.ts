@@ -35,6 +35,8 @@ export class VisualTube{
             tessellation: 6,
         },this.scene)
         this.onMesh?.(this.arrow)
+        this.tube.isPickable = false;
+        this.arrow.isPickable = false;
     }
 
     // Connection
