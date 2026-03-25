@@ -152,6 +152,14 @@ export class Wam3DGeneratorN3DFactory implements Node3DFactory<Wam3DGeneratorN3D
                 tags.add("audio")
                 tags.add("effect")
             }
+            if(!descriptor.hasAudioInput && descriptor.hasAudioOutput && !descriptor.hasMidiInput && !descriptor.hasMidiOutput){
+                tags.add("audio")
+                tags.add("generator")
+            }
+            if(descriptor.hasAudioInput && !descriptor.hasAudioOutput && !descriptor.hasMidiInput && !descriptor.hasMidiOutput){
+                tags.add("audio")
+                tags.add("consumer")
+            }
 
             if(!descriptor.hasAudioInput && descriptor.hasAudioOutput && descriptor.hasMidiInput && !descriptor.hasMidiOutput){
                 tags.add("audio")
@@ -159,9 +167,17 @@ export class Wam3DGeneratorN3DFactory implements Node3DFactory<Wam3DGeneratorN3D
                 tags.add("instrument")
             }
 
+            if(!descriptor.hasAudioInput && !descriptor.hasAudioOutput && descriptor.hasMidiInput && descriptor.hasMidiOutput){
+                tags.add("midi")
+                tags.add("effect")
+            }
             if(!descriptor.hasAudioInput && !descriptor.hasAudioOutput && !descriptor.hasMidiInput && descriptor.hasMidiOutput){
                 tags.add("midi")
                 tags.add("generator")
+            }
+            if(!descriptor.hasAudioInput && !descriptor.hasAudioOutput && descriptor.hasMidiInput && !descriptor.hasMidiOutput){
+                tags.add("midi")
+                tags.add("consumer")
             }
 
             if(descriptor.isInstrument) tags.add("instrument")
