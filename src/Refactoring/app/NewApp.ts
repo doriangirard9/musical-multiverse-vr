@@ -159,25 +159,22 @@ export class NewApp {
         // await node3dBuilder.create("sequencer") as Node3DInstance
         // await node3dBuilder.create("function_sequencer") as Node3DInstance
 
-        ;(async()=>{
+        /*;(async()=>{
             let i = 0
             for(const kind of node3dBuilder.FACTORY_KINDS){
                 const y = i%3
                 const x = Math.floor(i/3) - 5
 
                 try{
-                    const previewer = new N3DPreviewer(node3dBuilder.getShared(), kind, node3dManager, false)
-                    await previewer.initialize()
+                    const previewer = await new N3DPreviewer(node3dBuilder.getShared(), kind, node3dManager, false).initialize()
                     previewer.root.position.set(x*1.5, y*1.5, 10)
                     previewer.root.rotation.x = -Math.PI/2
                 }catch(e){}
 
-                await new Promise(r=>setTimeout(r,10))
-
                 i++
             }
             
-        })()
+        })()*/
 
         //// LE SUPER MAGASIN ////
         /*{

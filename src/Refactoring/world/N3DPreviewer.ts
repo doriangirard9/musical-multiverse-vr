@@ -7,6 +7,7 @@ import { Node3DInstance } from "../node3d/instance/Node3DInstance";
 import { N3DText } from "../node3d/instance/utils/N3DText";
 import { HoldableBehaviour } from "../behaviours/boundingBox/HoldableBehaviour";
 import { InputHoverBehavior } from "../xr/inputs/tools/InputHoverBehavior";
+import { PromiseChain } from "../utils/async";
 
 const BILLBOARD_MIN_DISTANCE = 5
 
@@ -38,7 +39,7 @@ export class N3DPreviewer{
     async initialize(){
         const shared = this.shared
         const factory = await this.node3DManager.builder.getFactory(this.kind)
-        if(!factory)throw new Error(`Node3D factory for kind "${this.kind}" not found`)
+        if(!factory) throw new Error(`Node3D factory for kind "${this.kind}" not found`)
 
         // Initialize the impostor
         const impostor = this.impostor = (await this.node3DManager.builder.createImpostor(this.kind))!!
@@ -133,6 +134,8 @@ export class N3DPreviewer{
         this.root.onDisposeObservable.add(()=>{
             clearInterval(interval)
         })
+
+        return this
     }
 
     dispose(){

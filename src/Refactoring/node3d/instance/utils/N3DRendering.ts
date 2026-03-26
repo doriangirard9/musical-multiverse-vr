@@ -3,13 +3,26 @@ import { Node3DFactory, Node3DGUI } from "../../Node3D";
 import * as B from "@babylonjs/core";
 import * as tools from "../../tools"
 import { Node3DGUIContext } from "../../Node3DGUIContext";
+import { PromiseChain } from "../../../utils/async";
 
 export class N3DRendering {
 
-    static async renderThumbnail(scene: B.Scene, node3d: Node3DFactory<Node3DGUI,any>, size: number) {
-        const renderscene = new Scene(scene.getEngine())
+    private ctx!: Node3DGUIContext
+    private renderScene!: Scene
+    private renderTarget!: B.RenderTargetTexture
+    private camera!: B.UniversalCamera
+    private light!: B.HemisphericLight
+
+    constructor(
+        readonly scene: B.Scene,
+        readonly size: number
+    ){}
+
+    async initialize(){
+        console.log("Initializing N3DRendering...")
+        const renderscene = this.renderScene = new Scene(this.scene.getEngine())
         
-        const ctx: Node3DGUIContext = {
+        const ctx: Node3DGUIContext = this.ctx = {
             babylon: B,
             materialLight: new B.StandardMaterial("light", renderscene),
             materialMat: new B.StandardMaterial("mat", renderscene),
@@ -22,47 +35,62 @@ export class N3DRendering {
             unhighlight() { },
         }
 
-        const gui = await node3d.createGUI(ctx)
-        
-
-        var renderTarget = new B.RenderTargetTexture('render to texture', size, scene, {doNotChangeAspectRatio:false})
+        var renderTarget = this.renderTarget = new B.RenderTargetTexture('render to texture', this.size, this.scene, {doNotChangeAspectRatio:false})
         renderTarget.clearColor = new B.Color4(0,0,0,0)
         renderTarget.hasAlpha = true
 
-        // Ensure gui.root exists before adding to renderList
-        if (!gui.root) {
-            throw new Error(`GUI root is undefined for node3d factory. The createGUI method must return an object with a 'root' TransformNode property.`)
-        }
-
-        renderTarget.renderList!.push(...gui.root.getChildMeshes());
-
-        const camera = new B.UniversalCamera("camera", new B.Vector3(0, 2, 0), renderscene);
+        const camera = this.camera = new B.UniversalCamera("camera", new B.Vector3(0, 2, 0), renderscene);
         camera.target = new B.Vector3(0, 0, 0);
         camera.rotation.z = Math.PI
         camera.fov = 0.48;
 
-        const light = new B.HemisphericLight("light", new B.Vector3(3, 10, 3), renderscene);
+        const light = this.light = new B.HemisphericLight("light", new B.Vector3(3, 10, 3), renderscene);
         light.intensity = 1;
         
         renderscene.activeCamera = camera
 
         renderscene.customRenderTargets.push(renderTarget)
 
-        await Promise.all(ctx.materialMat.getBindedMeshes().map(mesh=>mesh.material!.forceCompilationAsync(mesh)))
+        await Promise.all([ctx.materialLight,ctx.materialMat,ctx.materialMetal,ctx.materialShiny].map(async mat=>{
+            await Promise.all(mat.getBindedMeshes().map(mesh=>mesh.material!.forceCompilationAsync(mesh)))
+        }))
         await renderscene.whenReadyAsync(true)
-        renderscene.render()
+
+        return this
+    }
+
+    async renderThumbnail(node3d: Node3DFactory<Node3DGUI,any>) {
+        const gui = await node3d.createGUI(this.ctx)
+        if (!gui.root) {
+            throw new Error(`GUI root is undefined for node3d factory. The createGUI method must return an object with a 'root' TransformNode property.`)
+        }
+        this.renderTarget.renderList!.length = 0
+        this.renderTarget.renderList!.push(...gui.root.getChildMeshes())
+
+        await this.renderScene.whenReadyAsync(true)
+        this.renderScene.render()
 
         gui.dispose()
         gui.root.dispose()
-        renderscene.dispose()
-
-        return renderTarget
     }
 
-    static async textureToImageURL(texture: B.RenderTargetTexture): Promise<string> {
-        const data = await texture.readPixels() as Float32Array|Int32Array
-        const width = texture.getSize().width
-        const height = texture.getSize().height
+    dispose(){
+        console.log("Disposing N3DRendering...")
+        this.renderScene.rootNodes.forEach(n => n.dispose())
+        this.renderTarget.dispose()
+        this.camera.dispose()
+        this.light.dispose()
+        this.renderScene.dispose()
+    }
+
+    get texture(){
+        return this.renderTarget
+    }
+
+    async getImageURL(){
+        const data = await this.texture.readPixels() as Float32Array|Int32Array
+        const width = this.texture.getSize().width
+        const height = this.texture.getSize().height
         const canvas = document.createElement('canvas')
         canvas.width = width
         canvas.height = height

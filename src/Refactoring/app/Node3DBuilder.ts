@@ -25,6 +25,8 @@ import { SyncDebugN3DFactory } from "../node3d/subs/debug/SyncDebugN3D.ts";
 import { N3DRendering } from "../node3d/instance/utils/N3DRendering.ts";
 import { AbstractMesh, CreatePlane, Vector4, VertexBuffer } from "@babylonjs/core";
 import { TextureAtlas } from "../utils/atlas.ts";
+import { AutoDispose } from "../utils/auto_dispose.ts";
+import { PromiseChain } from "../utils/async.ts";
 
 
 
@@ -156,9 +158,14 @@ export class Node3DBuilder {
         return await this.instantiateNode3d(factory)
     }
 
+    private renderer = new AutoDispose(
+        async()=>await new N3DRendering(SceneManager.getInstance().getScene(), 128).initialize(),
+        async(renderer)=>renderer.dispose(),
+        5_000
+    )
 
     private thumbnails = {} as Record<string,{url:string,uv:Vector4}>
-
+    private thumb_wait = new PromiseChain()
     readonly atlas = new TextureAtlas("thumbnails",SceneManager.getInstance().getScene(), 128, 2048)
 
     /**
@@ -168,26 +175,28 @@ export class Node3DBuilder {
      * @returns Return the thumbnail image url 
      */
     public async getThumbnail(kind:string): Promise<{url:string,uv:Vector4}|null>{
-        try{
-            const saved = this.thumbnails[kind]
-            if(saved) return saved
+        return this.thumb_wait.then(async()=>{
+            try{
+                const saved = this.thumbnails[kind]
+                if(saved) return saved
 
-            const factory = await this.getFactory(kind)
-            if(!factory) return null
+                const factory = await this.getFactory(kind)
+                if(!factory) return null
 
-            const thumbnail = await N3DRendering.renderThumbnail(SceneManager.getInstance().getScene(), factory, 128)
-            const url = await N3DRendering.textureToImageURL(thumbnail)
-            thumbnail.dispose()
+                const renderer = await this.renderer.get()
+                await renderer.renderThumbnail(factory)
+                const url = await renderer.getImageURL()
 
-            const uv = await this.atlas.add(url)
+                const uv = await this.atlas.add(url)
 
-            const ret = {url,uv}
-            this.thumbnails[kind] = ret
-            return ret
-        }catch(e){
-            console.error(`Error generating thumbnail for kind ${kind}:`, e)
-            return null
-        }
+                const ret = {url,uv}
+                this.thumbnails[kind] = ret
+                return ret
+            }catch(e){
+                console.error(`Error generating thumbnail for kind ${kind}:`, e)
+                return null
+            }
+        })
     }
 
     /**
