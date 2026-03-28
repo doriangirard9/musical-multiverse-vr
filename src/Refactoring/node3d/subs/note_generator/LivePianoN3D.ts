@@ -76,6 +76,8 @@ export class LivePianoN3DGUI implements Node3DGUI{
         T.MeshUtils.setColor(this.output, T.MidiN3DConnectable.OutputColor.toColor4())
         this.output.parent = this.root
         this.output.position.x = .5+base_height*1.4
+
+        console.log("create ui")
     }
 
     async dispose(){ }

@@ -44,7 +44,7 @@ export class HarpN3DGUI implements Node3DGUI {
         const top = -0.5+(1-heigth)/2
 
         // Root (tous les enfants dans l'espace 1x1x1)
-        this.root = new B.TransformNode("harp_transform")
+        this.root = new B.TransformNode("harp_transform", context.scene)
 
         // Base
         const base_height = 0.1*scale

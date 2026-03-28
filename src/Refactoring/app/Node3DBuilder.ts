@@ -129,19 +129,23 @@ export class Node3DBuilder {
         return null
     }
 
-    private factories = new Map<string,Node3DFactory<Node3DGUI,Node3D>>()
+    private factories = new Map<string,Promise<Node3DFactory<Node3DGUI,Node3D>|null>>()
 
     /**
      * Get a Node3DFactory from it kind name.
      * @param kind The kind of Node3D, correspond to the name of its config file.
      * @returns 
      */
-    public async getFactory(kind: string): Promise<Node3DFactory<Node3DGUI,Node3D>|null> {
+    public getFactory(kind: string): Promise<Node3DFactory<Node3DGUI,Node3D>|null> {
         if(!this.factories.has(kind)){
-            const factory = await this.createFactories(kind)
-            if(factory)this.factories.set(kind, factory)
+            const promise = (async()=>{
+                const factory = await this.createFactories(kind)
+                if(!factory)this.factories.delete(kind)
+                return factory
+            })()
+            this.factories.set(kind, promise)
         }
-        return this.factories.get(kind) ?? null
+        return this.factories.get(kind)!
     }
 
     /**
@@ -159,13 +163,12 @@ export class Node3DBuilder {
     }
 
     private renderer = new AutoDispose(
-        async()=>await new N3DRendering(SceneManager.getInstance().getScene(), 128).initialize(),
+        async()=>(await new N3DRendering(SceneManager.getInstance().getScene(), 128).initialize()).createAggregator(),
         async(renderer)=>renderer.dispose(),
-        5_000
+        100
     )
 
-    private thumbnails = {} as Record<string,{url:string,uv:Vector4}>
-    private thumb_wait = new PromiseChain()
+    private thumbnails = {} as Record<string,Promise<{url:string,uv:Vector4}|null>>
     readonly atlas = new TextureAtlas("thumbnails",SceneManager.getInstance().getScene(), 128, 2048)
 
     /**
@@ -175,28 +178,26 @@ export class Node3DBuilder {
      * @returns Return the thumbnail image url 
      */
     public async getThumbnail(kind:string): Promise<{url:string,uv:Vector4}|null>{
-        return this.thumb_wait.then(async()=>{
+        const saved = this.thumbnails[kind]
+        if(saved) return saved
+        
+        const created = (async()=>{
             try{
-                const saved = this.thumbnails[kind]
-                if(saved) return saved
-
                 const factory = await this.getFactory(kind)
                 if(!factory) return null
 
                 const renderer = await this.renderer.get()
-                await renderer.renderThumbnail(factory)
-                const url = await renderer.getImageURL()
+                const url = await renderer.draw(factory)
 
                 const uv = await this.atlas.add(url)
-
-                const ret = {url,uv}
-                this.thumbnails[kind] = ret
-                return ret
+                return {url,uv}
             }catch(e){
                 console.error(`Error generating thumbnail for kind ${kind}:`, e)
                 return null
             }
-        })
+        })()
+        this.thumbnails[kind] = created
+        return created
     }
 
     /**

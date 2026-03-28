@@ -24,8 +24,8 @@ export const AsyncLoading = {
         const p = promise.then((result)=>{
             instance.dispose()
             return result
-        }).catch(()=>{
-            console.error("Error while loading async content")
+        }).catch(e=>{
+            console.error("Error while loading async content",e)
             instance.dispose()
             const error = this.getCross(scene).createInstance("error")
             error.billboardMode = AbstractMesh.BILLBOARDMODE_ALL

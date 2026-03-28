@@ -38,7 +38,7 @@ export class HyperKeyboardN3DGUI implements Node3DGUI {
         let depth = this.factory.z / maxaxe
 
         // Root
-        this.root = new B.TransformNode("hyperkeyboard root")
+        this.root = new B.TransformNode("hyperkeyboard root", context.scene)
 
         // Base plate
         this.base = B.CreateBox("hyperkeyboard base", { width: width + .1, height: 0.1 + .1, depth: height + .1 }, this.root.getScene())

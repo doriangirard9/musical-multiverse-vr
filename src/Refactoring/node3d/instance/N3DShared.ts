@@ -15,58 +15,50 @@ export class N3DShared{
         readonly groupId: string,
     ){
         this.utilityLayer = new babylonjs.UtilityLayerRenderer(this.scene)
+
+        this.highlightLayer = new HighlightLayer(`node3D highlight layer`, this.scene, {renderingGroupId:0})
+
+        this.materialMat = new StandardMaterial("node3d shared material mat", this.scene)
+        this.materialMat.alphaCutOff= 0.5
+        this.materialMat.specularColor = Color3.Black()
+
+        this.materialShiny = new StandardMaterial("node3d shared material shiny", this.scene)
+        this.materialShiny.specularColor = Color3.White()
+
+        this.materialMetal = new StandardMaterial("node3d shared material metal", this.scene)
+        this.materialMetal.specularColor = Color3.White()
+        this.materialMetal.roughness = 0.2
+
+        this.materialLight = new StandardMaterial("node3d shared material light", this.scene)
+        this.materialLight.emissiveColor = Color3.White()
+
+        {
+            const noise = new babylonjs.Texture(noiseTexture, this.scene, {
+                noMipmap:true,
+                format:babylonjs.Engine.TEXTUREFORMAT_LUMINANCE,
+                samplingMode: babylonjs.Texture.NEAREST_NEAREST
+            })
+            noise.hasAlpha = true
+            noise.getAlphaFromRGB = true
+            this.materialTransparent = new StandardMaterial("node3d shared material transparent", this.scene)
+            this.materialTransparent.opacityTexture = noise
+            this.materialTransparent.alphaCutOff= .2
+            this.materialTransparent.transparencyMode = babylonjs.Material.MATERIAL_ALPHATEST
+            this.materialTransparent.specularColor = Color3.Black()
+            this.materialTransparent.backFaceCulling = false
+        }
     }
 
-
-    readonly highlightLayer = new HighlightLayer(`node3D highlight layer`, this.scene, {renderingGroupId:0})
-
     readonly utilityLayer
- 
-    readonly materialMat = (()=>{
-        const mat = new StandardMaterial("node3d shared material mat")
-        mat.alphaCutOff= 0.5
-        mat.specularColor = Color3.Black()
-        return mat
-    })()
+    readonly highlightLayer
 
-    readonly materialShiny = (()=>{
-        const mat = new StandardMaterial("node3d shared material shiny")
-        mat.specularColor = Color3.White()
-        return mat
-    })()
-
-    readonly materialMetal = (()=>{
-        const mat = new StandardMaterial("node3d shared material metal")
-        mat.specularColor = Color3.White()
-        mat.roughness = 0.2
-        return mat
-    })()
-
-    readonly materialLight = (()=>{
-        const mat = new StandardMaterial("node3d shared material light")
-        mat.emissiveColor = Color3.White()
-        return mat
-    })()
-
-    readonly materialTransparent = (()=>{
-        const noise = new babylonjs.Texture(noiseTexture, this.scene, {
-            noMipmap:true,
-            format:babylonjs.Engine.TEXTUREFORMAT_LUMINANCE,
-            samplingMode: babylonjs.Texture.NEAREST_NEAREST
-        })
-        noise.hasAlpha = true
-        noise.getAlphaFromRGB = true
-        const mat = new StandardMaterial("node3d shared material transparent")
-        mat.opacityTexture = noise
-        mat.alphaCutOff= .2
-        mat.transparencyMode = babylonjs.Material.MATERIAL_ALPHATEST
-        mat.specularColor = Color3.Black()
-        mat.backFaceCulling = false
-        return mat
-    })()
+    readonly materialMat
+    readonly materialShiny
+    readonly materialMetal
+    readonly materialLight
+    readonly materialTransparent
 
     readonly tools = tools
-
     readonly babylon = babylonjs
 
     readonly menuManager = new N3DMenuManager(UIManager.getInstance())

@@ -31,8 +31,7 @@ export class NewApp {
     }
 
     public async start(): Promise<void> {
-        NewApp.instance = this
-
+        NewApp.instance = this        
 
         // Intialization of scene
         SceneManager.initialize()
@@ -96,22 +95,22 @@ export class NewApp {
             else if(e.key=="i"){
                 scene.debugLayer.show()
             }
-            else if(e.key=="q"){
-                let prompt = window.prompt("Enter URL to import:")
-                let factory = (await node3dManager.builder.getFactory(prompt||""))!!
+            // else if(e.key=="q"){
+            //     let prompt = window.prompt("Enter URL to import:")
+            //     let factory = (await node3dManager.builder.getFactory(prompt||""))!!
 
-                const texture = await N3DRendering.renderThumbnail(
-                    SceneManager.getInstance().getScene(),
-                    factory,
-                    512
-                )
+            //     const texture = await N3DRendering.renderThumbnail(
+            //         SceneManager.getInstance().getScene(),
+            //         factory,
+            //         512
+            //     )
                 
-                const url = await N3DRendering.textureToImageURL(texture)
-                const a = document.createElement('a')
-                a.href = url
-                a.download = `${factory.label}.png` 
-                a.click()
-            }
+            //     const url = await N3DRendering.textureToImageURL(texture)
+            //     const a = document.createElement('a')
+            //     a.href = url
+            //     a.download = `${factory.label}.png` 
+            //     a.click()
+            // }
             else if(e.key=="l"){
                 const state = PlayerManager.getInstance().getPlayerState()!.position
                 const position = new Vector3(state.x, state.y, state.z)

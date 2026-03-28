@@ -35,7 +35,7 @@ export class PositionCubeN3DGUI implements Node3DGUI {
         const that = this
 
         // Root (tous les enfants dans l'espace 1x1x1)
-        this.root = new B.TransformNode("position_cube_root")
+        this.root = new B.TransformNode("position_cube_root", context.scene)
 
         // Base
         this.base = B.CreateBox("position_cube_base", {width:1, height:0.1, depth:1}, context.scene)

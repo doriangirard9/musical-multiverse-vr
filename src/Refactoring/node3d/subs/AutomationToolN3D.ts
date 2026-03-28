@@ -32,7 +32,7 @@ export class AutomationToolN3DGUI implements Node3DGUI {
         const that = this
 
         // Root
-        this.root = new B.TransformNode("harp_transform")
+        this.root = new B.TransformNode("harp_transform", context.scene)
 
         // Base
         this.base = B.CreateBox("harp_base", {width:.7, height:.5, depth:1}, context.scene)

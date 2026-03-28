@@ -37,7 +37,7 @@ export class VoiceVolumeControllerN3DGUI implements Node3DGUI {
         this.context = context
 
         // Root
-        this.root = new B.TransformNode("voice controller root")
+        this.root = new B.TransformNode("voice controller root", context.scene)
 
         // Base plate
         this.base = B.CreateBox("voice controller base", { width: 1, height: 0.5, depth: 1 }, context.scene)

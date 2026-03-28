@@ -18,7 +18,7 @@ export class UIManager {
 
     private constructor(scene: Scene) {
         this.scene = scene;
-        this.gui = GUI.AdvancedDynamicTexture.CreateFullscreenUI("UI");
+        this.gui = GUI.AdvancedDynamicTexture.CreateFullscreenUI("UI",undefined, this.scene);
         this.guiManager = new GUI.GUI3DManager(this.scene);
         this.guiManager.controlScaling = 0.5;
         this.messageManager = new MessageManager(); // CHANGER MESSAGE MANAGER EN SINGLETON

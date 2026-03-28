@@ -32,29 +32,29 @@ class Plate {
     noteSelector!: AbstractMesh
 
     constructor(private base: TransformNode, context: Node3DGUIContext) {
-        const { babylon: B, tools: T } = context
+        const { babylon: B, tools: T, scene } = context
 
-        this.root = new B.TransformNode("drum plate root")
+        this.root = new B.TransformNode("drum plate root", scene)
 
-        this.animationRoot = new B.TransformNode("drum plate animation root")
+        this.animationRoot = new B.TransformNode("drum plate animation root", scene)
         this.animationRoot.parent = this.root
 
-        this.plate = B.CreateCylinder("drum plate", { diameter: 1, height: 0.05 }, context.scene)
+        this.plate = B.CreateCylinder("drum plate", { diameter: 1, height: 0.05 }, scene)
         this.plate.material = context.materialMetal
         this.plate.parent = this.animationRoot
 
-        this.handle = B.CreateBox("drum plate handle", { size: 0.2 }, context.scene)
+        this.handle = B.CreateBox("drum plate handle", { size: 0.2 }, scene)
         this.handle.material = context.materialMat
         this.handle.parent = this.root
         this.handle.position.set(0, 0, -0.5)
         T.MeshUtils.setColor(this.handle, new B.Color4(.4, .4, .4, 1))
 
-        this.tube = B.CreateCylinder("drum plate tube", { diameter: 0.05, height: 1 }, context.scene)
+        this.tube = B.CreateCylinder("drum plate tube", { diameter: 0.05, height: 1 }, scene)
         this.tube.material = context.materialMat
         T.MeshUtils.setColor(this.tube, new B.Color4(.2, .2, .2, 1))
         this.tube.parent = this.root
 
-        this.noteSelector = B.CreateSphere("drum plate note selector", { diameter: 0.2 }, context.scene)
+        this.noteSelector = B.CreateSphere("drum plate note selector", { diameter: 0.2 }, scene)
         this.noteSelector.material = context.materialMat
         T.MeshUtils.setColor(this.noteSelector, new B.Color4(1, 0, 0, 1))
         this.noteSelector.parent = this.root
@@ -136,7 +136,7 @@ export class DrumPlateKitN3DGUI implements Node3DGUI {
         this.worldSize = maxaxe
 
         // Root
-        this.root = new B.TransformNode("hyperkeyboard root")
+        this.root = new B.TransformNode("hyperkeyboard root", context.scene)
 
         // Base plate
         this.base = B.CreateBox("hyperkeyboard base", { width: width, height: plateSize * 0.1, depth: height }, this.root.getScene())

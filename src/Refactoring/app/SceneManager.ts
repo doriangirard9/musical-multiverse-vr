@@ -51,6 +51,15 @@ export class SceneManager {
             }
         });
 
+        // Detect and prevent usage of EngineStore.LastCreatedScene
+        B.EngineStore.LastCreatedScene
+        const oldLastCreatedScene = Object.getOwnPropertyDescriptor(B.EngineStore, "LastCreatedScene");
+        Object.defineProperty(B.EngineStore, "LastCreatedScene", {
+            get: function () {
+                console.error("Use EngineStore.LastCreatedScene is prohibited. Pass a scene to the constructor.")
+                return oldLastCreatedScene?.get?.apply(B.EngineStore) ?? null
+            },
+        })
     }
 
     public static initialize() {
