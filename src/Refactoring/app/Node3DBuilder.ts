@@ -165,7 +165,7 @@ export class Node3DBuilder {
     private renderer = new AutoDispose(
         async()=>(await new N3DRendering(SceneManager.getInstance().getScene(), 128).initialize()).createAggregator(),
         async(renderer)=>renderer.dispose(),
-        100
+        5_000
     )
 
     private thumbnails = {} as Record<string,Promise<{url:string,uv:Vector4}|null>>

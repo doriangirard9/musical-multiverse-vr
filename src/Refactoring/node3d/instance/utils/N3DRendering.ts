@@ -6,6 +6,8 @@ import { Node3DGUIContext } from "../../Node3DGUIContext";
 import type { PromiseChain } from "../../../utils/async";
 import { AsyncCallAggregator } from "../../../utils/call_aggregator";
 
+const OFFSET = new B.Vector3(616,-3545, 2)
+
 /**
  * @warning Pay attention to async race conditions, wrap every calls to this with a {@link PromiseChain}
  */
@@ -13,6 +15,7 @@ export class N3DRendering {
 
     private ctx!: Node3DGUIContext
     private renderScene!: Scene
+    private rootNode!: B.Node
     private renderTarget!: B.RenderTargetTexture
     private camera!: B.UniversalCamera
     private light!: B.HemisphericLight
@@ -24,7 +27,10 @@ export class N3DRendering {
     ){}
 
     async initialize(){
-        const renderscene = this.renderScene = new Scene(this.scene.getEngine(),{virtual:true})
+        console.log("Initializing N3DRendering...")
+
+        const renderscene = this.renderScene = this.scene// new Scene(this.scene.getEngine(),{virtual:true})
+        const rootNode = this.rootNode = new B.Node("N3D Rendering Root Node", renderscene)
         
         const ctx: Node3DGUIContext = this.ctx = {
             babylon: B,
@@ -43,21 +49,24 @@ export class N3DRendering {
         renderTarget.clearColor = new B.Color4(0,0,0,0)
         renderTarget.hasAlpha = true
 
-        const camera = this.camera = new B.UniversalCamera("camera", new B.Vector3(0, 2, 0), renderscene)
+        const camera = this.camera = new B.UniversalCamera("camera", OFFSET.clone().addInPlaceFromFloats(0, 2, 0), renderscene)
         camera.mode = B.Camera.ORTHOGRAPHIC_CAMERA
         camera.orthoLeft = -.5
         camera.orthoRight = (this.parallelCount)*1.5+-.5
         camera.orthoTop = .5
         camera.orthoBottom = -.5
-        camera.target = new B.Vector3(0, 0, 0)
+        camera.target = OFFSET
         camera.rotation.z = Math.PI
         camera.fov = 0.48
+        camera.parent = rootNode
+        renderTarget.activeCamera = this.camera
 
         const light = this.light = new B.HemisphericLight("light", new B.Vector3(3, 10, 3), renderscene)
         light.intensity = 1
-        
-        renderscene.activeCamera = camera
+        light.parent = rootNode
+        light.includedOnlyMeshes = []
 
+        
         renderscene.customRenderTargets.push(renderTarget)
 
         await Promise.all([ctx.materialLight,ctx.materialMat,ctx.materialMetal,ctx.materialShiny].map(async mat=>{
@@ -83,12 +92,18 @@ export class N3DRendering {
         let i = 0
         for(const gui of guis){
             this.renderTarget.renderList!.push(...gui.root.getChildMeshes())
-            gui.root.position.x = i * 1.5
+            for(const mesh of gui.root.getChildMeshes()){
+                mesh.lightSources.length = 0
+                mesh.lightSources.push(this.light)
+            }
+            gui.root.parent = this.rootNode
+            gui.root.position = OFFSET.clone().addInPlaceFromFloats(i * 1.5, 0, 0)
             i++
         }
 
         await this.renderScene.whenReadyAsync(true)
-        this.renderScene.render()
+
+        this.renderTarget.render()
 
         for(const gui of guis){
             gui.dispose()
@@ -99,11 +114,10 @@ export class N3DRendering {
 
     dispose(){
         console.log("Disposing N3DRendering...")
-        this.renderScene.rootNodes.forEach(n => n.dispose())
         this.renderTarget.dispose()
         this.camera.dispose()
         this.light.dispose()
-        this.renderScene.dispose()
+        this.rootNode.dispose()
     }
 
     get texture(){

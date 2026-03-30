@@ -158,6 +158,7 @@ export class NewApp {
         // await node3dBuilder.create("sequencer") as Node3DInstance
         // await node3dBuilder.create("function_sequencer") as Node3DInstance
 
+        
         /*;(async()=>{
             let i = 0
             for(const kind of node3dBuilder.FACTORY_KINDS){

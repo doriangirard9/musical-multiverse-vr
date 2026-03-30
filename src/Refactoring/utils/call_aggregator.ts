@@ -23,12 +23,12 @@ export class AsyncCallAggregator<F,T> {
         for(const [arg, resolvers] of [...this.pendingCalls.entries()]){
             if(this.nextCalls.size < this.maxCount){
                 const list = this.nextCalls.get(arg) ?? []
-                list.push(...resolvers)
+                // Avoid spreading large arrays to prevent blowing the call stack when many resolvers accumulate
+                for(const resolver of resolvers){
+                    list.push(resolver)
+                }
                 this.nextCalls.set(arg, list)
                 this.pendingCalls.delete(arg)
-            }
-            else if(this.pendingCalls.has(arg)){
-                this.pendingCalls.get(arg)!.push(...resolvers)
             }
         }
     }

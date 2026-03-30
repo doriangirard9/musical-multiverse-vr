@@ -8,7 +8,7 @@ export class AutoDispose<T>{
         private lifetime: number = 60_000
     ){}
 
-    private instance?: T
+    private instance?: Promise<T>
     private timeout?: any
 
     async get(){
@@ -18,15 +18,18 @@ export class AutoDispose<T>{
             return this.instance
         }
         else{
-            const instance = this.instance = await this.create()
-            this.timeout = setTimeout(()=>this.disposeInstance(), this.lifetime)
-            return instance
+            return this.instance = (async()=>{
+                const instance = await this.create()
+                this.timeout = setTimeout(()=>this.disposeInstance(), this.lifetime)
+                return instance
+            })()
+            
         }
     }
 
     async disposeInstance(){
         if(this.instance){
-            await this.dispose(this.instance)
+            await this.dispose(await this.instance)
             this.instance = undefined
         }
     }
