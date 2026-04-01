@@ -13,13 +13,16 @@ export class ShopPanel{
     label
 
     constructor(
-        private scene: Scene
+        private scene: Scene,
+        private renderScene: Scene,
     ){
         const that = this
         
-        this.plane = CreatePlane("shopPanel", {width: 2, height: 1}, scene)
+        this.plane = CreatePlane("shopPanel", {width: 2, height: 1}, renderScene)
         this.texture = AdvancedDynamicTexture.CreateForMesh(this.plane, 1024, 512)
-        this.label = new N3DText("label", [this.plane], scene)
+        this.label = new N3DText("label", [this.plane], renderScene)
+        this.label.plane.renderingGroupId = 1
+        this.label.list.background = "rgb(0,0,0,0.5)"
 
 
         // Item List

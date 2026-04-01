@@ -25,7 +25,7 @@ export class NewApp {
 
     private static instance?: NewApp
 
-    public static getInstance(): NewApp {
+    public static get(): NewApp {
         if (!NewApp.instance) throw new Error("NewApp not initialized. Create an instance first.")
         return NewApp.instance;
     }
@@ -138,7 +138,7 @@ export class NewApp {
         let doing = false
         InputManager.getInstance().a_button.onDown.add(()=>{
             if(!shopPanel){
-                shopPanel = new ShopPanel(scene)
+                shopPanel = new ShopPanel(scene, Node3dManager.getInstance().builder.getShared().utilityLayer.utilityLayerScene)
                 shopPanel.makeFollow()
             }
             else shopPanel.toggle()

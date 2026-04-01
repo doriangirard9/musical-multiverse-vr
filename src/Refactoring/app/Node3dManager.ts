@@ -60,9 +60,10 @@ export class Node3dManager {
 
         const all = (async()=>{
             await initfactory()
-            const [impostor,node] = await Promise.all([createImpostor(), spawn()])
-            impostor?.dispose()
-            return node
+            const [impostor,node] = await Promise.allSettled([createImpostor(), spawn()])
+            if(impostor.status=="fulfilled")impostor.value?.dispose()
+            if(node.status=="rejected")throw node.reason
+            return node.value
         })()
 
         const {root,promise} = AsyncLoading.create(SceneManager.getInstance().getScene(), all)
