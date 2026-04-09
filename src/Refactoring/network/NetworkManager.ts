@@ -23,7 +23,8 @@ export class NetworkManager {
 
 
     private constructor() {
-        const roomName = "WamJamParty"+document.location.hash
+        //const roomName = "WamJamParty"+document.location.hash
+        const roomName = "WamJamParty"+((window as any).WAMJAM_SESSION_ID??"default")
 
         this.doc = new Y.Doc()
         this.playerId = PlayerManager.getInstance().getId()
