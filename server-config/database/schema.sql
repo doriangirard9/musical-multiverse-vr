@@ -210,13 +210,11 @@ CREATE TABLE IF NOT EXISTS refresh_tokens (
 -- =============================================================================
 -- TABLE: session_participants
 -- =============================================================================
--- Historique des participations aux sessions.
--- Permet de savoir qui a participe a quelle session et quand.
--- Utile pour les statistiques et l'historique.
+-- Participants actuellement dans une session.
+-- Utilise une cle primaire composite (session_id, user_id).
+-- Les entrees sont supprimees quand l'utilisateur quitte la session.
 -- =============================================================================
 CREATE TABLE IF NOT EXISTS session_participants (
-    id TEXT PRIMARY KEY,
-
     -- ID de la session
     session_id TEXT NOT NULL,
 
@@ -226,8 +224,8 @@ CREATE TABLE IF NOT EXISTS session_participants (
     -- Date d'entree dans la session
     joined_at INTEGER DEFAULT (strftime('%s', 'now') * 1000),
 
-    -- Date de sortie (NULL si encore present)
-    left_at INTEGER,
+    -- Cle primaire composite
+    PRIMARY KEY (session_id, user_id),
 
     FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
@@ -257,6 +255,4 @@ CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user ON refresh_tokens(user_id);
 -- Index pour trouver les tokens expires (pour le nettoyage)
 CREATE INDEX IF NOT EXISTS idx_refresh_tokens_expires ON refresh_tokens(expires_at);
 
--- Index pour l'historique des participants
-CREATE INDEX IF NOT EXISTS idx_session_participants_session ON session_participants(session_id);
-CREATE INDEX IF NOT EXISTS idx_session_participants_user ON session_participants(user_id);
+-- Index pour les participants (session_id et user_id sont deja dans la cle primaire)

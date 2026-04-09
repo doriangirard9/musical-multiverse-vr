@@ -433,7 +433,7 @@ router.post('/:projectId/sessions/:sessionId/join', authenticateToken, (req, res
         if (session.max_participants > 0) {
             const activeCount = db.prepare(`
                 SELECT COUNT(*) as count FROM session_participants
-                WHERE session_id = ? AND left_at IS NULL
+                WHERE session_id = ?
             `).get(sessionId).count;
 
             if (activeCount >= session.max_participants) {
@@ -444,18 +444,11 @@ router.post('/:projectId/sessions/:sessionId/join', authenticateToken, (req, res
             }
         }
 
-        // Ferme une éventuelle participation existante
+        // Enregistre la participation (INSERT OR REPLACE pour éviter les doublons)
         db.prepare(`
-            UPDATE session_participants
-            SET left_at = ?
-            WHERE session_id = ? AND user_id = ? AND left_at IS NULL
-        `).run(Date.now(), sessionId, req.user.id);
-
-        // Enregistre la nouvelle participation
-        db.prepare(`
-            INSERT INTO session_participants (id, session_id, user_id, joined_at)
-            VALUES (?, ?, ?, ?)
-        `).run(uuidv4(), sessionId, req.user.id, Date.now());
+            INSERT OR REPLACE INTO session_participants (session_id, user_id, joined_at)
+            VALUES (?, ?, ?)
+        `).run(sessionId, req.user.id, Date.now());
 
         res.json({
             message: 'Joined session successfully',
@@ -484,10 +477,9 @@ router.post('/:projectId/sessions/:sessionId/leave', authenticateToken, (req, re
         const db = getDatabase();
 
         db.prepare(`
-            UPDATE session_participants
-            SET left_at = ?
-            WHERE session_id = ? AND user_id = ? AND left_at IS NULL
-        `).run(Date.now(), sessionId, req.user.id);
+            DELETE FROM session_participants
+            WHERE session_id = ? AND user_id = ?
+        `).run(sessionId, req.user.id);
 
         res.json({
             message: 'Left session successfully'
@@ -513,7 +505,7 @@ router.get('/public', (req, res) => {
         const sessions = db.prepare(`
             SELECT s.*, p.name as project_name, u.username as created_by_username,
                    (SELECT COUNT(*) FROM session_participants sp
-                    WHERE sp.session_id = s.id AND sp.left_at IS NULL) as active_participants
+                    WHERE sp.session_id = s.id) as active_participants
             FROM sessions s
             JOIN projects p ON s.project_id = p.id
             LEFT JOIN users u ON s.created_by = u.id
@@ -529,7 +521,7 @@ router.get('/public', (req, res) => {
                 description: s.description,
                 projectId: s.project_id,
                 projectName: s.project_name,
-                maxParticipants: s.max_participants,
+                maxParticipants: s.max_participants || 32,
                 activeParticipants: s.active_participants,
                 createdByUsername: s.created_by_username,
                 createdAt: s.created_at
@@ -541,6 +533,195 @@ router.get('/public', (req, res) => {
         res.status(500).json({
             error: 'Server error',
             message: 'An error occurred while fetching public sessions'
+        });
+    }
+});
+
+/**
+ * POST /api/sessions/quick-create
+ * Crée rapidement une session publique (crée aussi un projet public si nécessaire)
+ *
+ * Body: { name?, maxParticipants? }
+ * Response: { session, project }
+ */
+router.post('/quick-create', authenticateToken, (req, res) => {
+    try {
+        const { name, maxParticipants = 32 } = req.body;
+        const db = getDatabase();
+        const now = Date.now();
+
+        // Cherche ou crée un projet public pour cet utilisateur
+        let project = db.prepare(`
+            SELECT * FROM projects
+            WHERE owner_id = ? AND visibility = 'public'
+            ORDER BY created_at ASC
+            LIMIT 1
+        `).get(req.user.id);
+
+        if (!project) {
+            // Crée un projet public par défaut
+            const projectId = uuidv4();
+            db.prepare(`
+                INSERT INTO projects (id, name, description, owner_id, visibility, created_at, updated_at)
+                VALUES (?, ?, ?, ?, 'public', ?, ?)
+            `).run(
+                projectId,
+                `${req.user.username}'s Sessions`,
+                'Auto-created public project',
+                req.user.id,
+                now,
+                now
+            );
+            project = { id: projectId, name: `${req.user.username}'s Sessions` };
+        }
+
+        // Génère un nom de session si non fourni
+        const sessionName = name || `Session ${new Date().toLocaleString('fr-FR', {
+            day: '2-digit',
+            month: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit'
+        })}`;
+
+        // Crée la session
+        const sessionId = uuidv4();
+        db.prepare(`
+            INSERT INTO sessions (id, name, project_id, created_by, visibility, max_participants, status, created_at, updated_at)
+            VALUES (?, ?, ?, ?, 'public', ?, 'active', ?, ?)
+        `).run(sessionId, sessionName, project.id, req.user.id, maxParticipants, now, now);
+
+        // Enregistre l'utilisateur comme participant
+        db.prepare(`
+            INSERT OR REPLACE INTO session_participants (session_id, user_id, joined_at)
+            VALUES (?, ?, ?)
+        `).run(sessionId, req.user.id, now);
+
+        res.status(201).json({
+            message: 'Session created successfully',
+            session: {
+                id: sessionId,
+                name: sessionName,
+                projectId: project.id,
+                maxParticipants,
+                activeParticipants: 1
+            },
+            project: {
+                id: project.id,
+                name: project.name
+            }
+        });
+
+    } catch (error) {
+        console.error('Quick create session error:', error);
+        res.status(500).json({
+            error: 'Server error',
+            message: 'An error occurred while creating the session'
+        });
+    }
+});
+
+/**
+ * POST /api/sessions/:sessionId/join
+ * Rejoint une session publique directement (sans spécifier le projet)
+ */
+router.post('/:sessionId/join', authenticateToken, (req, res) => {
+    try {
+        const { sessionId } = req.params;
+        const db = getDatabase();
+
+        // Récupère la session
+        const session = db.prepare(`
+            SELECT s.*, p.visibility as project_visibility
+            FROM sessions s
+            JOIN projects p ON s.project_id = p.id
+            WHERE s.id = ?
+        `).get(sessionId);
+
+        if (!session) {
+            return res.status(404).json({
+                error: 'Not found',
+                message: 'Session not found'
+            });
+        }
+
+        // Vérifie que la session est publique et active
+        if (session.visibility !== 'public' || session.project_visibility !== 'public') {
+            return res.status(403).json({
+                error: 'Forbidden',
+                message: 'This session is not public'
+            });
+        }
+
+        if (session.status !== 'active') {
+            return res.status(400).json({
+                error: 'Bad request',
+                message: 'This session is not active'
+            });
+        }
+
+        // Vérifie le nombre max de participants
+        const maxParticipants = session.max_participants || 32;
+        if (maxParticipants > 0) {
+            const activeCount = db.prepare(`
+                SELECT COUNT(*) as count FROM session_participants
+                WHERE session_id = ?
+            `).get(sessionId).count;
+
+            if (activeCount >= maxParticipants) {
+                return res.status(403).json({
+                    error: 'Session full',
+                    message: 'This session has reached its maximum number of participants'
+                });
+            }
+        }
+
+        // Enregistre la participation (INSERT OR REPLACE pour éviter les doublons)
+        db.prepare(`
+            INSERT OR REPLACE INTO session_participants (session_id, user_id, joined_at)
+            VALUES (?, ?, ?)
+        `).run(sessionId, req.user.id, Date.now());
+
+        res.json({
+            message: 'Joined session successfully',
+            session: {
+                id: session.id,
+                name: session.name,
+                projectId: session.project_id
+            }
+        });
+
+    } catch (error) {
+        console.error('Join session error:', error);
+        res.status(500).json({
+            error: 'Server error',
+            message: 'An error occurred while joining the session'
+        });
+    }
+});
+
+/**
+ * POST /api/sessions/:sessionId/leave
+ * Quitte une session publique directement (sans spécifier le projet)
+ */
+router.post('/:sessionId/leave', authenticateToken, (req, res) => {
+    try {
+        const { sessionId } = req.params;
+        const db = getDatabase();
+
+        db.prepare(`
+            DELETE FROM session_participants
+            WHERE session_id = ? AND user_id = ?
+        `).run(sessionId, req.user.id);
+
+        res.json({
+            message: 'Left session successfully'
+        });
+
+    } catch (error) {
+        console.error('Leave session error:', error);
+        res.status(500).json({
+            error: 'Server error',
+            message: 'An error occurred while leaving the session'
         });
     }
 });

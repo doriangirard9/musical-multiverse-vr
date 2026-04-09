@@ -140,6 +140,24 @@ app.get('/api/sessions/public', (req, res, next) => {
     sessionRoutes(req, res, next);
 });
 
+// Route pour créer rapidement une session publique
+app.post('/api/sessions/quick-create', (req, res, next) => {
+    req.url = '/quick-create';
+    sessionRoutes(req, res, next);
+});
+
+// Route pour rejoindre une session publique directement
+app.post('/api/sessions/:sessionId/join', (req, res, next) => {
+    req.url = `/${req.params.sessionId}/join`;
+    sessionRoutes(req, res, next);
+});
+
+// Route pour quitter une session directement
+app.post('/api/sessions/:sessionId/leave', (req, res, next) => {
+    req.url = `/${req.params.sessionId}/leave`;
+    sessionRoutes(req, res, next);
+});
+
 // Routes des sessions (montées sous /api/projects pour le contexte projectId)
 app.use('/api/projects', sessionRoutes);
 

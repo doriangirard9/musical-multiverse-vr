@@ -4,8 +4,17 @@ import { Awareness } from 'y-protocols/awareness';
 import { NetworkEventBus } from "../eventBus/NetworkEventBus.ts";
 
 // Serveur de signalisation pour WebRTC
-//const SIGNALING_SERVER = `wss://${window.location.hostname}:443`; // 'wss://musical-multiverse-vr.onrender.com';
 const SIGNALING_SERVER = `https://wamjamparty.i3s.univ-cotedazur.fr/rtc`;
+
+// Récupère l'ID de session (défini par index.ts après la sélection de session)
+function getSessionRoomName(): string {
+    const sessionId = (window as any).WAMJAM_SESSION_ID;
+    if (sessionId) {
+        return `wamjam-session-${sessionId}`;
+    }
+    // Fallback: utilise un room par défaut si pas de session
+    return 'wamjam-default-room';
+}
 
 /**
  * Composant gérant les connexions WebRTC et l'awareness des pairs.
@@ -50,16 +59,17 @@ export class ConnectionManager {
      * @param roomName - Nom de la salle à rejoindre
      */
     private connect(): void {
+        const roomName = getSessionRoomName();
 
         // Création du provider WebRTC
-        this.provider = new WebrtcProvider(SIGNALING_SERVER, this.doc, {
+        this.provider = new WebrtcProvider(roomName, this.doc, {
             signaling: [SIGNALING_SERVER]
         });
 
         // Configuration de l'awareness
         this.setupAwareness();
 
-        if (ConnectionManager.DEBUG_LOG) console.log(`[ConnectionComponent] Connected to room: ${SIGNALING_SERVER}`);
+        if (ConnectionManager.DEBUG_LOG) console.log(`[ConnectionComponent] Connected to room: ${roomName}`);
     }
 
     /**
