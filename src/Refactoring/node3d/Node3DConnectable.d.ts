@@ -59,7 +59,7 @@ export interface Node3DConnectable{
      * @param power Une fonction qui peut être appelée pour envoyer une impulsion, utilisé pour les visuels. (les deux entre 0 et 1, un ton de 0 à 1 pour les connexions de type "signal", ou un ton de 0 est équivalent à un ton de 1).
      */
     connect(
-        sender: (value:any)=>void,
+        connectable: any,
         impulse: (strength:number, tone:number)=>void
     ): void
    
@@ -71,13 +71,7 @@ export interface Node3DConnectable{
      * @param power Une fonction qui peut être appelée pour envoyer une impulsion, utilisé pour les visuels. (les deux entre 0 et 1, un ton de 0 à 1 pour les connexions de type "signal", ou un ton de 0 est équivalent à un ton de 1)
      */
     disconnect(
-        sender: (value:any)=>void,
+        connectable: any,
         power: (strength:number, tone:number)=>void
     ): void
-
-    /**
-     * Appelé lorsque une valeur est envoyée à la connexion par la connexion à l'autre bout.
-     * @param value La nouvelle valeur de l'entrée.
-     */
-    receive(value: any): void
 }
