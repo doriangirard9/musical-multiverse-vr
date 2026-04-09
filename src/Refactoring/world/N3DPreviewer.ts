@@ -108,6 +108,7 @@ export class N3DPreviewer{
 
         const hover = new InputHoverBehavior(
             ()=>{
+                this.shared.highlightLayer.removeExcludedMesh(hitbox)
                 this.shared.highlightLayer.addMesh(hitbox, Color3.Green())
                 text.updatePosition()
                 text.show()

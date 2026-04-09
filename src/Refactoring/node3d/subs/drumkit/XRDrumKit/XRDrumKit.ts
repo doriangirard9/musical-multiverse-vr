@@ -71,7 +71,7 @@ class XRDrumKit {
         this.wamInstance = null;
         this.drumComponents = [];
         this.drumContainer = new TransformNode("drumContainer", this.scene);
-        this.drumSoundsEnabled = false;
+        this.drumSoundsEnabled = true;
         //this.xrLogger = new XRLogger(xr, scene);
     
     }
