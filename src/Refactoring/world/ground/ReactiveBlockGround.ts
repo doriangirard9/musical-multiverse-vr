@@ -1,4 +1,4 @@
-import { Color3, CreateBox, InstancedMesh, TransformNode } from "@babylonjs/core";
+import { AbstractMesh, Color3, CreateBox, InstancedMesh, Mesh, TransformNode } from "@babylonjs/core";
 
 
 export class ReactiveBlockGround {
@@ -10,7 +10,8 @@ export class ReactiveBlockGround {
     constructor(
         readonly width: number,
         readonly height: number,
-        callback: (x: number, y: number, block: InstancedMesh) => void = () => {}
+        callback: (x: number, y: number, block: InstancedMesh) => void = () => {},
+        mesh_callback: (block: Mesh) => void = () => {},
     ){
         this.root = new TransformNode("reactive block group")
 
@@ -18,6 +19,7 @@ export class ReactiveBlockGround {
         this.block.position.y = 1000
         this.block.registerInstancedBuffer("color", 4)
         this.block.instancedBuffers.color = Color3.White().toColor4(1) 
+        mesh_callback(this.block)
 
         this.blocks = Array.from({length: height*width}, () => null as unknown as InstancedMesh)
 
