@@ -1152,11 +1152,11 @@ class PianoRollN3DGUI implements Node3DGUI {
 
   private _triggerHapticFeedback(): void {
     try {
-      const xrManager = XRManager.getInstance();
+      const inputs = InputManager.getInstance();
       const scene = this.context.scene;
 
-      const left = xrManager.xrInputManager.leftController;
-      const right = xrManager.xrInputManager.rightController;
+      const left = inputs.left;
+      const right = inputs.right;
 
       if (!left && !right) return;
 
@@ -1165,7 +1165,7 @@ class PianoRollN3DGUI implements Node3DGUI {
       const isNoteCellHit = (pick: B.Nullable<B.PickingInfo>): boolean => !!(pick?.hit && pick.pickedMesh === this.noteCell);
 
       if (left) {
-        const lray = new B.Ray(left.pointer.position, left.pointer.forward, maxLen);
+        const lray = new B.Ray(left.pointer.origin, left.pointer.forward, maxLen);
         const lpick = scene.pickWithRay(lray);
         if (isNoteCellHit(lpick)) {
           XRControllerManager.Instance.triggerHapticFeedback('left', 0.3, 50);
@@ -1174,7 +1174,7 @@ class PianoRollN3DGUI implements Node3DGUI {
       }
 
       if (right) {
-        const rray = new B.Ray(right.pointer.position, right.pointer.forward, maxLen);
+        const rray = new B.Ray(right.pointer.origin, right.pointer.forward, maxLen);
         const rpick = scene.pickWithRay(rray);
         if (isNoteCellHit(rpick)) {
           XRControllerManager.Instance.triggerHapticFeedback('right', 0.3, 50);
@@ -1355,7 +1355,7 @@ export class PianoRollN3D implements Node3D {
     
 
 // Right grip (squeeze) acts like holding "A" for long-note editing
-InputManager.getInstance().right.squeeze.on_change.add((event) => {
+InputManager.getInstance().right.squeeze.onChange.add((event) => {
   const active = (event.value ?? 0) > 0 || !!event.pressed; // optional: change 0 -> 0.1 as deadzone
   if (active) {
     this.isAKeyPressed = true;
@@ -1444,12 +1444,12 @@ const getPointedPianoRollLeftController = (): PianoRollN3D | null => {
 };
 const getPointedPianoRollRightController = (): PianoRollN3D | null => {
 
-   const rightController = xrManager.xrInputManager.rightController;
+   const {right} = InputManager.getInstance();
 
-  if (!rightController) return null;
+  if (!right) return null;
   
   // Create ray from controller
-  const ray = new B.Ray(rightController.pointer.position, rightController.pointer.forward, 100);
+  const ray = new B.Ray(right.pointer.origin, right.pointer.forward, 100);
   const pickResult = t.pickWithRay(ray);
   
   if (pickResult?.hit && pickResult.pickedMesh) {
@@ -1497,15 +1497,15 @@ const stopScrolling = () => {
 };
 
 // Start scrolling when thumbstick is pushed
-im.right_thumbstick.onUp_down.add(() => startScrolling(-1));
-im.right_thumbstick.onDown_down.add(() => startScrolling(1));
+im.right.thumbstick.on_up_down.add(() => startScrolling(-1));
+im.right.thumbstick.on_down_down.add(() => startScrolling(1));
 
 // Stop scrolling when thumbstick is released
-im.right_thumbstick.onUp_up.add(() => stopScrolling());
-im.right_thumbstick.onDown_up.add(() => stopScrolling());
+im.right.thumbstick.on_up_up.add(() => stopScrolling());
+im.right.thumbstick.on_down_up.add(() => stopScrolling());
 
 // Also stop when thumbstick returns to center
-im.right_thumbstick.on_value_change.add(({ x, y }) => {
+im.right.thumbstick.on_value_change.add(({ x, y }) => {
   const deadzone = 0.1;
   const isInDeadzone = Math.abs(x) < deadzone && Math.abs(y) < deadzone;
   

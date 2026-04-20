@@ -55,6 +55,7 @@ export class NewApp {
 
         // Initialization of App Parts
         UIManager.initialize()
+        await XRManager.getInstance()!!.init(SceneManager.getInstance().getScene(), audioEngine);
 
         await Node3dManager.initialize(audioContext, audioEngine)
         
@@ -66,7 +67,6 @@ export class NewApp {
 
         SceneManager.getInstance().start();
 
-        await XRManager.getInstance()!!.init(SceneManager.getInstance().getScene(), audioEngine);
         
 
         // Get things

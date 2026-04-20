@@ -1,15 +1,15 @@
 import * as B from "@babylonjs/core";
 import {v4} from "uuid";
-import {XRManager} from "../xr/XRManager.ts";
 import {PlayerState} from "../network/types.ts";
 import {NetworkEventBus} from "../eventBus/NetworkEventBus.ts";
 import {SceneManager} from "./SceneManager.ts";
+import { InputManager } from "../xr/inputs/InputManager.ts";
 
 export class PlayerManager {
     private static readonly DEBUG_LOG = false;
     private static _instance: PlayerManager;
     private readonly _id: string = v4();
-    private xrManager = XRManager.getInstance();
+    private inputs = InputManager.getInstance();
     private networkEventBus = NetworkEventBus.getInstance();
 
     // Paramètres de throttling et delta compression
@@ -104,37 +104,30 @@ export class PlayerManager {
 
 
     public getPlayerState(): PlayerState | undefined {
-        // Même logique que précédemment
-        if (!this.xrManager.xrHelper || !this.xrManager.xrHelper.baseExperience.camera) {
-            console.error("XRManager camera is not initialized");
-            return undefined;
-        }
 
-        if (!this.xrManager.xrInputManager.leftController || !this.xrManager.xrInputManager.rightController) {
+        if (!this.inputs.left || !this.inputs.right) {
             return undefined;
         }
 
         // Reste du code inchangé...
-        const xrCameraPosition: B.Vector3 = this.xrManager.xrHelper.baseExperience.camera.position;
-        const xrCameraDirection: B.Vector3 = this.xrManager.xrHelper.baseExperience.camera.getDirection(B.Axis.Z);
-        // @ts-ignore
-        const xrLeftControllerPosition: B.Vector3 = this.xrManager.xrInputManager.leftController?.grip!.position;
-        // @ts-ignore
-        const xrRightControllerPosition: B.Vector3 = this.xrManager.xrInputManager.rightController?.grip!.position;
+        const headPosition: B.Vector3 = this.inputs.head.origin
+        const headDirection: B.Vector3 = this.inputs.head.forward
+        const leftPosition: B.Vector3 = this.inputs.left.pointer.origin
+        const rightPosition: B.Vector3 = this.inputs.right.pointer.origin
 
         return {
             id: this._id,
-            position: {x: xrCameraPosition.x, y: xrCameraPosition.y, z: xrCameraPosition.z},
-            direction: {x: xrCameraDirection.x, y: xrCameraDirection.y, z: xrCameraDirection.z},
+            position: {x: headPosition.x, y: headPosition.y, z: headPosition.z},
+            direction: {x: headDirection.x, y: headDirection.y, z: headDirection.z},
             leftHandPosition: {
-                x: xrLeftControllerPosition.x + 0.05,
-                y: xrLeftControllerPosition.y,
-                z: xrLeftControllerPosition.z - 0.2
+                x: leftPosition.x + 0.05,
+                y: leftPosition.y,
+                z: leftPosition.z - 0.2
             },
             rightHandPosition: {
-                x: xrRightControllerPosition.x - 0.05,
-                y: xrRightControllerPosition.y,
-                z: xrRightControllerPosition.z - 0.2
+                x: rightPosition.x - 0.05,
+                y: rightPosition.y,
+                z: rightPosition.z - 0.2
             },
         };
     }
