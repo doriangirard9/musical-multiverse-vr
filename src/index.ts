@@ -5,6 +5,7 @@ import { LoginUI } from "./Refactoring/auth/LoginUI.ts";
 import { GuestConversionUI } from "./Refactoring/ui/GuestConversionUI.ts";
 import { UserMenuUI } from "./Refactoring/ui/UserMenuUI.ts";
 import { SessionBrowserUI } from "./Refactoring/ui/SessionBrowserUI.ts";
+import { SessionPersistenceManager } from "./Refactoring/network/SessionPersistenceManager.ts";
 
 // Filter out spammy wam3dgenerator console logs (memory allocation logs)
 const originalConsoleLog = console.log;
@@ -48,6 +49,11 @@ async function startApp(user: User, sessionId: string): Promise<void> {
     try {
         await newApp.start();
         if (DEBUG_LOG) console.log("NewApp started");
+
+        // Initialiser la persistence des sessions
+        const persistenceManager = SessionPersistenceManager.getInstance();
+        await persistenceManager.initialize(sessionId);
+        if (DEBUG_LOG) console.log("Session persistence initialized");
 
         // Affiche le menu utilisateur (nom + déconnexion)
         new UserMenuUI();

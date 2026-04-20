@@ -256,3 +256,77 @@ CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user ON refresh_tokens(user_id);
 CREATE INDEX IF NOT EXISTS idx_refresh_tokens_expires ON refresh_tokens(expires_at);
 
 -- Index pour les participants (session_id et user_id sont deja dans la cle primaire)
+
+-- =============================================================================
+-- TABLE: session_snapshots
+-- =============================================================================
+-- Stocke les snapshots de sessions persistés (état sérialisé du Yjs Y.Doc)
+-- Chaque session a un seul snapshot "courant" qui est mis à jour périodiquement.
+-- Cela permet de récupérer l'état de la session après un redémarrage du serveur.
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS session_snapshots (
+    -- Identifiant unique du snapshot
+    id TEXT PRIMARY KEY,
+    
+    -- ID de la session
+    session_id TEXT NOT NULL UNIQUE,
+    
+    -- Données sérialisées du Yjs Y.Doc (JSON compressé)
+    snapshot_data TEXT NOT NULL,
+    
+    -- Numéro de version (incrémenté à chaque mise à jour)
+    version INTEGER NOT NULL DEFAULT 1,
+    
+    -- Date de création du snapshot
+    created_at INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+    
+    -- Date de dernière mise à jour
+    updated_at INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+    
+    -- ID de l'utilisateur qui a déclenché la sauvegarde
+    updated_by TEXT,
+    
+    -- Clés étrangères
+    FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE,
+    FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL
+);
+
+-- =============================================================================
+-- TABLE: session_snapshot_history
+-- =============================================================================
+-- Historique des snapshots pour audit et récupération.
+-- Garde les N derniers snapshots de chaque session (configurable).
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS session_snapshot_history (
+    -- Identifiant unique
+    id TEXT PRIMARY KEY,
+    
+    -- ID de la session
+    session_id TEXT NOT NULL,
+    
+    -- Données du snapshot (JSON)
+    snapshot_data TEXT NOT NULL,
+    
+    -- Numéro de version
+    version INTEGER NOT NULL,
+    
+    -- Date de création
+    created_at INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+    
+    -- Utilisateur qui a déclenché la sauvegarde
+    saved_by TEXT,
+    
+    -- Clés étrangères
+    FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE,
+    FOREIGN KEY (saved_by) REFERENCES users(id) ON DELETE SET NULL
+);
+
+-- =============================================================================
+-- INDEX pour session_snapshots et session_snapshot_history
+-- =============================================================================
+CREATE INDEX IF NOT EXISTS idx_session_snapshots_session ON session_snapshots(session_id);
+CREATE INDEX IF NOT EXISTS idx_session_snapshots_updated ON session_snapshots(updated_at);
+
+CREATE INDEX IF NOT EXISTS idx_session_snapshot_history_session ON session_snapshot_history(session_id);
+CREATE INDEX IF NOT EXISTS idx_session_snapshot_history_created ON session_snapshot_history(created_at);
+CREATE INDEX IF NOT EXISTS idx_session_snapshot_history_version ON session_snapshot_history(version);

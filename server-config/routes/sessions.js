@@ -18,6 +18,7 @@ const {
     getUserRole,
     hasPermission
 } = require('../middleware/rbac');
+const { getInstance: getSessionPersistenceService } = require('../services/SessionPersistenceService');
 
 const router = express.Router();
 
@@ -722,6 +723,249 @@ router.post('/:sessionId/leave', authenticateToken, (req, res) => {
         res.status(500).json({
             error: 'Server error',
             message: 'An error occurred while leaving the session'
+        });
+    }
+});
+
+/**
+ * =============================================================================
+ * ROUTES DE PERSISTANCE DE SESSIONS (Snapshots)
+ * =============================================================================
+ */
+
+/**
+ * POST /api/sessions/:sessionId/snapshot
+ * Sauvegarde un snapshot de l'état de la session.
+ * Cette route est appelée par le client de manière débounced (1-2s).
+ */
+router.post('/:sessionId/snapshot', authenticateToken, async (req, res) => {
+    try {
+        const { sessionId } = req.params;
+        const { snapshotData } = req.body;
+        const db = getDatabase();
+
+        // Vérifie que la session existe
+        const session = db.prepare('SELECT id FROM sessions WHERE id = ?').get(sessionId);
+        if (!session) {
+            return res.status(404).json({
+                error: 'Not found',
+                message: 'Session not found'
+            });
+        }
+
+        // Vérifie que l'utilisateur est participant de la session
+        const participant = db.prepare(`
+            SELECT 1 FROM session_participants
+            WHERE session_id = ? AND user_id = ?
+        `).get(sessionId, req.user.id);
+
+        if (!participant) {
+            return res.status(403).json({
+                error: 'Forbidden',
+                message: 'You are not a participant in this session'
+            });
+        }
+
+        // Valide que snapshotData est fourni
+        if (!snapshotData) {
+            return res.status(400).json({
+                error: 'Bad request',
+                message: 'snapshotData is required'
+            });
+        }
+
+        // Appelle le service de persistance (async, non-bloquant)
+        const persistenceService = getSessionPersistenceService();
+        const result = await persistenceService.saveSnapshot(sessionId, snapshotData, req.user.id);
+
+        res.json({
+            message: 'Snapshot saved successfully',
+            snapshot: {
+                id: result.id,
+                version: result.version,
+                compressed: result.compressed
+            }
+        });
+
+    } catch (error) {
+        console.error('Save snapshot error:', error);
+        res.status(500).json({
+            error: 'Server error',
+            message: 'An error occurred while saving the snapshot'
+        });
+    }
+});
+
+/**
+ * GET /api/sessions/:sessionId/snapshot
+ * Charge le dernier snapshot d'une session.
+ * Utilisé au démarrage pour restaurer l'état de la session.
+ */
+router.get('/:sessionId/snapshot', optionalAuth, async (req, res) => {
+    try {
+        const { sessionId } = req.params;
+        const db = getDatabase();
+
+        // Vérifie que la session existe
+        const session = db.prepare('SELECT * FROM sessions WHERE id = ?').get(sessionId);
+        if (!session) {
+            return res.status(404).json({
+                error: 'Not found',
+                message: 'Session not found'
+            });
+        }
+
+        // Vérifie l'accès à la session
+        const userRole = req.user ? getUserRole(req.user.id, session.project_id) : null;
+        if (session.visibility === 'private' && !userRole && session.created_by !== (req.user?.id)) {
+            return res.status(403).json({
+                error: 'Forbidden',
+                message: 'You do not have access to this session'
+            });
+        }
+
+        // Charge le snapshot
+        const persistenceService = getSessionPersistenceService();
+        const snapshot = await persistenceService.loadSnapshot(sessionId);
+
+        if (!snapshot) {
+            return res.status(404).json({
+                error: 'Not found',
+                message: 'No snapshot available for this session'
+            });
+        }
+
+        res.json({
+            message: 'Snapshot loaded successfully',
+            snapshot: {
+                data: snapshot.data,
+                version: snapshot.version,
+                updatedAt: snapshot.updatedAt,
+                updatedBy: snapshot.updatedBy
+            }
+        });
+
+    } catch (error) {
+        console.error('Load snapshot error:', error);
+        res.status(500).json({
+            error: 'Server error',
+            message: 'An error occurred while loading the snapshot'
+        });
+    }
+});
+
+/**
+ * GET /api/sessions/:sessionId/snapshots/history
+ * Liste l'historique des snapshots d'une session.
+ * Permet de voir les versions précédentes pour audit ou récupération.
+ */
+router.get('/:sessionId/snapshots/history', optionalAuth, async (req, res) => {
+    try {
+        const { sessionId } = req.params;
+        const { limit = 20, offset = 0 } = req.query;
+        const db = getDatabase();
+
+        // Vérifie que la session existe
+        const session = db.prepare('SELECT * FROM sessions WHERE id = ?').get(sessionId);
+        if (!session) {
+            return res.status(404).json({
+                error: 'Not found',
+                message: 'Session not found'
+            });
+        }
+
+        // Vérifie l'accès à la session (seulement créateur et admins)
+        if (session.created_by !== (req.user?.id)) {
+            const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(session.project_id);
+            if (project.owner_id !== (req.user?.id)) {
+                return res.status(403).json({
+                    error: 'Forbidden',
+                    message: 'You do not have access to session history'
+                });
+            }
+        }
+
+        // Liste l'historique
+        const persistenceService = getSessionPersistenceService();
+        const history = await persistenceService.listSnapshotHistory(
+            sessionId,
+            Math.min(parseInt(limit), 100), // Max 100 par requête
+            Math.max(0, parseInt(offset))
+        );
+
+        res.json({
+            message: 'Snapshot history retrieved successfully',
+            history,
+            pagination: {
+                limit: Math.min(parseInt(limit), 100),
+                offset: Math.max(0, parseInt(offset))
+            }
+        });
+
+    } catch (error) {
+        console.error('List snapshot history error:', error);
+        res.status(500).json({
+            error: 'Server error',
+            message: 'An error occurred while listing snapshot history'
+        });
+    }
+});
+
+/**
+ * GET /api/sessions/:sessionId/snapshots/history/:version
+ * Charge un snapshot spécifique de l'historique.
+ */
+router.get('/:sessionId/snapshots/history/:version', optionalAuth, async (req, res) => {
+    try {
+        const { sessionId, version } = req.params;
+        const db = getDatabase();
+
+        // Vérifie que la session existe
+        const session = db.prepare('SELECT * FROM sessions WHERE id = ?').get(sessionId);
+        if (!session) {
+            return res.status(404).json({
+                error: 'Not found',
+                message: 'Session not found'
+            });
+        }
+
+        // Vérifie l'accès
+        if (session.created_by !== (req.user?.id)) {
+            const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(session.project_id);
+            if (project.owner_id !== (req.user?.id)) {
+                return res.status(403).json({
+                    error: 'Forbidden',
+                    message: 'You do not have access to session history'
+                });
+            }
+        }
+
+        // Charge le snapshot de l'historique
+        const persistenceService = getSessionPersistenceService();
+        const snapshot = await persistenceService.loadSnapshotHistory(sessionId, parseInt(version));
+
+        if (!snapshot) {
+            return res.status(404).json({
+                error: 'Not found',
+                message: `No snapshot found for version ${version}`
+            });
+        }
+
+        res.json({
+            message: 'Snapshot version loaded successfully',
+            snapshot: {
+                data: snapshot.data,
+                version: snapshot.version,
+                createdAt: snapshot.createdAt,
+                savedBy: snapshot.savedBy
+            }
+        });
+
+    } catch (error) {
+        console.error('Load snapshot version error:', error);
+        res.status(500).json({
+            error: 'Server error',
+            message: 'An error occurred while loading the snapshot version'
         });
     }
 });
