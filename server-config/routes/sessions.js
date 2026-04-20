@@ -801,7 +801,8 @@ router.get('/:sessionId/users/longestConnected', authenticateToken, (req, res) =
                 message: 'Session not found'
             });
         }
-        const longestConnected = getLongestConnectedParticipant(getParticipants(session));
+        const participants = getParticipants(session);
+        const longestConnected = getLongestConnectedParticipant(participants);
 
         if (!longestConnected) {
             return res.status(404).json({
@@ -812,7 +813,8 @@ router.get('/:sessionId/users/longestConnected', authenticateToken, (req, res) =
 
         res.json({
             userId: longestConnected.userId,
-            joinedAt: longestConnected.joinedAt
+            joinedAt: longestConnected.joinedAt,
+            participantCount: participants.length
         });
 
     } catch (error) {

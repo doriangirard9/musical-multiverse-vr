@@ -17,6 +17,8 @@ export class SessionStateService {
     private static instance: SessionStateService;
     private sessionId: string | null = null;
     private isConnectedLongest: boolean = false;
+    private participantCount: number = 0;
+    private shouldRestoreFromDatabase: boolean = false;
     private unsubscribe: (() => void) | null = null;
     private debounceTimeout: NodeJS.Timeout | null = null;
     private readonly DEBUG_LOG = false;
@@ -40,6 +42,9 @@ export class SessionStateService {
      */
     public async initialize(sessionId: string): Promise<void> {
         this.sessionId = sessionId;
+        this.isConnectedLongest = false;
+        this.participantCount = 0;
+        this.shouldRestoreFromDatabase = false;
 
         // Determine if this user is the longest-connected
         await this.checkIfLongestConnected();
@@ -82,10 +87,16 @@ export class SessionStateService {
             const data = await response.json();
             const currentUserId = this.getAuthenticatedUserId();
             this.isConnectedLongest = currentUserId !== null && String(data.userId) === String(currentUserId);
+            this.participantCount = Number(data.participantCount) || 0;
+            this.shouldRestoreFromDatabase = this.isConnectedLongest && this.participantCount <= 1;
 
         } catch (error) {
             console.warn('[SessionStateService] Error checking longest-connected status:', error);
         }
+    }
+
+    public shouldLoadFromDatabase(): boolean {
+        return this.shouldRestoreFromDatabase;
     }
 
     /**

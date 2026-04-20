@@ -12,12 +12,15 @@
  */
 
 import { SessionStateService } from './SessionStateService.ts';
+import { NetworkManager } from './NetworkManager.ts';
 
 export class SessionPersistenceManager {
     private static instance: SessionPersistenceManager;
     private stateService: SessionStateService | null = null;
     private sessionId: string | null = null;
     private readonly DEBUG_LOG = false;
+    private readonly PEER_SYNC_GRACE_MS = 5000;
+    private readonly PEER_SYNC_POLL_MS = 100;
 
     private constructor() {}
 
@@ -44,6 +47,24 @@ export class SessionPersistenceManager {
 
         // Initialize the state service (determines if this user saves to DB)
         await this.stateService.initialize(sessionId);
+
+        // Only the first active participant should restore from DB.
+        // Other participants must receive state via Yjs synchronization.
+        if (!this.stateService.shouldLoadFromDatabase()) {
+            if (this.DEBUG_LOG) {
+                console.log('[SessionPersistenceManager] Skipping DB restore; waiting for Yjs sync');
+            }
+            return;
+        }
+
+        // Even for the elected loader, never restore if there is any sync signal from network.
+        // This prevents DB restore from duplicating nodes that arrived from peers.
+        if (await this.hasRemoteSyncSignalsDuringGrace()) {
+            if (this.DEBUG_LOG) {
+                console.log('[SessionPersistenceManager] Remote sync detected; skipping DB restore');
+            }
+            return;
+        }
 
         // Load any existing snapshot
         const snapshotData = await this.stateService.loadState();
@@ -90,6 +111,49 @@ export class SessionPersistenceManager {
      */
     public getSessionId(): string | null {
         return this.sessionId;
+    }
+
+    private async hasRemoteSyncSignalsDuringGrace(): Promise<boolean> {
+        const networkManager = NetworkManager.getInstance();
+        if (this.hasExistingNetworkState() || this.hasConnectedPeers()) {
+            return true;
+        }
+
+        let sawDocUpdate = false;
+        const onDocUpdate = () => {
+            sawDocUpdate = true;
+        };
+        networkManager.doc.on('update', onDocUpdate);
+
+        const deadline = Date.now() + this.PEER_SYNC_GRACE_MS;
+        try {
+            while (Date.now() < deadline) {
+                await new Promise<void>(resolve => setTimeout(resolve, this.PEER_SYNC_POLL_MS));
+                if (sawDocUpdate || this.hasExistingNetworkState() || this.hasConnectedPeers()) {
+                    return true;
+                }
+            }
+        } finally {
+            networkManager.doc.off('update', onDocUpdate);
+        }
+
+        return false;
+    }
+
+    private hasExistingNetworkState(): boolean {
+        try {
+            return NetworkManager.getInstance().node3d.nodes.size > 0;
+        } catch {
+            return false;
+        }
+    }
+
+    private hasConnectedPeers(): boolean {
+        try {
+            return NetworkManager.getInstance().connection.getConnectedPlayers().length > 0;
+        } catch {
+            return false;
+        }
     }
 }
 
