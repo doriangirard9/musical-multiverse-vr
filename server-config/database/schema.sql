@@ -81,6 +81,10 @@ CREATE TABLE IF NOT EXISTS projects (
     -- 'private': seuls les membres invites peuvent voir le projet
     visibility TEXT DEFAULT 'private' CHECK (visibility IN ('public', 'private')),
 
+    -- Membres du projet (anciennement project_members), stockés en JSON
+    -- [{ userId, role, status, invitedBy, createdAt, updatedAt }]
+    members_json TEXT DEFAULT '[]',
+
     created_at INTEGER DEFAULT (strftime('%s', 'now') * 1000),
     updated_at INTEGER DEFAULT (strftime('%s', 'now') * 1000),
 
@@ -129,58 +133,29 @@ CREATE TABLE IF NOT EXISTS sessions (
     -- (environnement, instruments disponibles, etc.)
     config_json TEXT,
 
-    created_at INTEGER DEFAULT (strftime('%s', 'now') * 1000),
-    updated_at INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+    -- Participants actifs de la session (anciennement session_participants), stockés en JSON
+    -- [{ userId, joinedAt }]
+    participants_json TEXT DEFAULT '[]',
 
-    -- Cles etrangeres
-    FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
-    FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
-);
+    -- Snapshot courant de la session (anciennement session_snapshots)
+    snapshot_current_data TEXT,
+    snapshot_version INTEGER DEFAULT 0,
+    snapshot_updated_at INTEGER,
+    snapshot_updated_by TEXT,
 
--- =============================================================================
--- TABLE: project_members
--- =============================================================================
--- Table de liaison pour le RBAC (Role-Based Access Control).
--- Definit quels utilisateurs ont acces a quels projets et avec quel role.
--- Le proprietaire n'a pas besoin d'etre dans cette table (il a tous les droits).
--- =============================================================================
-CREATE TABLE IF NOT EXISTS project_members (
-    -- Identifiant unique de l'appartenance
-    id TEXT PRIMARY KEY,
-
-    -- ID du projet concerne
-    project_id TEXT NOT NULL,
-
-    -- ID de l'utilisateur membre
-    user_id TEXT NOT NULL,
-
-    -- Role de l'utilisateur dans le projet:
-    -- 'admin': peut gerer les sessions et inviter des membres (mais pas supprimer le projet)
-    -- 'editor': peut creer/modifier des sessions
-    -- 'viewer': peut uniquement rejoindre les sessions existantes
-    role TEXT NOT NULL CHECK (role IN ('admin', 'editor', 'viewer')),
-
-    -- ID de l'utilisateur qui a envoye l'invitation
-    invited_by TEXT,
-
-    -- Statut de l'invitation
-    -- 'pending': invitation envoyee, en attente d'acceptation
-    -- 'accepted': invitation acceptee, membre actif
-    -- 'declined': invitation refusee
-    status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'declined')),
+    -- Historique des snapshots (anciennement session_snapshot_history), stocké en JSON
+    -- [{ id, data, version, createdAt, savedBy }]
+    snapshot_history_json TEXT DEFAULT '[]',
 
     created_at INTEGER DEFAULT (strftime('%s', 'now') * 1000),
     updated_at INTEGER DEFAULT (strftime('%s', 'now') * 1000),
 
     -- Cles etrangeres
     FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-    FOREIGN KEY (invited_by) REFERENCES users(id) ON DELETE SET NULL,
-
-    -- Un utilisateur ne peut etre membre d'un projet qu'une seule fois
-    -- UNIQUE sur la combinaison (project_id, user_id) empeche les doublons
-    UNIQUE (project_id, user_id)
+    FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
+    FOREIGN KEY (snapshot_updated_by) REFERENCES users(id) ON DELETE SET NULL
 );
+
 
 -- =============================================================================
 -- TABLE: refresh_tokens
@@ -207,29 +182,6 @@ CREATE TABLE IF NOT EXISTS refresh_tokens (
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
--- =============================================================================
--- TABLE: session_participants
--- =============================================================================
--- Participants actuellement dans une session.
--- Utilise une cle primaire composite (session_id, user_id).
--- Les entrees sont supprimees quand l'utilisateur quitte la session.
--- =============================================================================
-CREATE TABLE IF NOT EXISTS session_participants (
-    -- ID de la session
-    session_id TEXT NOT NULL,
-
-    -- ID de l'utilisateur participant
-    user_id TEXT NOT NULL,
-
-    -- Date d'entree dans la session
-    joined_at INTEGER DEFAULT (strftime('%s', 'now') * 1000),
-
-    -- Cle primaire composite
-    PRIMARY KEY (session_id, user_id),
-
-    FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-);
 
 -- =============================================================================
 -- INDEX
@@ -245,10 +197,6 @@ CREATE INDEX IF NOT EXISTS idx_projects_owner ON projects(owner_id);
 -- Index pour rechercher rapidement les sessions d'un projet
 CREATE INDEX IF NOT EXISTS idx_sessions_project ON sessions(project_id);
 
--- Index pour rechercher rapidement les membres d'un projet
-CREATE INDEX IF NOT EXISTS idx_project_members_project ON project_members(project_id);
-CREATE INDEX IF NOT EXISTS idx_project_members_user ON project_members(user_id);
-
 -- Index pour rechercher les tokens d'un utilisateur (pour les revoquer)
 CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user ON refresh_tokens(user_id);
 
@@ -257,76 +205,3 @@ CREATE INDEX IF NOT EXISTS idx_refresh_tokens_expires ON refresh_tokens(expires_
 
 -- Index pour les participants (session_id et user_id sont deja dans la cle primaire)
 
--- =============================================================================
--- TABLE: session_snapshots
--- =============================================================================
--- Stocke les snapshots de sessions persistés (état sérialisé du Yjs Y.Doc)
--- Chaque session a un seul snapshot "courant" qui est mis à jour périodiquement.
--- Cela permet de récupérer l'état de la session après un redémarrage du serveur.
--- =============================================================================
-CREATE TABLE IF NOT EXISTS session_snapshots (
-    -- Identifiant unique du snapshot
-    id TEXT PRIMARY KEY,
-    
-    -- ID de la session
-    session_id TEXT NOT NULL UNIQUE,
-    
-    -- Données sérialisées du Yjs Y.Doc (JSON compressé)
-    snapshot_data TEXT NOT NULL,
-    
-    -- Numéro de version (incrémenté à chaque mise à jour)
-    version INTEGER NOT NULL DEFAULT 1,
-    
-    -- Date de création du snapshot
-    created_at INTEGER DEFAULT (strftime('%s', 'now') * 1000),
-    
-    -- Date de dernière mise à jour
-    updated_at INTEGER DEFAULT (strftime('%s', 'now') * 1000),
-    
-    -- ID de l'utilisateur qui a déclenché la sauvegarde
-    updated_by TEXT,
-    
-    -- Clés étrangères
-    FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE,
-    FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL
-);
-
--- =============================================================================
--- TABLE: session_snapshot_history
--- =============================================================================
--- Historique des snapshots pour audit et récupération.
--- Garde les N derniers snapshots de chaque session (configurable).
--- =============================================================================
-CREATE TABLE IF NOT EXISTS session_snapshot_history (
-    -- Identifiant unique
-    id TEXT PRIMARY KEY,
-    
-    -- ID de la session
-    session_id TEXT NOT NULL,
-    
-    -- Données du snapshot (JSON)
-    snapshot_data TEXT NOT NULL,
-    
-    -- Numéro de version
-    version INTEGER NOT NULL,
-    
-    -- Date de création
-    created_at INTEGER DEFAULT (strftime('%s', 'now') * 1000),
-    
-    -- Utilisateur qui a déclenché la sauvegarde
-    saved_by TEXT,
-    
-    -- Clés étrangères
-    FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE,
-    FOREIGN KEY (saved_by) REFERENCES users(id) ON DELETE SET NULL
-);
-
--- =============================================================================
--- INDEX pour session_snapshots et session_snapshot_history
--- =============================================================================
-CREATE INDEX IF NOT EXISTS idx_session_snapshots_session ON session_snapshots(session_id);
-CREATE INDEX IF NOT EXISTS idx_session_snapshots_updated ON session_snapshots(updated_at);
-
-CREATE INDEX IF NOT EXISTS idx_session_snapshot_history_session ON session_snapshot_history(session_id);
-CREATE INDEX IF NOT EXISTS idx_session_snapshot_history_created ON session_snapshot_history(created_at);
-CREATE INDEX IF NOT EXISTS idx_session_snapshot_history_version ON session_snapshot_history(version);

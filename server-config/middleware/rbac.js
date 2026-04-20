@@ -9,6 +9,16 @@
 
 const { getDatabase } = require('../database/db');
 
+function parseMembers(value) {
+    if (!value) return [];
+    try {
+        const parsed = JSON.parse(value);
+        return Array.isArray(parsed) ? parsed : [];
+    } catch {
+        return [];
+    }
+}
+
 /**
  * Définition des rôles et leurs permissions
  * Chaque rôle a un niveau numérique : plus le nombre est élevé, plus de permissions
@@ -43,7 +53,7 @@ function getUserRole(userId, projectId) {
     const db = getDatabase();
 
     // Vérifie d'abord si l'utilisateur est le propriétaire
-    const projectStmt = db.prepare('SELECT owner_id FROM projects WHERE id = ?');
+    const projectStmt = db.prepare('SELECT owner_id, visibility, members_json FROM projects WHERE id = ?');
     const project = projectStmt.get(projectId);
 
     if (!project) {
@@ -55,11 +65,8 @@ function getUserRole(userId, projectId) {
     }
 
     // Sinon, cherche dans la table des membres
-    const memberStmt = db.prepare(`
-        SELECT role FROM project_members
-        WHERE project_id = ? AND user_id = ? AND status = 'accepted'
-    `);
-    const membership = memberStmt.get(projectId, userId);
+    const membership = parseMembers(project.members_json)
+        .find(m => String(m.userId) === String(userId) && m.status === 'accepted');
 
     if (membership) {
         return membership.role;

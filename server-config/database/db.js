@@ -57,6 +57,150 @@ function initializeDatabase() {
         // La colonne existe déjà, on ignore l'erreur
     }
 
+    // Migration: ajoute les colonnes JSON denormalisées pour projets/sessions
+    const addColumnIfMissing = (tableName, columnName, sqlDefinition) => {
+        try {
+            const tableInfo = db.prepare(`PRAGMA table_info(${tableName})`).all();
+            const hasColumn = tableInfo.some(col => col.name === columnName);
+            if (!hasColumn) {
+                db.exec(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${sqlDefinition}`);
+                console.log(`✓ Migration: added ${tableName}.${columnName}`);
+            }
+        } catch (e) {
+            console.error(`Migration error (${tableName}.${columnName}):`, e.message);
+        }
+    };
+
+    addColumnIfMissing('projects', 'members_json', "TEXT DEFAULT '[]'");
+    addColumnIfMissing('sessions', 'participants_json', "TEXT DEFAULT '[]'");
+    addColumnIfMissing('sessions', 'snapshot_current_data', 'TEXT');
+    addColumnIfMissing('sessions', 'snapshot_version', 'INTEGER DEFAULT 0');
+    addColumnIfMissing('sessions', 'snapshot_updated_at', 'INTEGER');
+    addColumnIfMissing('sessions', 'snapshot_updated_by', 'TEXT');
+    addColumnIfMissing('sessions', 'snapshot_history_json', "TEXT DEFAULT '[]'");
+
+    // Migration des anciennes tables vers les colonnes JSON
+    try {
+        const parseJsonArray = (value) => {
+            if (!value) return [];
+            try {
+                const parsed = JSON.parse(value);
+                return Array.isArray(parsed) ? parsed : [];
+            } catch {
+                return [];
+            }
+        };
+
+        const existingTables = db.prepare(`
+            SELECT name FROM sqlite_master WHERE type = 'table'
+        `).all().map(t => t.name);
+
+        if (existingTables.includes('project_members')) {
+            const projects = db.prepare('SELECT id, members_json FROM projects').all();
+            for (const project of projects) {
+                const currentMembers = parseJsonArray(project.members_json);
+                if (currentMembers.length > 0) continue;
+
+                const legacyMembers = db.prepare(`
+                    SELECT user_id, role, status, invited_by, created_at, updated_at
+                    FROM project_members
+                    WHERE project_id = ?
+                `).all(project.id);
+
+                if (legacyMembers.length === 0) continue;
+
+                const membersJson = legacyMembers.map(m => ({
+                    userId: m.user_id,
+                    role: m.role,
+                    status: m.status,
+                    invitedBy: m.invited_by,
+                    createdAt: m.created_at,
+                    updatedAt: m.updated_at
+                }));
+
+                db.prepare('UPDATE projects SET members_json = ? WHERE id = ?')
+                    .run(JSON.stringify(membersJson), project.id);
+            }
+        }
+
+        if (existingTables.includes('session_participants')) {
+            const sessions = db.prepare('SELECT id, participants_json FROM sessions').all();
+            for (const session of sessions) {
+                const currentParticipants = parseJsonArray(session.participants_json);
+                if (currentParticipants.length > 0) continue;
+
+                const legacyParticipants = db.prepare(`
+                    SELECT user_id, joined_at
+                    FROM session_participants
+                    WHERE session_id = ?
+                `).all(session.id);
+
+                if (legacyParticipants.length === 0) continue;
+
+                const participantsJson = legacyParticipants.map(p => ({
+                    userId: p.user_id,
+                    joinedAt: p.joined_at
+                }));
+
+                db.prepare('UPDATE sessions SET participants_json = ? WHERE id = ?')
+                    .run(JSON.stringify(participantsJson), session.id);
+            }
+        }
+
+        if (existingTables.includes('session_snapshots')) {
+            const snapshots = db.prepare(`
+                SELECT session_id, snapshot_data, version, updated_at, updated_by
+                FROM session_snapshots
+            `).all();
+            for (const snapshot of snapshots) {
+                db.prepare(`
+                    UPDATE sessions
+                    SET snapshot_current_data = ?,
+                        snapshot_version = ?,
+                        snapshot_updated_at = ?,
+                        snapshot_updated_by = ?
+                    WHERE id = ? AND (snapshot_version IS NULL OR snapshot_version = 0)
+                `).run(
+                    snapshot.snapshot_data,
+                    snapshot.version,
+                    snapshot.updated_at,
+                    snapshot.updated_by,
+                    snapshot.session_id
+                );
+            }
+        }
+
+        if (existingTables.includes('session_snapshot_history')) {
+            const sessions = db.prepare('SELECT id, snapshot_history_json FROM sessions').all();
+            for (const session of sessions) {
+                const currentHistory = parseJsonArray(session.snapshot_history_json);
+                if (currentHistory.length > 0) continue;
+
+                const legacyHistory = db.prepare(`
+                    SELECT id, snapshot_data, version, created_at, saved_by
+                    FROM session_snapshot_history
+                    WHERE session_id = ?
+                    ORDER BY version ASC
+                `).all(session.id);
+
+                if (legacyHistory.length === 0) continue;
+
+                const historyJson = legacyHistory.map(h => ({
+                    id: h.id,
+                    data: h.snapshot_data,
+                    version: h.version,
+                    createdAt: h.created_at,
+                    savedBy: h.saved_by
+                }));
+
+                db.prepare('UPDATE sessions SET snapshot_history_json = ? WHERE id = ?')
+                    .run(JSON.stringify(historyJson), session.id);
+            }
+        }
+    } catch (e) {
+        console.error('Migration error (denormalized JSON):', e.message);
+    }
+
     // Migration: vérifie si password_hash permet NULL (pour les comptes invités)
     // SQLite ne permet pas de modifier une colonne, donc on doit recréer la table si nécessaire
     try {

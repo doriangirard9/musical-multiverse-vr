@@ -21,6 +21,16 @@ const {
 
 const router = express.Router();
 
+function parseMembers(value) {
+    if (!value) return [];
+    try {
+        const parsed = JSON.parse(value);
+        return Array.isArray(parsed) ? parsed : [];
+    } catch {
+        return [];
+    }
+}
+
 /**
  * GET /api/projects
  * Liste les projets accessibles par l'utilisateur
@@ -39,26 +49,23 @@ router.get('/', optionalAuth, (req, res) => {
         let projects = [];
 
         if (userId) {
-            // Projets dont l'utilisateur est propriétaire
-            const ownedProjects = db.prepare(`
-                SELECT p.*, u.username as owner_username, 'owner' as user_role
+            const allProjects = db.prepare(`
+                SELECT p.*, u.username as owner_username
                 FROM projects p
                 JOIN users u ON p.owner_id = u.id
-                WHERE p.owner_id = ?
                 ORDER BY p.updated_at DESC
-            `).all(userId);
+            `).all();
 
-            // Projets dont l'utilisateur est membre
-            const memberProjects = db.prepare(`
-                SELECT p.*, u.username as owner_username, pm.role as user_role
-                FROM projects p
-                JOIN users u ON p.owner_id = u.id
-                JOIN project_members pm ON p.id = pm.project_id
-                WHERE pm.user_id = ? AND pm.status = 'accepted'
-                ORDER BY p.updated_at DESC
-            `).all(userId);
-
-            projects = [...ownedProjects, ...memberProjects];
+            projects = allProjects
+                .map((p) => {
+                    if (p.owner_id === userId) {
+                        return { ...p, user_role: 'owner' };
+                    }
+                    const membership = parseMembers(p.members_json)
+                        .find(m => String(m.userId) === String(userId) && m.status === 'accepted');
+                    return membership ? { ...p, user_role: membership.role } : null;
+                })
+                .filter(Boolean);
         }
 
         // Projets publics
@@ -132,9 +139,9 @@ router.post('/', authenticateToken, (req, res) => {
         const now = Date.now();
 
         db.prepare(`
-            INSERT INTO projects (id, name, description, owner_id, visibility, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        `).run(projectId, name.trim(), description || null, req.user.id, visibility, now, now);
+            INSERT INTO projects (id, name, description, owner_id, visibility, members_json, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(projectId, name.trim(), description || null, req.user.id, visibility, '[]', now, now);
 
         res.status(201).json({
             message: 'Project created successfully',
@@ -325,16 +332,24 @@ router.get('/:projectId/members', authenticateToken, requireProjectPermission('v
             WHERE p.id = ?
         `).get(req.params.projectId);
 
-        // Les membres
-        const members = db.prepare(`
-            SELECT pm.*, u.username, u.display_name,
-                   iu.username as invited_by_username
-            FROM project_members pm
-            JOIN users u ON pm.user_id = u.id
-            LEFT JOIN users iu ON pm.invited_by = iu.id
-            WHERE pm.project_id = ?
-            ORDER BY pm.created_at DESC
-        `).all(req.params.projectId);
+        const projectRow = db.prepare('SELECT members_json FROM projects WHERE id = ?').get(req.params.projectId);
+        const members = parseMembers(projectRow?.members_json)
+            .sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0))
+            .map((m) => {
+                const user = db.prepare('SELECT username, display_name FROM users WHERE id = ?').get(m.userId);
+                const invitedByUser = m.invitedBy
+                    ? db.prepare('SELECT username FROM users WHERE id = ?').get(m.invitedBy)
+                    : null;
+                return {
+                    user_id: m.userId,
+                    username: user?.username || null,
+                    display_name: user?.display_name || null,
+                    role: m.role,
+                    status: m.status,
+                    invited_by_username: invitedByUser?.username || null,
+                    created_at: m.createdAt
+                };
+            });
 
         res.json({
             owner: {
@@ -408,10 +423,10 @@ router.post('/:projectId/members', authenticateToken, requireProjectPermission('
             });
         }
 
-        const existingMembership = db.prepare(`
-            SELECT id, status FROM project_members
-            WHERE project_id = ? AND user_id = ?
-        `).get(req.params.projectId, userToInvite.id);
+        const projectWithMembers = db.prepare('SELECT members_json FROM projects WHERE id = ?')
+            .get(req.params.projectId);
+        const members = parseMembers(projectWithMembers?.members_json);
+        const existingMembership = members.find(m => String(m.userId) === String(userToInvite.id));
 
         if (existingMembership) {
             if (existingMembership.status === 'accepted') {
@@ -420,19 +435,27 @@ router.post('/:projectId/members', authenticateToken, requireProjectPermission('
                     message: 'User is already a member'
                 });
             }
-            // Met à jour l'invitation existante
-            db.prepare(`
-                UPDATE project_members
-                SET role = ?, status = 'pending', invited_by = ?, updated_at = ?
-                WHERE id = ?
-            `).run(role, req.user.id, Date.now(), existingMembership.id);
+            existingMembership.role = role;
+            existingMembership.status = 'pending';
+            existingMembership.invitedBy = req.user.id;
+            existingMembership.updatedAt = Date.now();
         } else {
-            // Crée une nouvelle invitation
-            db.prepare(`
-                INSERT INTO project_members (id, project_id, user_id, role, invited_by, status, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, 'pending', ?, ?)
-            `).run(uuidv4(), req.params.projectId, userToInvite.id, role, req.user.id, Date.now(), Date.now());
+            const now = Date.now();
+            members.push({
+                userId: userToInvite.id,
+                role,
+                status: 'pending',
+                invitedBy: req.user.id,
+                createdAt: now,
+                updatedAt: now
+            });
         }
+
+        db.prepare(`
+            UPDATE projects
+            SET members_json = ?, updated_at = ?
+            WHERE id = ?
+        `).run(JSON.stringify(members), Date.now(), req.params.projectId);
 
         res.status(201).json({
             message: 'Invitation sent successfully'
@@ -458,6 +481,8 @@ router.patch('/:projectId/members/:userId', authenticateToken, (req, res) => {
         const { role, status } = req.body;
         const { projectId, userId } = req.params;
         const db = getDatabase();
+        const projectRow = db.prepare('SELECT members_json FROM projects WHERE id = ?').get(projectId);
+        const members = parseMembers(projectRow?.members_json);
 
         // Cas 1: L'utilisateur accepte/refuse sa propre invitation
         if (userId === req.user.id && status) {
@@ -468,18 +493,20 @@ router.patch('/:projectId/members/:userId', authenticateToken, (req, res) => {
                 });
             }
 
-            const result = db.prepare(`
-                UPDATE project_members
-                SET status = ?, updated_at = ?
-                WHERE project_id = ? AND user_id = ? AND status = 'pending'
-            `).run(status, Date.now(), projectId, userId);
-
-            if (result.changes === 0) {
+            const membership = members.find(m => String(m.userId) === String(userId) && m.status === 'pending');
+            if (!membership) {
                 return res.status(404).json({
                     error: 'Not found',
                     message: 'No pending invitation found'
                 });
             }
+            membership.status = status;
+            membership.updatedAt = Date.now();
+            db.prepare(`
+                UPDATE projects
+                SET members_json = ?, updated_at = ?
+                WHERE id = ?
+            `).run(JSON.stringify(members), Date.now(), projectId);
 
             return res.json({
                 message: `Invitation ${status}`
@@ -502,41 +529,32 @@ router.patch('/:projectId/members/:userId', authenticateToken, (req, res) => {
             });
         }
 
-        const updates = [];
-        const values = [];
-
-        if (role) {
-            updates.push('role = ?');
-            values.push(role);
-        }
-        if (status && ['accepted', 'declined'].includes(status)) {
-            updates.push('status = ?');
-            values.push(status);
-        }
-
-        if (updates.length === 0) {
+        if (!role && !(status && ['accepted', 'declined'].includes(status))) {
             return res.status(400).json({
                 error: 'Validation error',
                 message: 'No valid fields to update'
             });
         }
 
-        updates.push('updated_at = ?');
-        values.push(Date.now());
-        values.push(projectId);
-        values.push(userId);
-
-        const result = db.prepare(`
-            UPDATE project_members SET ${updates.join(', ')}
-            WHERE project_id = ? AND user_id = ?
-        `).run(...values);
-
-        if (result.changes === 0) {
+        const membership = members.find(m => String(m.userId) === String(userId));
+        if (!membership) {
             return res.status(404).json({
                 error: 'Not found',
                 message: 'Member not found'
             });
         }
+        if (role) {
+            membership.role = role;
+        }
+        if (status && ['accepted', 'declined'].includes(status)) {
+            membership.status = status;
+        }
+        membership.updatedAt = Date.now();
+        db.prepare(`
+            UPDATE projects
+            SET members_json = ?, updated_at = ?
+            WHERE id = ?
+        `).run(JSON.stringify(members), Date.now(), projectId);
 
         res.json({
             message: 'Member updated successfully'
@@ -559,11 +577,17 @@ router.delete('/:projectId/members/:userId', authenticateToken, (req, res) => {
     try {
         const { projectId, userId } = req.params;
         const db = getDatabase();
+        const projectRow = db.prepare('SELECT members_json FROM projects WHERE id = ?').get(projectId);
+        const members = parseMembers(projectRow?.members_json);
+        const filteredMembers = members.filter(m => String(m.userId) !== String(userId));
 
         // L'utilisateur peut se retirer lui-même
         if (userId === req.user.id) {
-            db.prepare('DELETE FROM project_members WHERE project_id = ? AND user_id = ?')
-                .run(projectId, userId);
+            db.prepare(`
+                UPDATE projects
+                SET members_json = ?, updated_at = ?
+                WHERE id = ?
+            `).run(JSON.stringify(filteredMembers), Date.now(), projectId);
             return res.json({ message: 'You have left the project' });
         }
 
@@ -576,8 +600,11 @@ router.delete('/:projectId/members/:userId', authenticateToken, (req, res) => {
             });
         }
 
-        db.prepare('DELETE FROM project_members WHERE project_id = ? AND user_id = ?')
-            .run(projectId, userId);
+        db.prepare(`
+            UPDATE projects
+            SET members_json = ?, updated_at = ?
+            WHERE id = ?
+        `).run(JSON.stringify(filteredMembers), Date.now(), projectId);
 
         res.json({
             message: 'Member removed successfully'
@@ -599,17 +626,34 @@ router.delete('/:projectId/members/:userId', authenticateToken, (req, res) => {
 router.get('/invitations/pending', authenticateToken, (req, res) => {
     try {
         const db = getDatabase();
-
-        const invitations = db.prepare(`
-            SELECT pm.*, p.name as project_name, p.description as project_description,
-                   ou.username as owner_username, iu.username as invited_by_username
-            FROM project_members pm
-            JOIN projects p ON pm.project_id = p.id
+        const projects = db.prepare(`
+            SELECT p.id, p.name, p.description, p.owner_id, p.members_json, ou.username as owner_username
+            FROM projects p
             JOIN users ou ON p.owner_id = ou.id
-            LEFT JOIN users iu ON pm.invited_by = iu.id
-            WHERE pm.user_id = ? AND pm.status = 'pending'
-            ORDER BY pm.created_at DESC
-        `).all(req.user.id);
+            ORDER BY p.updated_at DESC
+        `).all();
+
+        const invitations = [];
+        for (const project of projects) {
+            const members = parseMembers(project.members_json);
+            for (const member of members) {
+                if (String(member.userId) !== String(req.user.id) || member.status !== 'pending') {
+                    continue;
+                }
+                const invitedByUser = member.invitedBy
+                    ? db.prepare('SELECT username FROM users WHERE id = ?').get(member.invitedBy)
+                    : null;
+                invitations.push({
+                    project_id: project.id,
+                    project_name: project.name,
+                    project_description: project.description,
+                    owner_username: project.owner_username,
+                    role: member.role,
+                    invited_by_username: invitedByUser?.username || null,
+                    created_at: member.createdAt
+                });
+            }
+        }
 
         res.json({
             invitations: invitations.map(inv => ({

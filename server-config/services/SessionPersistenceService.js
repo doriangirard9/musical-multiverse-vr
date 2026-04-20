@@ -59,34 +59,48 @@ class SessionPersistenceService {
             // Utiliser une transaction pour garantir la cohérence
             const result = dbTransaction(() => {
                 const db = getDatabase();
-                
-                // Obtenir la version actuelle
-                const currentSnapshot = db.prepare(
-                    'SELECT version FROM session_snapshots WHERE session_id = ?'
-                ).get(sessionId);
-                
-                const newVersion = (currentSnapshot?.version || 0) + 1;
-                
-                // Upsert le snapshot courant
+                const session = db.prepare(`
+                    SELECT snapshot_version, snapshot_history_json
+                    FROM sessions
+                    WHERE id = ?
+                `).get(sessionId);
+
+                if (!session) {
+                    throw new Error('Session not found');
+                }
+
+                const newVersion = (session.snapshot_version || 0) + 1;
+                const history = this.parseJsonArray(session.snapshot_history_json);
+                history.push({
+                    id: uuidv4(),
+                    data: compressed,
+                    version: newVersion,
+                    createdAt: now,
+                    savedBy: userId
+                });
+
+                const maxHistory = Number(this.config.MAX_HISTORY_SNAPSHOTS) || 10;
+                const trimmedHistory = history.slice(-maxHistory);
+
                 db.prepare(`
-                    INSERT INTO session_snapshots 
-                    (id, session_id, snapshot_data, version, created_at, updated_at, updated_by)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
-                    ON CONFLICT(session_id) DO UPDATE SET
-                        id = excluded.id,
-                        snapshot_data = excluded.snapshot_data,
-                        version = excluded.version,
-                        updated_at = excluded.updated_at,
-                        updated_by = excluded.updated_by
-                `).run(snapshotId, sessionId, compressed, newVersion, now, now, userId);
-                
-                // Ajouter à l'historique
-                db.prepare(`
-                    INSERT INTO session_snapshot_history 
-                    (id, session_id, snapshot_data, version, created_at, saved_by)
-                    VALUES (?, ?, ?, ?, ?, ?)
-                `).run(uuidv4(), sessionId, compressed, newVersion, now, userId);
-                
+                    UPDATE sessions
+                    SET snapshot_current_data = ?,
+                        snapshot_version = ?,
+                        snapshot_updated_at = ?,
+                        snapshot_updated_by = ?,
+                        snapshot_history_json = ?,
+                        updated_at = ?
+                    WHERE id = ?
+                `).run(
+                    compressed,
+                    newVersion,
+                    now,
+                    userId,
+                    JSON.stringify(trimmedHistory),
+                    now,
+                    sessionId
+                );
+
                 return { id: snapshotId, version: newVersion, compressed: compressed !== serializedData };
             });
             
@@ -110,12 +124,15 @@ class SessionPersistenceService {
             const db = getDatabase();
             
             const snapshot = db.prepare(`
-                SELECT snapshot_data, version, updated_at, updated_by
-                FROM session_snapshots
-                WHERE session_id = ?
+                SELECT snapshot_current_data as snapshot_data,
+                       snapshot_version as version,
+                       snapshot_updated_at as updated_at,
+                       snapshot_updated_by as updated_by
+                FROM sessions
+                WHERE id = ?
             `).get(sessionId);
             
-            if (!snapshot) {
+            if (!snapshot || !snapshot.snapshot_data) {
                 return null;
             }
             
@@ -147,26 +164,31 @@ class SessionPersistenceService {
     async loadSnapshotHistory(sessionId, version) {
         try {
             const db = getDatabase();
-            
-            const snapshot = db.prepare(`
-                SELECT snapshot_data, version, created_at, saved_by
-                FROM session_snapshot_history
-                WHERE session_id = ? AND version = ?
-            `).get(sessionId, version);
-            
+            const session = db.prepare(`
+                SELECT snapshot_history_json
+                FROM sessions
+                WHERE id = ?
+            `).get(sessionId);
+
+            if (!session) {
+                return null;
+            }
+
+            const history = this.parseJsonArray(session.snapshot_history_json);
+            const snapshot = history.find(it => Number(it.version) === Number(version));
             if (!snapshot) {
                 return null;
             }
-            
-            const data = this.isCompressed(snapshot.snapshot_data)
-                ? this.decompressData(snapshot.snapshot_data)
-                : snapshot.snapshot_data;
+
+            const data = this.isCompressed(snapshot.data)
+                ? this.decompressData(snapshot.data)
+                : snapshot.data;
             
             return {
                 data: JSON.parse(data),
                 version: snapshot.version,
-                createdAt: snapshot.created_at,
-                savedBy: snapshot.saved_by
+                createdAt: snapshot.createdAt,
+                savedBy: snapshot.savedBy
             };
             
         } catch (error) {
@@ -186,20 +208,25 @@ class SessionPersistenceService {
     async listSnapshotHistory(sessionId, limit = 20, offset = 0) {
         try {
             const db = getDatabase();
-            
-            const snapshots = db.prepare(`
-                SELECT 
-                    version,
-                    created_at as createdAt,
-                    saved_by as savedBy,
-                    LENGTH(snapshot_data) as sizeBytes
-                FROM session_snapshot_history
-                WHERE session_id = ?
-                ORDER BY version DESC
-                LIMIT ? OFFSET ?
-            `).all(sessionId, limit, offset);
-            
-            return snapshots;
+            const session = db.prepare(`
+                SELECT snapshot_history_json
+                FROM sessions
+                WHERE id = ?
+            `).get(sessionId);
+
+            if (!session) {
+                return [];
+            }
+
+            const history = this.parseJsonArray(session.snapshot_history_json)
+                .sort((a, b) => Number(b.version) - Number(a.version));
+
+            return history.slice(offset, offset + limit).map(it => ({
+                version: it.version,
+                createdAt: it.createdAt,
+                savedBy: it.savedBy,
+                sizeBytes: typeof it.data === 'string' ? it.data.length : 0
+            }));
             
         } catch (error) {
             console.error('Error listing snapshot history:', error);
@@ -216,34 +243,29 @@ class SessionPersistenceService {
     cleanupOldSnapshots() {
         try {
             const db = getDatabase();
-            
-            // Récupérer les sessions avec plus de MAX_HISTORY_SNAPSHOTS
-            const sessionsToClean = db.prepare(`
-                SELECT session_id, COUNT(*) as count
-                FROM session_snapshot_history
-                GROUP BY session_id
-                HAVING count > ?
-            `).all(this.config.MAX_HISTORY_SNAPSHOTS);
-            
+            const sessions = db.prepare(`
+                SELECT id, snapshot_history_json
+                FROM sessions
+                WHERE snapshot_history_json IS NOT NULL
+            `).all();
+
             let totalDeleted = 0;
-            
-            for (const session of sessionsToClean) {
-                // Calculer combien il faut supprimer
-                const toDelete = session.count - this.config.MAX_HISTORY_SNAPSHOTS;
-                
-                // Supprimer les plus anciens
-                const result = db.prepare(`
-                    DELETE FROM session_snapshot_history
-                    WHERE session_id = ?
-                    AND version NOT IN (
-                        SELECT version FROM session_snapshot_history
-                        WHERE session_id = ?
-                        ORDER BY version DESC
-                        LIMIT ?
-                    )
-                `).run(session.session_id, session.session_id, this.config.MAX_HISTORY_SNAPSHOTS);
-                
-                totalDeleted += result.changes;
+
+            const maxHistory = Number(this.config.MAX_HISTORY_SNAPSHOTS) || 10;
+            for (const session of sessions) {
+                const history = this.parseJsonArray(session.snapshot_history_json);
+                if (history.length <= maxHistory) {
+                    continue;
+                }
+
+                const trimmed = history.slice(-maxHistory);
+                totalDeleted += history.length - trimmed.length;
+
+                db.prepare(`
+                    UPDATE sessions
+                    SET snapshot_history_json = ?
+                    WHERE id = ?
+                `).run(JSON.stringify(trimmed), session.id);
             }
             
             if (totalDeleted > 0) {
@@ -324,6 +346,18 @@ class SessionPersistenceService {
             return buffer.toString('utf8', 0, 5).startsWith('GZIP:');
         } catch (e) {
             return false;
+        }
+    }
+
+    parseJsonArray(value) {
+        if (!value) {
+            return [];
+        }
+        try {
+            const parsed = JSON.parse(value);
+            return Array.isArray(parsed) ? parsed : [];
+        } catch {
+            return [];
         }
     }
 }

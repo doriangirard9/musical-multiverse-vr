@@ -22,6 +22,36 @@ const { getInstance: getSessionPersistenceService } = require('../services/Sessi
 
 const router = express.Router();
 
+function parseJsonArray(value) {
+    if (!value) return [];
+    try {
+        const parsed = JSON.parse(value);
+        return Array.isArray(parsed) ? parsed : [];
+    } catch {
+        return [];
+    }
+}
+
+function getParticipants(session) {
+    return parseJsonArray(session.participants_json);
+}
+
+function upsertParticipant(participants, userId, joinedAt) {
+    return [
+        ...participants.filter(p => String(p.userId) !== String(userId)),
+        { userId, joinedAt }
+    ];
+}
+
+function removeParticipant(participants, userId) {
+    return participants.filter(p => String(p.userId) !== String(userId));
+}
+
+function getLongestConnectedParticipant(participants) {
+    if (!participants.length) return null;
+    return participants.reduce((a, b) => (Number(a.joinedAt) <= Number(b.joinedAt) ? a : b));
+}
+
 /**
  * GET /api/projects/:projectId/sessions
  * Liste les sessions d'un projet
@@ -125,8 +155,8 @@ router.post('/:projectId/sessions', authenticateToken, requireProjectPermission(
         const now = Date.now();
 
         db.prepare(`
-            INSERT INTO sessions (id, name, description, project_id, created_by, visibility, max_participants, config_json, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO sessions (id, name, description, project_id, created_by, visibility, max_participants, config_json, participants_json, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `).run(
             sessionId,
             name.trim(),
@@ -136,15 +166,10 @@ router.post('/:projectId/sessions', authenticateToken, requireProjectPermission(
             visibility,
             maxParticipants,
             config ? JSON.stringify(config) : null,
+            JSON.stringify([{ userId: req.user.id, joinedAt: now }]),
             now,
             now
         );
-
-        // Automatically add creator as participant
-        db.prepare(`
-            INSERT OR REPLACE INTO session_participants (session_id, user_id, joined_at)
-            VALUES (?, ?, ?)
-        `).run(sessionId, req.user.id, now);
 
         res.status(201).json({
             message: 'Session created successfully',
@@ -438,10 +463,7 @@ router.post('/:projectId/sessions/:sessionId/join', authenticateToken, (req, res
 
         // Vérifie le nombre max de participants
         if (session.max_participants > 0) {
-            const activeCount = db.prepare(`
-                SELECT COUNT(*) as count FROM session_participants
-                WHERE session_id = ?
-            `).get(sessionId).count;
+            const activeCount = getParticipants(session).length;
 
             if (activeCount >= session.max_participants) {
                 return res.status(403).json({
@@ -451,11 +473,14 @@ router.post('/:projectId/sessions/:sessionId/join', authenticateToken, (req, res
             }
         }
 
-        // Enregistre la participation (INSERT OR REPLACE pour éviter les doublons)
+        // Enregistre la participation
+        const now = Date.now();
+        const participants = upsertParticipant(getParticipants(session), req.user.id, now);
         db.prepare(`
-            INSERT OR REPLACE INTO session_participants (session_id, user_id, joined_at)
-            VALUES (?, ?, ?)
-        `).run(sessionId, req.user.id, Date.now());
+            UPDATE sessions
+            SET participants_json = ?, updated_at = ?
+            WHERE id = ?
+        `).run(JSON.stringify(participants), now, sessionId);
 
         res.json({
             message: 'Joined session successfully',
@@ -483,10 +508,19 @@ router.post('/:projectId/sessions/:sessionId/leave', authenticateToken, (req, re
         const { sessionId } = req.params;
         const db = getDatabase();
 
+        const session = db.prepare('SELECT participants_json FROM sessions WHERE id = ?').get(sessionId);
+        if (!session) {
+            return res.status(404).json({
+                error: 'Not found',
+                message: 'Session not found'
+            });
+        }
+        const participants = removeParticipant(getParticipants(session), req.user.id);
         db.prepare(`
-            DELETE FROM session_participants
-            WHERE session_id = ? AND user_id = ?
-        `).run(sessionId, req.user.id);
+            UPDATE sessions
+            SET participants_json = ?, updated_at = ?
+            WHERE id = ?
+        `).run(JSON.stringify(participants), Date.now(), sessionId);
 
         res.json({
             message: 'Left session successfully'
@@ -510,19 +544,24 @@ router.get('/public', (req, res) => {
         const db = getDatabase();
 
         const sessions = db.prepare(`
-            SELECT s.*, p.name as project_name, u.username as created_by_username,
-                   (SELECT COUNT(*) FROM session_participants sp
-                    WHERE sp.session_id = s.id) as active_participants
+            SELECT s.*, p.name as project_name, u.username as created_by_username
             FROM sessions s
             JOIN projects p ON s.project_id = p.id
             LEFT JOIN users u ON s.created_by = u.id
             WHERE s.visibility = 'public' AND s.status = 'active' AND p.visibility = 'public'
-            ORDER BY active_participants DESC, s.created_at DESC
+            ORDER BY s.created_at DESC
             LIMIT 50
         `).all();
 
+        const sorted = sessions
+            .map(s => ({
+                ...s,
+                active_participants: getParticipants(s).length
+            }))
+            .sort((a, b) => b.active_participants - a.active_participants || b.created_at - a.created_at);
+
         res.json({
-            sessions: sessions.map(s => ({
+            sessions: sorted.map(s => ({
                 id: s.id,
                 name: s.name,
                 description: s.description,
@@ -593,15 +632,18 @@ router.post('/quick-create', authenticateToken, (req, res) => {
         // Crée la session
         const sessionId = uuidv4();
         db.prepare(`
-            INSERT INTO sessions (id, name, project_id, created_by, visibility, max_participants, status, created_at, updated_at)
-            VALUES (?, ?, ?, ?, 'public', ?, 'active', ?, ?)
-        `).run(sessionId, sessionName, project.id, req.user.id, maxParticipants, now, now);
-
-        // Enregistre l'utilisateur comme participant
-        db.prepare(`
-            INSERT OR REPLACE INTO session_participants (session_id, user_id, joined_at)
-            VALUES (?, ?, ?)
-        `).run(sessionId, req.user.id, now);
+            INSERT INTO sessions (id, name, project_id, created_by, visibility, max_participants, status, participants_json, created_at, updated_at)
+            VALUES (?, ?, ?, ?, 'public', ?, 'active', ?, ?, ?)
+        `).run(
+            sessionId,
+            sessionName,
+            project.id,
+            req.user.id,
+            maxParticipants,
+            JSON.stringify([{ userId: req.user.id, joinedAt: now }]),
+            now,
+            now
+        );
 
         res.status(201).json({
             message: 'Session created successfully',
@@ -669,10 +711,7 @@ router.post('/:sessionId/join', authenticateToken, (req, res) => {
         // Vérifie le nombre max de participants
         const maxParticipants = session.max_participants || 32;
         if (maxParticipants > 0) {
-            const activeCount = db.prepare(`
-                SELECT COUNT(*) as count FROM session_participants
-                WHERE session_id = ?
-            `).get(sessionId).count;
+            const activeCount = getParticipants(session).length;
 
             if (activeCount >= maxParticipants) {
                 return res.status(403).json({
@@ -682,11 +721,14 @@ router.post('/:sessionId/join', authenticateToken, (req, res) => {
             }
         }
 
-        // Enregistre la participation (INSERT OR REPLACE pour éviter les doublons)
+        // Enregistre la participation
+        const now = Date.now();
+        const participants = upsertParticipant(getParticipants(session), req.user.id, now);
         db.prepare(`
-            INSERT OR REPLACE INTO session_participants (session_id, user_id, joined_at)
-            VALUES (?, ?, ?)
-        `).run(sessionId, req.user.id, Date.now());
+            UPDATE sessions
+            SET participants_json = ?, updated_at = ?
+            WHERE id = ?
+        `).run(JSON.stringify(participants), now, sessionId);
 
         res.json({
             message: 'Joined session successfully',
@@ -715,10 +757,19 @@ router.post('/:sessionId/leave', authenticateToken, (req, res) => {
         const { sessionId } = req.params;
         const db = getDatabase();
 
+        const session = db.prepare('SELECT participants_json FROM sessions WHERE id = ?').get(sessionId);
+        if (!session) {
+            return res.status(404).json({
+                error: 'Not found',
+                message: 'Session not found'
+            });
+        }
+        const participants = removeParticipant(getParticipants(session), req.user.id);
         db.prepare(`
-            DELETE FROM session_participants
-            WHERE session_id = ? AND user_id = ?
-        `).run(sessionId, req.user.id);
+            UPDATE sessions
+            SET participants_json = ?, updated_at = ?
+            WHERE id = ?
+        `).run(JSON.stringify(participants), Date.now(), sessionId);
 
         res.json({
             message: 'Left session successfully'
@@ -743,14 +794,14 @@ router.get('/:sessionId/users/longestConnected', authenticateToken, (req, res) =
         const { sessionId } = req.params;
         const db = getDatabase();
 
-        // Récupère le participant qui a rejoint en premier
-        const longestConnected = db.prepare(`
-            SELECT user_id, joined_at
-            FROM session_participants
-            WHERE session_id = ?
-            ORDER BY joined_at ASC
-            LIMIT 1
-        `).get(sessionId);
+        const session = db.prepare('SELECT participants_json FROM sessions WHERE id = ?').get(sessionId);
+        if (!session) {
+            return res.status(404).json({
+                error: 'Not found',
+                message: 'Session not found'
+            });
+        }
+        const longestConnected = getLongestConnectedParticipant(getParticipants(session));
 
         if (!longestConnected) {
             return res.status(404).json({
@@ -760,8 +811,8 @@ router.get('/:sessionId/users/longestConnected', authenticateToken, (req, res) =
         }
 
         res.json({
-            userId: longestConnected.user_id,
-            joinedAt: longestConnected.joined_at
+            userId: longestConnected.userId,
+            joinedAt: longestConnected.joinedAt
         });
 
     } catch (error) {
@@ -794,7 +845,7 @@ router.post('/:sessionId/snapshot', authenticateToken, async (req, res) => {
         const db = getDatabase();
 
         // Vérifie que la session existe
-        const session = db.prepare('SELECT id FROM sessions WHERE id = ?').get(sessionId);
+        const session = db.prepare('SELECT id, participants_json FROM sessions WHERE id = ?').get(sessionId);
         if (!session) {
             console.log(`[Snapshot POST] Session not found: ${sessionId}`);
             return res.status(404).json({
@@ -804,10 +855,8 @@ router.post('/:sessionId/snapshot', authenticateToken, async (req, res) => {
         }
 
         // Vérifie que l'utilisateur est participant de la session
-        const participant = db.prepare(`
-            SELECT 1 FROM session_participants
-            WHERE session_id = ? AND user_id = ?
-        `).get(sessionId, req.user.id);
+        const participant = getParticipants(session)
+            .find(p => String(p.userId) === String(req.user.id));
 
         if (!participant) {
             console.log(`[Snapshot POST] Not a participant: ${sessionId}, user: ${req.user.id}`);
