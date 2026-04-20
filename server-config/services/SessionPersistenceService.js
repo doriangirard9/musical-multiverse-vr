@@ -14,7 +14,7 @@
 
 const { v4: uuidv4 } = require('uuid');
 const zlib = require('zlib');
-const { getDatabase } = require('../database/db');
+const { getDatabase, transaction: dbTransaction } = require('../database/db');
 
 class SessionPersistenceService {
     constructor() {
@@ -45,8 +45,6 @@ class SessionPersistenceService {
      */
     async saveSnapshot(sessionId, snapshotData, userId) {
         try {
-            const db = getDatabase();
-            
             // Sérialiser les données
             const serializedData = JSON.stringify(snapshotData);
             
@@ -59,7 +57,9 @@ class SessionPersistenceService {
             const now = Date.now();
             
             // Utiliser une transaction pour garantir la cohérence
-            const transaction = () => {
+            const result = dbTransaction(() => {
+                const db = getDatabase();
+                
                 // Obtenir la version actuelle
                 const currentSnapshot = db.prepare(
                     'SELECT version FROM session_snapshots WHERE session_id = ?'
@@ -88,11 +88,7 @@ class SessionPersistenceService {
                 `).run(uuidv4(), sessionId, compressed, newVersion, now, userId);
                 
                 return { id: snapshotId, version: newVersion, compressed: compressed !== serializedData };
-            };
-
-            // Exécuter dans une transaction
-            const { initializeDatabase, transaction: dbTransaction } = require('../database/db');
-            const result = dbTransaction(transaction);
+            });
             
             console.log(`✓ Session snapshot saved: ${sessionId} (v${result.version})`);
             return result;

@@ -158,6 +158,36 @@ app.post('/api/sessions/:sessionId/leave', (req, res, next) => {
     sessionRoutes(req, res, next);
 });
 
+// Route pour sauvegarder un snapshot de session
+app.post('/api/sessions/:sessionId/snapshot', (req, res, next) => {
+    req.url = `/${req.params.sessionId}/snapshot`;
+    sessionRoutes(req, res, next);
+});
+
+// Route pour charger un snapshot de session
+app.get('/api/sessions/:sessionId/snapshot', (req, res, next) => {
+    req.url = `/${req.params.sessionId}/snapshot`;
+    sessionRoutes(req, res, next);
+});
+
+// Route pour obtenir l'historique des snapshots
+app.get('/api/sessions/:sessionId/snapshots/history', (req, res, next) => {
+    req.url = `/${req.params.sessionId}/snapshots/history`;
+    sessionRoutes(req, res, next);
+});
+
+// Route pour obtenir une version spécifique de snapshot
+app.get('/api/sessions/:sessionId/snapshots/history/:version', (req, res, next) => {
+    req.url = `/${req.params.sessionId}/snapshots/history/${req.params.version}`;
+    sessionRoutes(req, res, next);
+});
+
+// Route pour obtenir l'utilisateur le plus longtemps connecté dans une session
+app.get('/api/sessions/:sessionId/users/longestConnected', (req, res, next) => {
+    req.url = `/${req.params.sessionId}/users/longestConnected`;
+    sessionRoutes(req, res, next);
+});
+
 // Routes des sessions (montées sous /api/projects pour le contexte projectId)
 app.use('/api/projects', sessionRoutes);
 

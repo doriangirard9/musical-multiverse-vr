@@ -140,6 +140,12 @@ router.post('/:projectId/sessions', authenticateToken, requireProjectPermission(
             now
         );
 
+        // Automatically add creator as participant
+        db.prepare(`
+            INSERT OR REPLACE INTO session_participants (session_id, user_id, joined_at)
+            VALUES (?, ?, ?)
+        `).run(sessionId, req.user.id, now);
+
         res.status(201).json({
             message: 'Session created successfully',
             session: {
@@ -728,6 +734,46 @@ router.post('/:sessionId/leave', authenticateToken, (req, res) => {
 });
 
 /**
+ * GET /api/sessions/:sessionId/users/longestConnected
+ * Retourne l'ID de l'utilisateur qui a rejoint la session en premier (le plus longtemps connecté).
+ * Utilisé pour déterminer qui doit sauvegarder l'état dans la base de données.
+ */
+router.get('/:sessionId/users/longestConnected', authenticateToken, (req, res) => {
+    try {
+        const { sessionId } = req.params;
+        const db = getDatabase();
+
+        // Récupère le participant qui a rejoint en premier
+        const longestConnected = db.prepare(`
+            SELECT user_id, joined_at
+            FROM session_participants
+            WHERE session_id = ?
+            ORDER BY joined_at ASC
+            LIMIT 1
+        `).get(sessionId);
+
+        if (!longestConnected) {
+            return res.status(404).json({
+                error: 'Not found',
+                message: 'No participants in this session'
+            });
+        }
+
+        res.json({
+            userId: longestConnected.user_id,
+            joinedAt: longestConnected.joined_at
+        });
+
+    } catch (error) {
+        console.error('Get longest connected user error:', error);
+        res.status(500).json({
+            error: 'Server error',
+            message: 'An error occurred while checking session participants'
+        });
+    }
+});
+
+/**
  * =============================================================================
  * ROUTES DE PERSISTANCE DE SESSIONS (Snapshots)
  * =============================================================================
@@ -736,17 +782,21 @@ router.post('/:sessionId/leave', authenticateToken, (req, res) => {
 /**
  * POST /api/sessions/:sessionId/snapshot
  * Sauvegarde un snapshot de l'état de la session.
- * Cette route est appelée par le client de manière débounced (1-2s).
+ * Accepte les données sérialisées (Node3DGraphDescription).
  */
 router.post('/:sessionId/snapshot', authenticateToken, async (req, res) => {
     try {
         const { sessionId } = req.params;
         const { snapshotData } = req.body;
+        
+        console.log(`[Snapshot POST] sessionId: ${sessionId}, user: ${req.user?.id}`);
+        
         const db = getDatabase();
 
         // Vérifie que la session existe
         const session = db.prepare('SELECT id FROM sessions WHERE id = ?').get(sessionId);
         if (!session) {
+            console.log(`[Snapshot POST] Session not found: ${sessionId}`);
             return res.status(404).json({
                 error: 'Not found',
                 message: 'Session not found'
@@ -760,6 +810,7 @@ router.post('/:sessionId/snapshot', authenticateToken, async (req, res) => {
         `).get(sessionId, req.user.id);
 
         if (!participant) {
+            console.log(`[Snapshot POST] Not a participant: ${sessionId}, user: ${req.user.id}`);
             return res.status(403).json({
                 error: 'Forbidden',
                 message: 'You are not a participant in this session'
@@ -768,6 +819,7 @@ router.post('/:sessionId/snapshot', authenticateToken, async (req, res) => {
 
         // Valide que snapshotData est fourni
         if (!snapshotData) {
+            console.log(`[Snapshot POST] No snapshotData provided`);
             return res.status(400).json({
                 error: 'Bad request',
                 message: 'snapshotData is required'
@@ -778,6 +830,8 @@ router.post('/:sessionId/snapshot', authenticateToken, async (req, res) => {
         const persistenceService = getSessionPersistenceService();
         const result = await persistenceService.saveSnapshot(sessionId, snapshotData, req.user.id);
 
+        console.log(`[Snapshot POST] Saved successfully: ${result.id} (v${result.version})`);
+        
         res.json({
             message: 'Snapshot saved successfully',
             snapshot: {
@@ -788,7 +842,7 @@ router.post('/:sessionId/snapshot', authenticateToken, async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Save snapshot error:', error);
+        console.error('[Snapshot POST] Error:', error);
         res.status(500).json({
             error: 'Server error',
             message: 'An error occurred while saving the snapshot'
@@ -804,11 +858,15 @@ router.post('/:sessionId/snapshot', authenticateToken, async (req, res) => {
 router.get('/:sessionId/snapshot', optionalAuth, async (req, res) => {
     try {
         const { sessionId } = req.params;
+        
+        console.log(`[Snapshot GET] sessionId: ${sessionId}, user: ${req.user?.id}`);
+        
         const db = getDatabase();
 
         // Vérifie que la session existe
         const session = db.prepare('SELECT * FROM sessions WHERE id = ?').get(sessionId);
         if (!session) {
+            console.log(`[Snapshot GET] Session not found: ${sessionId}`);
             return res.status(404).json({
                 error: 'Not found',
                 message: 'Session not found'
@@ -818,6 +876,7 @@ router.get('/:sessionId/snapshot', optionalAuth, async (req, res) => {
         // Vérifie l'accès à la session
         const userRole = req.user ? getUserRole(req.user.id, session.project_id) : null;
         if (session.visibility === 'private' && !userRole && session.created_by !== (req.user?.id)) {
+            console.log(`[Snapshot GET] Access denied: ${sessionId}, user: ${req.user?.id}`);
             return res.status(403).json({
                 error: 'Forbidden',
                 message: 'You do not have access to this session'
@@ -829,10 +888,8 @@ router.get('/:sessionId/snapshot', optionalAuth, async (req, res) => {
         const snapshot = await persistenceService.loadSnapshot(sessionId);
 
         if (!snapshot) {
-            return res.status(404).json({
-                error: 'Not found',
-                message: 'No snapshot available for this session'
-            });
+            console.log(`[Snapshot GET] No snapshot found: ${sessionId}`);
+            return res.status(204).end();
         }
 
         res.json({
