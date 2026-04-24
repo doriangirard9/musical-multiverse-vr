@@ -4,6 +4,7 @@ import { Awareness } from 'y-protocols/awareness';
 import { NetworkEventBus } from "../eventBus/NetworkEventBus.ts";
 
 // Serveur de signalisation pour WebRTC
+//const SIGNALING_SERVER = `wss://${window.location.hostname}:443`; // 'wss://musical-multiverse-vr.onrender.com';
 const SIGNALING_SERVER = `https://wamjamparty.i3s.univ-cotedazur.fr/rtc`;
 
 /**
@@ -15,7 +16,7 @@ const SIGNALING_SERVER = `https://wamjamparty.i3s.univ-cotedazur.fr/rtc`;
  */
 export class PeerToPeerManager {
     private static readonly DEBUG_LOG = false;
-    
+
     private doc: Y.Doc;
     private localPlayerId: string;
     private awareness!: Awareness;
@@ -56,7 +57,7 @@ export class PeerToPeerManager {
 
         // Création du provider WebRTC
         this.provider = new WebrtcProvider(roomName, this.doc, {
-            signaling: [SIGNALING_SERVER], 
+            signaling: [SIGNALING_SERVER],
         });
 
         // Configuration de l'awareness

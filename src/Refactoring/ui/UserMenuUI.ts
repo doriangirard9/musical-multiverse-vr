@@ -170,10 +170,6 @@ export class UserMenuUI {
                     <span>${user.username}</span>
                 </div>
                 <div class="dropdown-divider"></div>
-                <button class="dropdown-item" id="back-to-sessions-btn">
-                    <span class="dropdown-icon">📋</span>
-                    <span>Changer de session</span>
-                </button>
                 <button class="dropdown-item logout" id="logout-btn">
                     <span class="dropdown-icon">🚪</span>
                     <span>Déconnexion</span>
@@ -203,7 +199,6 @@ export class UserMenuUI {
         const dropdown = this.container.querySelector('#user-dropdown') as HTMLElement;
         const arrow = this.container.querySelector('#menu-arrow') as HTMLElement;
         const logoutBtn = this.container.querySelector('#logout-btn') as HTMLButtonElement;
-        const backToSessionsBtn = this.container.querySelector('#back-to-sessions-btn') as HTMLButtonElement;
 
         // Toggle dropdown
         menuBtn.addEventListener('click', (e) => {
@@ -222,45 +217,10 @@ export class UserMenuUI {
             }
         });
 
-        // Back to sessions
-        backToSessionsBtn.addEventListener('click', async () => {
-            await this.leaveCurrentSession();
-            window.location.reload();
-        });
-
         // Logout
         logoutBtn.addEventListener('click', async () => {
-            await this.leaveCurrentSession();
             await this.handleLogout();
         });
-    }
-
-    /**
-     * Quitte la session actuelle
-     */
-    private async leaveCurrentSession(): Promise<void> {
-        const sessionId = (window as any).WAMJAM_SESSION_ID;
-        if (!sessionId) return;
-
-        try {
-            const token = authService.getAccessToken();
-            await fetch(`${this.getApiBaseUrl()}/api/sessions/${sessionId}/leave`, {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-        } catch (error) {
-            console.error('Error leaving session:', error);
-        }
-    }
-
-    /**
-     * Récupère l'URL de base de l'API
-     */
-    private getApiBaseUrl(): string {
-        if (window.location.port === '5173') {
-            return 'http://localhost:3000';
-        }
-        return window.location.origin;
     }
 
     /**

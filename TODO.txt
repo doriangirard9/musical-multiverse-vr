@@ -1,13 +1,3 @@
-Log out, UI interactible (IHM clavier/manettes)
+Log out, UI interactible (clavier/manettes)
 
 explain refresh tokens
-
-Gérer projets
-
-Sessions privées
-
-Clé JWT env en prod
-
-add sessions to favorites
-
-Check db tables

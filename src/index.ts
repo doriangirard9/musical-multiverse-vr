@@ -4,7 +4,6 @@ import { authService, User } from "./Refactoring/auth/AuthService.ts";
 import { LoginUI } from "./Refactoring/auth/LoginUI.ts";
 import { GuestConversionUI } from "./Refactoring/ui/GuestConversionUI.ts";
 import { UserMenuUI } from "./Refactoring/ui/UserMenuUI.ts";
-import { SessionBrowserUI } from "./Refactoring/ui/SessionBrowserUI.ts";
 
 // Filter out spammy wam3dgenerator console logs (memory allocation logs)
 const originalConsoleLog = console.log;
@@ -36,13 +35,10 @@ console.log = function(...args: any[]) {
 const DEBUG_LOG = false;
 
 /**
- * Démarre l'application principale avec une session
+ * Démarre l'application principale
  */
-async function startApp(user: User, sessionId: string): Promise<void> {
-    if (DEBUG_LOG) console.log("Starting app for user:", user.username, "in session:", sessionId);
-
-    // Stocke le sessionId pour que le NetworkManager puisse l'utiliser
-    (window as any).WAMJAM_SESSION_ID = sessionId;
+async function startApp(user: User): Promise<void> {
+    if (DEBUG_LOG) console.log("Starting app for user:", user.username);
 
     const newApp: NewApp = new NewApp();
     try {
@@ -63,15 +59,6 @@ async function startApp(user: User, sessionId: string): Promise<void> {
 }
 
 /**
- * Affiche le navigateur de sessions après l'authentification
- */
-function showSessionBrowser(user: User): void {
-    new SessionBrowserUI((sessionId: string) => {
-        startApp(user, sessionId);
-    });
-}
-
-/**
  * Point d'entrée principal avec gestion de l'authentification
  */
 let onload = async() => {
@@ -82,7 +69,7 @@ let onload = async() => {
             // Tente de rafraîchir le token pour vérifier qu'il est toujours valide
             const refreshed = await authService.refreshAccessToken();
             if (refreshed) {
-                showSessionBrowser(user);
+                startApp(user);
                 return;
             }
         }
@@ -90,7 +77,7 @@ let onload = async() => {
 
     // Sinon, affiche le formulaire de login
     new LoginUI((user: User) => {
-        showSessionBrowser(user);
+        startApp(user);
     });
 }
 
