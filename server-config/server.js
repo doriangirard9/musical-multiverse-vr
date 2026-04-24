@@ -11,14 +11,6 @@ const express = require('express');
 const path = require("path");
 const cors = require('cors');
 const fs = require('node:fs');
-const https = require('https');
-
-/*
-const credentials = {
-    key: fs.readFileSync('../localhost.key', 'utf8'),
-    cert: fs.readFileSync('../localhost.crt', 'utf8')
-}
-*/
 
 // Import des modules de base de données
 const { initializeDatabase, closeDatabase, cleanupExpiredTokens } = require('./database/db');
@@ -29,7 +21,7 @@ const projectRoutes = require('./routes/projects');
 const sessionRoutes = require('./routes/sessions');
 
 const app = express();
-const port = 3000;
+const port = process.env.PORT || 3000;
 
 // =============================================================================
 // CONFIGURATION CORS
@@ -52,9 +44,8 @@ const corsOptions = {
         }
     },
     credentials: true, // Permet l'envoi de cookies
-    optionsSuccessStatus: 200 // For legacy browser support
+    optionsSuccessStatus: 200
 };
-
 
 app.use(cors(corsOptions));
 
@@ -187,16 +178,7 @@ setInterval(() => {
     }
 }, 60 * 60 * 1000);
 
-
-/*
-const httpsServer = https.createServer(credentials, app)
-httpsServer.listen(port, () => {
-  console.log(`HTTPS Server running on port ${port}`);
-})
-  */
- 
-// Démarre le serveur HTTP(laisser TLS à Nginx)
-
+// Démarre le serveur HTTP
 app.listen(port, () => {
     console.log(`✓ HTTP server running on port ${port}`);
     console.log(`  - API: http://localhost:${port}/api`);

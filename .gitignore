@@ -29,12 +29,3 @@ dist-ssr
 # vite.config.js
 /bin/package-lock.json
 desktop.ini
-
-# SQLite database files (contain sensitive user data)
-*.db
-*.db-wal
-*.db-shm
-server-config/database/*.db
-server-config/database/*.db-wal
-server-config/database/*.db-shm
-server-config/backups/
