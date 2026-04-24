@@ -1,0 +1,599 @@
+/* ========================================
+   WamJam Party — VSCode Dark Mode UI
+   ======================================== */
+
+:root {
+    /* Colors — VSCode Dark+ */
+    --bg-primary: #1e1e1e;
+    --bg-secondary: #252526;
+    --bg-tertiary: #2d2d2d;
+    --bg-input: #3c3c3c;
+    --bg-hover: #2a2d2e;
+    --bg-card: #252526;
+    --bg-overlay: rgba(0, 0, 0, 0.7);
+    --text-primary: #d4d4d4;
+    --text-secondary: #969696;
+    --text-muted: #6a6a6a;
+    --accent: #007acc;
+    --accent-hover: #1a8ad4;
+    --accent-active: #005a9e;
+    --danger: #f44747;
+    --danger-hover: #d83b3b;
+    --success: #4ec9b0;
+    --warning: #dcdcaa;
+    --border: #3e3e3e;
+    --border-focus: #007acc;
+    --shadow: rgba(0, 0, 0, 0.4);
+    --radius: 6px;
+    --radius-lg: 10px;
+    --font: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-mono: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+    --transition: 200ms ease;
+}
+
+/* ========== Page Overlay ========== */
+.wj-page-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: var(--bg-primary);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    animation: wj-fade-in 300ms ease forwards;
+    overflow-y: auto;
+}
+
+.wj-page-overlay.wj-transparent {
+    background: var(--bg-overlay);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+
+@keyframes wj-fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes wj-fade-out {
+    from { opacity: 1; }
+    to { opacity: 0; }
+}
+
+.wj-page-overlay.wj-exiting {
+    animation: wj-fade-out 200ms ease forwards;
+}
+
+/* ========== Container ========== */
+.wj-container {
+    width: 100%;
+    max-width: 480px;
+    padding: 40px;
+    margin: auto;
+}
+
+.wj-container-wide {
+    max-width: 900px;
+}
+
+/* ========== Card ========== */
+.wj-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 32px;
+    box-shadow: 0 4px 24px var(--shadow);
+}
+
+/* ========== Typography ========== */
+.wj-title {
+    font-family: var(--font);
+    font-size: 28px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0 0 8px 0;
+    text-align: center;
+}
+
+.wj-subtitle {
+    font-family: var(--font);
+    font-size: 14px;
+    color: var(--text-secondary);
+    margin: 0 0 28px 0;
+    text-align: center;
+}
+
+.wj-section-title {
+    font-family: var(--font);
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0 0 16px 0;
+}
+
+.wj-label {
+    font-family: var(--font);
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    display: block;
+    margin-bottom: 6px;
+}
+
+/* ========== Form Elements ========== */
+.wj-input {
+    width: 100%;
+    padding: 10px 14px;
+    font-family: var(--font);
+    font-size: 14px;
+    color: var(--text-primary);
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    outline: none;
+    transition: border-color var(--transition);
+    box-sizing: border-box;
+}
+
+.wj-input:focus {
+    border-color: var(--border-focus);
+}
+
+.wj-input::placeholder {
+    color: var(--text-muted);
+}
+
+.wj-form-group {
+    margin-bottom: 18px;
+}
+
+/* ========== Buttons ========== */
+.wj-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px 24px;
+    font-family: var(--font);
+    font-size: 14px;
+    font-weight: 500;
+    border: 1px solid transparent;
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: all var(--transition);
+    min-height: 48px; /* VR-friendly tap target */
+    box-sizing: border-box;
+    text-decoration: none;
+    user-select: none;
+}
+
+.wj-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.wj-btn-primary {
+    background: var(--accent);
+    color: #ffffff;
+    border-color: var(--accent);
+}
+
+.wj-btn-primary:hover:not(:disabled) {
+    background: var(--accent-hover);
+    border-color: var(--accent-hover);
+}
+
+.wj-btn-primary:active:not(:disabled) {
+    background: var(--accent-active);
+}
+
+.wj-btn-secondary {
+    background: transparent;
+    color: var(--text-primary);
+    border-color: var(--border);
+}
+
+.wj-btn-secondary:hover:not(:disabled) {
+    background: var(--bg-hover);
+    border-color: var(--text-muted);
+}
+
+.wj-btn-danger {
+    background: var(--danger);
+    color: #ffffff;
+    border-color: var(--danger);
+}
+
+.wj-btn-danger:hover:not(:disabled) {
+    background: var(--danger-hover);
+}
+
+.wj-btn-ghost {
+    background: transparent;
+    color: var(--accent);
+    border: none;
+    padding: 8px 12px;
+    min-height: 40px;
+}
+
+.wj-btn-ghost:hover:not(:disabled) {
+    background: var(--bg-hover);
+}
+
+.wj-btn-block {
+    width: 100%;
+}
+
+/* ========== Session Card ========== */
+.wj-session-card {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    transition: all var(--transition);
+    cursor: pointer;
+    margin-bottom: 8px;
+}
+
+.wj-session-card:hover {
+    border-color: var(--accent);
+    background: var(--bg-hover);
+}
+
+.wj-session-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.wj-session-name {
+    font-family: var(--font);
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--text-primary);
+    margin: 0 0 4px 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.wj-session-meta {
+    font-family: var(--font);
+    font-size: 12px;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.wj-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 500;
+}
+
+.wj-badge-public {
+    background: rgba(78, 201, 176, 0.15);
+    color: var(--success);
+}
+
+.wj-badge-private {
+    background: rgba(220, 220, 170, 0.15);
+    color: var(--warning);
+}
+
+.wj-participants {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+
+.wj-participants-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--success);
+    flex-shrink: 0;
+}
+
+.wj-participants-dot.wj-empty {
+    background: var(--text-muted);
+}
+
+/* ========== Session List ========== */
+.wj-session-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    max-height: 50vh;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+.wj-session-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.wj-session-list::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.wj-session-list::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 3px;
+}
+
+.wj-empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--text-muted);
+    font-family: var(--font);
+    font-size: 14px;
+}
+
+/* ========== Toolbar / Header ========== */
+.wj-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+
+.wj-toolbar-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+/* ========== Tabs ========== */
+.wj-tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 20px;
+    gap: 0;
+}
+
+.wj-tab {
+    padding: 10px 20px;
+    font-family: var(--font);
+    font-size: 13px;
+    color: var(--text-secondary);
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+    transition: all var(--transition);
+    min-height: 44px;
+}
+
+.wj-tab:hover {
+    color: var(--text-primary);
+}
+
+.wj-tab.wj-active {
+    color: var(--text-primary);
+    border-bottom-color: var(--accent);
+}
+
+/* ========== Loading ========== */
+.wj-loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: var(--bg-overlay);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    z-index: 2000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 24px;
+}
+
+.wj-spinner {
+    width: 48px;
+    height: 48px;
+    border: 3px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: wj-spin 0.8s linear infinite;
+}
+
+@keyframes wj-spin {
+    to { transform: rotate(360deg); }
+}
+
+.wj-loading-text {
+    font-family: var(--font);
+    font-size: 15px;
+    color: var(--text-secondary);
+    text-align: center;
+}
+
+/* ========== HUD ========== */
+.wj-hud {
+    position: fixed;
+    top: 12px;
+    right: 12px;
+    z-index: 900;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 8px 14px;
+    box-shadow: 0 2px 12px var(--shadow);
+}
+
+.wj-hud-info {
+    font-family: var(--font);
+    font-size: 13px;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.wj-hud-btn {
+    padding: 6px 12px;
+    font-size: 12px;
+    min-height: 32px;
+}
+
+/* ========== Error / Messages ========== */
+.wj-error {
+    background: rgba(244, 71, 71, 0.1);
+    border: 1px solid var(--danger);
+    border-radius: var(--radius);
+    color: var(--danger);
+    font-family: var(--font);
+    font-size: 13px;
+    padding: 10px 14px;
+    margin-bottom: 16px;
+    display: none;
+}
+
+.wj-error.wj-visible {
+    display: block;
+}
+
+.wj-success {
+    background: rgba(78, 201, 176, 0.1);
+    border: 1px solid var(--success);
+    border-radius: var(--radius);
+    color: var(--success);
+    font-family: var(--font);
+    font-size: 13px;
+    padding: 10px 14px;
+    margin-bottom: 16px;
+}
+
+/* ========== Modal ========== */
+.wj-modal-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: var(--bg-overlay);
+    backdrop-filter: blur(4px);
+    z-index: 1500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: wj-fade-in 200ms ease forwards;
+}
+
+.wj-modal {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 28px;
+    width: 90%;
+    max-width: 440px;
+    box-shadow: 0 8px 32px var(--shadow);
+}
+
+.wj-modal-title {
+    font-family: var(--font);
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0 0 20px 0;
+}
+
+.wj-modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 24px;
+}
+
+/* ========== Link ========== */
+.wj-link {
+    color: var(--accent);
+    text-decoration: none;
+    cursor: pointer;
+    font-family: var(--font);
+    font-size: 13px;
+    transition: color var(--transition);
+}
+
+.wj-link:hover {
+    color: var(--accent-hover);
+    text-decoration: underline;
+}
+
+/* ========== User Info ========== */
+.wj-user-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--font);
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.wj-avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 600;
+    flex-shrink: 0;
+}
+
+/* ========== Divider ========== */
+.wj-divider {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 20px 0;
+    color: var(--text-muted);
+    font-size: 12px;
+    font-family: var(--font);
+}
+
+.wj-divider::before,
+.wj-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+}
+
+/* ========== Responsive ========== */
+@media (max-width: 600px) {
+    .wj-container {
+        padding: 20px;
+    }
+    .wj-card {
+        padding: 24px;
+    }
+}
