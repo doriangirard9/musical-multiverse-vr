@@ -47,8 +47,7 @@ function authenticateToken(req, res, next) {
         // Ajoute les infos utilisateur à la requête
         req.user = {
             id: decoded.id,
-            username: decoded.username,
-            isGuest: decoded.isGuest || false
+            username: decoded.username
         };
 
         next(); // Continue vers le prochain middleware/route
@@ -82,8 +81,7 @@ function optionalAuth(req, res, next) {
             const decoded = jwt.verify(token, JWT_SECRET);
             req.user = {
                 id: decoded.id,
-                username: decoded.username,
-                isGuest: decoded.isGuest || false
+                username: decoded.username
             };
         } catch (error) {
             // Token invalide mais on continue quand même
@@ -99,12 +97,12 @@ function optionalAuth(req, res, next) {
 /**
  * Génère un token d'accès (courte durée)
  *
- * @param {Object} user - L'utilisateur { id, username, isGuest? }
+ * @param {Object} user - L'utilisateur { id, username }
  * @returns {string} Le token JWT
  */
 function generateAccessToken(user) {
     return jwt.sign(
-        { id: user.id, username: user.username, isGuest: user.isGuest || false },
+        { id: user.id, username: user.username },
         JWT_SECRET,
         { expiresIn: ACCESS_TOKEN_EXPIRES }
     );
@@ -113,12 +111,12 @@ function generateAccessToken(user) {
 /**
  * Génère un token de rafraîchissement (longue durée)
  *
- * @param {Object} user - L'utilisateur { id, username, isGuest? }
+ * @param {Object} user - L'utilisateur { id, username }
  * @returns {string} Le token JWT
  */
 function generateRefreshToken(user) {
     return jwt.sign(
-        { id: user.id, username: user.username, isGuest: user.isGuest || false, type: 'refresh' },
+        { id: user.id, username: user.username, type: 'refresh' },
         JWT_SECRET,
         { expiresIn: REFRESH_TOKEN_EXPIRES }
     );

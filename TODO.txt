@@ -1,3 +1,0 @@
-Log out, UI interactible (clavier/manettes)
-
-explain refresh tokens

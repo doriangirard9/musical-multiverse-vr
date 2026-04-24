@@ -49,58 +49,6 @@ function initializeDatabase() {
         console.log('✓ Database schema initialized');
     }
 
-    // Migration: ajoute la colonne is_guest si elle n'existe pas
-    try {
-        db.exec('ALTER TABLE users ADD COLUMN is_guest INTEGER DEFAULT 0');
-        console.log('✓ Migration: added is_guest column');
-    } catch (e) {
-        // La colonne existe déjà, on ignore l'erreur
-    }
-
-    // Migration: vérifie si password_hash permet NULL (pour les comptes invités)
-    // SQLite ne permet pas de modifier une colonne, donc on doit recréer la table si nécessaire
-    try {
-        const tableInfo = db.prepare("PRAGMA table_info(users)").all();
-        const passwordCol = tableInfo.find(col => col.name === 'password_hash');
-
-        if (passwordCol && passwordCol.notnull === 1) {
-            console.log('Migration: updating password_hash to allow NULL for guest accounts...');
-
-            // Supprimer users_new si elle existe (d'une migration précédente échouée)
-            db.exec('DROP TABLE IF EXISTS users_new');
-
-            // Créer une nouvelle table avec la bonne structure
-            db.exec(`
-                CREATE TABLE users_new (
-                    id TEXT PRIMARY KEY,
-                    username TEXT NOT NULL UNIQUE,
-                    password_hash TEXT,
-                    email TEXT UNIQUE,
-                    display_name TEXT,
-                    is_guest INTEGER DEFAULT 0,
-                    created_at INTEGER DEFAULT (strftime('%s', 'now') * 1000),
-                    updated_at INTEGER DEFAULT (strftime('%s', 'now') * 1000),
-                    last_login_at INTEGER
-                )
-            `);
-
-            // Copier les données
-            db.exec(`
-                INSERT INTO users_new (id, username, password_hash, email, display_name, is_guest, created_at, updated_at, last_login_at)
-                SELECT id, username, password_hash, email, display_name, COALESCE(is_guest, 0), created_at, updated_at, last_login_at
-                FROM users
-            `);
-
-            // Supprimer l'ancienne table et renommer la nouvelle
-            db.exec('DROP TABLE users');
-            db.exec('ALTER TABLE users_new RENAME TO users');
-
-            console.log('✓ Migration: password_hash now allows NULL');
-        }
-    } catch (e) {
-        console.error('Migration error (password_hash):', e.message);
-    }
-
     console.log(`✓ Database connected: ${DB_PATH}`);
     return db;
 }

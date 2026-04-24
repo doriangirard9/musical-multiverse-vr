@@ -42,7 +42,6 @@ export interface User {
     username: string;
     displayName: string;
     email: string | null;
-    isGuest?: boolean;
 }
 
 /**
@@ -266,54 +265,6 @@ class AuthService {
             this.clearAuthData();
             return false;
         }
-    }
-
-    /**
-     * Connexion en tant qu'invité (sans mot de passe)
-     */
-    public async loginAsGuest(): Promise<User> {
-        const response = await fetch(`${API_BASE_URL}/api/auth/guest`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
-        });
-
-        const data = await response.json();
-
-        if (!response.ok) {
-            throw new Error((data as ApiError).message || 'Guest login failed');
-        }
-
-        this.saveAuthData(data as AuthResponse);
-        return (data as AuthResponse).user;
-    }
-
-    /**
-     * Vérifie si l'utilisateur actuel est un invité
-     */
-    public isGuest(): boolean {
-        const user = this.getUser();
-        return user?.isGuest === true;
-    }
-
-    /**
-     * Convertit un compte invité en compte permanent
-     * Permet de sauvegarder le travail en cours sans perdre la session
-     */
-    public async convertGuestAccount(username: string, password: string, email?: string): Promise<User> {
-        const response = await this.authenticatedFetch('/api/auth/convert-guest', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username, password, email })
-        });
-
-        const data = await response.json();
-
-        if (!response.ok) {
-            throw new Error((data as ApiError).message || 'Account conversion failed');
-        }
-
-        this.saveAuthData(data as AuthResponse);
-        return (data as AuthResponse).user;
     }
 
     /**

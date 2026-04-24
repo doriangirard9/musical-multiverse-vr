@@ -31,17 +31,13 @@ CREATE TABLE IF NOT EXISTS users (
 
     -- Hash bcrypt du mot de passe (environ 60 caracteres)
     -- On ne stocke JAMAIS le mot de passe en clair pour des raisons de securite
-    -- Nullable pour les comptes invites
-    password_hash TEXT,
+    password_hash TEXT NOT NULL,
 
     -- Email de l'utilisateur (optionnel mais unique s'il est fourni)
     email TEXT UNIQUE,
 
     -- Nom affiche dans l'application (peut etre different du username)
     display_name TEXT,
-
-    -- Indique si c'est un compte invite temporaire (1 = oui, 0 = non)
-    is_guest INTEGER DEFAULT 0,
 
     -- Date de creation du compte (timestamp Unix en millisecondes)
     -- DEFAULT utilise la fonction strftime pour obtenir le timestamp actuel

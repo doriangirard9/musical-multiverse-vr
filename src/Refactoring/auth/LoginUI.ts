@@ -144,49 +144,6 @@ export class LoginUI {
                     transform: none;
                 }
 
-                .guest-btn {
-                    padding: 14px;
-                    background: transparent;
-                    border: 2px solid rgba(255, 255, 255, 0.3);
-                    border-radius: 10px;
-                    color: rgba(255, 255, 255, 0.8);
-                    font-size: 1em;
-                    font-weight: 500;
-                    cursor: pointer;
-                    transition: all 0.3s ease;
-                    margin-top: 5px;
-                }
-
-                .guest-btn:hover {
-                    border-color: rgba(255, 255, 255, 0.5);
-                    background: rgba(255, 255, 255, 0.1);
-                }
-
-                .guest-btn:disabled {
-                    opacity: 0.6;
-                    cursor: not-allowed;
-                }
-
-                .divider {
-                    display: flex;
-                    align-items: center;
-                    text-align: center;
-                    margin: 15px 0;
-                    color: rgba(255, 255, 255, 0.4);
-                }
-
-                .divider::before,
-                .divider::after {
-                    content: '';
-                    flex: 1;
-                    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-                }
-
-                .divider span {
-                    padding: 0 15px;
-                    font-size: 0.85em;
-                }
-
                 .toggle-mode {
                     text-align: center;
                     margin-top: 20px;
@@ -302,12 +259,6 @@ export class LoginUI {
                     <button type="submit" class="submit-btn" id="submit-btn">
                         Se connecter
                     </button>
-
-                    <div class="divider"><span>ou</span></div>
-
-                    <button type="button" class="guest-btn" id="guest-btn">
-                        Continuer en tant qu'invité
-                    </button>
                 </form>
 
                 <div class="toggle-mode">
@@ -325,11 +276,9 @@ export class LoginUI {
     private setupEventListeners(): void {
         const form = this.container.querySelector('#login-form') as HTMLFormElement;
         const toggleLink = this.container.querySelector('#toggle-link') as HTMLElement;
-        const guestBtn = this.container.querySelector('#guest-btn') as HTMLButtonElement;
 
         form.addEventListener('submit', (e) => this.handleSubmit(e));
         toggleLink.addEventListener('click', () => this.toggleMode());
-        guestBtn.addEventListener('click', () => this.handleGuestLogin());
     }
 
     /**
@@ -411,30 +360,6 @@ export class LoginUI {
     }
 
     /**
-     * Gère la connexion en tant qu'invité
-     */
-    private async handleGuestLogin(): Promise<void> {
-        this.setLoading(true);
-        this.hideMessages();
-
-        try {
-            const user = await authService.loginAsGuest();
-
-            this.showSuccess('Bienvenue, ' + user.displayName + ' !');
-
-            setTimeout(() => {
-                this.hide();
-                this.onSuccess(user);
-            }, 500);
-
-        } catch (error) {
-            this.showError((error as Error).message || 'Une erreur est survenue');
-        } finally {
-            this.setLoading(false);
-        }
-    }
-
-    /**
      * Affiche un message d'erreur
      */
     private showError(message: string): void {
@@ -467,11 +392,9 @@ export class LoginUI {
      */
     private setLoading(loading: boolean): void {
         const submitBtn = this.container.querySelector('#submit-btn') as HTMLButtonElement;
-        const guestBtn = this.container.querySelector('#guest-btn') as HTMLButtonElement;
         const inputs = this.container.querySelectorAll('input');
 
         submitBtn.disabled = loading;
-        guestBtn.disabled = loading;
         inputs.forEach(input => (input as HTMLInputElement).disabled = loading);
 
         if (loading) {
