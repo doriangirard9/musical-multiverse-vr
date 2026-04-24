@@ -8,7 +8,7 @@ import {SceneManager} from "./SceneManager.ts";
 export class PlayerManager {
     private static readonly DEBUG_LOG = false;
     private static _instance: PlayerManager;
-    private readonly _id: string = v4();
+    private readonly _id: string;
     private xrManager = XRManager.getInstance();
     private networkEventBus = NetworkEventBus.getInstance();
 
@@ -19,15 +19,16 @@ export class PlayerManager {
     private readonly POSITION_THRESHOLD = 0.01; // 1cm de mouvement minimum
     private readonly ROTATION_THRESHOLD = 0.02; // ~1 degré de rotation minimum
 
-    private constructor() {
+    private constructor(playerId: string) {
+        this._id = playerId;
         if (PlayerManager.DEBUG_LOG) console.log(`[PlayerManager] Initialized with player ID: ${this._id}`);
 
         // Démarrer la boucle de mise à jour throttled
         this.startUpdateLoop();
     }
 
-    public static initialize(): void {
-        this._instance = new PlayerManager()
+    public static initialize(playerId: string): void {
+        this._instance = new PlayerManager(playerId)
     }
 
     public static getInstance(): PlayerManager {

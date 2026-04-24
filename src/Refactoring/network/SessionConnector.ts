@@ -34,10 +34,10 @@ export class SessionConnector {
     }
 
     /**
-     * Executes the connection protocol.
-     * Returns connection info when the session is fully loaded and ready.
+     * Executes the API connection protocol.
+     * Returns connection info. Does NOT initialize the CRDT state yet.
      */
-    async connect(): Promise<SessionConnectionInfo> {
+    async connect(): Promise<SessionConnectionInfo & { crdtData?: string }> {
         this.updateLoadingText('Joining session...');
 
         // 1. Join API call
@@ -45,20 +45,34 @@ export class SessionConnector {
         this.participantId = joinInfo.participantId;
         this.isConnected = true;
 
+        return {
+            participantId: this.participantId,
+            sessionName: joinInfo.sessionName,
+            maxUsers: joinInfo.maxUsers,
+            participantNumber: joinInfo.participantNumber,
+            crdtData: joinInfo.crdtData
+        };
+    }
+
+    /**
+     * Hydrates the CRDT data if first participant, or waits for it if not.
+     * Must be called AFTER Node3dManager is initialized.
+     */
+    async initCRDTState(participantNumber: number, crdtData?: string): Promise<void> {
         const sessionState = this.doc.getMap('session_state');
 
         // 2. Protocol logic based on participant number
-        if (joinInfo.participantNumber === 1) {
+        if (participantNumber === 1) {
             this.updateLoadingText('Initializing session...');
             
             // We are the first. Load CRDT data if it exists.
-            if (joinInfo.crdtData) {
+            if (crdtData) {
                 try {
-                    const parsedData = JSON.parse(joinInfo.crdtData);
+                    const parsedData = JSON.parse(crdtData);
                     
-                    // Start transaction to bundle load + state change
-                    this.doc.transact(async () => {
-                        await Serialization.getInstance().load(parsedData);
+                    // Await the load, then perform the state change in a synchronous transaction
+                    await Serialization.getInstance().load(parsedData);
+                    this.doc.transact(() => {
                         sessionState.set('status', 'ready');
                     });
                 } catch (e) {
@@ -79,17 +93,8 @@ export class SessionConnector {
         // 3. Start Heartbeat
         this.startHeartbeat();
 
-        // 4. Start auto-save (only if we are participant #1, to avoid conflicts)
-        // A better approach is to let the NetworkManager/Server elect a leader, 
-        // but for now, anyone can trigger a save if they modify things. We'll setup a periodic save.
+        // 4. Start auto-save
         this.startAutoSave();
-
-        return {
-            participantId: this.participantId,
-            sessionName: joinInfo.sessionName,
-            maxUsers: joinInfo.maxUsers,
-            participantNumber: joinInfo.participantNumber
-        };
     }
 
     /**

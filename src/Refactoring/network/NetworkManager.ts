@@ -22,8 +22,8 @@ export class NetworkManager {
     readonly node3d
 
 
-    private constructor(playerId: string, roomName: string) {
-        this.doc = new Y.Doc()
+    private constructor(playerId: string, roomName: string, doc: Y.Doc) {
+        this.doc = doc;
         this.playerId = playerId;
         this.connection = new PeerToPeerManager(this.doc, this.playerId, roomName)
         this.player = new PlayerNetwork(this.doc, this.playerId)
@@ -33,8 +33,8 @@ export class NetworkManager {
         if (NetworkManager.DEBUG_LOG) console.log("Current player id:", this.playerId)
     }
 
-    public static initialize(playerId: string, roomName: string){
-        this.instance = new NetworkManager(playerId, roomName);
+    public static initialize(playerId: string, roomName: string, doc: Y.Doc){
+        this.instance = new NetworkManager(playerId, roomName, doc);
     }
 
     private static instance?: NetworkManager

@@ -11,13 +11,12 @@ let cleanupInterval = null;
  */
 function cleanupStaleParticipants() {
     const db = getDb();
-    const cutoff = new Date(Date.now() - HEARTBEAT_TTL_SECONDS * 1000).toISOString();
 
     const stmt = db.prepare(`
         DELETE FROM session_participants
-        WHERE last_heartbeat < ?
+        WHERE last_heartbeat < datetime('now', '-${HEARTBEAT_TTL_SECONDS} seconds')
     `);
-    const result = stmt.run(cutoff);
+    const result = stmt.run();
     
     if (result.changes > 0) {
         console.log(`[Heartbeat] Cleaned up ${result.changes} stale participant(s)`);

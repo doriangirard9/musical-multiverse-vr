@@ -129,8 +129,11 @@ let onload = async() => {
                         loadingOverlay.updateText('Loading 3D Environment...');
 
                         const newApp = new NewApp();
-                        await newApp.start(connectionInfo.participantId, sessionId);
+                        await newApp.start(connectionInfo.participantId, sessionId, doc);
                         appStarted = true;
+
+                        // Now that Node3dManager is initialized, we can hydrate the CRDT state
+                        await activeConnector.initCRDTState(connectionInfo.participantNumber, connectionInfo.crdtData);
 
                         loadingOverlay.hide();
                         sessionHud.show(appRoot!, sessionId, connectionInfo.sessionName, connectionInfo.maxUsers, connectionInfo.participantNumber); // approximate count
