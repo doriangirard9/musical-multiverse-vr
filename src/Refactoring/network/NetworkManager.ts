@@ -22,12 +22,9 @@ export class NetworkManager {
     readonly node3d
 
 
-    private constructor() {
-        //const roomName = "WamJamParty"+document.location.hash
-        const roomName = "WamJamParty"+((window as any).WAMJAM_SESSION_ID??"default")
-
+    private constructor(playerId: string, roomName: string) {
         this.doc = new Y.Doc()
-        this.playerId = PlayerManager.getInstance().getId()
+        this.playerId = playerId;
         this.connection = new PeerToPeerManager(this.doc, this.playerId, roomName)
         this.player = new PlayerNetwork(this.doc, this.playerId)
         this.node3d = new Node3DNetwork(this.doc)
@@ -36,8 +33,8 @@ export class NetworkManager {
         if (NetworkManager.DEBUG_LOG) console.log("Current player id:", this.playerId)
     }
 
-    public static initialize(){
-        this.instance = new NetworkManager();
+    public static initialize(playerId: string, roomName: string){
+        this.instance = new NetworkManager(playerId, roomName);
     }
 
     private static instance?: NetworkManager

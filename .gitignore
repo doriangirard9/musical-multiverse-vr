@@ -29,3 +29,4 @@ dist-ssr
 # vite.config.js
 /bin/package-lock.json
 desktop.ini
+server-config/data/

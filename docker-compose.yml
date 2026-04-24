@@ -13,4 +13,9 @@ services:
       context: ./server-config
       dockerfile: Dockerfile
     ports:
-        - "3000:3000"
+      - "3000:3000"
+    volumes:
+      - ./server-config/data:/usr/src/app/data
+    environment:
+      - NODE_ENV=production
+      - JWT_SECRET=change-this-in-production-use-a-strong-secret
