@@ -1,38 +1,26 @@
 import { AbstractMesh, Color3 } from "@babylonjs/core";
 import { Node3DConnectable } from "../../Node3DConnectable";
 
-
 interface AutomationInputInfo {
     id: any
     sender?(value: number): void
     stringifier?(value: number): string
     getStepCount?(): number
     getName?(): string
-    remove?():void
+    remove?(): void
 }
 
 /**
  * Simple implementations of Node3DConnectable for the "automation" protocol.
- * 
- * Protocol:
- *  on connect, input send to the output : AutomationConnectionMessage
- * 
- * on disconnect, input send to the output : {
- *    id: any
- * }
- * 
- * the output can call sender(value) to send a value to the input.
  */
 export class AutomationN3DConnectable {
 
     private constructor() { }
 
-    static InputColor = Color3.FromHexString("#515252")
-
-    static OutputColor = Color3.FromHexString("#bfbebe")
+    static Color = Color3.FromHexString("#515252")
 
     /**
-     * A input connectable that connect an WamNode.
+     * A input connectable that receives automation values.
      */
     static Input = class Input implements Node3DConnectable {
 
@@ -55,37 +43,37 @@ export class AutomationN3DConnectable {
 
         get max_connections(){ return 1}
 
-        get color() { return AutomationN3DConnectable.InputColor }
+        get color() { return AutomationN3DConnectable.Color }
 
-        connect(sender: (value: AutomationInputInfo) => void): void {
-            sender({
+        connectAsInput(): AutomationInputInfo {
+            return {
                 id: this,
                 sender: this.parameter.setValue,
                 stringifier: this.parameter.stringify,
                 getName: this.parameter.getName,
                 getStepCount: this.parameter.getStepCount,
-                remove() { },
-            })
-            this.parameter.lock(true)
+                remove: () => { },
+            }
         }
 
-        disconnect(sender: (value: any) => void): void {
-            sender({ id: this })
+        connectAsOutput(_: any): void { }
+
+        disconnectAsInput(connection: any): void {
             this.parameter.lock(false)
         }
 
-        receive(_: any): void { }
+        disconnectAsOutput(_: any): void { }
     }
 
     /**
      * A multi-input connectable that can receive multiple automation connections.
      * Values from multiple sources are passed as an array to the parameter.
-     * Optimized for audio-rate automation with direct array access via mutable index refs.
      */
     static MultiInput = class MultiInput implements Node3DConnectable {
 
         private valuesArray: number[] = []
         private indexArray: {index: number}[] = []
+        private connections = new Map<any, AutomationInputInfo>()
 
         constructor(
             readonly id: string,
@@ -107,12 +95,12 @@ export class AutomationN3DConnectable {
 
         get max_connections(){ return this.maxConnections }
 
-        get color() { return AutomationN3DConnectable.InputColor }
+        get color() { return AutomationN3DConnectable.Color }
 
-        connect(sender: (value: AutomationInputInfo) => void): void {
+        connectAsInput(): AutomationInputInfo {
             const indexRef = { index: this.valuesArray.length }
             this.valuesArray.push(0)
-            sender({
+            return {
                 id: this,
                 sender: (value: number) => {
                     this.valuesArray[indexRef.index] = value
@@ -121,7 +109,7 @@ export class AutomationN3DConnectable {
                 stringifier: this.parameter.stringify,
                 getName: this.parameter.getName,
                 getStepCount: this.parameter.getStepCount,
-                remove: ()=>{
+                remove: () => {
                     var removedIndex = indexRef.index
                     var moved = this.indexArray[removedIndex]
                     this.valuesArray[removedIndex] = this.valuesArray[this.valuesArray.length - 1]
@@ -129,26 +117,24 @@ export class AutomationN3DConnectable {
                     this.indexArray[removedIndex] = this.indexArray[this.indexArray.length - 1]
                     this.indexArray.pop()
                     moved.index = removedIndex
-                    if(this.valuesArray.length==0)this.parameter.lock(false)
+                    if(this.valuesArray.length == 0) this.parameter.lock(false)
                 },
-            })
-            if(this.valuesArray.length==1)this.parameter.lock(true)
+            }
         }
 
-        disconnect(sender: (value: AutomationInputInfo) => void): void {
-            sender({ id: this })
-        }
+        connectAsOutput(_: any): void { }
 
-        receive(_: any): void { }
+        disconnectAsInput(connection: any): void { }
+
+        disconnectAsOutput(_: any): void { }
     }
 
     /**
-     * A output connectable that keep and send a stored value.
+     * A output connectable that keeps and sends a stored value.
      */
     static Output = class Output implements Node3DConnectable {
 
         public senders = new Map<any, Required<AutomationInputInfo>>()
-
         public _value: number = 0
 
         constructor(
@@ -164,11 +150,26 @@ export class AutomationN3DConnectable {
 
         get direction() { return "output" as "output" }
 
-        get color() { return AutomationN3DConnectable.OutputColor }
+        get color() { return AutomationN3DConnectable.Color }
 
-        connect(_: (value: any) => void): void { }
+        connectAsInput(): any { return {} }
 
-        disconnect(_: (value: any) => void): void { }
+        connectAsOutput(connection: AutomationInputInfo): void {
+            if(connection.sender) {
+                this.senders.set(connection.id, connection as Required<AutomationInputInfo>)
+                connection.sender(this._value)
+                if(this.senders.size === 1) {
+                    connection.sender?.((this as any).parameter?.lock?.(true))
+                }
+            }
+        }
+
+        disconnectAsInput(_: any): void { }
+
+        disconnectAsOutput(connection: AutomationInputInfo): void {
+            this.senders.get(connection.id)?.remove?.()
+            this.senders.delete(connection.id)
+        }
 
         set value(v: number) {
             this._value = v
@@ -193,17 +194,6 @@ export class AutomationN3DConnectable {
 
         get name() {
             return this.settings?.getName?.() ?? "Parameter"
-        }
-
-        receive(msg: AutomationInputInfo): void {
-            if (msg.sender) {
-                this.senders.set(msg.id, msg as Required<AutomationInputInfo>)
-                msg.sender(this._value)
-            }
-            else {
-                this.senders.get(msg.id)?.remove()
-                this.senders.delete(msg.id)
-            }
         }
     }
 

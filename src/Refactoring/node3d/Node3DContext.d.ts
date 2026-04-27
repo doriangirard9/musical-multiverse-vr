@@ -169,6 +169,17 @@ export interface Node3DContext{
      * @param key La clé de l'état à notifier.
      */
     notifyStateChange(key: string): void
+
+
+    //// General ////
+
+    /**
+     * Enregistre un observateur sur un observable.
+     * L'observeur est automatiquement détaché lorsque le Node3D est supprimé de la scène.
+     * @param observable L'observable sur lequel enregistrer l'observateur.
+     * @param observer L'observateur à enregistrer.
+     */
+    observe<T>(observable: BABYLON.Observable<T>, observer: (eventData: T, eventState: BABYLON.EventState) => void): BABYLON.Observer<T>
     
 
 }

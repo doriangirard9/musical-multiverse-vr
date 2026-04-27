@@ -3,13 +3,24 @@ import { Node3DConnectable } from "../../Node3DConnectable";
 import { WamNode } from "@webaudiomodules/api";
 
 /**
- * Simple implementations of Node3DConnectable for the "audio" protocol.
+ * Protocol "midi" des connectable.
+ * Connection retournée par DynamicInput.connectAsInput().
+ * Permet aux outputs de s'enregistrer pour être notifiés des changements de WamNode.
+ */
+export interface MidiN3DConnection {
+    /** S'enregistrer comme observeur pour être notifié des changements de WamNode */
+    subscribe(observer: (old:WamNode|null, now:WamNode|null)=>void): void
+
+    /** Se désabonner des notifications. Doit être appelé avec le même observer que subscribe. */
+    unsubscribe(observer: (old:WamNode|null, now:WamNode|null)=>void): void
+}
+
+/**
+ * Simple implementations of Node3DConnectable for the "midi" protocol.
  */
 export namespace MidiN3DConnectable{
 
-    export const InputColor = Color3.FromHexString("#33BB88")
-
-    export const OutputColor = Color3.FromHexString("#BB3388")
+    export const Color = Color3.FromHexString("#33BB88")
 
     /**
      * A input connectable that connect an WamNode.
@@ -27,27 +38,33 @@ export namespace MidiN3DConnectable{
 
         get direction(){ return "input" as "input" }
 
-        get color(){ return MidiN3DConnectable.OutputColor }
+        get color(){ return Color }
 
-        connect(sender: (value: any) => void): void {
-            sender({connectMidi:this.wamNode})
+        connectAsInput(): MidiN3DConnection {
+            const that = this
+            return {
+                subscribe(observer: (old:WamNode|null,now:WamNode|null)=>void) {
+                    observer(null, that.wamNode)
+                },
+                unsubscribe(observer: (old:WamNode|null,now:WamNode|null)=>void) {
+                    observer(that.wamNode, null)
+                }
+            }
         }
 
-        disconnect(sender: (value: any) => void): void {
-            sender({disconnectMidi:this.wamNode})
-        }
-
-        receive(_: any): void { }
+        disconnectAsInput(_: any): void { }
+        connectAsOutput(_: any): void { }
+        disconnectAsOutput(_: any): void { }
     }
 
     /**
-     * A input connectable that connect an WamNode, its audio node can be changed at any time.
-     * It can also contains no audio node.
+     * A input connectable that connect an WamNode, its wam node can be changed at any time.
+     * It can also contains no wam node.
      */
     export class DynamicInput implements Node3DConnectable {
 
-        private _audioNode: WamNode|null = null
-        private senders: ((value: any) => void)[] = []
+        private _wamNode: WamNode|null = null
+        private listeners = new Set<(old:WamNode|null, now:WamNode|null)=>void>()
 
         constructor(
             readonly id: string,
@@ -62,34 +79,33 @@ export namespace MidiN3DConnectable{
 
         get direction(){ return "input" as "input" }
 
-        get color(){ return MidiN3DConnectable.OutputColor }
+        get color(){ return Color }
 
-        connect(sender: (value: any) => void): void {
-            this.senders.push(sender)
-            if(this._audioNode) sender({connectMidi:this._audioNode})
+        connectAsInput(): MidiN3DConnection {
+            const that = this
+            return {
+                subscribe(observer) {
+                    observer(null, that._wamNode)
+                    that.listeners.add(observer)
+                },
+                unsubscribe(observer) {
+                    observer(that._wamNode, null)
+                    that.listeners.delete(observer)
+                },
+            }
         }
 
-        disconnect(sender: (value: any) => void): void {
-            const index = this.senders.indexOf(sender)
-            if(index !== -1) this.senders.splice(index, 1)
-            if(this._audioNode) sender({disconnectMidi:this._audioNode})
-        }
+        disconnectAsInput(_: any): void { }
+        connectAsOutput(_: any): void { }
+        disconnectAsOutput(_: any): void { }
 
         set wamNode(wamNode: WamNode|null){
-            if(this._audioNode!=null){
-                for(const sender of this.senders){
-                    sender({disconnectMidi:this._audioNode})
-                }
-            }
-            this._audioNode = wamNode
-            if(this._audioNode){
-                for(const sender of this.senders){
-                    sender({connectMidi:this._audioNode})
-                }
+            const old = this._wamNode
+            this._wamNode = wamNode
+            for(const listener of this.listeners){
+                listener(old, wamNode)
             }
         }
-
-        receive(_: any): void { }
     }
 
     /**
@@ -108,28 +124,33 @@ export namespace MidiN3DConnectable{
 
         get direction(){ return "output" as "output" }
 
-        get color(){ return MidiN3DConnectable.OutputColor }
+        get color(){ return Color }
 
-        connect(_: (value: any) => void): void { }
-
-        disconnect(_: (value: any) => void): void { }
-
-        receive(value: any): void {
-            if(typeof value === "object"){
-                if("connectMidi" in value){
-                    this.wamNode.connectEvents((value.connectMidi as WamNode).instanceId)
-                    window.WAMExtensions.notes?.addMapping(this.wamNode.instanceId, [(value.connectMidi as WamNode).instanceId])
-                }
-                else if("disconnectMidi" in value){
-                    this.wamNode.disconnectEvents((value.disconnectMidi as WamNode).instanceId)
-                    window.WAMExtensions.notes?.addMapping(this.wamNode.instanceId)
-                }
+        private callback = (old:WamNode|null, now:WamNode|null) => {
+            if(old) {
+                this.wamNode.disconnectEvents(old.instanceId)
+                window.WAMExtensions.notes?.addMapping(this.wamNode.instanceId)
+            }
+            if(now) {
+                this.wamNode.connectEvents(now.instanceId)
+                window.WAMExtensions.notes?.addMapping(this.wamNode.instanceId, [now.instanceId])
             }
         }
+
+        connectAsOutput(connection: MidiN3DConnection): void {
+            connection.subscribe(this.callback)
+        }
+
+        disconnectAsOutput(connection: MidiN3DConnection): void {
+            connection.unsubscribe(this.callback)
+        }
+
+        connectAsInput() { }
+        disconnectAsInput(_: any) { }
     }
     
     /**
-     * A output connectable that keep a list of the audio nodes connected to it.
+     * A output connectable that keep a list of the wam nodes connected to it.
      */
     export class ListOutput implements Node3DConnectable {
 
@@ -140,9 +161,9 @@ export namespace MidiN3DConnectable{
             readonly meshes: AbstractMesh[],
             readonly label: string,
             /** A callback called when a new connection is added to the list. */
-            readonly on_add?: (wamNode:WamNode) => void,
+            readonly on_add: (wamNode:WamNode) => void,
             /** A callback called when a connection is removed from the list. */
-            readonly on_remove?: (wamNode:WamNode) => void,
+            readonly on_remove: (wamNode:WamNode) => void,
 
         ){}
 
@@ -150,36 +171,39 @@ export namespace MidiN3DConnectable{
 
         get direction(){ return "output" as "output" }
 
-        get color(){ return MidiN3DConnectable.OutputColor }
+        get color(){ return Color }
 
-        connect(_: (value: any) => void): void { }
-
-        disconnect(_: (value: any) => void): void { }
-
-        receive(value: any): void {
-            if(typeof value === "object"){
-                if("connectMidi" in value){
-                    this.connections.push(value.connectMidi as WamNode)
-                    this.on_add?.(value.connectMidi as WamNode)
-                }
-                else if("disconnectMidi" in value){
-                    const index = this.connections.indexOf(value.disconnectMidi as WamNode)
-                    if(index !== -1){
-                        this.connections.splice(index, 1)
-                        this.on_remove?.(value.disconnectMidi as WamNode)
-                    }
+        private callback = (old:WamNode|null, now:WamNode|null) => {
+            if(old){
+                const index = this.connections.indexOf(old)
+                if(index !== -1){
+                    this.connections.splice(index, 1)
+                    this.on_remove(old)
                 }
             }
+            if(now){
+                this.connections.push(now)
+                this.on_add(now)
+            }
         }
+
+        connectAsOutput(connection: MidiN3DConnection): void {
+            connection.subscribe(this.callback)
+        }
+
+        connectAsInput(): any { return {} }
+        disconnectAsInput(_: any): void { }
+
+        disconnectAsOutput(_: any): void { }
     }
 
     /**
-     * A output connectable that connect an WamNode, its audio node can be changed at any time.
-     * It can also contains no audio node.
+     * A output connectable that connect an WamNode, its wam node can be changed at any time.
+     * It can also contains no wam node.
      */
-    export class DynamicOutput extends MidiN3DConnectable.ListOutput {
+    export class DynamicOutput extends ListOutput {
 
-        private _audioNode: WamNode|null = null
+        private _wamNode: WamNode|null = null
 
         constructor(
             readonly id: string,
@@ -189,26 +213,32 @@ export namespace MidiN3DConnectable{
         ){
             super(
                 id, meshes, label,
-                () => {
-                    if(this._audioNode) this.connections.forEach(n=>this._audioNode?.connectEvents((n as WamNode).instanceId))
+                (n) => {
+                    if(this._wamNode) {
+                        this._wamNode.connectEvents(n.instanceId)
+                        window.WAMExtensions.notes?.addMapping(this._wamNode.instanceId, [n.instanceId])
+                    }
                 },
-                () => {
-                    if(this._audioNode) this.connections.forEach(n=>this._audioNode?.disconnectEvents((n as WamNode).instanceId))
+                (n) => {
+                    if(this._wamNode) {
+                        this._wamNode.disconnectEvents(n.instanceId)
+                        window.WAMExtensions.notes?.addMapping(this._wamNode.instanceId)
+                    }
                 }
             )
-            this._audioNode = wamNode
+            this._wamNode = wamNode
         }
 
         set wamNode(wamNode: WamNode|null){
-            if(this._audioNode!=null){
-                for(const wamNode of this.connections){
-                    this.on_remove!!(wamNode)
+            if(this._wamNode!=null){
+                for(const node of this.connections){
+                    this.on_remove(node)
                 }
             }
-            this._audioNode = wamNode
-            if(this._audioNode){
-                for(const wamNode of this.connections){
-                    this.on_add!!(wamNode)
+            this._wamNode = wamNode
+            if(this._wamNode){
+                for(const node of this.connections){
+                    this.on_add(node)
                 }
             }
         }

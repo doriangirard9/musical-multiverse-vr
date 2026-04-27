@@ -4,11 +4,10 @@ import {
     AbstractMesh,
     Mesh,
     MeshBuilder,
-
     Vector3,
     Quaternion, Color3,
-    UtilityLayerRenderer,
-    Vector2
+    Vector2,
+    Observer
 } from "@babylonjs/core";
 import { Node3DConnectable } from "../Node3DConnectable";
 import { Node3DParameter } from "../Node3DParameter";
@@ -50,6 +49,7 @@ export class Node3DInstance implements Synchronized {
     private declare root_transform: TransformNode
     private menu!: N3DMenuInstance
     private highlighter!: N3DHighlighter
+    private observers = new Set<Observer<any>>()
     public on_dispose = () => { }
 
     async instantiate() {
@@ -60,7 +60,6 @@ export class Node3DInstance implements Synchronized {
 
         const highlighter = this.highlighter = new N3DHighlighter(highlightLayer)
         const menu = this.menu = this.shared.menuManager.createInstance()
-
 
         // GUI related things
         const root_transform = this.root_transform = new TransformNode("node3d root", scene)
@@ -188,7 +187,14 @@ export class Node3DInstance implements Synchronized {
 
             notifyStateChange(key: string) {
                 instance.set_state(key)
-            }
+            },
+
+            observe(observable, observer) {
+                const o = observable.add(observer)
+                instance.observers.add(o)
+                return o 
+            },
+
         }, this.gui)
     }
 
@@ -274,12 +280,18 @@ export class Node3DInstance implements Synchronized {
     askStates(): void {
         this.set_state("position")
         for (const key of this.node.getStateKeys()) this.set_state(key)
+        for (const [id, param] of this.parameters) if(!param.config.notSynced) this.set_state("node3d_parameter_"+id)
     }
 
     public async getState(key: string): Promise<any> {
         if (key == "position") return {
             position: this.bounding_box?.boundingBox.position.asArray(),
             rotation: this.bounding_box?.boundingBox.rotationQuaternion?.asArray() ?? [],
+        }
+        else if (key.startsWith("node3d_parameter_")) {
+            const id = key.substring("node3d_parameter_".length)
+            const param = this.parameters.get(id)
+            if (param && !param.config.notSynced) return param.config.getValue()
         }
         else return this.node.getState(key)
     }
@@ -292,6 +304,10 @@ export class Node3DInstance implements Synchronized {
             if (this.disposed) return
             await this.dispose()
 
+        } else if (key.startsWith("node3d_parameter_")) {
+            const id = key.substring("node3d_parameter_".length)
+            const param = this.parameters.get(id)
+            if (param && !param.config.notSynced) param.config.setValue(value)
         }
         else this.node.setState(key, value)
     }
@@ -319,6 +335,8 @@ export class Node3DInstance implements Synchronized {
         this.buttons.forEach(it => it.dispose())
         this.connectables.forEach(it => it.dispose())
         this.menu?.dispose()
+        this.observers.forEach(observable => observable.remove())
+        this.observers.clear()
         await this.node.dispose()
         await this.gui.dispose()
     }

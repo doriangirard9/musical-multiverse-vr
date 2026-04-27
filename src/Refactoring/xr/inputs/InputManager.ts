@@ -5,6 +5,7 @@ import { AxisInputEvent } from "./AxisInput";
 import { ControllerInput } from "./ControllerInput";
 import { PointerInput } from "./PointerInput";
 import { AbstractPointerInput } from "./AbstractPointerInput";
+import { InputCapability } from "./InputCapability";
 
 export interface PointerMovementEvent {
     origin: Immutable<Vector3>,
@@ -16,6 +17,9 @@ export interface PointerMovementEvent {
 
 export class InputManager {
 
+
+    //// CAPABILITIES ////
+    readonly movement  = new InputCapability()
 
     //// SINGLETON ////
     private static instance: InputManager;

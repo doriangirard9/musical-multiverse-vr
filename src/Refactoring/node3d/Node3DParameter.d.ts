@@ -17,6 +17,11 @@ export interface Node3DParameter{
     meshes: AbstractMesh[]
 
     /**
+     * Est-ce que le paramètre doit ne pas être automatiquement synchronisé
+     */
+    notSynced?: boolean
+
+    /**
      * Change la valeur du paramètre. Entre 0 et 1.
      * @param value 
      */

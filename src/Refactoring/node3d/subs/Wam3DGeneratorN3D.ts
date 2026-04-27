@@ -16,7 +16,6 @@ class Wam3DGeneratorN3DGui implements Node3DGUI{
     constructor(context: Node3DGUIContext){
         const {babylon:B} = context
         this.root = new B.TransformNode("wam3d generator root", context.scene)
-
     }
 
     async init(guicode: WAMGuiInitCode){
@@ -65,6 +64,7 @@ class Wam3DGeneratorN3D implements Node3D{
                         getValue() { return settings.getValue() },
                         setValue(value) { settings.setValue(value) },
                         stringify(value) { return settings.stringify(value) },
+                        notSynced: true
                     })
                 },
                 defineAnInput(settings) {
@@ -100,7 +100,7 @@ class Wam3DGeneratorN3D implements Node3D{
                         `midioutput${count}`,
                         settings.target,
                         "Midi Output",
-                        settings.node
+                        settings.node,
                     ))
                 },
                 defineDraggableField(_) { },

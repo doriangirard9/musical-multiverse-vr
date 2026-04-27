@@ -52,26 +52,30 @@ export interface Node3DConnectable{
     readonly label: string
 
     /**
-     * Appelé lorsque l'entrée est connectée à une sortie.
-     * Est appelé d'abord pour la sortie, puis pour l'entrée.
-     * Les mêmes fonctions seront passées à la déconnexion, donc elles peuvent servir d'identifiant pour la connexion.
-     * @param sender Une fonction qui peut être appelée pour envoyer une valeur au connectable à l'autre bout de la connexion.
-     * @param power Une fonction qui peut être appelée pour envoyer une impulsion, utilisé pour les visuels. (les deux entre 0 et 1, un ton de 0 à 1 pour les connexions de type "signal", ou un ton de 0 est équivalent à un ton de 1).
+     * Appelé quand sur le connectable d'entrée.
+     * L'objet retourné est passé à la méthode {@link Node3DConnectable.connectAsOutput} du connectable de sortie.
+     * @return Un objet qui sera passé à la méthode {@link Node3DConnectable.connectAsOutput} du connectable de sortie.
      */
-    connect(
-        connectable: any,
-        impulse: (strength:number, tone:number)=>void
-    ): void
-   
+    connectAsInput(): any
+
+    /**
+     * Appelé quand sur le connectable de sortie.
+     * L'objet retourné est passé à la méthode {@link Node3DConnectable.connectAsInput} du connectable d'entrée.
+     * @param value L'objet retourné par la méthode {@link Node3DConnectable.connectAsInput} du connectable d'entrée.
+     */
+    connectAsOutput(connection: any): void
+
     /**
      * Appelé lorsque l'entrée est déconnectée d'une sortie.
-     * Est appelé d'abord pour la sortie, puis pour l'entrée.
-     * Les mêmes fonctions seront passées à la déconnexion, donc elles peuvent servir d'identifiant pour la connexion.
-     * @param sender Une fonction qui peut être appelée pour envoyer une valeur au connectable à l'autre bout de la connexion.
-     * @param power Une fonction qui peut être appelée pour envoyer une impulsion, utilisé pour les visuels. (les deux entre 0 et 1, un ton de 0 à 1 pour les connexions de type "signal", ou un ton de 0 est équivalent à un ton de 1)
+     * Est appelée avant la méthode {@link Node3DConnectable.disconnectAsOutput} du connectable de sortie.
+     * @param connectable L'objet retourné par la méthode {@link Node3DConnectable.connectAsInput} du connectable d'entrée, ou par la méthode {@link Node3DConnectable.connectAsOutput} du connectable de sortie, selon le connectable qui est déconnecté.
      */
-    disconnect(
-        connectable: any,
-        power: (strength:number, tone:number)=>void
-    ): void
+    disconnectAsInput(connection: any): void
+
+    /**
+     * Appelé lorsque la sortie est déconnectée d'une entrée.
+     * Est appelée après la méthode {@link Node3DConnectable.disconnectAsInput} du connectable d'entrée.
+     * @param connectable L'objet retourné par la méthode {@link Node3DConnectable.connectAsInput} du connectable d'entrée, ou par la méthode {@link Node3DConnectable.connectAsOutput} du connectable de sortie, selon le connectable qui est déconnecté.
+     */
+    disconnectAsOutput(connection: any): void
 }

@@ -7,12 +7,26 @@ import { Node3DConnectable } from "../../Node3DConnectable";
  */
 export namespace SynxN3DConnectable {
 
-    export const InputColor = Color3.FromHexString("#fff700")
+    export const Color = Color3.FromHexString("#fff700")
 
-    export const OutputColor = Color3.FromHexString("#ffae00")
+    interface SyncMessage {
+        id?: unknown
+        sendEnd?: number
+        sendTailTotal?: number
+        sendTotal?: number
+    }
 
     /**
-     * A containet that contains the sync informations
+     * Connection object for Sync protocol - allows Output to register with Input's Container
+     */
+    export interface SyncN3DConnection {
+        inputContainer: Container
+        registerCallback(callback: (msg: SyncMessage) => void): void
+        unregisterCallback(callback: (msg: SyncMessage) => void): void
+    }
+
+    /**
+     * A container that contains the sync informations
      */
     export class Container {
 
@@ -24,21 +38,20 @@ export namespace SynxN3DConnectable {
         }
 
         // Graph
-        _next = new Map<any, (msg: any) => void>()
-        _previous = new Map<any, (msg: any) => void>()
-
+        _next = new Map<unknown, (msg: SyncMessage) => void>()
+        _previous = new Map<unknown, (msg: SyncMessage) => void>()
 
         get hasUp() { return this._next.size > 0 }
 
         get hasDown() { return this._previous.size > 0 }
 
-        sendUp(msg: any) {
+        sendUp(msg: SyncMessage) {
             for (const sender of this._next.values()) {
                 sender(msg)
             }
         }
 
-        sendDown(msg: any) {
+        sendDown(msg: SyncMessage) {
             for (const sender of this._previous.values()) {
                 sender(msg)
             }
@@ -49,8 +62,8 @@ export namespace SynxN3DConnectable {
         _duration = 0
         _tail_total = 0
         _total = 0
-        _ends = new Map<any, number>()
-        _tails = new Map<any, number>()
+        _ends = new Map<unknown, number>()
+        _tails = new Map<unknown, number>()
 
         resendEnd() {
             const end = this._start + this._duration
@@ -66,7 +79,7 @@ export namespace SynxN3DConnectable {
             this.sendUp({ id: this, sendTotal: this._total })
         }
 
-        onMessage(msg: any) {
+        onMessage(msg: SyncMessage) {
             if (msg.sendEnd != undefined) {
                 this._ends.set(msg.id, msg.sendEnd)
                 const start = Math.max(...this._ends.values(), 0)
@@ -117,9 +130,11 @@ export namespace SynxN3DConnectable {
     }
 
     /**
-     * A input connectable that 
+     * A input connectable for sync protocol
      */
     export class Input implements Node3DConnectable {
+
+        private callbacks = new Set<(msg: SyncMessage) => void>()
 
         constructor(
             readonly id: string,
@@ -130,34 +145,37 @@ export namespace SynxN3DConnectable {
 
         get type() { return "sync" }
 
-        get direction() { return "input" as "input" }
+        get color() { return SynxN3DConnectable.Color }
 
-        get color() { return SynxN3DConnectable.InputColor }
-
-        connect(sender: (value: any) => void): void {
-            sender({ id: this, container: this.container, connect: true })
-        }
-
-        disconnect(sender: (value: any) => void): void {
-            sender({ id: this, container: this.container })
-        }
-
-        receive(msg: any): void {
-            const container = msg.container as Container
-            if (msg.connect) {
-                this.container._previous.set(container, msg => container.onMessage(msg))
-            }
-            else {
-                this.container._previous.delete(container)
+        connectAsInput(): SyncN3DConnection {
+            const that = this
+            return {
+                inputContainer: this.container,
+                registerCallback(callback: (msg: any) => void) {
+                    that.container._previous.set(callback, callback)
+                    that.callbacks.add(callback)
+                },
+                unregisterCallback(callback: (msg: any) => void) {
+                    that.container._previous.delete(callback)
+                    that.callbacks.delete(callback)
+                }
             }
         }
+
+        connectAsOutput(_: any): void { }
+
+        disconnectAsInput(_: any): void { }
+
+        disconnectAsOutput(_: any): void { }
     }
 
-
     /**
-     * A input connectable that 
+     * A output connectable for sync protocol
      */
     export class Output implements Node3DConnectable {
+
+        private registeredConnection: SyncN3DConnection | null = null
+        private callback: ((msg: SyncMessage) => void) | null = null
 
         constructor(
             readonly id: string,
@@ -170,25 +188,46 @@ export namespace SynxN3DConnectable {
 
         get direction() { return "output" as "output" }
 
-        get color() { return SynxN3DConnectable.OutputColor }
+        get color() { return SynxN3DConnectable.Color }
 
-        connect(sender: (value: any) => void): void {
-            sender({ id: this, container: this.container, connect: true })
+        connectAsInput(): any { return {} }
+
+        connectAsOutput(connection: SyncN3DConnection): void {
+            // Disconnect from previous connection if any
+            if (this.registeredConnection && this.callback) {
+                this.registeredConnection.unregisterCallback(this.callback)
+                this.container._next.delete(this.registeredConnection.inputContainer)
+            }
+            
+            this.registeredConnection = connection
+            
+            const inputContainer = connection.inputContainer
+            
+            this.callback = (msg: SyncMessage) => inputContainer.onMessage(msg)
+            
+            // Register in the input's _previous (inputs register what sends to them)
+            connection.registerCallback(this.callback)
+            
+            // Register in the output's _next (outputs register where they send to)
+            this.container._next.set(inputContainer, this.callback)
+            
+            // Sync duration
+            this.container.duration = inputContainer.duration
         }
 
-        disconnect(sender: (value: any) => void): void {
-            sender({ id: this, container: this.container })
-        }
+        disconnectAsInput(_: any): void { }
 
-        receive(msg: any): void {
-            const container = msg.container as Container
-            if (msg.connect) {
-                this.container._next.set(container, msg => container.onMessage(msg))
+        disconnectAsOutput(_: SyncN3DConnection): void {
+            if (this.registeredConnection && this.callback) {
+                // Unregister from input's _previous (where input listens to this output)
+                this.registeredConnection.unregisterCallback(this.callback)
+                
+                // Unregister from output's _next (where output sends to)
+                this.container._next.delete(this.registeredConnection.inputContainer)
+                
+                this.registeredConnection = null
+                this.callback = null
             }
-            else {
-                this.container._next.delete(container)
-            }
-            this.container.duration = container.duration
         }
     }
 }
