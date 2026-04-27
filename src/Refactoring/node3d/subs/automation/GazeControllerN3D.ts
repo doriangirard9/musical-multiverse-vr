@@ -72,7 +72,7 @@ export class GazeControllerN3DGUI implements Node3DGUI {
         this.output.parent = this.root
         this.output.position.set(0.75, -0.25, 0)
         this.output.material = context.materialMat
-        T.MeshUtils.setColor(this.output, T.AutomationN3DConnectable.OutputColor.toColor4())
+        T.MeshUtils.setColor(this.output, T.AutomationN3DConnectable.Color.toColor4())
     }
 
     async dispose() { }

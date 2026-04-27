@@ -171,7 +171,7 @@ export class DrumPlateKitN3DGUI implements Node3DGUI {
             0
         )
         this.output.material = context.materialMat
-        T.MeshUtils.setColor(this.output, T.MidiN3DConnectable.OutputColor.toColor4())
+        T.MeshUtils.setColor(this.output, T.MidiN3DConnectable.Color.toColor4())
 
         // Automation Output
         this.automationOutput = B.CreateSphere(`drumkit automation output`, { diameter: plateSize / 2 }, context.scene)
@@ -182,7 +182,7 @@ export class DrumPlateKitN3DGUI implements Node3DGUI {
             plateSize / 2 + 0.1
         )
         this.automationOutput.material = context.materialMat
-        //T.MeshUtils.setColor(this.automationOutput, T.MidiN3DConnectable.AutomationOutputColor.toColor4())
+        //T.MeshUtils.setColor(this.automationOutput, T.MidiN3DConnectable.AutomationColor.toColor4())
     }
 
     async dispose() { }

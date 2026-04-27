@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host",
+    "server": "cd server-config; node server.js",
+    "all": "concurrently --handleInput --prefixColors red,green \"npm run server\" \"npm run dev\"",
     "build": "tsc && vite build",
     "preview": "vite preview"
   },
@@ -23,6 +25,7 @@
     "@babylonjs/loaders": "^8.24.0",
     "@babylonjs/materials": "^8.24.0",
     "@webaudiomodules/sdk": "^0.0.12",
+    "concurrently": "^9.2.1",
     "tone": "^15.0.4",
     "uuid": "^11.1.0",
     "wam3dgenerator": "github:Jempasam/3d_wam_editor#semver:0.0.6",

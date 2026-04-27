@@ -271,7 +271,7 @@ class PianoRollN3DGUI implements Node3DGUI {
       { radius: this.buttonWidth * 2 },
       this.context.scene
     );
-    this.tool.MeshUtils.setColor(this.midiOutput, MidiN3DConnectable.OutputColor.toColor4());
+    this.tool.MeshUtils.setColor(this.midiOutput, MidiN3DConnectable.Color.toColor4());
     this.midiOutput.position.set(baseLength, baseY, baseZ + 1);
     this.midiOutput.scaling.setAll(0.5);
     this.midiOutput.parent = this.root;
@@ -281,7 +281,7 @@ class PianoRollN3DGUI implements Node3DGUI {
       { radius: this.buttonWidth * 2 },
       this.context.scene
     );
-    this.tool.MeshUtils.setColor(this.midiInput, MidiN3DConnectable.InputColor.toColor4());
+    this.tool.MeshUtils.setColor(this.midiInput, MidiN3DConnectable.Color.toColor4());
     this.midiInput.position.set(-baseLength - this.buttonWidth, baseY, baseZ);  // Position on opposite side
     this.midiInput.scaling.setAll(0.5);
     this.midiInput.parent = this.root;

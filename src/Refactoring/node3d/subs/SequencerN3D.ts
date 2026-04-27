@@ -47,21 +47,21 @@ class SequencerN3DGUI implements Node3DGUI {
 
         // Create output
         const output = this.output = B.CreateIcoSphere("sequencer output", {radius:baseSize*.7}, context.scene)
-        T.MeshUtils.setColor(output, MidiN3DConnectable.OutputColor.toColor4())
+        T.MeshUtils.setColor(output, MidiN3DConnectable.Color.toColor4())
         output.material = context.materialMat
         output.position.set(.5+baseSize*.7, -baseSize*.7, 0)
         output.parent = this.root
 
         // Create sync input
         const syncInput = this.syncInput = B.CreateIcoSphere("sequencer sync input", {radius:baseSize*.5}, context.scene)
-        T.MeshUtils.setColor(syncInput, T.SynxN3DConnectable.InputColor.toColor4())
+        T.MeshUtils.setColor(syncInput, T.SynxN3DConnectable.Color.toColor4())
         syncInput.material = context.materialMat
         syncInput.position.set(-.5-baseSize*.7, -baseSize*.7, -.25)
         syncInput.parent = this.root
 
         // Create sync output
         const syncOutput = this.syncOutput = B.CreateIcoSphere("sequencer sync output", {radius:baseSize*.5}, context.scene)
-        T.MeshUtils.setColor(syncOutput, T.SynxN3DConnectable.OutputColor.toColor4())
+        T.MeshUtils.setColor(syncOutput, T.SynxN3DConnectable.Color.toColor4())
         syncOutput.material = context.materialMat
         syncOutput.position.set(.5+baseSize*.7, -baseSize*.7, -.25)
         syncOutput.parent = this.root

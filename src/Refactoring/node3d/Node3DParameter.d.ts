@@ -1,7 +1,8 @@
 import { AbstractMesh, Vector3 } from "@babylonjs/core"
 
 /**
- * Un paramètre d'un Node3D, on peut changer sa valeur en le draggant.
+ * Un paramètre d'un Node3D. Sa valeur peut être changé en le draggant.
+ * Sa valeur peut être aussi changé par la synchronisation, ou par automation.
  */
 export interface Node3DParameter{
 
@@ -17,7 +18,8 @@ export interface Node3DParameter{
     meshes: AbstractMesh[]
 
     /**
-     * Est-ce que le paramètre doit ne pas être automatiquement synchronisé
+     * Est-ce que le paramètre doit ne pas être automatiquement synchronisé.
+     * Si le paramètre est contrôlé par une automation, alors il n'est plus synchronisé.
      */
     notSynced?: boolean
 

@@ -164,7 +164,6 @@ export namespace MidiN3DConnectable{
             readonly on_add: (wamNode:WamNode) => void,
             /** A callback called when a connection is removed from the list. */
             readonly on_remove: (wamNode:WamNode) => void,
-
         ){}
 
         get type(){ return "midi" }

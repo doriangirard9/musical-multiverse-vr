@@ -36,12 +36,12 @@ export class NoteBoxN3DGUI implements Node3DGUI {
         this.base.parent = this.root;
 
         this.output = B.CreateSphere("note box output", {diameter: 0.5*s}, context.scene);
-        T.MeshUtils.setColor(this.output, T.MidiN3DConnectable.OutputColor.toColor4());
+        T.MeshUtils.setColor(this.output, T.MidiN3DConnectable.Color.toColor4());
         this.output.parent = this.root;
         this.output.position.x = s;
 
         this.input = B.CreateSphere("note box input", {diameter: 0.5*s}, context.scene);
-        T.MeshUtils.setColor(this.input, T.MidiN3DConnectable.InputColor.toColor4());
+        T.MeshUtils.setColor(this.input, T.MidiN3DConnectable.Color.toColor4());
         this.input.parent = this.root;
         this.input.position.x = -s;
 

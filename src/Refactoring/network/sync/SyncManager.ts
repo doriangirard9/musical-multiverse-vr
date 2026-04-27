@@ -4,7 +4,7 @@ import * as Y from "yjs";
 
 /**
  * The SyncManager maintains a list of synchronized objects and automatically synchronizes them.
- * It works as an object registry, but its main purpose is to keep the objects in sync across different clients.
+ * It works as an object registry, but its main purpose is to keep the objects in sync across different clients. 
  */
 export class SyncManager<
     T extends Synchronized,

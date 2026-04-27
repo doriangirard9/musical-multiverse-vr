@@ -50,8 +50,8 @@ export class AutomationToolN3DGUI implements Node3DGUI {
             T.MeshUtils.setColor(sphere, color)
             return sphere
         }
-        this.input = createOutput("input", new Vector3(-0.35-.25, -0.25, 0), T.AutomationN3DConnectable.InputColor.toColor4())
-        this.output = createOutput("output", new Vector3(0.35-.25, -0.25, 0), T.AutomationN3DConnectable.OutputColor.toColor4())
+        this.input = createOutput("input", new Vector3(-0.35-.25, -0.25, 0), T.AutomationN3DConnectable.Color.toColor4())
+        this.output = createOutput("output", new Vector3(0.35-.25, -0.25, 0), T.AutomationN3DConnectable.Color.toColor4())
 
         // Parameter
         function createParameter(name: string, position: Vector3): AbstractMesh {

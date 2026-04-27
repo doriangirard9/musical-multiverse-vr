@@ -21,13 +21,13 @@ export class SyncDebugN3DGUI implements Node3DGUI{
         this.root = new B.TransformNode("sync debug root", context.scene)
 
         this.input = B.CreateSphere("sync debug input", {diameter:.5}, context.scene)
-        T.MeshUtils.setColor(this.input, T.SynxN3DConnectable.InputColor.toColor4())
+        T.MeshUtils.setColor(this.input, T.SynxN3DConnectable.Color.toColor4())
         this.input.parent = this.root
         this.input.material = context.materialMat
         this.input.position.set(-0.75,-.25,0)
 
         this.output = B.CreateSphere("sync debug output", {diameter:.5}, context.scene)
-        T.MeshUtils.setColor(this.output, T.SynxN3DConnectable.OutputColor.toColor4())
+        T.MeshUtils.setColor(this.output, T.SynxN3DConnectable.Color.toColor4())
         this.output.parent = this.root
         this.output.position.set(0.75,-.25,0)
         this.output.material = context.materialMat
