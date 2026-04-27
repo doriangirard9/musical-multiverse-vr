@@ -43,7 +43,7 @@ export class AutomationToolN3DGUI implements Node3DGUI {
 
         // Input and output
         function createOutput(name: string, type:"rect"|"sphere", position: Vector3, color: Color4): AbstractMesh {
-            const sphere = type=="rect" ? B.CreateBox(name,{size:.5},context.scene) : B.CreateSphere(name, { diameter: 0.5 }, context.scene)
+            const sphere = type=="rect" ? B.CreateGoldberg(name,{size:1},context.scene) : B.CreateSphere(name, { diameter: 0.5 }, context.scene)
             sphere.material = context.materialMat
             sphere.parent = that.root
             sphere.position.copyFrom(position)

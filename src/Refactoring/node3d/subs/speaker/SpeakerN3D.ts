@@ -33,7 +33,7 @@ export class SpeakerN3DGUI implements Node3DGUI{
         this.speaker = await B.ImportMeshAsync(SPEAKER_URL, context.scene) .then(it=>it.meshes[0])
         this.speaker.parent = this.root
 
-        this.audioInput = B.CreateBox("audio output input", {size:.7}, context.scene)
+        this.audioInput = B.CreateGoldberg("audio output input", {size:.7}, context.scene)
         MeshUtils.setColor(this.audioInput, new B.Color4(0,1,0,1))
         this.audioInput.parent = this.root
         this.audioInput.position.set(-0.7,0,0)

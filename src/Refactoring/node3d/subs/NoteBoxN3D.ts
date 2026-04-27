@@ -40,7 +40,7 @@ export class NoteBoxN3DGUI implements Node3DGUI {
         this.output.parent = this.root;
         this.output.position.x = s;
 
-        this.input = B.CreateBox("note box input", {size: 0.5*s}, context.scene);
+        this.input = B.CreateGoldberg("note box input", {size: .5*s}, context.scene);
         T.MeshUtils.setColor(this.input, T.MidiN3DConnectable.Color.toColor4());
         this.input.parent = this.root;
         this.input.position.x = -s;

@@ -64,7 +64,7 @@ export class WamSamplerN3DGUI implements Node3DGUI {
 
   private _createPorts() {
     // MIDI Input (left)
-    this.midiInput = B.CreateBox(
+    this.midiInput = B.CreateGoldberg(
       "sampler midi input",
       { size: 4 },
       this.context.scene

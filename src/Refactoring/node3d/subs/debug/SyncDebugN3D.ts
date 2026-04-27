@@ -20,7 +20,7 @@ export class SyncDebugN3DGUI implements Node3DGUI{
 
         this.root = new B.TransformNode("sync debug root", context.scene)
 
-        this.input = B.CreateBox("sync debug input", {size:.5}, context.scene)
+        this.input = B.CreateGoldberg("sync debug input", {size:.5}, context.scene)
         T.MeshUtils.setColor(this.input, T.SynxN3DConnectable.Color.toColor4())
         this.input.parent = this.root
         this.input.material = context.materialMat
