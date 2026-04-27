@@ -161,9 +161,9 @@ export namespace MidiN3DConnectable{
             readonly meshes: AbstractMesh[],
             readonly label: string,
             /** A callback called when a new connection is added to the list. */
-            readonly on_add: (wamNode:WamNode) => void,
+            readonly on_add: (wamNode:WamNode) => void = ()=>{},
             /** A callback called when a connection is removed from the list. */
-            readonly on_remove: (wamNode:WamNode) => void,
+            readonly on_remove: (wamNode:WamNode) => void = ()=>{},
         ){}
 
         get type(){ return "midi" }

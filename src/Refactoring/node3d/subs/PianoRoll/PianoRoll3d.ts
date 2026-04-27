@@ -276,9 +276,9 @@ class PianoRollN3DGUI implements Node3DGUI {
     this.midiOutput.scaling.setAll(0.5);
     this.midiOutput.parent = this.root;
 
-    this.midiInput = B.CreateIcoSphere(
+    this.midiInput = B.CreateBox(
       "piano roll midi input",
-      { radius: this.buttonWidth * 2 },
+      { size: this.buttonWidth },
       this.context.scene
     );
     this.tool.MeshUtils.setColor(this.midiInput, MidiN3DConnectable.Color.toColor4());

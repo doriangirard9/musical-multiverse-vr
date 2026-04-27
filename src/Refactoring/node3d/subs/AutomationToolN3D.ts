@@ -42,16 +42,16 @@ export class AutomationToolN3DGUI implements Node3DGUI {
         T.MeshUtils.setColor(this.base, Color3.Gray().toColor4())
 
         // Input and output
-        function createOutput(name: string, position: Vector3, color: Color4): AbstractMesh {
-            const sphere = B.CreateSphere(name, { diameter: 0.5 }, context.scene)
+        function createOutput(name: string, type:"rect"|"sphere", position: Vector3, color: Color4): AbstractMesh {
+            const sphere = type=="rect" ? B.CreateBox(name,{size:.5},context.scene) : B.CreateSphere(name, { diameter: 0.5 }, context.scene)
             sphere.material = context.materialMat
             sphere.parent = that.root
             sphere.position.copyFrom(position)
             T.MeshUtils.setColor(sphere, color)
             return sphere
         }
-        this.input = createOutput("input", new Vector3(-0.35-.25, -0.25, 0), T.AutomationN3DConnectable.Color.toColor4())
-        this.output = createOutput("output", new Vector3(0.35-.25, -0.25, 0), T.AutomationN3DConnectable.Color.toColor4())
+        this.input = createOutput("input", "rect", new Vector3(-0.35-.25, -0.25, 0), T.AutomationN3DConnectable.Color.toColor4())
+        this.output = createOutput("output", "sphere", new Vector3(0.35-.25, -0.25, 0), T.AutomationN3DConnectable.Color.toColor4())
 
         // Parameter
         function createParameter(name: string, position: Vector3): AbstractMesh {

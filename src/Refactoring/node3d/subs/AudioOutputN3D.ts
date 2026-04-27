@@ -21,7 +21,7 @@ export class AudioOutputN3DGUI implements Node3DGUI{
         MeshUtils.setColor(this.block, new B.Color4(.5,.2,.2,1))
         this.block.parent = this.root
 
-        this.audioInput = B.CreateSphere("audio output input", {diameter:.5}, context.scene)
+        this.audioInput = B.CreateBox("audio output input", {size:1}, context.scene)
         MeshUtils.setColor(this.audioInput, new B.Color4(0,1,0,1))
         this.audioInput.parent = this.root
         this.audioInput.position.set(-0.75,-.25,0)
