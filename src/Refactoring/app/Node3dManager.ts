@@ -1,6 +1,5 @@
 import { Node3DInstance } from "../node3d/instance/Node3DInstance.ts";
 import { RandomUtils } from "../node3d/tools/utils/RandomUtils.ts";
-import { AudioEventBus } from "../eventBus/AudioEventBus.ts";
 import { NetworkManager } from "../network/NetworkManager.ts";
 import { Node3DBuilder as Node3DBuilder } from "./Node3DBuilder.ts";
 import { AudioEngineV2, Vector3 } from "@babylonjs/core";
@@ -10,11 +9,9 @@ import { SceneManager } from "./SceneManager.ts";
 export class Node3dManager {
 
     readonly builder: Node3DBuilder;
-    private audioEventBus: AudioEventBus;
 
     private constructor(private audioCtx: AudioContext, private audioEngine: AudioEngineV2) {
-        this.builder = new Node3DBuilder();
-        this.audioEventBus = AudioEventBus.getInstance();
+        this.builder = new Node3DBuilder()
     }
 
     private static _instance: Node3dManager | null = null;
@@ -24,15 +21,13 @@ export class Node3dManager {
         await this._instance.builder.initialize()
     }
 
-    public static getInstance(audioCtx?: AudioContext, audioEngine?: AudioEngineV2): Node3dManager {
+    public static getInstance(): Node3dManager {
         if (!this._instance) throw new Error("Node3dManager not initialized. Call initialize() first.")
         return this._instance
     }
 
     public async createNode3d(kind: string, position: Vector3, id?: string): Promise<Node3DInstance|null>{
         const nodeId = id ?? RandomUtils.randomID()
-
-        this.audioEventBus.emit("AUDIO_NODE_CREATED",{nodeId, kind})
         
         const initfactory = async()=>{
            this.builder.getFactory(kind)
@@ -43,11 +38,9 @@ export class Node3dManager {
             if(node instanceof Node3DInstance){
                 node.boundingBoxMesh.setAbsolutePosition(position)
                 await NetworkManager.getInstance().node3d.nodes.add(nodeId, node, kind)
-                this.audioEventBus.emit("AUDIO_NODE_LOADED",{nodeId, kind, instance:node})
                 return node
             }
             else{
-                this.audioEventBus.emit("AUDIO_NODE_ERROR",{nodeId, kind, error_message:node})
                 throw new Error(`Error while creating Node3D of kind ${kind} with id ${nodeId}: ${node}`)
             }
         }
