@@ -8,7 +8,6 @@ import { UIManager } from "../../app/UIManager"
 import { MeshUtils } from "../tools"
 import { ShakeBehavior } from "../../behaviours/ShakeBehavior"
 import { SceneManager } from "../../app/SceneManager"
-import { Node3DConnectable } from "../Node3DConnectable"
 
 /**
  * Une connection entre deux connectable de deux Node3D.

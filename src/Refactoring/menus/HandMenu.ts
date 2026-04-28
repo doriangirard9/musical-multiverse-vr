@@ -1,12 +1,12 @@
-import {XRManager} from "../xr/XRManager.ts";
-import {ActionManager, Color3, CreateBox, ExecuteCodeAction, Mesh, Nullable, StandardMaterial, TmpVectors, Vector3} from "@babylonjs/core";
 import * as B from "@babylonjs/core";
-import {SceneManager} from "../app/SceneManager.ts";
-import {MenuConfig, SimpleMenu} from "./SimpleMenu.ts";
-import {GazeBehavior} from "../behaviours/GazeBehavior.ts";
-import {UIManager} from "../app/UIManager.ts";
-import {WamTransportManager} from "../node3d/subs/PianoRoll/WamTransportManager.ts";
-import {Node3dManager} from "../app/Node3dManager.ts";
+import { ActionManager, Color3, CreateBox, ExecuteCodeAction, Mesh, Nullable, StandardMaterial, TmpVectors, Vector3 } from "@babylonjs/core";
+import { Node3dManager } from "../app/Node3dManager.ts";
+import { SceneManager } from "../app/SceneManager.ts";
+import { UIManager } from "../app/UIManager.ts";
+import { GazeBehavior } from "../behaviours/GazeBehavior.ts";
+import { WamTransportManager } from "../node3d/subs/PianoRoll/WamTransportManager.ts";
+import { XRManager } from "../xr/XRManager.ts";
+import { MenuConfig, SimpleMenu } from "./SimpleMenu.ts";
 
 export class HandMenu {
     private xrManager = XRManager.getInstance();

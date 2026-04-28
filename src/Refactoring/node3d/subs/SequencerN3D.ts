@@ -1,13 +1,9 @@
-import { Color3, Color4, type AbstractMesh } from "@babylonjs/core";
+import type { Color4, AbstractMesh } from "@babylonjs/core";
 import type { Node3D, Node3DFactory, Node3DGUI } from "../Node3D";
 import type { Node3DGUIContext } from "../Node3DGUIContext";
-import { MidiN3DConnectable } from "../tools";
-import { Node3DContext } from "../Node3DContext";
+import type { Node3DContext } from "../Node3DContext";
 
-const NOTE_NAME = ["Do/C","Do#/C#","Re/D","Re#/D#", "Mi/E","Fa/F","Fa#/F#","Sol/G", "Sol#/G#","La/A","La#/A#","Si/B"]
-const WHITE = Color3.White().toColor4()
-const BLACK = Color3.Black().toColor4()
-const NODE_COLOR = [WHITE, BLACK, WHITE, BLACK,  WHITE, WHITE, BLACK, WHITE,  BLACK, WHITE, BLACK, WHITE]
+
 
 class SequencerN3DGUI implements Node3DGUI {
 
@@ -23,10 +19,18 @@ class SequencerN3DGUI implements Node3DGUI {
     readonly noteCount = 12
     readonly firstNote = this.stepCount*6
 
-    constructor(private context: Node3DGUIContext) {
+    readonly NOTE_NAME: string[]
+    readonly NODE_COLOR: Color4[]
+
+    constructor(readonly context: Node3DGUIContext) {
         const {babylon:B,tools:T} = context
 
         this.root = new B.TransformNode("sequencer root", context.scene)
+
+        this.NOTE_NAME = ["Do/C","Do#/C#","Re/D","Re#/D#", "Mi/E","Fa/F","Fa#/F#","Sol/G", "Sol#/G#","La/A","La#/A#","Si/B"]
+        const WHITE = B.Color3.White().toColor4()
+        const BLACK = B.Color3.Black().toColor4()
+        this.NODE_COLOR = [WHITE, BLACK, WHITE, BLACK,  WHITE, WHITE, BLACK, WHITE,  BLACK, WHITE, BLACK, WHITE]
 
         // Get dimensions
         const aspectRatio = this.stepCount/this.noteCount
@@ -40,14 +44,14 @@ class SequencerN3DGUI implements Node3DGUI {
 
         // Create base
         const block = this.block = B.CreateBox("sequencer block", {width: width, height: baseSize, depth: height}, context.scene)
-        T.MeshUtils.setColor(this.block, Color3.Blue().toColor4())
+        T.MeshUtils.setColor(this.block, B.Color3.Blue().toColor4())
         block.material = context.materialMat
         block.position.y = -baseSize/2
         block.parent = this.root
 
         // Create output
         const output = this.output = B.CreateIcoSphere("sequencer output", {radius:baseSize*.7}, context.scene)
-        T.MeshUtils.setColor(output, MidiN3DConnectable.Color.toColor4())
+        T.MeshUtils.setColor(output, T.MidiN3DConnectable.Color.toColor4())
         output.material = context.materialMat
         output.position.set(.5+baseSize*.7, -baseSize*.7, 0)
         output.parent = this.root
@@ -110,12 +114,12 @@ class SequencerN3DGUI implements Node3DGUI {
 
     uncolorize(step: number, note: number) {
         const {tools:T} = this.context
-        T.MeshUtils.setColor(this.getNodePad(step, note), NODE_COLOR[(this.firstNote+note)%12])
+        T.MeshUtils.setColor(this.getNodePad(step, note), this.NODE_COLOR[(this.firstNote+note)%12])
     }
 
     colorize(step: number, note: number, color: (value:Color4)=>Color4){
         const {tools:T} = this.context
-        T.MeshUtils.setColor(this.getNodePad(step, note), color(NODE_COLOR[(this.firstNote+note)%12]))
+        T.MeshUtils.setColor(this.getNodePad(step, note), color(this.NODE_COLOR[(this.firstNote+note)%12]))
     }
 
     async dispose(): Promise<void> {
@@ -137,11 +141,12 @@ class SequencerN3D implements Node3D{
     private midi_output
 
     private updateNote(step: number, note: number) {
+        const B = this.gui.context.babylon
         const state = step==-1 ? false : this.note_states[step][note]
         this.gui.colorize(step, note, light=>{
             const color = light.clone()
-            if(state) color.addInPlace(Color3.Green().toColor4()).scaleInPlace(.5)
-            if(step===this.currentStep) color.addInPlace(Color3.Red().toColor4()).scaleInPlace(.5)
+            if(state) color.addInPlace(B.Color3.Green().toColor4()).scaleInPlace(.5)
+            if(step===this.currentStep) color.addInPlace(B.Color3.Red().toColor4()).scaleInPlace(.5)
             return color
         })
     }
@@ -206,7 +211,7 @@ class SequencerN3D implements Node3D{
                 step_note_states.push(false)
                 const note_pad = gui.getNodePad(s, n)
                 const note = (n+gui.firstNote)%12
-                const label = `${NOTE_NAME[note]} n°${s+1}`
+                const label = `${gui.NOTE_NAME[note]} n°${s+1}`
                 context.createParameter({
                     id: `sequencer_note_${n}_${s}`,
                     meshes: [note_pad],

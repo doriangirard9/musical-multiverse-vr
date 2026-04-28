@@ -10,7 +10,7 @@ import { parallel } from "../utils/utils.ts";
 import { UIManager } from "./UIManager.ts";
 import { NetworkManager } from "../network/NetworkManager.ts";
 import { PlayerManager } from "./PlayerManager.ts";
-import { ConnectionManager } from "../iomanager/ConnectionManager.ts";
+import { ConnectionManager } from "./ConnectionManager.ts";
 import { N3DRendering } from "../node3d/instance/utils/N3DRendering.ts";
 import { InputVisualPointer } from "../xr/inputs/tools/InputVisualPointer.ts";
 import { Serialization } from "./Serialization.ts";

@@ -2,7 +2,6 @@ import { Quaternion, Vector2, Vector3, type AbstractMesh, type Observer, type Tr
 import type { Node3D, Node3DFactory, Node3DGUI } from "../../Node3D";
 import type { Node3DContext } from "../../Node3DContext";
 import type { Node3DGUIContext } from "../../Node3DGUIContext";
-import { InputManager } from "../../../xr/inputs/InputManager";
 import { AutomationN3DConnectable, MidiN3DConnectable } from "../../tools";
 import { HoldableBehaviour } from "../../../behaviours/boundingBox/HoldableBehaviour";
 
@@ -273,9 +272,8 @@ export class DrumPlateKitN3D implements Node3D {
     private observers: Observer<any>[] = []
 
     constructor(context: Node3DContext, private gui: DrumPlateKitN3DGUI) {
-        const { tools: T, audioCtx } = context
+        const { tools: T, audioCtx, inputs } = context
         const { babylon: B } = gui.context
-        const inputs = InputManager.getInstance()
 
         // Hitbox
         context.addToBoundingBox(gui.base)

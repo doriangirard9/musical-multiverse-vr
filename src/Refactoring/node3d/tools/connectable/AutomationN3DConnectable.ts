@@ -13,22 +13,19 @@ interface AutomationInputInfo {
 /**
  * Simple implementations of Node3DConnectable for the "automation" protocol.
  */
-export class AutomationN3DConnectable {
-
-    private constructor() { }
-
-    static Color = Color3.FromHexString("#515252")
+export namespace AutomationN3DConnectable {
+    export const Color = Color3.FromHexString("#515252")
 
     /**
      * A input connectable that receives automation values.
      */
-    static Input = class Input implements Node3DConnectable {
+    export class Input implements Node3DConnectable {
 
         constructor(
             readonly id: string,
             readonly meshes: AbstractMesh[],
             readonly label: string,
-            private parameter: {
+            readonly parameter: {
                 setValue(value: number): void,
                 stringify(value: number): string,
                 getStepCount(): number,
@@ -56,37 +53,36 @@ export class AutomationN3DConnectable {
             }
         }
 
-        connectAsOutput(_: any): void { }
+        connectAsOutput(): void { }
 
-        disconnectAsInput(connection: any): void {
+        disconnectAsInput(): void {
             this.parameter.lock(false)
         }
 
-        disconnectAsOutput(_: any): void { }
+        disconnectAsOutput(): void { }
     }
 
     /**
      * A multi-input connectable that can receive multiple automation connections.
      * Values from multiple sources are passed as an array to the parameter.
      */
-    static MultiInput = class MultiInput implements Node3DConnectable {
+    export class MultiInput implements Node3DConnectable {
 
         private valuesArray: number[] = []
         private indexArray: {index: number}[] = []
-        private connections = new Map<any, AutomationInputInfo>()
 
         constructor(
             readonly id: string,
             readonly meshes: AbstractMesh[],
             readonly label: string,
-            private parameter: {
+            readonly parameter: {
                 setValue(values: number[]): void,
                 stringify(value: number): string,
                 getStepCount(): number,
                 getName(): string,
                 lock(isLocked: boolean): void,
             },
-            private maxConnections: number = Infinity
+            readonly maxConnections: number = Infinity
         ) { }
 
         get type() { return "automation" }
@@ -122,17 +118,17 @@ export class AutomationN3DConnectable {
             }
         }
 
-        connectAsOutput(_: any): void { }
+        connectAsOutput(): void { }
 
-        disconnectAsInput(connection: any): void { }
+        disconnectAsInput(): void { }
 
-        disconnectAsOutput(_: any): void { }
+        disconnectAsOutput(): void { }
     }
 
     /**
      * A output connectable that keeps and sends a stored value.
      */
-    static Output = class Output implements Node3DConnectable {
+    export class Output implements Node3DConnectable {
 
         public senders = new Map<any, Required<AutomationInputInfo>>()
         public _value: number = 0

@@ -1,7 +1,7 @@
-import { Vector3, type Mesh, type TransformNode } from "@babylonjs/core";
-import { Node3D, Node3DFactory, Node3DGUI } from "../Node3D";
-import { Node3DContext } from "../Node3DContext";
-import { Node3DGUIContext } from "../Node3DGUIContext";
+import type { Mesh, TransformNode } from "@babylonjs/core";
+import type { Node3D, Node3DFactory, Node3DGUI } from "../Node3D";
+import type { Node3DContext } from "../Node3DContext";
+import type { Node3DGUIContext } from "../Node3DGUIContext";
 
 
 export class AudioOutputN3DGUI implements Node3DGUI{
@@ -12,7 +12,7 @@ export class AudioOutputN3DGUI implements Node3DGUI{
 
     get worldSize(){ return 1 }
 
-    constructor(context: Node3DGUIContext){
+    constructor(readonly context: Node3DGUIContext){
         const {babylon:B, tools:{MeshUtils}} = context
 
         this.root = new B.TransformNode("audio output root", context.scene)
@@ -39,6 +39,7 @@ export class AudioOutputN3D implements Node3D{
 
     constructor(context: Node3DContext, gui: AudioOutputN3DGUI){
         const {tools:{AudioN3DConnectable}, audioCtx} = context
+        const B = gui.context.babylon
 
         this.audioCtx = audioCtx
 
@@ -56,10 +57,10 @@ export class AudioOutputN3D implements Node3D{
         // Il faut déplacer ça dehors.
         this.interval = setInterval(() => {
             const output_transform = context.getPosition()
-            const output_forward = Vector3.Forward().applyRotationQuaternionInPlace(output_transform.rotation)
+            const output_forward = B.Vector3.Forward().applyRotationQuaternionInPlace(output_transform.rotation)
             const player_transform = context.getPlayerPosition()
-            const player_forward = Vector3.Forward().applyRotationQuaternionInPlace(player_transform.rotation)
-            const player_up = Vector3.Up().applyRotationQuaternionInPlace(player_transform.rotation)
+            const player_forward = B.Vector3.Forward().applyRotationQuaternionInPlace(player_transform.rotation)
+            const player_up = B.Vector3.Up().applyRotationQuaternionInPlace(player_transform.rotation)
 
             for(const [parameter, value] of [
                 [this.pannerNode.positionX, output_transform.position.x],

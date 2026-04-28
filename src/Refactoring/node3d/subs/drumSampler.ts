@@ -1,11 +1,11 @@
 import * as B from "@babylonjs/core";
-import type { Node3D, Node3DFactory, Node3DGUI } from "../Node3D";
-import type { Node3DGUIContext } from "../Node3DGUIContext";
-import { Node3DContext } from "../Node3DContext";
-import { AudioN3DConnectable, MidiN3DConnectable } from "../tools";
-import { WamInitializer } from "../../app/WamInitializer";
-import { WamTransportManager } from "./PianoRoll/WamTransportManager";
 import { WebAudioModule } from "@webaudiomodules/api";
+import { WamInitializer } from "../../app/WamInitializer";
+import type { Node3D, Node3DFactory, Node3DGUI } from "../Node3D";
+import { Node3DContext } from "../Node3DContext";
+import type { Node3DGUIContext } from "../Node3DGUIContext";
+import { MidiN3DConnectable } from "../tools";
+import { WamTransportManager } from "./PianoRoll/WamTransportManager";
 
 /**
  * Minimal 3D WAM Sampler block (e.g., Burns Audio DrumSampler)

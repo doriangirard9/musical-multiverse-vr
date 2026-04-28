@@ -83,7 +83,6 @@ export class ElectroballsN3D implements Node3D {
 
     constructor(context: Node3DContext, private gui: ElectroballsN3DGUI) {
         const { tools: T } = context
-        const inputs = InputManager.getInstance()
 
         // Hitbox sur la base
         context.addToBoundingBox(gui.base)
