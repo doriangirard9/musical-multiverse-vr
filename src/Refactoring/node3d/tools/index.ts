@@ -8,3 +8,4 @@ export * from "./connectable/SyncN3DConnectable"
 // Utils
 export * from "./utils/MeshUtils"
 export * from "./utils/StateUtils"
+export * from "./utils/InputUtils"
