@@ -57,7 +57,7 @@ class SequencerN3DGUI implements Node3DGUI {
         output.parent = this.root
 
         // Create sync input
-        const syncInput = this.syncInput = T.ConnectableUtils.createInputMesh("sequencer sync input", {size:baseSize*1}, context.scene)
+        const syncInput = this.syncInput = T.ConnectableUtils.createInputMesh("sequencer sync input", baseSize*1, context.scene)
         T.MeshUtils.setColor(syncInput, T.SynxN3DConnectable.Color.toColor4())
         syncInput.material = context.materialMat
         syncInput.position.set(-.5-baseSize*.7, -baseSize*.7, -.25)

@@ -68,7 +68,7 @@ export class HyperKeyboardN3DGUI implements Node3DGUI {
 
         // Outputs
         this.outputs = Array.from({ length: this.factory.y }, (_, i) => {
-            const mesh = B.CreateSphere(`hyperkeyboard output n°${i}`, { diameter: size }, this.root.getScene())
+            const mesh = T.ConnectableUtils.createOutputMesh(`hyperkeyboard output n°${i}`, size, this.root.getScene())
             mesh.parent = this.root
             mesh.position.set(
                 width / 2 + .05 + size / 2,

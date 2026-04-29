@@ -67,7 +67,7 @@ export class GazeControllerN3DGUI implements Node3DGUI {
         this.enabledRotator = createRotator("automation controller enabled rotator", 0.25, new B.Color4(0, 1, 0, 1))
 
         // Output
-        this.output = B.CreateSphere("automation controller output", { diameter: .5 }, context.scene)
+        this.output = T.ConnectableUtils.createOutputMesh("automation controller output", .5, context.scene)
         this.output.parent = this.root
         this.output.position.set(0.75, -0.25, 0)
         this.output.material = context.materialMat

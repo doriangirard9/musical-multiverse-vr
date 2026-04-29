@@ -43,12 +43,12 @@ export class AutomationToolN3DGUI implements Node3DGUI {
 
         // Input and output
         function createOutput(name: string, type:"rect"|"sphere", position: Vector3, color: Color4): AbstractMesh {
-            const sphere = type=="rect" ? B.CreateGoldberg(name,{size:1},context.scene) : B.CreateSphere(name, { diameter: 0.5 }, context.scene)
-            sphere.material = context.materialMat
-            sphere.parent = that.root
-            sphere.position.copyFrom(position)
-            T.MeshUtils.setColor(sphere, color)
-            return sphere
+            const mesh = type=="rect" ? T.ConnectableUtils.createInputMesh(name, 1, context.scene) : T.ConnectableUtils.createOutputMesh(name, 0.5, context.scene)
+            mesh.material = context.materialMat
+            mesh.parent = that.root
+            mesh.position.copyFrom(position)
+            T.MeshUtils.setColor(mesh, color)
+            return mesh
         }
         this.input = createOutput("input", "rect", new Vector3(-0.35-.25, -0.25, 0), T.AutomationN3DConnectable.Color.toColor4())
         this.output = createOutput("output", "sphere", new Vector3(0.35-.25, -0.25, 0), T.AutomationN3DConnectable.Color.toColor4())
