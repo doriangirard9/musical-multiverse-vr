@@ -125,10 +125,11 @@ export class NewApp {
 
                 const serialized = Serialization.getInstance().save([nearest])
 
-                console.log(JSON.stringify(serialized))
+                localStorage.setItem("saved",JSON.stringify(serialized))
+                alert("Saved")
             }
             else if(e.key=="m"){
-                const str = prompt("Write your state"); if(!str) return
+                const str = localStorage.getItem("saved"); if(!str) return
                 const serialized = JSON.parse(str)
                 await Serialization.getInstance().load(serialized)
             }
