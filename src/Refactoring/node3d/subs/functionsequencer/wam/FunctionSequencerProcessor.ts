@@ -36,7 +36,7 @@ class Kernel implements FunctionKernel{
             if(
                 p.config==undefined ||
                 p.id==undefined ||
-                ids.has(p.id) ||
+                ids.has(p.id)
             ) return []
 
             // Choices
@@ -46,7 +46,6 @@ class Kernel implements FunctionKernel{
                 p.config.minValue = 0
                 p.config.discreteStep = 1
                 p.config.exponent = 1
-                p.config.
             }
             else if(p.config.type=="boolean"){
                 p.config.maxValue = 1

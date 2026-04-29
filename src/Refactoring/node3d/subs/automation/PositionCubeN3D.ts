@@ -1,11 +1,9 @@
-import { AbstractMesh, Color4, Observer, Quaternion, TransformNode, Vector3 } from "@babylonjs/core";
+import type { AbstractMesh, Color4, Observer, Quaternion, TransformNode, Vector3 } from "@babylonjs/core";
 import type { Node3D, Node3DFactory, Node3DGUI } from "../../Node3D";
 import type { Node3DContext } from "../../Node3DContext";
 import type { Node3DGUIContext } from "../../Node3DGUIContext";
-import { InputManager } from "../../../xr/inputs/InputManager";
-import { AutomationN3DConnectable } from "../../tools";
-import { ControllerInput } from "../../../xr/inputs/ControllerInput";
-import { InputPressBehavior } from "../../../xr/inputs/tools/InputPressBehavior";
+import type { AutomationN3DConnectable } from "../../tools";
+import type { ControllerInput } from "../../../xr/inputs/ControllerInput";
 
 // Constantes pour l'espace normalisé 1x1x1
 const EDGE_THICKNESS = 0.01
@@ -68,9 +66,9 @@ export class PositionCubeN3DGUI implements Node3DGUI {
             return mesh
         }
         this.axes = [
-            line(new Vector3(-0.5, 0, 0), new Vector3(1, 0, 0), new Color4(1, 0, 0, 1)), // X
-            line(new Vector3(0, -0.5, 0), new Vector3(0, 1, 0), new Color4(0, 1, 0, 1)), // Y
-            line(new Vector3(0, 0, -0.5), new Vector3(0, 0, 1), new Color4(0, 0, 1, 1))  // Z
+            line(new B.Vector3(-0.5, 0, 0), new B.Vector3(1, 0, 0), new B.Color4(1, 0, 0, 1)), // X
+            line(new B.Vector3(0, -0.5, 0), new B.Vector3(0, 1, 0), new B.Color4(0, 1, 0, 1)), // Y
+            line(new B.Vector3(0, 0, -0.5), new B.Vector3(0, 0, 1), new B.Color4(0, 0, 1, 1))  // Z
         ]
 
         // Create cursor point
@@ -89,9 +87,9 @@ export class PositionCubeN3DGUI implements Node3DGUI {
             return sphere
         }
         this.outputs = [
-            createOutput("position_output_x", new Vector3(.55, -.5, -0.25), new Color4(0.6, 0, 0, 1)), // X
-            createOutput("position_output_y", new Vector3(.55, -.5, 0), new Color4(0, 0.6, 0, 1)), // Y
-            createOutput("position_output_z", new Vector3(.55, -.5, 0.25), new Color4(0, 0, 0.6, 1))  // Z
+            createOutput("position_output_x", new B.Vector3(.55, -.5, -0.25), new B.Color4(0.6, 0, 0, 1)), // X
+            createOutput("position_output_y", new B.Vector3(.55, -.5, 0), new B.Color4(0, 0.6, 0, 1)), // Y
+            createOutput("position_output_z", new B.Vector3(.55, -.5, 0.25), new B.Color4(0, 0, 0.6, 1))  // Z
         ]
 
         this.set(.5,.5,.5)
@@ -102,8 +100,8 @@ export class PositionCubeN3DGUI implements Node3DGUI {
 
         const end = base.add(direction)
         const line = B.CreateBox("line",{width:EDGE_THICKNESS, height:1, depth:EDGE_THICKNESS}, this.context.scene)
-        line.position = Vector3.Center(base,end)
-        line.rotationQuaternion = Quaternion.FromUnitVectorsToRef(Vector3.Up(), direction, new Quaternion())
+        line.position = B.Vector3.Center(base,end)
+        line.rotationQuaternion = B.Quaternion.FromUnitVectorsToRef(B.Vector3.Up(), direction, new B.Quaternion())
         return line
     }
 
@@ -115,10 +113,10 @@ export class PositionCubeN3DGUI implements Node3DGUI {
             return [line(base, y), line(base.add(x), y), line(base.add(z), y), line(base.add(x).add(z), y)]
         }
 
-        const base = new Vector3(-width/2, -height/2, -depth/2)
-        const vx = new Vector3(width, 0, 0)
-        const vy = new Vector3(0, height, 0)
-        const vz = new Vector3(0, 0, depth)
+        const base = new B.Vector3(-width/2, -height/2, -depth/2)
+        const vx = new B.Vector3(width, 0, 0)
+        const vy = new B.Vector3(0, height, 0)
+        const vz = new B.Vector3(0, 0, depth)
         
         const meshes = [ ...line4(base, vx, vy, vz), ...line4(base, vy, vz, vx), ...line4(base, vz, vx, vy) ]
         return B.Mesh.MergeMeshes(meshes, true)!!
@@ -143,8 +141,9 @@ export class PositionCubeN3DGUI implements Node3DGUI {
     }
 
     localize(target: Vector3): boolean{
+        const { babylon: B } = this.context
         if(this.edges.getBoundingInfo().intersectsPoint(target)){
-            Vector3.TransformCoordinatesToRef(target, this.root.getWorldMatrix().clone().invert()!!, target)
+            B.Vector3.TransformCoordinatesToRef(target, this.root.getWorldMatrix().clone().invert()!!, target)
             target.addInPlaceFromFloats(0.5, 0.5, 0.5)
             return true
         }
@@ -161,8 +160,6 @@ export class PositionCubeN3D implements Node3D {
 
     constructor(context: Node3DContext, private gui: PositionCubeN3DGUI) {
         const { tools: T } = context
-        const inputs = InputManager.getInstance()
-
         // Hitbox sur la base
         context.addToBoundingBox(gui.base)
 
@@ -183,7 +180,7 @@ export class PositionCubeN3D implements Node3D {
         // Détection de position (trigger requis)
         let firstController: ControllerInput | null = null
         let lastObserver: Observer<any> | null = null
-        const press = new InputPressBehavior(
+        const press = new T.InputPressBehavior(
             controller=>{
                 if(firstController==null){
                     firstController = controller

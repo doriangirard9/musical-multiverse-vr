@@ -10,7 +10,7 @@ import { parallel } from "../utils/utils.ts";
 import { UIManager } from "./UIManager.ts";
 import { NetworkManager } from "../network/NetworkManager.ts";
 import { PlayerManager } from "./PlayerManager.ts";
-import { ConnectionManager } from "../iomanager/ConnectionManager.ts";
+import { ConnectionManager } from "./ConnectionManager.ts";
 import { N3DRendering } from "../node3d/instance/utils/N3DRendering.ts";
 import { InputVisualPointer } from "../xr/inputs/tools/InputVisualPointer.ts";
 import { Serialization } from "./Serialization.ts";
@@ -125,10 +125,11 @@ export class NewApp {
 
                 const serialized = Serialization.getInstance().save([nearest])
 
-                console.log(JSON.stringify(serialized))
+                localStorage.setItem("saved",JSON.stringify(serialized))
+                alert("Saved")
             }
             else if(e.key=="m"){
-                const str = prompt("Write your state"); if(!str) return
+                const str = localStorage.getItem("saved"); if(!str) return
                 const serialized = JSON.parse(str)
                 await Serialization.getInstance().load(serialized)
             }

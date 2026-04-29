@@ -17,7 +17,7 @@ export class OscillatorN3DGUI implements Node3DGUI{
 
         this.root = new B.TransformNode("test root", context.scene)
 
-        this.audioOutput = B.CreateSphere("test button", {diameter:.5}, context.scene)
+        this.audioOutput = T.ConnectableUtils.createOutputMesh("test button", .5, context.scene)
         T.MeshUtils.setColor(this.audioOutput, new B.Color4(1,0,0,1))
         this.audioOutput.parent = this.root
         this.audioOutput.position.set(0.75,-.25,0)

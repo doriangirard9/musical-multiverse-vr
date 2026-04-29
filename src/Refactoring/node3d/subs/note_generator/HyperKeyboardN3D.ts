@@ -1,11 +1,10 @@
-import type { AbstractMesh, Observer, TransformNode } from "@babylonjs/core";
+import type { AbstractMesh, TransformNode } from "@babylonjs/core";
 import type { Node3D, Node3DFactory, Node3DGUI } from "../../Node3D";
 import type { Node3DContext } from "../../Node3DContext";
 import type { Node3DGUIContext } from "../../Node3DGUIContext";
-import { InputManager } from "../../../xr/inputs/InputManager";
-import { AutomationN3DConnectable, MidiN3DConnectable } from "../../tools";
-import { InputHoverBehavior } from "../../../xr/inputs/tools/InputHoverBehavior";
-import { InputMultiPressBehavior } from "../../../xr/inputs/tools/InputMultiPressBehavior";
+import type { AutomationN3DConnectable, MidiN3DConnectable } from "../../tools";
+import type { InputHoverBehavior } from "../../../xr/inputs/tools/InputHoverBehavior";
+import type { InputMultiPressBehavior } from "../../../xr/inputs/tools/InputMultiPressBehavior";
 
 
 
@@ -189,19 +188,18 @@ export class HyperKeyboardN3D implements Node3D {
 
     constructor(context: Node3DContext, private gui: HyperKeyboardN3DGUI) {
         const { tools: T } = context
-        const inputs = InputManager.getInstance()
 
         // Hitbox
         context.addToBoundingBox(gui.base)
 
         // Keys
         gui.forKeys((x, y, z, key) => {
-            const hover = new InputHoverBehavior(
+            const hover = new T.InputHoverBehavior(
                 () =>  this.setHighlighted(x, y, z, true),
                 () => this.setHighlighted(x, y, z, false),
             )
 
-            const press = new InputMultiPressBehavior(
+            const press = new T.InputMultiPressBehavior(
                 () => this.set(x, y, z, true),
                 () => this.set(x, y, z, false),
             )

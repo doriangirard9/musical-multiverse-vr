@@ -129,11 +129,11 @@ export namespace MidiN3DConnectable{
         private callback = (old:WamNode|null, now:WamNode|null) => {
             if(old) {
                 this.wamNode.disconnectEvents(old.instanceId)
-                window.WAMExtensions.notes?.addMapping(this.wamNode.instanceId)
+                ;(window as any).WAMExtensions.notes?.addMapping(this.wamNode.instanceId)
             }
             if(now) {
                 this.wamNode.connectEvents(now.instanceId)
-                window.WAMExtensions.notes?.addMapping(this.wamNode.instanceId, [now.instanceId])
+                ;(window as any).WAMExtensions.notes?.addMapping(this.wamNode.instanceId, [now.instanceId])
             }
         }
 
@@ -215,13 +215,13 @@ export namespace MidiN3DConnectable{
                 (n) => {
                     if(this._wamNode) {
                         this._wamNode.connectEvents(n.instanceId)
-                        window.WAMExtensions.notes?.addMapping(this._wamNode.instanceId, [n.instanceId])
+                        ;(window as any).WAMExtensions.notes?.addMapping(this._wamNode.instanceId, [n.instanceId])
                     }
                 },
                 (n) => {
                     if(this._wamNode) {
                         this._wamNode.disconnectEvents(n.instanceId)
-                        window.WAMExtensions.notes?.addMapping(this._wamNode.instanceId)
+                        ;(window as any).WAMExtensions.notes?.addMapping(this._wamNode.instanceId)
                     }
                 }
             )

@@ -132,6 +132,7 @@ export class FunctionSequencerN3DGUI implements Node3DGUI {
         this.root = new TransformNode("FunctionSequencerGUI", context.scene)
     }
 
+    /**
     // Create UI
     ui: RemoteUIBuilder = new RemoteUIBuilder(RemoteUI.
     setUI(){
@@ -140,7 +141,7 @@ export class FunctionSequencerN3DGUI implements Node3DGUI {
 
     async dispose() {
         this.root.dispose()
-    }
+    } */
 }
 
 /**

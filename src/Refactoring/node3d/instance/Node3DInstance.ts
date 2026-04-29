@@ -30,6 +30,7 @@ import { ShakeBehavior } from "../../behaviours/ShakeBehavior.ts";
 import { NetworkManager } from "../../network/NetworkManager.ts";
 import { N3DButtonInstance } from "./N3DButtonInstance.ts";
 import { SceneManager } from "../../app/SceneManager.ts";
+import { InputManager } from "../../xr/inputs/InputManager.ts";
 
 export class Node3DInstance implements Synchronized {
 
@@ -90,6 +91,7 @@ export class Node3DInstance implements Synchronized {
             audioEngine: this.shared.audioEngine,
             groupId: this.shared.groupId,
             tools,
+            inputs: InputManager.getInstance(),
 
             // Le nom du wam
             setLabel(label: string) {
@@ -354,6 +356,7 @@ export class Node3DInstance implements Synchronized {
             async create(_, __, kind) { return (await audioManager.builder.create(kind)) as Node3DInstance },
             async on_remove(instance) { await instance.dispose() },
         })
+        // syncmanager.add(node_id,node,kind)
         return syncmanager
     }
 }

@@ -3,8 +3,8 @@ import { N3DConnectableInstance } from "../node3d/instance/N3DConnectableInstanc
 import { NetworkManager } from "../network/NetworkManager.ts";
 import { RandomUtils } from "../node3d/tools/utils/RandomUtils.ts";
 import { N3DConnectionInstance } from "../node3d/instance/N3DConnectionInstance.ts";
-import { SceneManager } from "../app/SceneManager.ts";
-import { UIManager } from "../app/UIManager.ts";
+import { SceneManager } from "./SceneManager.ts";
+import { UIManager } from "./UIManager.ts";
 import { VisualTube } from "../visual/VisualTube.ts";
 
 export class ConnectionManager {

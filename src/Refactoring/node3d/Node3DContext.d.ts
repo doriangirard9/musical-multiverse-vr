@@ -2,6 +2,7 @@ import * as BABYLON from "@babylonjs/core";
 import { Node3DParameter } from "./Node3DParameter";
 import { Node3DConnectable } from "./Node3DConnectable";
 import { Node3DButton } from "./Node3DButton";
+import { InputManager } from "../xr/inputs/InputManager";
 
 
 
@@ -29,6 +30,11 @@ export interface Node3DContext{
      * Le moteur audio de babylon.js.
      */
     readonly audioEngine: BABYLON.AudioEngineV2
+
+    /**
+     * Le gestionnaire d'inputs du WAM Jam.
+     */
+    readonly inputs: InputManager
 
     /**
      * Le group id du host Web Audio Module.

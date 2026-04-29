@@ -5,7 +5,6 @@ import type { Node3DContext } from "../Node3DContext";
 import { AbstractMesh } from "@babylonjs/core";
 import { WamDescriptor } from "@webaudiomodules/api";
 
-
 class Wam3DGeneratorN3DGui implements Node3DGUI{
 
     root
@@ -51,6 +50,7 @@ class Wam3DGeneratorN3D implements Node3D{
 
         let count = 0
         gui.wam_generator.dispose()
+
         gui.wam_generator = await WamGUIGenerator.create_and_init({
             babylonjs:{
                 root: gui.root,
@@ -69,6 +69,7 @@ class Wam3DGeneratorN3D implements Node3D{
                 },
                 defineAnInput(settings) {
                     count++
+                    let target = settings.target
                     context.createConnectable(new T.AudioN3DConnectable.Input(
                         `audioinput${count}`,
                         settings.target,

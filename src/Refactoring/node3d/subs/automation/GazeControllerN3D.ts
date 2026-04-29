@@ -1,9 +1,8 @@
-import { AbstractMesh, Color4, TransformNode } from "@babylonjs/core";
+import type { AbstractMesh, Color4, TransformNode } from "@babylonjs/core";
 import type { Node3D, Node3DFactory, Node3DGUI } from "../../Node3D";
 import type { Node3DContext } from "../../Node3DContext";
 import type { Node3DGUIContext } from "../../Node3DGUIContext";
 import type { AutomationN3DConnectable } from "../../tools";
-import { InputManager } from "../../../xr/inputs/InputManager";
 import { usingWith } from "../../../utils/utils";
 
 
@@ -88,19 +87,20 @@ export class GazeControllerN3D implements Node3D {
 
     updateValue(){
         const {tools:T} = this.context
+        const B = this.gui.context.babylon
 
         if(this.isGaze) {
             this.output.value = this.enabledValue
-            T.MeshUtils.setColor(this.gui.eye, new Color4(0, 1, 0, 1))
+            T.MeshUtils.setColor(this.gui.eye, new B.Color4(0, 1, 0, 1))
         }
         else {
             this.output.value = this.disabledValue
-            T.MeshUtils.setColor(this.gui.eye, new Color4(1, 0, 0, 1))
+            T.MeshUtils.setColor(this.gui.eye, new B.Color4(1, 0, 0, 1))
         }
     }
 
     constructor(private context: Node3DContext, private gui: GazeControllerN3DGUI) {
-        const { tools: T } = context
+        const { tools: T, inputs } = context
         const that = this
 
         // Hitbox
@@ -149,7 +149,7 @@ export class GazeControllerN3D implements Node3D {
         gui.disabledRotator.rotation.y = 0 * Math.PI - Math.PI/2
 
         // Gaze
-        const o = InputManager.getInstance().head.onNewTarget.add(e => {
+        const o = inputs.head.onNewTarget.add(e => {
             if(e.targetMesh === gui.eye){
                 if(!this.isGaze){
                     this.isGaze = true
