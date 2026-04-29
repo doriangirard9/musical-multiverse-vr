@@ -143,6 +143,10 @@ export namespace SynxN3DConnectable {
             readonly container: Container,
         ) { }
 
+        get max_connections() { return 1 }
+
+        get direction() { return "input" as "input" }
+
         get type() { return "sync" }
 
         get color() { return SynxN3DConnectable.Color }

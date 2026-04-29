@@ -1,4 +1,3 @@
-import { CreateAudioEngineAsync } from "@babylonjs/core";
 import {NewApp} from "./Refactoring/app/NewApp.ts";
 
 // Filter out spammy wam3dgenerator console logs (memory allocation logs)
@@ -25,6 +24,14 @@ console.log = function(...args: any[]) {
  * Un objet doit implémenter Synchronized pour pouvoir être synchronisé. Le SyncManager est un genre
  * de registre qui permet de gérer les objets synchronisés. Quand un objet y est ajouté, il est automatique synchronisé, quand
  * un objet y est supprimé, il est désynchronisé.
+ * 
+ * ## Structure
+ * Les différentes parties du problème sont gérés par des services différents accessibles statiquements.
+ * - Node3DManager: Gère les Node3D (connections et node), leur ajout à la scène, leur suppression de la scène, leur synchronisation.
+ * - SceneManager: Gère la création de la scène babylonjs
+ * - Node3DBuilder: Gère les Node3DFactories, qui permettent d'instantier des Node3D. Les associe à leur identifiant pour pouvoir les instancier à partir de leur identifiant.
+ * - 
+ * 
  */
 
 

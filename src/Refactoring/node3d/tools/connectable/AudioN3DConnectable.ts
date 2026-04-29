@@ -37,6 +37,8 @@ export namespace AudioN3DConnectable{
 
         get color(){ return Color }
 
+        get direction(){ return "input" as "input" }
+
         connectAsInput(): AudioN3DConnection {
             const that = this
             return {

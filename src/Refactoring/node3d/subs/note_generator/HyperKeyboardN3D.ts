@@ -80,9 +80,9 @@ export class HyperKeyboardN3DGUI implements Node3DGUI {
             return mesh
         })
 
-        T.MeshUtils.setColor(this.outputs[0], T.MidiN3DConnectable.OutputColor.toColor4())
-        T.MeshUtils.setColor(this.outputs[1], T.AutomationN3DConnectable.OutputColor.toColor4())
-        T.MeshUtils.setColor(this.outputs[2], T.AutomationN3DConnectable.OutputColor.toColor4())
+        T.MeshUtils.setColor(this.outputs[0], T.MidiN3DConnectable.Color.toColor4())
+        T.MeshUtils.setColor(this.outputs[1], T.AutomationN3DConnectable.Color.toColor4())
+        T.MeshUtils.setColor(this.outputs[2], T.AutomationN3DConnectable.Color.toColor4())
 
     }
 

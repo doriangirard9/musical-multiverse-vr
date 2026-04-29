@@ -4,6 +4,17 @@ import { AbstractMesh, Color3 } from "@babylonjs/core"
 
 /**
  * Un objet connectable (entrée ou sortie) d'un Node3D, connectable à une sortie d'un autre Node3D.
+ * 
+ * La création et suppression d'une connexion s'effectuent comme suit:
+ * ```ts
+ *  // A la connexion
+ *  const connection = input.connectAsInput()
+ *  output.connectAsOutput(connection)
+ * 
+ *  // A la déconnexion
+ *  input.disconnectAsInput(connection)
+ *  output.disconnectAsOutput(connection)
+ * ```
  */
 export interface Node3DConnectable{
 

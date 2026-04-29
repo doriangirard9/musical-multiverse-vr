@@ -64,12 +64,12 @@ export class WamSamplerN3DGUI implements Node3DGUI {
 
   private _createPorts() {
     // MIDI Input (left)
-    this.midiInput = B.CreateIcoSphere(
+    this.midiInput = B.CreateGoldberg(
       "sampler midi input",
-      { radius: 2 },
+      { size: 4 },
       this.context.scene
     );
-    this.tool.MeshUtils.setColor(this.midiInput, MidiN3DConnectable.InputColor.toColor4());
+    this.tool.MeshUtils.setColor(this.midiInput, MidiN3DConnectable.Color.toColor4());
     const halfW = (this.block.getBoundingInfo().boundingBox.extendSize.x);
     this.midiInput.position.set(-halfW - 1.5, this.block.position.y, this.block.position.z);
     this.midiInput.scaling.setAll(0.7);
@@ -81,8 +81,8 @@ export class WamSamplerN3DGUI implements Node3DGUI {
       { radius: 2 },
       this.context.scene
     );
-    // Use OutputColor for visual consistency (even if it's audio, not MIDI)
-    this.tool.MeshUtils.setColor(this.audioOutput, MidiN3DConnectable.OutputColor.toColor4());
+    // Use Color for visual consistency (even if it's audio, not MIDI)
+    this.tool.MeshUtils.setColor(this.audioOutput, MidiN3DConnectable.Color.toColor4());
     this.audioOutput.position.set(+halfW + 1.5, this.block.position.y, this.block.position.z);
     this.audioOutput.scaling.setAll(0.7);
     this.audioOutput.parent = this.root;

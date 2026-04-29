@@ -73,7 +73,7 @@ export class LivePianoN3DGUI implements Node3DGUI{
         }
 
         this.output = B.CreateSphere("live piano output", {diameter: base_height*2.8}, this.root.getScene())
-        T.MeshUtils.setColor(this.output, T.MidiN3DConnectable.OutputColor.toColor4())
+        T.MeshUtils.setColor(this.output, T.MidiN3DConnectable.Color.toColor4())
         this.output.parent = this.root
         this.output.position.x = .5+base_height*1.4
 

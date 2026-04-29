@@ -31,7 +31,7 @@ export class MaracasN3DGUI implements Node3DGUI{
         this.base.position.set(0,-.4,0)
 
         this.output = B.CreateSphere("test button", {diameter:.5}, context.scene)
-        T.MeshUtils.setColor(this.output, T.MidiN3DConnectable.OutputColor.toColor4())
+        T.MeshUtils.setColor(this.output, T.MidiN3DConnectable.Color.toColor4())
         this.output.parent = this.root
         this.output.position.set(.6,-.4,0)
     }

@@ -268,20 +268,20 @@ class PianoRollN3DGUI implements Node3DGUI {
 
     this.midiOutput = B.CreateIcoSphere(
       "piano roll midi output",
-      { radius: this.buttonWidth * 2 },
+      { radius: this.buttonWidth },
       this.context.scene
     );
-    this.tool.MeshUtils.setColor(this.midiOutput, MidiN3DConnectable.OutputColor.toColor4());
-    this.midiOutput.position.set(baseLength, baseY, baseZ + 1);
+    this.tool.MeshUtils.setColor(this.midiOutput, MidiN3DConnectable.Color.toColor4());
+    this.midiOutput.position.set(baseLength, baseY, baseZ);
     this.midiOutput.scaling.setAll(0.5);
     this.midiOutput.parent = this.root;
 
-    this.midiInput = B.CreateIcoSphere(
+    this.midiInput = B.CreateGoldberg(
       "piano roll midi input",
-      { radius: this.buttonWidth * 2 },
+      { size: this.buttonWidth*2 },
       this.context.scene
     );
-    this.tool.MeshUtils.setColor(this.midiInput, MidiN3DConnectable.InputColor.toColor4());
+    this.tool.MeshUtils.setColor(this.midiInput, MidiN3DConnectable.Color.toColor4());
     this.midiInput.position.set(-baseLength - this.buttonWidth, baseY, baseZ);  // Position on opposite side
     this.midiInput.scaling.setAll(0.5);
     this.midiInput.parent = this.root;

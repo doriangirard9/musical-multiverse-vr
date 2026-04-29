@@ -83,7 +83,7 @@ export class VoiceVolumeControllerN3DGUI implements Node3DGUI {
             output.parent = that.root
             output.position.set(0.75, -0.25, position)
             output.material = context.materialMat
-            T.MeshUtils.setColor(output, T.AutomationN3DConnectable.OutputColor.toColor4())
+            T.MeshUtils.setColor(output, T.AutomationN3DConnectable.Color.toColor4())
             return output
         }
         this.volume = createOutput("voice controller volume output", -.25)
