@@ -26,6 +26,8 @@ import { N3DRendering } from "../node3d/instance/utils/N3DRendering.ts";
 import { AbstractMesh, CreatePlane, Vector4, VertexBuffer } from "@babylonjs/core";
 import { TextureAtlas } from "../utils/atlas.ts";
 import { AutoDispose } from "../utils/auto_dispose.ts";
+import { SwarmThereminN3DFactory } from "../node3d/subs/SwarmThereminN3D.ts";
+import { AudioPlaqueN3DFactory } from "../node3d/subs/automation/AudioPlaqueN3D.ts";
 
 
 
@@ -43,8 +45,8 @@ export class Node3DBuilder {
      * Some of the valid kinds of Node3D.
      */
     FACTORY_KINDS = [
-        "audiooutput", "oscillator", "maracas", "livepiano", "notesbox","pianoroll", "drumkit", "pro54michel",
-        "hyperkeyboard", "drumplatekit", "automation_controller", "the_cube", "harp", "large_harp", "voice", "gaze", "sequencer",
+        "audiooutput", "oscillator", "maracas", "livepiano", "notesbox","pianoroll", "drumkit", "pro54michel","swarmtheremin",
+        "hyperkeyboard", "drumplatekit", "automation_controller", "the_cube", "harp", "large_harp", "voice", "gaze", "sequencer", "audio_plaque",
         ...Object.keys(examples).map(k => `wam3d-${k}`),
         ...Object.keys(additionalConfig).map(k=>`add-`+k)
     ]
@@ -84,6 +86,8 @@ export class Node3DBuilder {
         }
 
         // Builtin
+        if(kind=="audio_plaque") return AudioPlaqueN3DFactory;
+        if(kind=="swarmtheremin") return SwarmThereminN3DFactory;
         if(kind=="audiooutput") return SpeakerN3DFactory
         if(kind=="sequencer") return SequencerN3DFactory
         if(kind=="oscillator") return OscillatorN3DFactory

@@ -22,6 +22,8 @@
     {
       "name": "Instruments",
         "plugins": [
+          { "name": "Swarm Theremin", "kind": "swarmtheremin" },
+          { "name": "Audio Plaque", "kind": "audio_plaque" },
           { "name": "Flute", "kind": "wam3d-Faust Flute" },
           { "name": "Guitar", "kind": "wam3d-FAUST Guitar" },
           { "name": "Modal", "kind": "wam3d-Modal" },
