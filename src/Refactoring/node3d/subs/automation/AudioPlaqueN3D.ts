@@ -1,19 +1,19 @@
-import { AbstractMesh, Color3, Observer, StandardMaterial, TransformNode, Vector3 } from "@babylonjs/core";
+import { AbstractMesh, Color3, StandardMaterial, TransformNode, Vector3 } from "@babylonjs/core";
 import { GridMaterial } from "@babylonjs/materials";
 import type { Node3D, Node3DFactory, Node3DGUI, Serializable } from "../../Node3D";
 import type { Node3DContext } from "../../Node3DContext";
 import type { Node3DGUIContext } from "../../Node3DGUIContext";
 import { SteeringVehicle } from "../../../behaviours/steering/SteeringVehicle";
-import { InputPressBehavior } from "../../../xr/inputs/tools/InputPressBehavior";
-import { ControllerInput } from "../../../xr/inputs/ControllerInput";
+import { InputManager } from "../../../xr/inputs/InputManager";
 
 // ─── GUI (pure visuals + coordinate helper) ───────────────────────────────────
 
 export class AudioPlaqueN3DGUI implements Node3DGUI {
     root!: TransformNode;
-    worldSize = 2;
+    worldSize = 3;  // scaled to 3 * 0.2 = 0.6 world units
 
     plaque!: AbstractMesh;
+    handle!: AbstractMesh;  // the grabbing handle — this is what goes in the bounding box
 
     // The ball is split into two objects:
     //   ballRoot  — a TransformNode that SteeringVehicle moves (no collision physics)
@@ -26,12 +26,33 @@ export class AudioPlaqueN3DGUI implements Node3DGUI {
 
         this.root = new B.TransformNode("audio_plaque_root", context.scene);
 
+        // ── Backing handle (what the bounding box wraps) ──────────────────────
+        //
+        // WHY this exists:
+        //   Node3DInstance.updateBoundingBoxNow() creates a pickable invisible box
+        //   that exactly fits whatever mesh you pass to addToBoundingBox().
+        //   That outer box intercepts ALL controller rays before they reach the plaque.
+        //
+        //   The fix (same pattern as PositionCubeN3D, which puts its base plate at
+        //   y=-0.6 so its interactive cube sticks out above the bounding box):
+        //   we put a small backing plate BEHIND the plaque (at +Z, away from player).
+        //   The bounding box wraps the handle. The plaque protrudes in front and is
+        //   directly hittable by controller rays.
+        this.handle = B.MeshBuilder.CreateBox("plaque_handle", {
+            width: 0.8, height: 0.8, depth: 0.04,
+        }, context.scene);
+        this.handle.parent   = this.root;
+        this.handle.position.set(0, 0, 0.15);   // behind the plaque surface
+        this.handle.material = context.materialMat;
+        this.handle.isPickable = false;
+
         // ── Surface: 1×1 plane with a teal GridMaterial ──────────────────────
         this.plaque = B.MeshBuilder.CreatePlane("audio_plaque", {
             size: 1,
             sideOrientation: 2   // BABYLON.Mesh.DOUBLESIDE
         }, context.scene);
         this.plaque.parent = this.root;
+        this.plaque.isPickable = true;  // must stay true — controller rays need to hit this
 
         const gridMat = new GridMaterial("plaque_grid", context.scene);
         gridMat.majorUnitFrequency  = 5;
@@ -109,93 +130,82 @@ export class AudioPlaqueN3DGUI implements Node3DGUI {
 export class AudioPlaqueN3D implements Node3D {
 
     // The position the ball steers toward, in plaque local space.
-    // (0, 0, 0) = centre.  Updated by XR controller in Step 3.
+    // (0, 0, 0) = centre.  Updated every frame by whichever controller is active.
     public targetPos = new Vector3(0, 0, 0);
 
     private vehicle!: SteeringVehicle;
-    private cleanups: { remove(): void }[] = [];
 
     constructor(context: Node3DContext, private gui: AudioPlaqueN3DGUI) {
-        context.addToBoundingBox(gui.plaque);
+        context.addToBoundingBox(gui.handle);
+        context
 
-        // ── Step 2: Steering vehicle on the ball's TransformNode ──────────────
-        //
-        // SteeringVehicle.position === gui.ballRoot.position (same Vector3 ref),
-        // so all arrive/seek math runs in the plaque's local coordinate space.
-        // Because ballRoot is a TransformNode (not a Mesh), SteeringVehicle.update()
-        // uses  position.addInPlace(velocity * dt)  instead of moveWithCollisions,
-        // which lets us fully control where the ball can go.
+        // ── Steering vehicle on the ball's TransformNode ──────────────────────
         this.vehicle = new SteeringVehicle(gui.ballRoot);
-        this.vehicle.maxSpeed      = 1.5;   // units/sec in local space
+        this.vehicle.maxSpeed      = 1.5;
         this.vehicle.maxForce      = 8.0;
-        this.vehicle.slowingRadius = 0.25;  // start slowing 25% of plaque width from target
+        this.vehicle.slowingRadius = 0.25;
 
-        const scene = gui.root.getScene();
+        const scene  = gui.root.getScene();
+        const inputs = InputManager.getInstance();
 
-        // Per-frame physics update — auto-removed when this Node3D is disposed
+        // ── Per-frame update — auto-removed when this Node3D is disposed ──────
         context.observe(scene.onBeforeRenderObservable, () => {
             const dt = Math.min(scene.getEngine().getDeltaTime() / 1000.0, 0.1);
             if (dt <= 0) return;
 
+            // ── Controller → targetPos ────────────────────────────────────────
+            //
+            // WHY we don't use InputPressBehavior here:
+            //   InputPressBehavior requires the controller ray to be pointing AT
+            //   the plaque mesh at the exact moment the trigger is pressed.
+            //   With the Immersive Web Emulator (and often in real VR too) the ray
+            //   is rarely aligned precisely with the small plaque, so onDown never
+            //   fires reliably.
+            //
+            // Instead we poll trigger.isPressed() directly every render frame:
+            //
+            //   • XR controllers (right / left):
+            //       Hold trigger → your hand position is projected onto the plaque.
+            //       No ray-aiming required — move your hand anywhere in space,
+            //       the ball maps from your hand's world position.
+            //
+            //   • Screen controller (mouse / Immersive Web Emulator desktop mode):
+            //       Left-click on the plaque surface and drag.
+            //       Uses the ray hit point on the plaque (pointer.target),
+            //       so the ball follows exactly where the cursor lands.
+
+            let driven = false;
+
+            // XR: right controller takes priority, then left
+            for (const controller of [inputs.right, inputs.left]) {
+                if (controller.trigger.isPressed()) {
+                    this.targetPos.copyFrom(gui.projectOntoPlaque(controller.pointer.origin));
+                    driven = true;
+                    break;
+                }
+            }
+
+            // Mouse / emulator fallback: only when cursor is on the plaque surface
+            if (!driven
+                && inputs.screen.trigger.isPressed()
+                && inputs.screen.pointer.hit
+                && inputs.screen.pointer.targetMesh === gui.plaque) {
+                this.targetPos.copyFrom(gui.projectOntoPlaque(inputs.screen.pointer.target));
+            }
+
+            // ── Steering physics ──────────────────────────────────────────────
             this.vehicle.applyBehavior("Arrive", { position: this.targetPos });
             this.vehicle.update(dt);
 
-            // Constrain to the plaque's XY plane after each physics step:
-            //   • zero Z velocity so it never drifts off the surface
-            //   • clamp XY to the plaque bounds [-0.5, +0.5]
+            // Pin to the plaque's XY plane — zero Z drift, clamp to bounds
             this.vehicle.velocity.z = 0;
             gui.ballRoot.position.z = 0;
             gui.ballRoot.position.x = Math.max(-0.5, Math.min(0.5, gui.ballRoot.position.x));
             gui.ballRoot.position.y = Math.max(-0.5, Math.min(0.5, gui.ballRoot.position.y));
         });
-
-        // ── Step 3: XR controller → targetPos ────────────────────────────────
-        //
-        // InputPressBehavior fires onDown when:
-        //   controller ray is pointing at gui.plaque  AND  trigger is pressed
-        // While active, onMove fires every frame with the controller's live position.
-        //
-        // We only accept the first controller that presses (firstController guard)
-        // to avoid two hands fighting over the same ball.
-        let firstController: ControllerInput | null = null;
-        let lastObserver:    Observer<any>    | null = null;
-
-        const press = new InputPressBehavior(
-            // onDown — controller started pressing while pointing at plaque
-            controller => {
-                if (firstController == null) {
-                    firstController = controller;
-
-                    // Subscribe to this controller's movement.
-                    // e is the PointerInput object itself (it calls notifyObservers(this)).
-                    // e.origin is the controller tip's live world-space Vector3.
-                    lastObserver = controller.pointer.onMove.add(e => {
-                        // Project controller world position → plaque local XY
-                        const projected = gui.projectOntoPlaque(e.origin);
-                        this.targetPos.copyFrom(projected);
-                    });
-                }
-            },
-            // onUp — trigger released or controller stopped pointing at plaque
-            controller => {
-                if (controller === firstController) {
-                    lastObserver?.remove();
-                    lastObserver    = null;
-                    firstController = null;
-                }
-            }
-        );
-
-        gui.plaque.addBehavior(press);
-
-        // Store cleanup so dispose() can detach the behavior cleanly
-        this.cleanups.push({ remove: () => gui.plaque.removeBehavior(press) });
     }
 
-    async dispose() {
-        this.cleanups.forEach(c => c.remove());
-    }
-
+    async dispose() { }
     async getState(_key: string): Promise<Serializable | void> { }
     getStateKeys(): string[] { return []; }
     async setState(_key: string, _value: Serializable | undefined) { }
