@@ -2,9 +2,10 @@ import { Node3DInstance } from "../node3d/instance/Node3DInstance.ts";
 import { RandomUtils } from "../node3d/tools/utils/RandomUtils.ts";
 import { NetworkManager } from "../network/NetworkManager.ts";
 import { Node3DBuilder as Node3DBuilder } from "./Node3DBuilder.ts";
-import { AudioEngineV2, Vector3 } from "@babylonjs/core";
+import { AudioEngineV2, CreateBox, Vector3 } from "@babylonjs/core";
 import { AsyncLoading } from "../world/AsyncLoading.ts";
 import { SceneManager } from "./SceneManager.ts";
+import { HoldableBehaviour } from "../behaviours/boundingBox/HoldableBehaviour.ts";
 
 export class Node3dManager {
 
@@ -29,11 +30,11 @@ export class Node3dManager {
     public async createNode3d(kind: string, position: Vector3, id?: string): Promise<Node3DInstance|null>{
         const nodeId = id ?? RandomUtils.randomID()
         
-        const initfactory = async()=>{
+        const initfactory = (async()=>{
            this.builder.getFactory(kind)
-        }
+        })()
 
-        const spawn = async()=>{
+        const spawnNode3D = initfactory.then(async()=>{
             const node = await this.builder.create(kind)
             if(node instanceof Node3DInstance){
                 node.boundingBoxMesh.setAbsolutePosition(position)
@@ -43,23 +44,39 @@ export class Node3dManager {
             else{
                 throw new Error(`Error while creating Node3D of kind ${kind} with id ${nodeId}: ${node}`)
             }
-        }
+        })
 
-        const createImpostor = async()=>{
+        const spawnImpostor = initfactory.then(async()=>{
             const impostor = await this.builder.createImpostor(kind)
             impostor?.setAbsolutePosition(position)
             return impostor
-        }
+        })
 
         const all = (async()=>{
-            await initfactory()
-            const [impostor,node] = await Promise.allSettled([createImpostor(), spawn()])
+            const [impostor,node] = await Promise.allSettled([spawnImpostor, spawnNode3D])
             if(impostor.status=="fulfilled")impostor.value?.dispose()
             if(node.status=="rejected")throw node.reason
             return node.value
         })()
 
         const {root,promise} = AsyncLoading.create(SceneManager.getInstance().getScene(), all)
+        
+        // Movable bounding box
+        {
+            const bb = CreateBox("bb", {size: 1}, SceneManager.getInstance().getScene())
+            bb.visibility = 0.1
+            bb.addBehavior(new HoldableBehaviour(root))
+            bb.parent = root
+
+            promise.then(n=>{
+                n?.boundingBoxMesh?.setAbsolutePosition(bb.absolutePosition)
+                n?.updatePosition()
+                bb.dispose()
+            })
+        }
+
+        spawnImpostor.then(impostor=> root.addChild(impostor!))
+
         root.setAbsolutePosition(position)
         root.scaling.setAll(0.5)
 
