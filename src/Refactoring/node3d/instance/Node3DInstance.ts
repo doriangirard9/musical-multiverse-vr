@@ -31,6 +31,7 @@ import { NetworkManager } from "../../network/NetworkManager.ts";
 import { N3DButtonInstance } from "./N3DButtonInstance.ts";
 import { SceneManager } from "../../app/SceneManager.ts";
 import { InputManager } from "../../xr/inputs/InputManager.ts";
+import { BoxWave } from "../../world/BoxWave.ts";
 
 export class Node3DInstance implements Synchronized {
 
@@ -168,6 +169,11 @@ export class Node3DInstance implements Synchronized {
             sendSignal(position, red, green, blue) {
                 SceneManager.getInstance().getWaveGround().putWorldSpace(position, red, green, blue)
                 SceneManager.getInstance().getSoundwaveEmitter().spawn(new Vector2(position.x, position.z), new Color3(red, green, blue))
+                const boxWave = new BoxWave(
+                    instance.boundingBoxMesh,
+                    new Color3(red, green, blue).toColor4(1),
+                    1
+                )
             },
 
             getPlayerPosition() {

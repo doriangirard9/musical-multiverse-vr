@@ -34,6 +34,7 @@ export interface Node3DContext{
     /**
      * Le gestionnaire d'inputs du WAM Jam.
      */
+    inputs: InputManager
 
     /**
      * Le group id du host Web Audio Module.
