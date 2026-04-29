@@ -1,4 +1,4 @@
-import { CreateGeodesic, CreateSphere, Mesh } from "@babylonjs/core";
+import { CreateGeodesic, CreateSphere, Mesh, Scene } from "@babylonjs/core";
 
 
 export namespace ConnectableUtils {
@@ -9,8 +9,8 @@ export namespace ConnectableUtils {
      * @param size 
      * @returns A mesh to use as an input connection point.
      */
-    export function createInputMesh(name: string, size: number): Mesh {
-        return CreateGeodesic(name, { size }, null)
+    export function createInputMesh(name: string, size: number, scene: Scene): Mesh {
+        return CreateGeodesic(name, { size }, scene)
     }
 
     /**
@@ -19,7 +19,7 @@ export namespace ConnectableUtils {
      * @param size
      * @returns A mesh to use as an output connection point.
      */
-    export function createOutputMesh(name: string, size: number): Mesh {
-        return CreateSphere(name, { diameter:size }, null)
+    export function createOutputMesh(name: string, size: number, scene: Scene): Mesh {
+        return CreateSphere(name, { diameter:size }, scene)
     }
 }

@@ -356,6 +356,7 @@ export class Node3DInstance implements Synchronized {
             async create(_, __, kind) { return (await audioManager.builder.create(kind)) as Node3DInstance },
             async on_remove(instance) { await instance.dispose() },
         })
+        // syncmanager.add(node_id,node,kind)
         return syncmanager
     }
 }
