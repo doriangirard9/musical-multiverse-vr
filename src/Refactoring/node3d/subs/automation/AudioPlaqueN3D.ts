@@ -137,7 +137,6 @@ export class AudioPlaqueN3D implements Node3D {
 
     constructor(context: Node3DContext, private gui: AudioPlaqueN3DGUI) {
         context.addToBoundingBox(gui.handle);
-        context
 
         // ── Steering vehicle on the ball's TransformNode ──────────────────────
         this.vehicle = new SteeringVehicle(gui.ballRoot);
