@@ -1,7 +1,7 @@
 import * as Y from 'yjs';
 import { SessionAPIClient, JoinResponse } from './SessionAPIClient.ts';
 import { Serialization } from '../app/Serialization.ts';
-import { Node3dManager } from '../app/Node3dManager.ts';
+import { Node3DInstance } from '../node3d/instance/Node3DInstance.ts';
 import { NetworkManager } from './NetworkManager.ts';
 
 export interface SessionConnectionInfo {
@@ -61,33 +61,43 @@ export class SessionConnector {
     async initCRDTState(participantNumber: number, crdtData?: string): Promise<void> {
         const sessionState = this.doc.getMap('session_state');
 
+        console.log(`[SessionConnector] initCRDTState called. Participant #${participantNumber}. Data size: ${crdtData ? crdtData.length : 0} bytes`);
+
         // 2. Protocol logic based on participant number
         if (participantNumber === 1) {
             this.updateLoadingText('Initializing session...');
+            console.log('[SessionConnector] We are participant #1 (Leader). Hydrating state...');
             
             // We are the first. Load CRDT data if it exists.
             if (crdtData) {
                 try {
                     const parsedData = JSON.parse(crdtData);
+                    console.log(`[SessionConnector] CRDT data parsed successfully. Nodes: ${parsedData.nodes?.length || 0}, Connections: ${parsedData.connections?.length || 0}`);
                     
                     // Await the load, then perform the state change in a synchronous transaction
                     await Serialization.getInstance().load(parsedData);
+                    console.log('[SessionConnector] Serialization.load() completed successfully.');
+                    
                     this.doc.transact(() => {
                         sessionState.set('status', 'ready');
                     });
+                    console.log('[SessionConnector] session_state status set to "ready".');
                 } catch (e) {
-                    console.error('[SessionConnector] Failed to parse CRDT data:', e);
+                    console.error('[SessionConnector] Failed to parse/load CRDT data:', e);
                     sessionState.set('status', 'ready'); // Still mark ready so others can join
                 }
             } else {
                 // Empty session
+                console.log('[SessionConnector] No CRDT data provided by server. Starting with an empty session.');
                 sessionState.set('status', 'ready');
             }
         } else {
+            console.log(`[SessionConnector] We are participant #${participantNumber}. Waiting for leader to set ready state...`);
             this.updateLoadingText('Synchronizing with peers...');
             
             // We are NOT the first. Wait for session_state == 'ready'.
             await this.waitForReady(sessionState);
+            console.log('[SessionConnector] Ready state confirmed! Proceeding with synchronization.');
         }
 
         // 3. Start Heartbeat
@@ -165,14 +175,21 @@ export class SessionConnector {
             if (!this.isConnected || !this.participantId) return;
             
             try {
-                // We serialize all nodes in the network
-                const nodes = Array.from(Node3dManager.getInstance().getInstances());
+                // Get all node instances from the network sync manager
+                const network = NetworkManager.getInstance();
+                const nodes: Node3DInstance[] = [];
+                for (const [, instance] of network.node3d.nodes.entries()) {
+                    nodes.push(instance);
+                }
+                
                 if (nodes.length === 0) return; // Don't save empty state aggressively
                 
                 const description = Serialization.getInstance().save(nodes, false);
                 const json = JSON.stringify(description);
                 
+                console.log(`[SessionConnector] Auto-saving ${nodes.length} nodes...`);
                 await this.api.saveCRDT(this.sessionId, this.participantId, json);
+                console.log('[SessionConnector] Auto-save successful.');
             } catch (e) {
                 console.error('[SessionConnector] Auto-save failed:', e);
             }
