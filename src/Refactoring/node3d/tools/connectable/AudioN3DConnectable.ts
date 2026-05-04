@@ -6,10 +6,20 @@ import { Node3DConnectable } from "../../Node3DConnectable";
  */
 export namespace AudioN3DConnectable{
 
+    export const Color = Color3.FromHexString("#00FF00")
 
-    export const InputColor = Color3.FromHexString("#00FF00")
+    /**
+     * Protocol "audio" des connectable.
+     * Connection retournée par DynamicInput.connectAsInput().
+     * Permet aux outputs de s'enregistrer pour être notifiés des changements d'audioNode.
+     */
+    export interface AudioN3DConnection {
+        /** S'enregistrer comme observeur pour être notifié des changements d'audioNode */
+        subscribe(observer: (old:AudioNode|null, now:AudioNode|null)=>void): void
 
-    export const OutputColor = Color3.FromHexString("#FF0000")
+        /** Se désabonner des notifications. Doit être appelé avec le même observer que subscribe. */
+        unsubscribe(observer: (old:AudioNode|null, now:AudioNode|null)=>void): void
+    }
 
     /**
      * A input connectable that connect an AudioNode.
@@ -25,19 +35,25 @@ export namespace AudioN3DConnectable{
 
         get type(){ return "audio" }
 
+        get color(){ return Color }
+
         get direction(){ return "input" as "input" }
 
-        get color(){ return OutputColor }
-
-        connect(sender: (value: any) => void): void {
-            sender({connectAudio:this.audioNode})
+        connectAsInput(): AudioN3DConnection {
+            const that = this
+            return {
+                subscribe(observer: (old:AudioNode|null,now:AudioNode|null)=>void) {
+                    observer(null,that.audioNode)
+                },
+                unsubscribe(observer: (old:AudioNode|null,now:AudioNode|null)=>void) {
+                    observer(that.audioNode, null)
+                }
+            }
         }
-
-        disconnect(sender: (value: any) => void): void {
-            sender({disconnectAudio:this.audioNode})
-        }
-
-        receive(_: any): void { }
+        disconnectAsInput(_: any): void { }
+        
+        connectAsOutput(_: any): void { }
+        disconnectAsOutput(_: any): void { }
     }
 
     /**
@@ -47,7 +63,7 @@ export namespace AudioN3DConnectable{
     export class DynamicInput implements Node3DConnectable {
 
         private _audioNode: AudioNode|null = null
-        private senders: ((value: any) => void)[] = []
+        private listeners = new Set<(old:AudioNode|null, now:AudioNode|null)=>void>()
 
         constructor(
             readonly id: string,
@@ -62,34 +78,34 @@ export namespace AudioN3DConnectable{
 
         get direction(){ return "input" as "input" }
 
-        get color(){ return OutputColor }
+        get color(){ return Color }
 
-        connect(sender: (value: any) => void): void {
-            this.senders.push(sender)
-            if(this._audioNode) sender({connectAudio:this._audioNode})
+        connectAsInput(): AudioN3DConnection {
+            const that = this
+            return {
+                subscribe(observer) {
+                    observer(null, that._audioNode)
+                    that.listeners.add(observer)
+                },
+                unsubscribe(observer) {
+                    observer(that._audioNode, null)
+                    that.listeners.delete(observer)
+                },
+            }
         }
 
-        disconnect(sender: (value: any) => void): void {
-            const index = this.senders.indexOf(sender)
-            if(index !== -1) this.senders.splice(index, 1)
-            if(this._audioNode) sender({disconnectAudio:this._audioNode})
-        }
+        disconnectAsInput(_: any): void { }
+        connectAsOutput(_: any): void { }
+        disconnectAsOutput(_: any): void { }
+
 
         set audioNode(audioNode: AudioNode|null){
-            if(this._audioNode!=null){
-                for(const sender of this.senders){
-                    sender({disconnectAudio:this._audioNode})
-                }
-            }
+            const old = this._audioNode
             this._audioNode = audioNode
-            if(this._audioNode){
-                for(const sender of this.senders){
-                    sender({connectAudio:this._audioNode})
-                }
+            for(const listener of this.listeners){
+                listener(old, audioNode)
             }
         }
-
-        receive(_: any): void { }
     }
 
     /**
@@ -108,18 +124,23 @@ export namespace AudioN3DConnectable{
 
         get direction(){ return "output" as "output" }
 
-        get color(){ return OutputColor }
+        get color(){ return Color }
 
-        connect(_: (value: any) => void): void { }
-
-        disconnect(_: (value: any) => void): void { }
-
-        receive(value: any): void {
-            if(typeof value === "object"){
-                if("connectAudio" in value) this.audioNode.connect(value.connectAudio as AudioNode)
-                else if("disconnectAudio" in value) this.audioNode.disconnect(value.disconnectAudio as AudioNode)
-            }
+        private callback = (old:AudioNode|null, now:AudioNode|null) => {
+            if(old) this.audioNode.disconnect(old)
+            if(now) this.audioNode.connect(now)
         }
+
+        connectAsOutput(connection: AudioN3DConnection): void {
+            connection.subscribe(this.callback)
+        }
+
+        disconnectAsOutput(connection: AudioN3DConnection): void {
+            connection.unsubscribe(this.callback)
+        }
+
+        connectAsInput() { }
+        disconnectAsInput(_: any) { }
     }
     
     /**
@@ -144,27 +165,35 @@ export namespace AudioN3DConnectable{
 
         get direction(){ return "output" as "output" }
 
-        get color(){ return OutputColor }
+        get color(){ return Color }
 
-        connect(_: (value: any) => void): void { }
-
-        disconnect(_: (value: any) => void): void { }
-
-        receive(value: any): void {
-            if(typeof value === "object"){
-                if("connectAudio" in value){
-                    this.connections.push(value.connectAudio as AudioNode)
-                    this.on_add(value.connectAudio as AudioNode)
-                }
-                else if("disconnectAudio" in value){
-                    const index = this.connections.indexOf(value.disconnectAudio as AudioNode)
-                    if(index !== -1){
-                        this.connections.splice(index, 1)
-                        this.on_remove(value.disconnectAudio as AudioNode)
-                    }
+        
+        private callback = (old:AudioNode|null, now:AudioNode|null) => {
+            if(old){
+                const index = this.connections.indexOf(old)
+                if(index !== -1){
+                    this.connections.splice(index, 1)
+                    this.on_remove(old)
                 }
             }
+            if(now){
+                this.connections.push(now)
+                this.on_add(now)
+            }
         }
+
+
+        connectAsOutput(connection: AudioN3DConnection): void {
+            connection.subscribe(this.callback)
+        }
+
+        disconnectAsOutput(connection: AudioN3DConnection): void {
+            connection.unsubscribe(this.callback)
+        }
+
+        connectAsInput(): any { return {} }
+        disconnectAsInput(_: any): void { }
+
     }
 
     /**
@@ -183,11 +212,11 @@ export namespace AudioN3DConnectable{
         ){
             super(
                 id, meshes, label,
-                () => {
-                    if(this._audioNode) this.connections.forEach(n=>this._audioNode?.connect(n))
+                (n) => {
+                    if(this._audioNode) this._audioNode.connect(n)
                 },
-                () => {
-                    if(this._audioNode) this.connections.forEach(n=>this._audioNode?.disconnect(n))
+                (n) => {
+                    if(this._audioNode) this._audioNode.disconnect(n)
                 }
             )
             this._audioNode = audioNode
@@ -195,14 +224,14 @@ export namespace AudioN3DConnectable{
 
         set audioNode(audioNode: AudioNode|null){
             if(this._audioNode!=null){
-                for(const audioNode of this.connections){
-                    this.on_remove(audioNode)
+                for(const node of this.connections){
+                    this.on_remove(node)
                 }
             }
             this._audioNode = audioNode
             if(this._audioNode){
-                for(const audioNode of this.connections){
-                    this.on_add(audioNode)
+                for(const node of this.connections){
+                    this.on_add(node)
                 }
             }
         }

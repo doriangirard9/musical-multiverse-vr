@@ -5,6 +5,7 @@ import { AxisInputEvent } from "./AxisInput";
 import { ControllerInput } from "./ControllerInput";
 import { PointerInput } from "./PointerInput";
 import { AbstractPointerInput } from "./AbstractPointerInput";
+import { InputCapability } from "./InputCapability";
 
 export interface PointerMovementEvent {
     origin: Immutable<Vector3>,
@@ -16,6 +17,9 @@ export interface PointerMovementEvent {
 
 export class InputManager {
 
+
+    //// CAPABILITIES ////
+    readonly movement  = new InputCapability()
 
     //// SINGLETON ////
     private static instance: InputManager;
@@ -136,7 +140,19 @@ export class InputManager {
             })
         }
 
-        // Register document observers
+        // Register document observers : based on key presses and mouse events
+        this._registerDocument(scene)
+        
+        // Register XR observers : based on XR controller events
+        this._registerXR(xrHelper, scene)
+
+        // General scene control : based on camera per example
+        this._registerScene(scene)
+    }
+
+    _registerDocument(scene: Scene){
+        const im = this
+
         scene.preventDefaultOnPointerDown = false
 
         for(const button of [im.x_button, im.y_button, im.a_button, im.b_button]) {
@@ -164,8 +180,11 @@ export class InputManager {
         )
 
         im.left.thumbstick._registerMouseWheelObserver()
+    }
 
-        // Register XR observers
+    _registerXR(xrHelper: WebXRDefaultExperience, scene: Scene){
+        const im = this
+
         function initController(controller: WebXRInputSource){
             controller.onMotionControllerInitObservable.addOnce(()=>{
                 const {motionController} = controller
@@ -181,9 +200,14 @@ export class InputManager {
                 
             })
         }
-        xrHelper.input.onControllerAddedObservable.add(initController)
-        xrHelper.input.controllers.forEach(initController)
 
+        xrHelper.input.onControllerAddedObservable.add(initController)
+
+        xrHelper.input.controllers.forEach(initController)
+    }
+
+    _registerScene(scene: Scene){
         this.head._registerCameraObserver(scene)
     }
+        
 }

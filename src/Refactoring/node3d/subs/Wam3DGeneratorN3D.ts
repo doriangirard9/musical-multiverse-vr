@@ -5,7 +5,6 @@ import type { Node3DContext } from "../Node3DContext";
 import { AbstractMesh } from "@babylonjs/core";
 import { WamDescriptor } from "@webaudiomodules/api";
 
-
 class Wam3DGeneratorN3DGui implements Node3DGUI{
 
     root
@@ -16,7 +15,6 @@ class Wam3DGeneratorN3DGui implements Node3DGUI{
     constructor(context: Node3DGUIContext){
         const {babylon:B} = context
         this.root = new B.TransformNode("wam3d generator root", context.scene)
-
     }
 
     async init(guicode: WAMGuiInitCode){
@@ -52,6 +50,7 @@ class Wam3DGeneratorN3D implements Node3D{
 
         let count = 0
         gui.wam_generator.dispose()
+
         gui.wam_generator = await WamGUIGenerator.create_and_init({
             babylonjs:{
                 root: gui.root,
@@ -65,10 +64,12 @@ class Wam3DGeneratorN3D implements Node3D{
                         getValue() { return settings.getValue() },
                         setValue(value) { settings.setValue(value) },
                         stringify(value) { return settings.stringify(value) },
+                        notSynced: true
                     })
                 },
                 defineAnInput(settings) {
                     count++
+                    let target = settings.target
                     context.createConnectable(new T.AudioN3DConnectable.Input(
                         `audioinput${count}`,
                         settings.target,
@@ -100,7 +101,7 @@ class Wam3DGeneratorN3D implements Node3D{
                         `midioutput${count}`,
                         settings.target,
                         "Midi Output",
-                        settings.node
+                        settings.node,
                     ))
                 },
                 defineDraggableField(_) { },

@@ -8,7 +8,6 @@ import { UIManager } from "../../app/UIManager"
 import { MeshUtils } from "../tools"
 import { ShakeBehavior } from "../../behaviours/ShakeBehavior"
 import { SceneManager } from "../../app/SceneManager"
-import { Node3DConnectable } from "../Node3DConnectable"
 
 /**
  * Une connection entre deux connectable de deux Node3D.
@@ -83,9 +82,7 @@ export class N3DConnectionInstance{
     private color = Color3.White().toColor4(1)
     private buildTimeout?: any
 
-    private outputFn?: Parameters<Node3DConnectable["connect"]>[0]
-    private inputFn?: Parameters<Node3DConnectable["connect"]>[0]
-    private impulseFn?: Parameters<Node3DConnectable["connect"]>[1]
+    private connectionObject: any = null
 
     /**
      * Connect la node3D à deux connections. Pas de synchronisation.
@@ -144,12 +141,8 @@ export class N3DConnectionInstance{
         })()
 
         // Logical connection
-        this.inputFn = output.config.receive.bind(output.config)
-        this.outputFn = input.config.receive.bind(input.config)
-        this.impulseFn = (strength,tone) => this.pulse(strength, tone)
-        
-        output.config.connect(this.outputFn, this.impulseFn)
-        input.config.connect(this.inputFn, this.impulseFn)
+        this.connectionObject = input.config.connectAsInput()
+        output.config.connectAsOutput(this.connectionObject)
         
         this.cOutput = output
         this.cInput = input
@@ -219,8 +212,8 @@ export class N3DConnectionInstance{
     private disconnect(){
         const {cOutput,cInput} = this
         if(cOutput && cInput){
-            cOutput.config.disconnect(this.outputFn!, this.impulseFn!)
-            cInput.config.disconnect(this.inputFn!, this.impulseFn!)
+            cInput.config.disconnectAsInput(this.connectionObject)
+            cOutput.config.disconnectAsOutput(this.connectionObject)
             cOutput.connections.delete(this)
             cInput.connections.delete(this)
             this.cInput = null

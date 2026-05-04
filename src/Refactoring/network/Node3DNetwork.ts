@@ -5,7 +5,6 @@ import { Node3DInstance } from '../node3d/instance/Node3DInstance.ts';
 import { Node3dManager } from '../app/Node3dManager.ts';
 import { UIManager } from '../app/UIManager.ts';
 import { SyncSerializable } from './sync/SyncSerializable.ts';
-import { Quaternion, Vector3 } from '@babylonjs/core';
 
 /**
  * Composant gérant les nœuds audio et leurs états.

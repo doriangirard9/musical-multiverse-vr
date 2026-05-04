@@ -26,14 +26,14 @@ export class SpeakerN3DGUI implements Node3DGUI{
     constructor(){}
 
     async init(context: Node3DGUIContext){
-        const {babylon:B, tools:{MeshUtils}} = context
+        const {babylon:B, tools:{MeshUtils,ConnectableUtils}} = context
 
         this.root = new B.TransformNode("audio output root", context.scene)
 
         this.speaker = await B.ImportMeshAsync(SPEAKER_URL, context.scene) .then(it=>it.meshes[0])
         this.speaker.parent = this.root
 
-        this.audioInput = B.CreateSphere("audio output input", {diameter:.7}, context.scene)
+        this.audioInput = ConnectableUtils.createInputMesh("test button", .7, context.scene)
         MeshUtils.setColor(this.audioInput, new B.Color4(0,1,0,1))
         this.audioInput.parent = this.root
         this.audioInput.position.set(-0.7,0,0)

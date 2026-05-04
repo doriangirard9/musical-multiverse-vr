@@ -142,6 +142,8 @@ export class ShopPanel{
 
             for(const [kind, factory] of factories){
                 const target = [] as string[][]
+
+                console.log(kind, factory.tags)
                 
                 if(factory.tags.includes("consumer")) target.push(menus.Output.Output)
 

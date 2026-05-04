@@ -33,16 +33,16 @@ export class DrumKitN3DGUI implements Node3DGUI {
         this.baseMesh.position.z = -0.1; // Center it at drum height
         
         // Create MIDI output sphere
-        this.midiOutputMesh = B.CreateSphere(
+        this.midiOutputMesh = T.ConnectableUtils.createOutputMesh(
             "drumkit-midi-output", 
-            { diameter: 0.3 }, 
+            0.3, 
             scene
         );
 
         this.midiOutputMesh.parent = this.root;
         this.midiOutputMesh.position.set(.83, -0.05, 0);
         
-        T.MeshUtils.setColor(this.midiOutputMesh, T.MidiN3DConnectable.OutputColor.toColor4());
+        T.MeshUtils.setColor(this.midiOutputMesh, T.MidiN3DConnectable.Color.toColor4());
     }
 
     /**

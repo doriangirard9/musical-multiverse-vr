@@ -22,6 +22,32 @@ console.log = function(...args: any[]) {
 };
 
 let appStarted = false;
+/**
+ * # Plan du code
+ * Une description de quelques parties importantes du code.
+ *
+ * ## Créer un nouvel objet
+ * Les objets manipulable et connectables (plugin, sortie audio, clavier,...) sont appelés des
+ * Node3D. Pour créer un nouvel objet il faut implémenter les interface Node3D, Node3DFactory et Node3DGUI.
+ * La classe Node3DInstance fait le lien entre les implémentation des objets et l'application.
+ * 
+ * ## Réseaux
+ * La synchronisation réseau est géré par le système SyncManager/Synchronized.
+ * Un objet doit implémenter Synchronized pour pouvoir être synchronisé. Le SyncManager est un genre
+ * de registre qui permet de gérer les objets synchronisés. Quand un objet y est ajouté, il est automatique synchronisé, quand
+ * un objet y est supprimé, il est désynchronisé.
+ * 
+ * ## Structure
+ * Les différentes parties du problème sont gérés par des services différents accessibles statiquements.
+ * - Node3DManager: Gère les Node3D (connections et node), leur ajout à la scène, leur suppression de la scène, leur synchronisation.
+ * - SceneManager: Gère la création de la scène babylonjs
+ * - Node3DBuilder: Gère les Node3DFactories, qui permettent d'instantier des Node3D. Les associe à leur identifiant pour pouvoir les instancier à partir de leur identifiant.
+ * - 
+ * 
+ */
+
+
+const DEBUG_LOG = false;
 
 let onload = async() => {
     // 1. Initialize services

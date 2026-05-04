@@ -2,6 +2,7 @@ import * as BABYLON from "@babylonjs/core";
 import { Node3DParameter } from "./Node3DParameter";
 import { Node3DConnectable } from "./Node3DConnectable";
 import { Node3DButton } from "./Node3DButton";
+import { InputManager } from "../xr/inputs/InputManager";
 
 
 
@@ -29,6 +30,11 @@ export interface Node3DContext{
      * Le moteur audio de babylon.js.
      */
     readonly audioEngine: BABYLON.AudioEngineV2
+
+    /**
+     * Le gestionnaire d'inputs du WAM Jam.
+     */
+    inputs: InputManager
 
     /**
      * Le group id du host Web Audio Module.
@@ -169,6 +175,17 @@ export interface Node3DContext{
      * @param key La clé de l'état à notifier.
      */
     notifyStateChange(key: string): void
+
+
+    //// General ////
+
+    /**
+     * Enregistre un observateur sur un observable.
+     * L'observeur est automatiquement détaché lorsque le Node3D est supprimé de la scène.
+     * @param observable L'observable sur lequel enregistrer l'observateur.
+     * @param observer L'observateur à enregistrer.
+     */
+    observe<T>(observable: BABYLON.Observable<T>, observer: (eventData: T, eventState: BABYLON.EventState) => void): BABYLON.Observer<T>
     
 
 }

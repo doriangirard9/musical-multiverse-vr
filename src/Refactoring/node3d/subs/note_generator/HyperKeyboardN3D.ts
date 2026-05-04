@@ -1,11 +1,10 @@
-import type { AbstractMesh, Observer, TransformNode } from "@babylonjs/core";
+import type { AbstractMesh, TransformNode } from "@babylonjs/core";
 import type { Node3D, Node3DFactory, Node3DGUI } from "../../Node3D";
 import type { Node3DContext } from "../../Node3DContext";
 import type { Node3DGUIContext } from "../../Node3DGUIContext";
-import { InputManager } from "../../../xr/inputs/InputManager";
-import { AutomationN3DConnectable, MidiN3DConnectable } from "../../tools";
-import { InputHoverBehavior } from "../../../xr/inputs/tools/InputHoverBehavior";
-import { InputMultiPressBehavior } from "../../../xr/inputs/tools/InputMultiPressBehavior";
+import type { AutomationN3DConnectable, MidiN3DConnectable } from "../../tools";
+import type { InputHoverBehavior } from "../../../xr/inputs/tools/InputHoverBehavior";
+import type { InputMultiPressBehavior } from "../../../xr/inputs/tools/InputMultiPressBehavior";
 
 
 
@@ -69,7 +68,7 @@ export class HyperKeyboardN3DGUI implements Node3DGUI {
 
         // Outputs
         this.outputs = Array.from({ length: this.factory.y }, (_, i) => {
-            const mesh = B.CreateSphere(`hyperkeyboard output n°${i}`, { diameter: size }, this.root.getScene())
+            const mesh = T.ConnectableUtils.createOutputMesh(`hyperkeyboard output n°${i}`, size, this.root.getScene())
             mesh.parent = this.root
             mesh.position.set(
                 width / 2 + .05 + size / 2,
@@ -80,9 +79,9 @@ export class HyperKeyboardN3DGUI implements Node3DGUI {
             return mesh
         })
 
-        T.MeshUtils.setColor(this.outputs[0], T.MidiN3DConnectable.OutputColor.toColor4())
-        T.MeshUtils.setColor(this.outputs[1], T.AutomationN3DConnectable.OutputColor.toColor4())
-        T.MeshUtils.setColor(this.outputs[2], T.AutomationN3DConnectable.OutputColor.toColor4())
+        T.MeshUtils.setColor(this.outputs[0], T.MidiN3DConnectable.Color.toColor4())
+        T.MeshUtils.setColor(this.outputs[1], T.AutomationN3DConnectable.Color.toColor4())
+        T.MeshUtils.setColor(this.outputs[2], T.AutomationN3DConnectable.Color.toColor4())
 
     }
 
@@ -189,19 +188,18 @@ export class HyperKeyboardN3D implements Node3D {
 
     constructor(context: Node3DContext, private gui: HyperKeyboardN3DGUI) {
         const { tools: T } = context
-        const inputs = InputManager.getInstance()
 
         // Hitbox
         context.addToBoundingBox(gui.base)
 
         // Keys
         gui.forKeys((x, y, z, key) => {
-            const hover = new InputHoverBehavior(
+            const hover = new T.InputHoverBehavior(
                 () =>  this.setHighlighted(x, y, z, true),
                 () => this.setHighlighted(x, y, z, false),
             )
 
-            const press = new InputMultiPressBehavior(
+            const press = new T.InputMultiPressBehavior(
                 () => this.set(x, y, z, true),
                 () => this.set(x, y, z, false),
             )

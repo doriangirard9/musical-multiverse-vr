@@ -88,8 +88,8 @@ export class HarpN3DGUI implements Node3DGUI {
             return sphere
         }
         this.outputs = [
-            createOutput("midi_output", new Vector3(width/2+controlsize/2, -0.5+base_height/2, -heigth/4), T.MidiN3DConnectable.OutputColor.toColor4()), // MIDI
-            createOutput("automation_output", new Vector3(width/2+controlsize/2, -0.5+base_height/2, heigth/4), T.AutomationN3DConnectable.OutputColor.toColor4()), // Y
+            createOutput("midi_output", new Vector3(width/2+controlsize/2, -0.5+base_height/2, -heigth/4), T.MidiN3DConnectable.Color.toColor4()), // MIDI
+            createOutput("automation_output", new Vector3(width/2+controlsize/2, -0.5+base_height/2, heigth/4), T.AutomationN3DConnectable.Color.toColor4()), // Y
         ]
 
         // Create note selector

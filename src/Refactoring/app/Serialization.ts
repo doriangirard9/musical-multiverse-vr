@@ -1,5 +1,5 @@
 import { Quaternion, Vector3 } from "@babylonjs/core";
-import { ConnectionManager } from "../iomanager/ConnectionManager";
+import { ConnectionManager } from "./ConnectionManager";
 import { NetworkManager } from "../network/NetworkManager";
 import { Node3DGraphDescription, Node3DNetwork } from "../network/Node3DNetwork";
 import { N3DConnectionInstance } from "../node3d/instance/N3DConnectionInstance";

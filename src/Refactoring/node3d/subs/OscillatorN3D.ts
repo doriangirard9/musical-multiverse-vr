@@ -17,7 +17,7 @@ export class OscillatorN3DGUI implements Node3DGUI{
 
         this.root = new B.TransformNode("test root", context.scene)
 
-        this.audioOutput = B.CreateSphere("test button", {diameter:.5}, context.scene)
+        this.audioOutput = T.ConnectableUtils.createOutputMesh("test button", .5, context.scene)
         T.MeshUtils.setColor(this.audioOutput, new B.Color4(1,0,0,1))
         this.audioOutput.parent = this.root
         this.audioOutput.position.set(0.75,-.25,0)
@@ -66,25 +66,9 @@ export class OscillatorN3D implements Node3D{
         })
     }
 
-    async setState(key: string, value: any){
-        const self = this
-        ;({
-            frequency(value:any){
-                self.audionode.frequency.value = value * 100 + 130, self.audionode.context.currentTime, 0.01
-                self.gui.frequency.scaling.setAll(value * .8 + .2)
-            }
-        })[key]!!?.(value)
+    async setState(key: string, value: any){ }
 
-    }
-
-    async getState(key: string){
-        const self = this
-        return ({
-            frequency(){
-                return (self.audionode.frequency.value - 130) / 100
-            }
-        })[key]!!?.()
-    }
+    async getState(key: string){ }
 
     getStateKeys(){ return ["frequency"] }
     

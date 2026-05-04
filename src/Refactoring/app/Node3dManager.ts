@@ -1,20 +1,18 @@
 import { Node3DInstance } from "../node3d/instance/Node3DInstance.ts";
 import { RandomUtils } from "../node3d/tools/utils/RandomUtils.ts";
-import { AudioEventBus } from "../eventBus/AudioEventBus.ts";
 import { NetworkManager } from "../network/NetworkManager.ts";
 import { Node3DBuilder as Node3DBuilder } from "./Node3DBuilder.ts";
-import { AudioEngineV2, Vector3 } from "@babylonjs/core";
+import { AudioEngineV2, CreateBox, Vector3 } from "@babylonjs/core";
 import { AsyncLoading } from "../world/AsyncLoading.ts";
 import { SceneManager } from "./SceneManager.ts";
+import { HoldableBehaviour } from "../behaviours/boundingBox/HoldableBehaviour.ts";
 
 export class Node3dManager {
 
     readonly builder: Node3DBuilder;
-    private audioEventBus: AudioEventBus;
 
     private constructor(private audioCtx: AudioContext, private audioEngine: AudioEngineV2) {
-        this.builder = new Node3DBuilder();
-        this.audioEventBus = AudioEventBus.getInstance();
+        this.builder = new Node3DBuilder()
     }
 
     private static _instance: Node3dManager | null = null;
@@ -24,49 +22,61 @@ export class Node3dManager {
         await this._instance.builder.initialize()
     }
 
-    public static getInstance(audioCtx?: AudioContext, audioEngine?: AudioEngineV2): Node3dManager {
+    public static getInstance(): Node3dManager {
         if (!this._instance) throw new Error("Node3dManager not initialized. Call initialize() first.")
         return this._instance
     }
 
     public async createNode3d(kind: string, position: Vector3, id?: string): Promise<Node3DInstance|null>{
         const nodeId = id ?? RandomUtils.randomID()
-
-        this.audioEventBus.emit("AUDIO_NODE_CREATED",{nodeId, kind})
         
-        const initfactory = async()=>{
+        const initfactory = (async()=>{
            this.builder.getFactory(kind)
-        }
+        })()
 
-        const spawn = async()=>{
+        const spawnNode3D = initfactory.then(async()=>{
             const node = await this.builder.create(kind)
             if(node instanceof Node3DInstance){
                 node.boundingBoxMesh.setAbsolutePosition(position)
                 await NetworkManager.getInstance().node3d.nodes.add(nodeId, node, kind)
-                this.audioEventBus.emit("AUDIO_NODE_LOADED",{nodeId, kind, instance:node})
                 return node
             }
             else{
-                this.audioEventBus.emit("AUDIO_NODE_ERROR",{nodeId, kind, error_message:node})
                 throw new Error(`Error while creating Node3D of kind ${kind} with id ${nodeId}: ${node}`)
             }
-        }
+        })
 
-        const createImpostor = async()=>{
+        const spawnImpostor = initfactory.then(async()=>{
             const impostor = await this.builder.createImpostor(kind)
             impostor?.setAbsolutePosition(position)
             return impostor
-        }
+        })
 
         const all = (async()=>{
-            await initfactory()
-            const [impostor,node] = await Promise.allSettled([createImpostor(), spawn()])
+            const [impostor,node] = await Promise.allSettled([spawnImpostor, spawnNode3D])
             if(impostor.status=="fulfilled")impostor.value?.dispose()
             if(node.status=="rejected")throw node.reason
             return node.value
         })()
 
         const {root,promise} = AsyncLoading.create(SceneManager.getInstance().getScene(), all)
+        
+        // Movable bounding box
+        {
+            const bb = CreateBox("bb", {size: 1}, SceneManager.getInstance().getScene())
+            bb.visibility = 0.1
+            bb.addBehavior(new HoldableBehaviour(root))
+            bb.parent = root
+
+            promise.then(n=>{
+                n?.boundingBoxMesh?.setAbsolutePosition(bb.absolutePosition)
+                n?.updatePosition()
+                bb.dispose()
+            })
+        }
+
+        spawnImpostor.then(impostor=> root.addChild(impostor!))
+
         root.setAbsolutePosition(position)
         root.scaling.setAll(0.5)
 

@@ -1,10 +1,7 @@
-import { AbstractMesh, Color4, TransformNode } from "@babylonjs/core";
+import type { AbstractMesh, Color4, TransformNode } from "@babylonjs/core";
 import type { Node3D, Node3DFactory, Node3DGUI } from "../../Node3D";
 import type { Node3DContext } from "../../Node3DContext";
 import type { Node3DGUIContext } from "../../Node3DGUIContext";
-import type { AutomationN3DConnectable } from "../../tools";
-import { InputManager } from "../../../xr/inputs/InputManager";
-import { usingWith } from "../../../utils/utils";
 
 
 export class VoiceVolumeControllerN3DGUI implements Node3DGUI {
@@ -79,11 +76,11 @@ export class VoiceVolumeControllerN3DGUI implements Node3DGUI {
 
         // Output
         function createOutput(name: string, position: number) {
-            const output = B.CreateSphere("voice controller output", { diameter: .4 }, context.scene)
+            const output = T.ConnectableUtils.createOutputMesh("voice controller output", .4, context.scene)
             output.parent = that.root
             output.position.set(0.75, -0.25, position)
             output.material = context.materialMat
-            T.MeshUtils.setColor(output, T.AutomationN3DConnectable.OutputColor.toColor4())
+            T.MeshUtils.setColor(output, T.AutomationN3DConnectable.Color.toColor4())
             return output
         }
         this.volume = createOutput("voice controller volume output", -.25)

@@ -2,7 +2,6 @@ import { Quaternion, Vector2, Vector3, type AbstractMesh, type Observer, type Tr
 import type { Node3D, Node3DFactory, Node3DGUI } from "../../Node3D";
 import type { Node3DContext } from "../../Node3DContext";
 import type { Node3DGUIContext } from "../../Node3DGUIContext";
-import { InputManager } from "../../../xr/inputs/InputManager";
 import { AutomationN3DConnectable, MidiN3DConnectable } from "../../tools";
 import { HoldableBehaviour } from "../../../behaviours/boundingBox/HoldableBehaviour";
 
@@ -163,7 +162,7 @@ export class DrumPlateKitN3DGUI implements Node3DGUI {
         })
 
         // Output
-        this.output = B.CreateSphere(`drumkit output`, { diameter: plateSize / 2 }, context.scene)
+        this.output = T.ConnectableUtils.createOutputMesh(`drumkit output`, plateSize / 2, context.scene)
         this.output.parent = this.root
         this.output.position.set(
             width / 2 + plateSize / 5,
@@ -171,10 +170,10 @@ export class DrumPlateKitN3DGUI implements Node3DGUI {
             0
         )
         this.output.material = context.materialMat
-        T.MeshUtils.setColor(this.output, T.MidiN3DConnectable.OutputColor.toColor4())
+        T.MeshUtils.setColor(this.output, T.MidiN3DConnectable.Color.toColor4())
 
         // Automation Output
-        this.automationOutput = B.CreateSphere(`drumkit automation output`, { diameter: plateSize / 2 }, context.scene)
+        this.automationOutput = T.ConnectableUtils.createOutputMesh(`drumkit automation output`, plateSize / 2, context.scene)
         this.automationOutput.parent = this.root
         this.automationOutput.position.set(
             width / 2 + plateSize / 5,
@@ -182,7 +181,7 @@ export class DrumPlateKitN3DGUI implements Node3DGUI {
             plateSize / 2 + 0.1
         )
         this.automationOutput.material = context.materialMat
-        //T.MeshUtils.setColor(this.automationOutput, T.MidiN3DConnectable.AutomationOutputColor.toColor4())
+        //T.MeshUtils.setColor(this.automationOutput, T.MidiN3DConnectable.AutomationColor.toColor4())
     }
 
     async dispose() { }
@@ -273,9 +272,8 @@ export class DrumPlateKitN3D implements Node3D {
     private observers: Observer<any>[] = []
 
     constructor(context: Node3DContext, private gui: DrumPlateKitN3DGUI) {
-        const { tools: T, audioCtx } = context
+        const { tools: T, audioCtx, inputs } = context
         const { babylon: B } = gui.context
-        const inputs = InputManager.getInstance()
 
         // Hitbox
         context.addToBoundingBox(gui.base)

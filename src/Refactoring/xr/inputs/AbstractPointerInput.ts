@@ -1,4 +1,4 @@
-import { AbstractMesh, Matrix, Observable, PointerEventTypes, PointerInfoBase, PointerInfoPre, Ray, Scene, Vector3, WebXRInputSource } from "@babylonjs/core";
+import { AbstractMesh, Matrix, Observable, Ray, Scene, Vector3, WebXRInputSource } from "@babylonjs/core";
 
 /**
  * Class representing the pointer input of a controller. It provides the position and orientation of the pointer, as well as the mesh it is targeting (if any).
