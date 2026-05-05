@@ -26,7 +26,7 @@ export class NewApp {
         return NewApp.instance;
     }
 
-    public async start(): Promise<void> {
+    public async start(participantId: string, roomName: string, doc: Y.Doc): Promise<void> {
         NewApp.instance = this        
 
         // Intialization of scene
@@ -55,8 +55,8 @@ export class NewApp {
 
         await Node3dManager.initialize(audioContext, audioEngine)
         
-        PlayerManager.initialize()
-        NetworkManager.initialize()
+        PlayerManager.initialize(participantId)
+        NetworkManager.initialize(participantId, roomName, doc)
         ConnectionManager.initialize()
 
         await AppOrchestrator.initialize()
