@@ -17,7 +17,7 @@ class SequencerN3DGUI implements Node3DGUI {
     notePadTemplate: AbstractMesh | null = null
 
     readonly stepCount = 12
-    readonly noteCount = 12
+    readonly noteCount = 8
 
     readonly NOTE_NAME: string[]
     readonly NODE_COLOR: Color4[]
@@ -112,7 +112,7 @@ class SequencerN3DGUI implements Node3DGUI {
             for(let n = 0; n<this.noteCount; n++){
                 const x = fx - baseSize*.7
                 const y = ty-(n+.5)*note_height
-                const slider = B.CreateSphere(`sequence note slider ${n}`, {diameter: baseSize*1.2}, context.scene)
+                const slider = B.CreateSphere(`sequence note slider ${n}`, {diameter: h}, context.scene)
                 slider.position.set(x,baseSize*.1,y)
                 slider.parent = this.root
                 this.noteSliders.push(slider)
