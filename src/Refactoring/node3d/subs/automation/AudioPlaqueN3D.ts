@@ -11,7 +11,10 @@ import type { PointerInput } from "../../../xr/inputs/PointerInput";
 
 export class AudioPlaqueN3DGUI implements Node3DGUI {
     root!: TransformNode;
-    worldSize = 3;  // scaled to 3 * 0.2 = 0.6 world units
+
+    // worldSize is set from the factory (Node3DInstance scales gui_root_transform
+    // by `worldSize * SIZE_MULTIPLIER` once at spawn — bigger value = bigger plaque).
+    get worldSize() { return this.factory.size; }
 
     plaque!: AbstractMesh;
     handle!: AbstractMesh;        // backing plate — what the bounding box wraps
@@ -27,6 +30,8 @@ export class AudioPlaqueN3DGUI implements Node3DGUI {
     //   ball     — visible sphere, parented to ballRoot, offset slightly in front
     ballRoot!: TransformNode;
     ball!:     AbstractMesh;
+
+    constructor(public factory: AudioPlaqueN3DFactory) { }
 
     async init(context: Node3DGUIContext) {
         const { babylon: B, tools: { ConnectableUtils, MeshUtils, AudioN3DConnectable, AutomationN3DConnectable } } = context;
@@ -418,21 +423,58 @@ export class AudioPlaqueN3D implements Node3D {
 }
 
 // ─── Factory ──────────────────────────────────────────────────────────────────
+//
+//   Size variants follow the project's standard pattern (see HarpN3DFactory and
+//   PositionCubeN3DFactory): one factory class with a `size` parameter, and
+//   static instances for each preset.  Each preset is registered separately in
+//   Node3DBuilder.ts under its own kind name, so the player picks a size from
+//   the shop at spawn time.
+//
+//   `size` is fed straight into AudioPlaqueN3DGUI.worldSize, which Node3DInstance
+//   uses as `worldSize * SIZE_MULTIPLIER (0.2)` to scale gui_root_transform.
+//
+//     SMALL   = 2.0   →  0.40 world units
+//     DEFAULT = 3.0   →  0.60 world units   (current default)
+//     LARGE   = 5.0   →  1.00 world units
+//
+//   Add another preset by appending `static <NAME> = new AudioPlaqueN3DFactory(...)`
+//   below and registering its kind name in Node3DBuilder.ts.
+//
+export class AudioPlaqueN3DFactory implements Node3DFactory<AudioPlaqueN3DGUI, AudioPlaqueN3D> {
+    constructor(
+        public size: number,
+        public label: string,
+        public description: string,
+    ) { }
 
-export const AudioPlaqueN3DFactory: Node3DFactory<AudioPlaqueN3DGUI, AudioPlaqueN3D> = {
-    label: "Audio Plaque",
-    description:
-        "2D XY pad. Audio passes through unchanged; the ball's X and Y positions " +
-        "(0..1) are exposed as automation outputs you can wire to any WAM parameter.",
-    tags: ["automation", "controller", "xy_pad"],
+    tags = ["automation", "controller", "xy_pad"];
 
-    createGUI: async (context: Node3DGUIContext) => {
-        const gui = new AudioPlaqueN3DGUI();
+    async createGUI(context: Node3DGUIContext) {
+        const gui = new AudioPlaqueN3DGUI(this);
         await gui.init(context);
         return gui;
-    },
+    }
 
-    create: async (context: Node3DContext, gui: AudioPlaqueN3DGUI) => {
+    async create(context: Node3DContext, gui: AudioPlaqueN3DGUI) {
         return new AudioPlaqueN3D(context, gui);
-    },
-};
+    }
+
+    static SMALL = new AudioPlaqueN3DFactory(
+        2.0,
+        "Small Audio Plaque",
+        "Compact 2D XY pad. Audio passes through; X/Y ball position exposed as automation outputs.",
+    );
+
+    static DEFAULT = new AudioPlaqueN3DFactory(
+        3.0,
+        "Audio Plaque",
+        "2D XY pad. Audio passes through unchanged; the ball's X and Y positions " +
+        "(0..1) are exposed as automation outputs you can wire to any WAM parameter.",
+    );
+
+    static LARGE = new AudioPlaqueN3DFactory(
+        5.0,
+        "Large Audio Plaque",
+        "Wall-sized 2D XY pad for fine-grained control. Same audio + automation contract as the default.",
+    );
+}

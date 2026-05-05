@@ -46,7 +46,7 @@ export class Node3DBuilder {
      */
     FACTORY_KINDS = [
         "audiooutput", "oscillator", "maracas", "livepiano", "notesbox","pianoroll", "drumkit", "pro54michel","swarmtheremin",
-        "hyperkeyboard", "drumplatekit", "automation_controller", "the_cube", "harp", "large_harp", "voice", "gaze", "sequencer", "audio_plaque",
+        "hyperkeyboard", "drumplatekit", "automation_controller", "the_cube", "harp", "large_harp", "voice", "gaze", "sequencer", "small_audio_plaque", "audio_plaque", "large_audio_plaque",
         ...Object.keys(examples).map(k => `wam3d-${k}`),
         ...Object.keys(additionalConfig).map(k=>`add-`+k)
     ]
@@ -86,7 +86,9 @@ export class Node3DBuilder {
         }
 
         // Builtin
-        if(kind=="audio_plaque") return AudioPlaqueN3DFactory;
+        if(kind=="small_audio_plaque") return AudioPlaqueN3DFactory.SMALL;
+        if(kind=="audio_plaque") return AudioPlaqueN3DFactory.DEFAULT;
+        if(kind=="large_audio_plaque") return AudioPlaqueN3DFactory.LARGE;
         if(kind=="swarmtheremin") return SwarmThereminN3DFactory;
         if(kind=="audiooutput") return SpeakerN3DFactory
         if(kind=="sequencer") return SequencerN3DFactory
