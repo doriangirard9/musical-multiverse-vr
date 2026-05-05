@@ -73,6 +73,7 @@ export class SyncDebugN3D implements Node3D{
         context.createParameter({
             id: "duration",
             meshes: [gui.duration],
+            notSynced: true,
             setValue (value: number): void {
                 container.duration = value*100
             },
@@ -93,6 +94,7 @@ export class SyncDebugN3D implements Node3D{
         context.createParameter({
             id: "total",
             meshes: [gui.total],
+            notSynced: true,
             setValue (value: number): void {},
             getStepCount (): number { return 0},
             getValue (): number { return container.total/1000 },
@@ -103,6 +105,7 @@ export class SyncDebugN3D implements Node3D{
         context.createParameter({
             id: "start",
             meshes: [gui.start],
+            notSynced: true,
             setValue (value: number): void {},
             getStepCount (): number { return 0 },
             getValue (): number { return container.start/1000 },
