@@ -350,17 +350,23 @@ export class Node3DInstance implements Synchronized {
     }
 
     static getSyncManager(
-        scene: Scene,
         doc: Doc,
         audioManager: Node3dManager,
-        messages: UIManager
+        onAdd?: (instance:Node3DInstance)=>void,
+        onRemove?: (instance:Node3DInstance)=>void,
     ) {
         const syncmanager: SyncManager<Node3DInstance, string> = new SyncManager({
             name: "node3d_instances",
             doc,
-            async on_add(instance) { instance.on_dispose = () => syncmanager.remove(instance) },
+            async on_add(instance) {
+                instance.on_dispose = () => syncmanager.remove(instance)
+                onAdd?.(instance)
+            },
             async create(_, __, kind) { return (await audioManager.builder.create(kind)) as Node3DInstance },
-            async on_remove(instance) { await instance.dispose() },
+            async on_remove(instance) {
+                onRemove?.(instance)
+                await instance.dispose()
+            },
         })
         // syncmanager.add(node_id,node,kind)
         return syncmanager

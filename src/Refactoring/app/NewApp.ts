@@ -1,21 +1,17 @@
-import {SceneManager} from "./SceneManager.ts";
-import {XRManager} from "../xr/XRManager.ts";
-import {Node3dManager} from "./Node3dManager.ts";
-import {AppOrchestrator} from "./AppOrchestrator.ts";
-import ControlsUI from "./ControlsUI.ts";
-import {CreateAudioEngineAsync, CreatePlane, ImportMeshAsync, Mesh, StandardMaterial, Vector3} from "@babylonjs/core";
-import {N3DShop, N3DShopOptions} from "../world/shop/N3DShop.ts";
-import { InputManager } from "../xr/inputs/InputManager.ts";
-import { parallel } from "../utils/utils.ts";
-import { UIManager } from "./UIManager.ts";
+import { CreateAudioEngineAsync, Vector3 } from "@babylonjs/core";
 import { NetworkManager } from "../network/NetworkManager.ts";
-import { PlayerManager } from "./PlayerManager.ts";
-import { ConnectionManager } from "./ConnectionManager.ts";
-import { N3DRendering } from "../node3d/instance/utils/N3DRendering.ts";
-import { InputVisualPointer } from "../xr/inputs/tools/InputVisualPointer.ts";
-import { Serialization } from "./Serialization.ts";
 import { ShopPanel } from "../world/menu/ShopPanel.ts";
-import { N3DPreviewer } from "../world/N3DPreviewer.ts";
+import { InputManager } from "../xr/inputs/InputManager.ts";
+import { InputVisualPointer } from "../xr/inputs/tools/InputVisualPointer.ts";
+import { XRManager } from "../xr/XRManager.ts";
+import { AppOrchestrator } from "./AppOrchestrator.ts";
+import { ConnectionManager } from "./ConnectionManager.ts";
+import ControlsUI from "./ControlsUI.ts";
+import { Node3dManager } from "./Node3dManager.ts";
+import { PlayerManager } from "./PlayerManager.ts";
+import { SceneManager } from "./SceneManager.ts";
+import { Serialization } from "./Serialization.ts";
+import { UIManager } from "./UIManager.ts";
 export class NewApp {
     private static readonly DEBUG_LOG = false;
     private controlsUI?: ControlsUI;
@@ -90,7 +86,7 @@ export class NewApp {
         window.addEventListener("keydown",async(e)=>{
             if(e.key=="p"){
                 let prompt = window.prompt("Enter Node3D kind to create:")
-                if(prompt) node3dManager.createNode3d(`${prompt}`, new Vector3(0,0,5))
+                if(prompt) node3dManager.addNode3d(`${prompt}`, new Vector3(0,0,5))
             }
             else if(e.key=="i"){
                 scene.debugLayer.show()
@@ -126,6 +122,7 @@ export class NewApp {
                 const serialized = Serialization.getInstance().save([nearest])
 
                 localStorage.setItem("saved",JSON.stringify(serialized))
+                console.log("Saved", JSON.stringify(serialized))
                 alert("Saved")
             }
             else if(e.key=="m"){

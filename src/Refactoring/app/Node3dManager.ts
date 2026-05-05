@@ -9,11 +9,15 @@ import { HoldableBehaviour } from "../behaviours/boundingBox/HoldableBehaviour.t
 
 export class Node3dManager {
 
-    readonly builder: Node3DBuilder;
+    readonly builder: Node3DBuilder
 
-    private constructor(private audioCtx: AudioContext, private audioEngine: AudioEngineV2) {
+    private constructor(
+        private audioCtx: AudioContext,
+        private audioEngine: AudioEngineV2
+    ) {
         this.builder = new Node3DBuilder()
     }
+
 
     private static _instance: Node3dManager | null = null;
 
@@ -27,7 +31,7 @@ export class Node3dManager {
         return this._instance
     }
 
-    public async createNode3d(kind: string, position: Vector3, id?: string): Promise<Node3DInstance|null>{
+    public async addNode3d(kind: string, position: Vector3, id?: string): Promise<Node3DInstance|null>{
         const nodeId = id ?? RandomUtils.randomID()
         
         const initfactory = (async()=>{
