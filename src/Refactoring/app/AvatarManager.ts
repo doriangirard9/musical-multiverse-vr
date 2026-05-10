@@ -1,4 +1,4 @@
-import { Color4 } from "@babylonjs/core";
+import { Color3, Color4 } from "@babylonjs/core";
 import { NetworkManager } from "../network/NetworkManager";
 import { RandomUtils } from "../node3d/tools/utils/RandomUtils";
 import { Avatar, AvaterShared } from "../world/avatar/Avatar";
@@ -18,7 +18,9 @@ export class AvatarManager {
         readonly network: NetworkManager,
         readonly inputs: InputManager,
         readonly scene: SceneManager,
-        readonly events: NetworkEventBus
+        readonly events: NetworkEventBus,
+        readonly username: string,
+        readonly usercolor: Color3,
     ){
         const avatars = this
 
@@ -47,8 +49,8 @@ export class AvatarManager {
         await avatar.initialize()
         avatar.registerInputs(this.inputs)
         avatar.setVisible(false)
-        avatar.setColor(new Color4(Math.random(), Math.random(), Math.random(), 1))
-        avatar.setName("Player " + id)
+        avatar.setColor(this.usercolor.toColor4(1))
+        avatar.setName(this.username)
         this.manager.add(id, avatar, this.network.connection.getAwareness().getLocalState()!["playerId"] as string)
 
         this.events.on("PLAYER_DELETED",({playerId})=>{

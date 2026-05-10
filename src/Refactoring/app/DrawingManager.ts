@@ -1,4 +1,4 @@
-import { Color4, CreateBox, Vector3 } from "@babylonjs/core"
+import { Color3, Color4, CreateBox, Vector3 } from "@babylonjs/core"
 import { NetworkManager } from "../network/NetworkManager"
 import { Curve3D } from "../world/curve/Curve3D"
 import { RandomUtils } from "../node3d/tools/utils/RandomUtils"
@@ -32,7 +32,8 @@ export class DrawingManager {
     constructor(
         readonly network: NetworkManager,
         readonly inputs: InputManager,
-        readonly scene: SceneManager
+        readonly scene: SceneManager,
+        readonly usercolor: Color3,
     ){
         this.manager = Curve3D.getSyncManager(network.doc,scene.getScene(), this.onAdd.bind(this))
         this.registerInputs()
@@ -66,7 +67,7 @@ export class DrawingManager {
                 }
             },
             ()=>{
-                curve = this.create(new Color4(1, 0, 0))
+                curve = this.create(this.usercolor.toColor4(1))
                 last_pos = new Vector3(0,9999,0)
             },
         )

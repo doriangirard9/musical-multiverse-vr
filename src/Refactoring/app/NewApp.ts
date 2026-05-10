@@ -15,6 +15,7 @@ import { UIManager } from "./UIManager.ts";
 import { DrawingManager } from "./DrawingManager.ts";
 import { AvatarManager } from "./AvatarManager.ts";
 import { NetworkEventBus } from "../eventBus/NetworkEventBus.ts";
+import { RandomUtils } from "../node3d/tools/utils/RandomUtils.ts";
 export class NewApp {
     private static readonly DEBUG_LOG = false;
     private controlsUI?: ControlsUI;
@@ -30,7 +31,10 @@ export class NewApp {
     }
 
     public async start(participantId: string, roomName: string, doc: Y.Doc): Promise<void> {
-        NewApp.instance = this        
+        NewApp.instance = this
+        
+        const username = RandomUtils.randomName()
+        const usercolor = RandomUtils.randomColor()
 
         // Intialization of scene
         SceneManager.initialize()
@@ -70,6 +74,7 @@ export class NewApp {
             NetworkManager.getInstance(),
             InputManager.getInstance(),
             SceneManager.getInstance(),
+            usercolor,
         )
 
         await AvatarManager.initialize(
@@ -77,6 +82,8 @@ export class NewApp {
             InputManager.getInstance(),
             SceneManager.getInstance(),
             NetworkEventBus.getInstance(),
+            username,
+            usercolor,
         )
 
         
