@@ -5,7 +5,9 @@
       "plugins": [
         { "name": "Oscillator", "kind": "oscillator" },
         { "name":  "Live Piano", "kind":  "livepiano"},
-        { "name": "Piano Roll", "kind": "pianoroll" }
+        { "name": "Piano Roll", "kind": "pianoroll" },
+        { "name": "Butterchurn", "kind": "butterchurn" },
+        { "name": "Screen", "kind": "screen" }
       ]
     },
     {
