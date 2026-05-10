@@ -6,9 +6,6 @@ import type { Node3DConnectable } from "../../Node3DConnectable";
 import type { Node3DButton } from "../../Node3DButton";
 import { WamInitializer } from "../../../app/WamInitializer";
 
-// Static cache to prevent duplicate AudioWorklet registration
-let butterchurnWamPromise: Promise<any> | null = null;
-
 export class ButterchurnN3DGUI implements Node3DGUI {
     root
     block
@@ -80,24 +77,14 @@ export class ButterchurnN3D implements Node3D {
                 return id;
             },
             connectAsOutput: (target: any) => {
-                console.log("[Butterchurn] DEBUG: connectAsOutput triggered. Target has useRenderer?", !!(target && target.useRenderer));
-
                 if (target && typeof target.useRenderer === "function") {
                     const id = this.activeWamNode?.instanceId;
-                    if (id) {
-                        console.log(`[Butterchurn] DEBUG: Pushing ID ${id} to connected Screen`);
-                        target.useRenderer(id);
-                    } else {
-                        console.log("[Butterchurn] DEBUG: ID not ready yet, storing Screen for deferred notification");
-                        this.pendingScreen = target;
-                    }
-                } else {
-                    console.warn("[Butterchurn] DEBUG: connectAsOutput target is NOT a valid Screen/Receiver");
+                    if (id) target.useRenderer(id);
+                    else this.pendingScreen = target;
                 }
             },
             disconnectAsInput: () => { },
             disconnectAsOutput: () => {
-                console.log("[Butterchurn] DEBUG: disconnectAsOutput - clearing pending screen");
                 this.pendingScreen = null;
             }
         };
@@ -113,59 +100,43 @@ export class ButterchurnN3D implements Node3D {
         };
         context.createButton(shaderButton);
 
-        if (!butterchurnWamPromise) {
-            butterchurnWamPromise = (async () => {
-                try {
-                    console.log("[Butterchurn] DEBUG: Starting WAM initialization...");
-                    const instance = await WamInitializer.getInstance()
-                        .initWamInstance("https://www.webaudiomodules.com/community/plugins/burns-audio/video_butterchurn/index.js");
-                    console.log("[Butterchurn] DEBUG: WAM Load SUCCESS");
-                    return instance;
-                } catch (e) {
-                    console.error("[Butterchurn] ERROR: WAM load failed:", e);
-                    butterchurnWamPromise = null;
-                    throw e;
-                }
-            })();
-        }
+        // Unique WAM instance per Node3D
+        (async () => {
+            try {
+                const instance = await WamInitializer.getInstance()
+                    .initWamInstance("https://www.webaudiomodules.com/community/plugins/burns-audio/video_butterchurn/index.js");
+                
+                if (instance?.audioNode) {
+                    this.activeWamNode = instance.audioNode;
+                    audioInput.audioNode = this.activeWamNode;
+                    this.activeWamNode.connect(this.context.audioCtx.destination);
 
-        butterchurnWamPromise.then(async (instance) => {
-            if (instance?.audioNode) {
-                this.activeWamNode = instance.audioNode;
-                audioInput.audioNode = this.activeWamNode;
-
-                // Ensure the node is connected to destination so it "ticks" and processes video
-                this.activeWamNode.connect(this.context.audioCtx.destination);
-
-                const id = this.activeWamNode.instanceId;
-                console.log(`[Butterchurn] DEBUG: activeWamNode is READY. ID: ${id}`);
-
-                // Explicitly check for video delegate if not already registered
-                const videoExtension = (window as any).WAMExtensions?.video;
-                if (videoExtension && this.activeWamNode.video && !videoExtension.getDelegate(id)) {
-                    console.log("[Butterchurn] DEBUG: Manually registering video delegate");
-                    videoExtension.setDelegate(id, this.activeWamNode.video);
-                }
-
-                // If a screen connected while we were loading, notify it now
-                if (this.pendingScreen) {
-                    console.log(`[Butterchurn] DEBUG: Notifying DEFERRED Screen with ID: ${id}`);
-                    this.pendingScreen.useRenderer(id);
-                    this.pendingScreen = null;
-                }
-
-                const tryFetchPresets = async () => {
-                    const state = await this.activeWamNode.getState();
-                    const p = state?.presets || this.activeWamNode.presets || (this.activeWamNode.module as any)?.presets;
-                    if (p) {
-                        this.presets = Object.keys(p).sort();
-                    } else {
-                        setTimeout(tryFetchPresets, 1000);
+                    const id = this.activeWamNode.instanceId;
+                    const videoExtension = (window as any).WAMExtensions?.video;
+                    if (videoExtension && this.activeWamNode.video && !videoExtension.getDelegate(id)) {
+                        videoExtension.setDelegate(id, this.activeWamNode.video);
                     }
-                };
-                tryFetchPresets();
+
+                    if (this.pendingScreen) {
+                        this.pendingScreen.useRenderer(id);
+                        this.pendingScreen = null;
+                    }
+
+                    const tryFetchPresets = async () => {
+                        const state = await this.activeWamNode.getState();
+                        const p = state?.presets || this.activeWamNode.presets || (this.activeWamNode.module as any)?.presets;
+                        if (p) {
+                            this.presets = Object.keys(p).sort();
+                        } else {
+                            setTimeout(tryFetchPresets, 1000);
+                        }
+                    };
+                    tryFetchPresets();
+                }
+            } catch (e) {
+                console.error("[Butterchurn] ERROR: WAM load failed:", e);
             }
-        });
+        })();
     }
 
     private openShaderMenu() {

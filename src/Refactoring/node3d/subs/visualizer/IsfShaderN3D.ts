@@ -5,9 +5,6 @@ import type { Node3DGUIContext } from "../../Node3DGUIContext";
 import type { Node3DConnectable } from "../../Node3DConnectable";
 import { WamInitializer } from "../../../app/WamInitializer";
 
-// Static cache to prevent duplicate AudioWorklet registration
-let isfShaderWamPromise: Promise<any> | null = null;
-
 export class IsfShaderN3DGUI implements Node3DGUI {
     root
     block
@@ -179,14 +176,12 @@ export class IsfShaderN3D implements Node3D {
                     this.paramValues[paramId] = value;
                     
                     if (this.activeWamNode) {
-                        // Use setParamsValues to trigger real-time video updates
                         if (this.activeWamNode.setParamsValues) {
                             this.activeWamNode.setParamsValues({ [paramId]: value });
                         } else if (this.activeWamNode.setParameters) {
                             this.activeWamNode.setParameters({ [paramId]: value });
                         }
                         
-                        // Visual feedback: Rotate the cylinder
                         const mesh = gui.params[i];
                         if (mesh) {
                             mesh.rotation.y = value * Math.PI * 2;
@@ -196,7 +191,6 @@ export class IsfShaderN3D implements Node3D {
                     }
                 },
                 fromOffset: (posOffset, dirOffset) => {
-                    // Invert the default Y offset to fix "upside down" dragging
                     return -(dirOffset.y * 2 + posOffset.y);
                 },
                 meshes: [gui.params[i]],
@@ -213,57 +207,53 @@ export class IsfShaderN3D implements Node3D {
             });
         }
 
-        if (!isfShaderWamPromise) {
-            isfShaderWamPromise = (async () => {
-                try {
-                    return await WamInitializer.getInstance()
-                        .initWamInstance("https://sofiane949.github.io/DS4H-Project-2025-2026-S2/src/isf-video-wam/index.js");
-                } catch (e) {
-                    isfShaderWamPromise = null;
-                    throw e;
-                }
-            })();
-        }
+        // Unique WAM instance per Node3D
+        (async () => {
+            try {
+                const instance = await WamInitializer.getInstance()
+                    .initWamInstance("https://sofiane949.github.io/DS4H-Project-2025-2026-S2/src/isf-video-wam/index.js");
+                
+                if (instance?.audioNode) {
+                    this.activeWamNode = instance.audioNode;
+                    audioInput.audioNode = this.activeWamNode;
+                    this.activeWamNode.connect(this.context.audioCtx.destination);
 
-        isfShaderWamPromise.then(async (instance) => {
-            if (instance?.audioNode) {
-                this.activeWamNode = instance.audioNode;
-                audioInput.audioNode = this.activeWamNode;
-                this.activeWamNode.connect(this.context.audioCtx.destination);
-
-                const id = this.activeWamNode.instanceId;
-                const videoExtension = (window as any).WAMExtensions?.video;
-                if (videoExtension && this.activeWamNode.video && !videoExtension.getDelegate(id)) {
-                    videoExtension.setDelegate(id, this.activeWamNode.video);
-                }
-
-                if (this.pendingScreen) {
-                    this.pendingScreen.useRenderer(id);
-                    this.pendingScreen = null;
-                }
-
-                this.activeWamNode.addEventListener('shader-changed', () => this.rebuildParameters());
-
-                const tryFetchPresets = async () => {
-                    try {
-                        const p = (this.activeWamNode.module as any)?.shaders || (this.activeWamNode as any).shaders;
-                        if (p && Array.isArray(p)) {
-                            this.presetMap.clear();
-                            this.presets = p.map((name, idx) => {
-                                this.presetMap.set(name, idx);
-                                return name;
-                            });
-                            this.rebuildParameters();
-                        } else {
-                            setTimeout(tryFetchPresets, 1000);
-                        }
-                    } catch (e) {
-                        console.error("[ISF] ERROR: Failed to fetch presets:", e);
+                    const id = this.activeWamNode.instanceId;
+                    const videoExtension = (window as any).WAMExtensions?.video;
+                    if (videoExtension && this.activeWamNode.video && !videoExtension.getDelegate(id)) {
+                        videoExtension.setDelegate(id, this.activeWamNode.video);
                     }
-                };
-                tryFetchPresets();
+
+                    if (this.pendingScreen) {
+                        this.pendingScreen.useRenderer(id);
+                        this.pendingScreen = null;
+                    }
+
+                    this.activeWamNode.addEventListener('shader-changed', () => this.rebuildParameters());
+
+                    const tryFetchPresets = async () => {
+                        try {
+                            const p = (this.activeWamNode.module as any)?.shaders || (this.activeWamNode as any).shaders;
+                            if (p && Array.isArray(p)) {
+                                this.presetMap.clear();
+                                this.presets = p.map((name, idx) => {
+                                    this.presetMap.set(name, idx);
+                                    return name;
+                                });
+                                this.rebuildParameters();
+                            } else {
+                                setTimeout(tryFetchPresets, 1000);
+                            }
+                        } catch (e) {
+                            console.error("[ISF] ERROR: Failed to fetch presets:", e);
+                        }
+                    };
+                    tryFetchPresets();
+                }
+            } catch (e) {
+                console.error("[ISF] ERROR: WAM load failed:", e);
             }
-        });
+        })();
     }
 
     private rebuildParameters() {
@@ -330,9 +320,6 @@ export class IsfShaderN3D implements Node3D {
         }
     }
 
-    /**
-     * Entry point for incoming video from another plugin
-     */
     public useRenderer(instanceId: string) {
         if (!this.activeWamNode || !instanceId) return;
         const videoExtension = (window as any).WAMExtensions?.video;
