@@ -122,7 +122,7 @@ export class ScreenN3D implements Node3D {
 export const ScreenN3DFactory: Node3DFactory<ScreenN3DGUI, ScreenN3D> = {
     label: "Screen",
     description: "External display for video content.",
-    tags: ["visualizer", "video", "audio", "generator"],
+    tags: ["video", "Other"],
     createGUI: async (context) => new ScreenN3DGUI(context),
     create: async (context, gui) => new ScreenN3D(context, gui),
 }

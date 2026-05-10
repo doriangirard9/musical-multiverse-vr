@@ -81,7 +81,7 @@ export class ButterchurnN3D implements Node3D {
             },
             connectAsOutput: (target: any) => {
                 console.log("[Butterchurn] DEBUG: connectAsOutput triggered. Target has useRenderer?", !!(target && target.useRenderer));
-                
+
                 if (target && typeof target.useRenderer === "function") {
                     const id = this.activeWamNode?.instanceId;
                     if (id) {
@@ -95,7 +95,7 @@ export class ButterchurnN3D implements Node3D {
                     console.warn("[Butterchurn] DEBUG: connectAsOutput target is NOT a valid Screen/Receiver");
                 }
             },
-            disconnectAsInput: () => {},
+            disconnectAsInput: () => { },
             disconnectAsOutput: () => {
                 console.log("[Butterchurn] DEBUG: disconnectAsOutput - clearing pending screen");
                 this.pendingScreen = null;
@@ -109,7 +109,7 @@ export class ButterchurnN3D implements Node3D {
             meshes: [gui.menuButton],
             color: new Color3(1, 1, 0),
             press: () => this.openShaderMenu(),
-            release: () => {}
+            release: () => { }
         };
         context.createButton(shaderButton);
 
@@ -133,10 +133,10 @@ export class ButterchurnN3D implements Node3D {
             if (instance?.audioNode) {
                 this.activeWamNode = instance.audioNode;
                 audioInput.audioNode = this.activeWamNode;
-                
+
                 // Ensure the node is connected to destination so it "ticks" and processes video
                 this.activeWamNode.connect(this.context.audioCtx.destination);
-                
+
                 const id = this.activeWamNode.instanceId;
                 console.log(`[Butterchurn] DEBUG: activeWamNode is READY. ID: ${id}`);
 
@@ -208,7 +208,7 @@ export class ButterchurnN3D implements Node3D {
 export const ButterchurnN3DFactory: Node3DFactory<ButterchurnN3DGUI, ButterchurnN3D> = {
     label: "Butterchurn",
     description: "GPU-accelerated visualizer.",
-    tags: ["visualizer", "audio", "generator", "video"],
+    tags: ["video", "generator"],
     createGUI: async (context) => new ButterchurnN3DGUI(context),
     create: async (context, gui) => new ButterchurnN3D(context, gui),
 }

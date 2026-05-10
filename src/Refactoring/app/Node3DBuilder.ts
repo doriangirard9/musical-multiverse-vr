@@ -14,6 +14,7 @@ import { SpeakerN3DFactory } from "../node3d/subs/speaker/SpeakerN3D.ts";
 import { PianoRollN3DFactory } from "../node3d/subs/PianoRoll/PianoRoll3d.ts";
 import { DrumKitN3DFactory } from "../node3d/subs/drumkit/DrumKitN3D.ts";
 import { ButterchurnN3DFactory } from "../node3d/subs/visualizer/ButterchurnN3D.ts";
+import { IsfShaderN3DFactory } from "../node3d/subs/visualizer/IsfShaderN3D.ts";
 import { ScreenN3DFactory } from "../node3d/subs/visualizer/ScreenN3D.ts";
 import { LivePianoN3DFactory } from "../node3d/subs/note_generator/LivePianoN3D.ts";
 import { HyperKeyboardN3DFactory } from "../node3d/subs/note_generator/HyperKeyboardN3D.ts";
@@ -45,7 +46,7 @@ export class Node3DBuilder {
      * Some of the valid kinds of Node3D.
      */
     FACTORY_KINDS = [
-        "audiooutput", "oscillator", "maracas", "livepiano", "notesbox", "pianoroll", "drumkit", "pro54michel", "butterchurn", "screen",
+        "audiooutput", "oscillator", "maracas", "livepiano", "notesbox", "pianoroll", "drumkit", "pro54michel", "butterchurn", "screen", "isf_shader",
         "hyperkeyboard", "drumplatekit", "automation_controller", "the_cube", "harp", "large_harp", "voice", "gaze", "sequencer",
         ...Object.keys(examples).map(k => `wam3d-${k}`),
         ...Object.keys(additionalConfig).map(k => `add-` + k)
@@ -65,6 +66,7 @@ export class Node3DBuilder {
     }
 
     private async createFactories(kind: string): Promise<Node3DFactory<Node3DGUI, Node3D> | null> {
+        if (!kind || kind.trim() === "") return null;
         // Dynamic 
         if (kind.startsWith("desc:")) {
             const description = kind.substring(5)
@@ -95,6 +97,7 @@ export class Node3DBuilder {
         if (kind == "pianoroll") return PianoRollN3DFactory
         if (kind == "drumkit") return DrumKitN3DFactory
         if (kind == "butterchurn") return ButterchurnN3DFactory
+        if (kind == "isf_shader") return IsfShaderN3DFactory
         if (kind == "screen") return ScreenN3DFactory
         if (kind == "hyperkeyboard") return HyperKeyboardN3DFactory.SMALL
         if (kind == "drumplatekit") return DrumPlateKitN3DFactory.SMALL
@@ -123,6 +126,12 @@ export class Node3DBuilder {
             return await Wam3DGeneratorN3DFactory.create(config)
         }
 
+        // Direct URL
+        if (kind.startsWith("url:")) {
+            const url = kind.substring(4)
+            return await Wam3DGeneratorN3DFactory.create({ wam_url: url } as any)
+        }
+
         // Configs
         {
             const response = await fetch(`${WAM_CONFIGS_URL}/wamsConfig/${kind}.json`, { method: "get", headers: { "Content-Type": "application/json" } })
@@ -140,6 +149,7 @@ export class Node3DBuilder {
      * @returns 
      */
     public getFactory(kind: string): Promise<Node3DFactory<Node3DGUI, Node3D> | null> {
+        if (!kind || kind.trim() === "" || kind.length > 64) return Promise.resolve(null);
         if (!this.factories.has(kind)) {
             const promise = (async () => {
                 const factory = await this.createFactories(kind)
@@ -246,7 +256,9 @@ export class Node3DBuilder {
             if (config_ids.ok) {
                 const ids: string[] = await config_ids.json()
                 for (const id of ids) {
-                    this.FACTORY_KINDS = [id, ...this.FACTORY_KINDS]
+                    if (id && id.trim() !== "") {
+                        this.FACTORY_KINDS = [id, ...this.FACTORY_KINDS]
+                    }
                 }
             }
         } catch (_) { }

@@ -9,9 +9,10 @@ export class VideoWamRenderer {
     private delegate: VideoDelegate;
     private audioCtx: AudioContext;
     private pluginId: string;
+    private inputPluginId: string | null = null;
+    private inputTexture: WebGLTexture | null = null;
 
     constructor(private scene: Scene, delegate: VideoDelegate, pluginId: string, audioCtx: AudioContext) {
-        console.log(`[VideoWamRenderer] DEBUG: Constructing for plugin ${pluginId}`);
         this.delegate = delegate;
         this.audioCtx = audioCtx;
         this.pluginId = pluginId;
@@ -28,17 +29,14 @@ export class VideoWamRenderer {
         
         document.body.appendChild(this.canvas);
 
-        console.log(`[VideoWamRenderer] DEBUG: Initializing VideoRenderer (WebGL Context)`);
         this.renderer = new VideoRenderer(this.canvas);
         
-        console.log(`[VideoWamRenderer] DEBUG: Connecting video delegate for ${pluginId}`);
         this.delegate.connectVideo({
             width: this.canvas.width,
             height: this.canvas.height,
             gl: this.renderer.gl
         });
 
-        console.log(`[VideoWamRenderer] DEBUG: Creating HtmlElementTexture for ${pluginId}`);
         this.texture = new HtmlElementTexture(`wam-video-texture-${pluginId}`, this.canvas, {
             engine: scene.getEngine(),
             generateMipMaps: false,
@@ -48,14 +46,49 @@ export class VideoWamRenderer {
         scene.onBeforeRenderObservable.add(this.update);
     }
 
+    public setInputSource(pluginId: string | null) {
+        this.inputPluginId = pluginId;
+        if (!pluginId) {
+            this.inputTexture = null;
+        }
+    }
+
     private update = () => {
         const time = this.audioCtx.currentTime;
-        const inputs = this.delegate.render([], time);
+        const videoExtension = (window as any).WAMExtensions?.video;
+        if (!videoExtension) return;
+
+        const inputs: WebGLTexture[] = [];
         
-        if (inputs && inputs[0]) {
-            this.renderer.render(inputs[0]);
+        // Handle chaining by uploading source canvas into a local texture
+        if (this.inputPluginId) {
+            const sourceRenderer = videoExtension.getRenderer(this.scene, this.inputPluginId, this.audioCtx);
+            if (sourceRenderer && sourceRenderer.getCanvas()) {
+                const gl = this.renderer.gl;
+                if (!this.inputTexture) {
+                    this.inputTexture = gl.createTexture();
+                }
+                gl.bindTexture(gl.TEXTURE_2D, this.inputTexture);
+                gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, sourceRenderer.getCanvas());
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+                
+                if (this.inputTexture) inputs.push(this.inputTexture);
+            }
+        }
+
+        const outputs = this.delegate.render(inputs, time);
+        
+        if (outputs && outputs[0]) {
+            this.renderer.render(outputs[0]);
             this.texture.update();
         } 
+    }
+
+    public getCanvas() {
+        return this.canvas;
     }
 
     public getTexture() {
@@ -63,22 +96,19 @@ export class VideoWamRenderer {
     }
 
     public attachToMesh(mesh: AbstractMesh) {
-        console.log(`[VideoWamRenderer] DEBUG: attachToMesh called on ${mesh.name}`);
         const mat = new StandardMaterial(`wam-video-mat-${mesh.name}`, this.scene);
-        
         mat.diffuseTexture = this.texture;
         mat.emissiveTexture = this.texture;
         mat.emissiveColor = new Color3(1, 1, 1);
         mat.disableLighting = true;
         mat.backFaceCulling = false;
-        
         mesh.material = mat;
     }
 
     public dispose() {
-        console.log(`[VideoWamRenderer] DEBUG: Disposing renderer for ${this.pluginId}`);
         this.scene.onBeforeRenderObservable.removeCallback(this.update);
         this.texture.dispose();
+        if (this.inputTexture) this.renderer.gl.deleteTexture(this.inputTexture);
         this.canvas.remove();
     }
 }

@@ -25,20 +25,13 @@ export class VideoExtension {
         return this.delegates.get(pluginId);
     }
 
-    /**
-     * UNIQUE Shared Renderer per plugin instance.
-     * Prevents WebGL context mismatch errors.
-     */
     getRenderer(scene: Scene, pluginId: string, audioCtx: AudioContext): VideoWamRenderer | undefined {
         let renderer = this.renderers.get(pluginId);
         if (!renderer) {
             const delegate = this.getDelegate(pluginId);
             if (delegate) {
-                console.log(`[VideoExtension] Creating NEW shared renderer for ${pluginId}`);
                 renderer = new VideoWamRenderer(scene, delegate, pluginId, audioCtx);
                 this.renderers.set(pluginId, renderer);
-            } else {
-                console.warn(`[VideoExtension] Cannot create renderer: No delegate for ${pluginId}`);
             }
         }
         return renderer;
