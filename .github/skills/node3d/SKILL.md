@@ -485,6 +485,32 @@ Before considering your Node3D complete:
 
 ---
 
+# Import Best Practices
+
+## ⚠️ Always Use `import type` for Types/Interfaces
+
+```typescript
+// ✅ CORRECT: Use 'import type' for interfaces, types, enums
+import type { Node3D, Node3DFactory, Node3DGUI } from "../Node3D";
+import type { Node3DContext } from "../Node3DContext";
+import type { Node3DGUIContext } from "../Node3DGUIContext";
+import type { RotativeParameter } from "../tools/gui";
+
+// ❌ WRONG: Don't use regular import for types
+import { Node3D, Node3DFactory, Node3DGUI } from "../Node3D";
+```
+
+**Why?**
+- So the Node3D is independant of wamjamparty and the compiled code can be hosted independently without importing the entire wamjamparty codebase.
+
+**Exception:**
+- Classe that are made specfically for this Node3D and should be compiler together.
+
+**How to use real types?**
+- You can access babylonjs and tools types through the context parameter in the constructor:
+
+---
+
 # Common Patterns
 
 ### Toggle Parameter (On/Off)

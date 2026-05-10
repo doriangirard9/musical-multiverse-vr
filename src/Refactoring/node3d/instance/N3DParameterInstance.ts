@@ -4,6 +4,7 @@ import { Node3DParameter } from "../Node3DParameter"
 import { N3DText } from "./utils/N3DText"
 import { InputHoverBehavior } from "../../xr/inputs/tools/InputHoverBehavior"
 import { InputGrabBehavior } from "../../xr/inputs/tools/InputGrabBehavior"
+import { Node3DInstance } from "./Node3DInstance"
 
 const highlightColor = Color3.Blue()
 
@@ -26,12 +27,12 @@ export class N3DParameterInstance {
      * @param stringify A function that returns the string representation of the parameter value.
      */
     constructor(
+        readonly node3d: Node3DInstance,
         root: TransformNode,
         highlightLayer: HighlightLayer,
         utilityLayer: UtilityLayerRenderer,
         readonly config: Node3DParameter,
     ) {
-        const {getLabel, getStepCount, getValue, setValue, stringify, meshes:draggables} = config
 
         /* Parameter value text visual */
         // Gère l'affichage du texte de la valeur du paramètre
@@ -42,9 +43,9 @@ export class N3DParameterInstance {
         /* Highlight visual */
         // Gère l'affichage de la surbrillance du paramètre
         const highlight = this.highlight = {
-            show(){ for(const d of draggables) NodeCompUtils.highlight(highlightLayer, d, highlightColor) },
-            hide(){ for(const d of draggables) NodeCompUtils.unhighlight(highlightLayer, d) },
-            dispose(){ for(const d of draggables) NodeCompUtils.unhighlight(highlightLayer, d) },
+            show(){ for(const d of config.meshes) NodeCompUtils.highlight(highlightLayer, d, highlightColor) },
+            hide(){ for(const d of config.meshes) NodeCompUtils.unhighlight(highlightLayer, d) },
+            dispose(){ for(const d of config.meshes) NodeCompUtils.unhighlight(highlightLayer, d) },
         } 
         /* */
 
@@ -71,15 +72,15 @@ export class N3DParameterInstance {
         function updateText(){
             text.updatePosition()
             text.set([
-                {content: getLabel()},
-                {content: stringify(getValue()), size: .7}
+                {content: config.getLabel()},
+                {content: config.stringify(config.getValue()), size: .7}
             ])
         }
         /* */
 
         const disposables: (()=>void)[] = []
 
-        for(const draggable of draggables){
+        for(const draggable of config.meshes){
             const action = draggable.actionManager ??= new ActionManager(root.getScene())
         
             const hover = new InputHoverBehavior(()=>{
@@ -102,7 +103,7 @@ export class N3DParameterInstance {
                 input=>{
                     visual.offset(1)
                 
-                    const stepCount = getStepCount()
+                    const stepCount = config.getStepCount()
                     if(stepCount<=1){
                         stepSize = 0.001
                         changeFactor = 0.2
@@ -111,13 +112,13 @@ export class N3DParameterInstance {
                         stepSize = 1/(stepCount-1)
                         changeFactor = stepSize*4
                     }
-                    startingValue = getValue() + stepSize/2
+                    startingValue = config.getValue() + stepSize/2
 
                     changeFactor*=2
 
                     // If stepCount is 2, the value is directly changed
                     if(stepSize==1){
-                        setValue(getValue()<.5 ? 1 : 0)
+                        this.setValue(config.getValue()<.5 ? 1 : 0)
                         updateText()
                     }
                     
@@ -143,7 +144,7 @@ export class N3DParameterInstance {
                     let newvalue = (startingValue + offset * changeFactor)
                     newvalue = newvalue - newvalue % stepSize
                     newvalue = Math.max(0, Math.min(1, newvalue))
-                    setValue(newvalue)
+                    this.setValue(newvalue)
                     draggable.rotationQuaternion = null
                     updateText()
                 },
@@ -164,6 +165,15 @@ export class N3DParameterInstance {
             text.dispose()
             highlight.dispose()
         }
+    }
+
+    /**
+     * Set value and sync if needed.
+     * @param value 
+     */
+    setValue(value: number){
+        this.config.setValue(value)
+        if(!this.config.notSynced) this.node3d.set_state("node3d_parameter_"+this.config.id)
     }
 
     readonly dispose

@@ -1,6 +1,4 @@
 import * as Y from 'yjs';
-import {PlayerManager} from "../app/PlayerManager.ts";
-import {PlayerNetwork} from "./PlayerNetwork.ts";
 import {Node3DNetwork} from "./Node3DNetwork.ts";
 import { PeerToPeerManager } from './PeerToPeerManager.ts';
 import { VisualNetwork } from './VisualNetwork.ts';
@@ -18,7 +16,6 @@ export class NetworkManager {
 
     readonly connection
     readonly visual
-    readonly player
     readonly node3d
 
 
@@ -26,7 +23,6 @@ export class NetworkManager {
         this.doc = doc;
         this.playerId = playerId;
         this.connection = new PeerToPeerManager(this.doc, this.playerId, roomName)
-        this.player = new PlayerNetwork(this.doc, this.playerId)
         this.node3d = new Node3DNetwork(this.doc)
         this.visual = new VisualNetwork(this.doc)
 
@@ -44,12 +40,6 @@ export class NetworkManager {
             throw new Error("NetworkManager not initialized. Call init() first.");
         }
         return this.instance;
-    }
-
-    public updatePlayers(deltaTime: number): void {
-        if (this.player) {
-            this.player.update(deltaTime);
-        }
     }
 
 }

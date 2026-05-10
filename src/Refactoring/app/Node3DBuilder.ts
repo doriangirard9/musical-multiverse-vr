@@ -26,6 +26,7 @@ import { N3DRendering } from "../node3d/instance/utils/N3DRendering.ts";
 import { AbstractMesh, CreatePlane, Vector4, VertexBuffer } from "@babylonjs/core";
 import { TextureAtlas } from "../utils/atlas.ts";
 import { AutoDispose } from "../utils/auto_dispose.ts";
+import ParticleEmitterN3DFactory, { ParticleEmitterN3D } from "../node3d/subs/particle/ParticleEmitterN3D.ts";
 
 
 
@@ -100,6 +101,7 @@ export class Node3DBuilder {
         if(kind=="large_harp") return HarpN3DFactory.LARGE
         if(kind=="gaze") return GazeControllerN3DFactory
         if(kind=="voice") return VoiceVolumeControllerN3DFactory
+        if(kind=="particle") return ParticleEmitterN3DFactory
         //if(kind=="function_sequencer") return FunctionSequencerN3DFactory.DEFAULT
 
         // Debug

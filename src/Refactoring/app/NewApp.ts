@@ -12,6 +12,9 @@ import { PlayerManager } from "./PlayerManager.ts";
 import { SceneManager } from "./SceneManager.ts";
 import { Serialization } from "./Serialization.ts";
 import { UIManager } from "./UIManager.ts";
+import { DrawingManager } from "./DrawingManager.ts";
+import { AvatarManager } from "./AvatarManager.ts";
+import { NetworkEventBus } from "../eventBus/NetworkEventBus.ts";
 export class NewApp {
     private static readonly DEBUG_LOG = false;
     private controlsUI?: ControlsUI;
@@ -61,7 +64,20 @@ export class NewApp {
 
         await AppOrchestrator.initialize()
 
-        SceneManager.getInstance().start();
+        SceneManager.getInstance().start()
+
+        await DrawingManager.initialize(
+            NetworkManager.getInstance(),
+            InputManager.getInstance(),
+            SceneManager.getInstance(),
+        )
+
+        await AvatarManager.initialize(
+            NetworkManager.getInstance(),
+            InputManager.getInstance(),
+            SceneManager.getInstance(),
+            NetworkEventBus.getInstance(),
+        )
 
         
 
@@ -155,91 +171,6 @@ export class NewApp {
         // await node3dBuilder.create("sequencer") as Node3DInstance
         // await node3dBuilder.create("sequencer") as Node3DInstance
         // await node3dBuilder.create("function_sequencer") as Node3DInstance
-
-        
-        /*;(async()=>{
-            let i = 0
-            for(const kind of node3dBuilder.FACTORY_KINDS){
-                const y = i%3
-                const x = Math.floor(i/3) - 5
-
-                try{
-                    const previewer = await new N3DPreviewer(node3dBuilder.getShared(), kind, node3dManager, false).initialize()
-                    previewer.root.position.set(x*1.5, y*1.5, 10)
-                    previewer.root.rotation.x = -Math.PI/2
-                }catch(e){}
-
-                i++
-            }
-            
-        })()*/
-
-        //// LE SUPER MAGASIN ////
-        /*{
-            await parallel(
-                // Le magasin fixe, remplie entièrement, et accessible en marchant
-                async()=>{
-                    const model = (await ImportMeshAsync(N3DShop.LARGE_SHOP_MODEL_URL, scene)).meshes[0]
-                    model.position.set(0, -1.5, 20)
-                    model.scaling.scaleInPlace(.6)
-                    const shop = new N3DShop(
-                        model,
-                        node3dShared,
-                        Node3dManager.getInstance(),
-                        InputManager.getInstance(),
-                        N3DShop.BASE_OPTIONS,
-                    )
-                    for(const zone of shop.zones.sort()){
-                        await shop.showZone(zone,["camera"])
-                    }
-                },
-                // Le magasin-menu, accessible via un bouton et dont les WAM sont chargé et déchargé dynamiquement
-                async()=>{
-                    const categories: Record<string, Set<string>> = {}
-                    const kinds = new Set<string>()
-                    await Promise.all(node3dBuilder.FACTORY_KINDS.map(async kind => {
-                        try{
-                            const factory = await node3dBuilder.getFactory(kind)
-                            if(!factory) return
-                            kinds.add(kind)
-                            for(const tag of factory.tags){
-                                categories[tag] ??= new Set<string>()
-                                categories[tag].add(kind)
-                            }
-                        }catch(e){}
-                    }))
-                    const options: N3DShopOptions = {
-                        categories: Object.fromEntries(Object.entries(categories).map(([key, value]) => [key, [...value]])),
-                        kinds: [...kinds],
-                        forcedOption: {
-                            display: {
-                                alphabetical: true
-                            }
-                        }
-                    }
-
-                    const model = (await ImportMeshAsync(N3DShop.BASE_SHOP_MODEL_URL, scene)).meshes[0]
-                    model.position.set(0, -1.5, 60)
-                    model.scaling.scaleInPlace(.6)
-                    
-                    let shop: N3DShop|null
-                    InputManager.getInstance().y_button.onDown.addOnce(async()=>{
-                        if(shop){
-                            shop.dispose()
-                        }
-                        shop = new N3DShop(
-                            model,
-                            node3dShared,
-                            Node3dManager.getInstance(),
-                            InputManager.getInstance(),
-                            options,
-                        )
-                        shop.showZone("default")
-                    })
-
-                }
-            )
-        }*/
     }
 
 }

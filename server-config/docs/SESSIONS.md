@@ -246,7 +246,6 @@ src/
     ├── network/
     │   ├── NetworkManager.ts         # Y.Doc + PeerToPeer + Player + Node3D networks
     │   ├── PeerToPeerManager.ts      # y-webrtc provider, awareness, keepalive
-    │   ├── PlayerNetwork.ts          # Player state sync via Y.Map
     │   ├── SessionConnector.ts       # Join protocol, heartbeat, auto-save
     │   ├── SessionAPIClient.ts       # Typed API client for session endpoints
     │   └── sync/SyncManager.ts       # Generic Y.js-backed object registry

@@ -101,7 +101,7 @@ export class Node3DInstance implements Synchronized {
 
             // Les paramètres draggables
             createParameter(info: Node3DParameter) {
-                const param = new N3DParameterInstance(instance.root_transform, highlightLayer, utilityLayer, info)
+                const param = new N3DParameterInstance(instance, instance.root_transform, highlightLayer, utilityLayer, info)
                 instance.parameters.set(info.id, param)
                 const connectableinfo = new AutomationN3DConnectable.Input(
                     `${info.id}_connectable`,
@@ -111,7 +111,7 @@ export class Node3DInstance implements Synchronized {
                         getName() { return info.getLabel() },
                         getStepCount() { return info.getStepCount() },
                         stringify(value) { return info.stringify(value) },
-                        setValue(value) { info.setValue(value) },
+                        setValue(value) { info.setValue(value,true) },
                         lock(isLocked) { },
                     },
                 )
@@ -279,7 +279,7 @@ export class Node3DInstance implements Synchronized {
     }
 
     ///// Synchronized ////
-    private set_state: (key: string) => void = () => { }
+    set_state: (key: string) => void = () => { }
 
     async initSync(_: string, set_state: (key: string) => void): Promise<void> {
         this.set_state = set_state
