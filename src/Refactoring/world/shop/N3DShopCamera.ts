@@ -1,6 +1,7 @@
 import { Vector3, WebXRCamera, WebXRFeatureName } from "@babylonjs/core";
 import { XRManager } from "../../xr/XRManager";
 import { N3DShop, N3DShopObject, N3DShopType } from "./N3DShop";
+import { InputManager } from "../../xr/inputs/InputManager";
 
 const TRANSITION_TIME = 250 // ms
 
@@ -111,9 +112,7 @@ export class N3DShopCamera implements N3DShopType {
             fromPosition = this.initialPosition
             fromRotation = this.initialRotation
 
-            if(XRManager.getInstance().xrFeaturesManager.getEnabledFeatures().includes(WebXRFeatureName.MOVEMENT)){
-                XRManager.getInstance().xrFeaturesManager.disableFeature(WebXRFeatureName.MOVEMENT)
-            }
+            InputManager.getInstance().movement.stackDisable()
             camera.applyGravity = false
             await this._stopCameraVelocity(camera)
         }
@@ -134,8 +133,7 @@ export class N3DShopCamera implements N3DShopType {
             toPosition = this.initialPosition!
             toRotation = this.initialRotation!
 
-            if(!XRManager.getInstance().xrFeaturesManager.getEnabledFeatures().includes(WebXRFeatureName.MOVEMENT))
-                XRManager.getInstance().setMovement(["rotation", "translation"])
+            InputManager.getInstance().movement.stackEnable()
             camera.applyGravity = true
 
             this.initialPosition = null

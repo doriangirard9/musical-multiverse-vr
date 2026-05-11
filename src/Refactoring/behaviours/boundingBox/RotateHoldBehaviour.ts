@@ -29,7 +29,7 @@ export class RotateHoldBehaviour implements Behavior<TransformNode> {
 
     const inputs = InputManager.getInstance()
 
-    XRManager.getInstance().setMovement(["translation"])
+    inputs.movement.stackDisable()
 
     const o = this.pointer.onMove.add(() => {
       const new_pointer = {
@@ -70,7 +70,7 @@ export class RotateHoldBehaviour implements Behavior<TransformNode> {
     this.detach = ()=>{
       o.remove()
       o2.remove()
-      XRManager.getInstance().setMovement(["translation","rotation"])
+      inputs.movement.stackEnable()
     }
 
   }

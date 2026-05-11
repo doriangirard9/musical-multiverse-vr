@@ -6,6 +6,7 @@ import { ControllerInput } from "./ControllerInput";
 import { PointerInput } from "./PointerInput";
 import { AbstractPointerInput } from "./AbstractPointerInput";
 import { InputCapability } from "./InputCapability";
+import { XRManager } from "../XRManager";
 
 export interface PointerMovementEvent {
     origin: Immutable<Vector3>,
@@ -144,7 +145,7 @@ export class InputManager {
         this._registerDocument(scene)
         
         // Register XR observers : based on XR controller events
-        this._registerXR(xrHelper, scene)
+        this._registerXR(xrHelper, XRManager.getInstance(), scene)
 
         // General scene control : based on camera per example
         this._registerScene(scene)
@@ -182,7 +183,7 @@ export class InputManager {
         im.left.thumbstick._registerMouseWheelObserver()
     }
 
-    _registerXR(xrHelper: WebXRDefaultExperience, scene: Scene){
+    _registerXR(xrHelper: WebXRDefaultExperience, xrManager: XRManager, scene: Scene){
         const im = this
 
         function initController(controller: WebXRInputSource){
@@ -204,6 +205,15 @@ export class InputManager {
         xrHelper.input.onControllerAddedObservable.add(initController)
 
         xrHelper.input.controllers.forEach(initController)
+
+        {
+            this.movement.onEnable.add(() => {
+                xrManager.setMovement(["rotation","translation"])
+            })
+            this.movement.onDisable.add(() => {
+                xrManager.setMovement([])
+            })
+        }
     }
 
     _registerScene(scene: Scene){

@@ -13,10 +13,8 @@ import { GridStrategy } from "./grid/GridStrategy";
 import { Piano88Strategy } from "./grid/Piano88Strategy";
 import { DrumPadsStrategy } from "./grid/DrumPadsStrategy";
 import { InputManager } from "../../../xr/inputs/InputManager";
-import { XRManager } from "../../../xr/XRManager";
 import { SceneManager } from "../../../app/SceneManager";
 import { XRControllerManager } from "../../../xr/XRControllerManager";
-import { ETextureFilterType } from "@babylonjs/loaders/glTF/1.0";
 
 interface PatternNote {
   tick: number;
@@ -1390,9 +1388,9 @@ InputManager.getInstance().right.squeeze.onChange.add((event) => {
     
 
 // initialize input managers
-const im = InputManager.getInstance();
-const xrManager = XRManager.getInstance();
-const t = SceneManager.getInstance().getScene();
+const im = InputManager.getInstance()
+const inputs = InputManager.getInstance()
+const t = SceneManager.getInstance().getScene()
 
 // Track if we're currently scrolling to prevent camera movement
 let isScrolling = false;
@@ -1425,19 +1423,14 @@ const getPianoRollFromMesh = (mesh: B.AbstractMesh): PianoRollN3D | null => {
 
 // Helper function to perform raycast and get pointed piano roll
 const getPointedPianoRollLeftController = (): PianoRollN3D | null => {
-  const leftController = xrManager.xrInputManager.leftController;
-  // const rightController = xrManager.xrInputManager.rightController;
-
-  if (!leftController) return null;
-  // if (!rightController) return null;
+  const leftController = inputs.left
   
   // Create ray from controller
-  const ray = new B.Ray(leftController.pointer.position, leftController.pointer.forward, 100);
-  const pickResult = t.pickWithRay(ray);
+  const {targetMesh} = leftController.pointer
   
-  if (pickResult?.hit && pickResult.pickedMesh) {
+  if (targetMesh) {
     // Check if the picked mesh belongs to this piano roll
-    return getPianoRollFromMesh(pickResult.pickedMesh);
+    return getPianoRollFromMesh(targetMesh);
   }
   
   return null;
@@ -1475,7 +1468,7 @@ const startScrolling = (direction: number) => {
   if (pointedPianoRollLeft === this || pointedPianoRollRight === this) {
     isScrolling = true;
     // Completely disable movement features to prevent camera rotation
-    xrManager.setMovement([]);
+    inputs.movement.stackDisable()
     
     // Start continuous scrolling
     scrollInterval = setInterval(() => {
@@ -1492,7 +1485,7 @@ const stopScrolling = () => {
   if (isScrolling) {
     isScrolling = false;
     // Re-enable both rotation and translation
-    xrManager.setMovement(["rotation", "translation"]);
+    inputs.movement.stackEnable();
   }
 };
 

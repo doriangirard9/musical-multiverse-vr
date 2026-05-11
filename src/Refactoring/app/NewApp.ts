@@ -16,6 +16,7 @@ import { DrawingManager } from "./DrawingManager.ts";
 import { AvatarManager } from "./AvatarManager.ts";
 import { NetworkEventBus } from "../eventBus/NetworkEventBus.ts";
 import { RandomUtils } from "../node3d/tools/utils/RandomUtils.ts";
+import { Doc } from "yjs";
 export class NewApp {
     private static readonly DEBUG_LOG = false;
     private controlsUI?: ControlsUI;
@@ -30,7 +31,7 @@ export class NewApp {
         return NewApp.instance;
     }
 
-    public async start(participantId: string, roomName: string, doc: Y.Doc): Promise<void> {
+    public async start(participantId: string, roomName: string, doc: Doc): Promise<void> {
         NewApp.instance = this
         
         const username = RandomUtils.randomName()
@@ -152,6 +153,12 @@ export class NewApp {
                 const str = localStorage.getItem("saved"); if(!str) return
                 const serialized = JSON.parse(str)
                 await Serialization.getInstance().load(serialized)
+            }
+            else if(e.key=="c"){
+                InputManager.getInstance().movement.stackEnable()
+            }
+            else if(e.key=="v"){
+                InputManager.getInstance().movement.stackDisable()
             }
         })
 
