@@ -9,6 +9,9 @@ import { N3DText } from "../../node3d/instance/utils/N3DText";
 
 /**
  * A player avatar visual.
+ * The avatar is composed of a head, a body and two hands. Each part has a "closed" version for hand closing animation.
+ * The avatar also has a label for the player's name.
+ * The avatar is synchronizable.
  */
 export class Avatar implements Synchronized{
 
@@ -233,7 +236,7 @@ export class Avatar implements Synchronized{
         this.set_state = set_state
     }
 
-    disposeSync(): void { }
+    disposeSync(): void { this.set_state = undefined }
 
     askStates(): void {
         this.set_state?.("head")

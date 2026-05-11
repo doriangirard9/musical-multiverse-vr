@@ -4,7 +4,10 @@ import { SyncSerializable } from "../../network/sync/SyncSerializable";
 import { Doc } from "yjs";
 import { SyncManager } from "../../network/sync/SyncManager";
 
-
+/**
+ * A simple 3D curve visual, defined by a list of points. The curve is rendered as a line strip.
+ * The curve is synchronizable, and can be shared across the network.
+ */
 export class Curve3D implements Synchronized {
 
     constructor(readonly color: Color4, readonly scene: Scene){}
