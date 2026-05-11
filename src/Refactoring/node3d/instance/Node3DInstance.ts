@@ -103,6 +103,7 @@ export class Node3DInstance implements Synchronized {
             createParameter(info: Node3DParameter) {
                 const param = new N3DParameterInstance(instance, instance.root_transform, highlightLayer, utilityLayer, info)
                 instance.parameters.set(info.id, param)
+                let last_value = 0
                 const connectableinfo = new AutomationN3DConnectable.Input(
                     `${info.id}_connectable`,
                     info.meshes,
@@ -111,8 +112,14 @@ export class Node3DInstance implements Synchronized {
                         getName() { return info.getLabel() },
                         getStepCount() { return info.getStepCount() },
                         stringify(value) { return info.stringify(value) },
-                        setValue(value) { info.setValue(value,true) },
-                        lock(isLocked) { },
+                        setValue(value) { 
+                            param.setValueAutomated(value)
+                            last_value = value
+                         },
+                        lock(isLocked) {
+                            if(!isLocked) param.setValue(last_value)
+                            param.isLocked = isLocked
+                        },
                     },
                 )
                 const connectable = new N3DConnectableInstance(instance, connectableinfo, highlightLayer, utilityLayer, IOEventBus.getInstance(), true, false)

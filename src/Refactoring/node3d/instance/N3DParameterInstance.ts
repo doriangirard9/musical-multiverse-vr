@@ -16,6 +16,12 @@ const highlightColor = Color3.Blue()
 export class N3DParameterInstance {
 
     /**
+     * Is the parameter locked.
+     * When locked, the value cannot be changed by user interaction.
+     */
+    isLocked = false
+
+    /**
      * 
      * @param root The root node of the audio node, the parent node of the parameter node.
      * @param draggable The draggable mesh of the parameter, which is highlighted and draggable.
@@ -169,11 +175,21 @@ export class N3DParameterInstance {
 
     /**
      * Set value and sync if needed.
+     * Don't works if the parameter is locked.
      * @param value 
      */
     setValue(value: number){
+        if(this.isLocked) return
         this.config.setValue(value)
         if(!this.config.notSynced) this.node3d.set_state("node3d_parameter_"+this.config.id)
+    }
+
+    /**
+     * Set value without syncing, used for automated changes (eg. when receiving state from other clients).
+     * @param value 
+     */
+    setValueAutomated(value: number){
+        this.config.setValue(value, true)
     }
 
     readonly dispose

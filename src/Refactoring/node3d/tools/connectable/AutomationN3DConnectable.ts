@@ -51,6 +51,7 @@ export namespace AutomationN3DConnectable {
                 getStepCount: this.parameter.getStepCount,
                 remove: () => { },
             }
+            this.parameter.lock(true)
         }
 
         connectAsOutput(): void { }
