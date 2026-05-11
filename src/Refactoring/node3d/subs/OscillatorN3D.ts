@@ -1,6 +1,7 @@
 import type { Node3D, Node3DFactory, Node3DGUI } from "../Node3D";
 import type { Node3DContext } from "../Node3DContext";
 import type { Node3DGUIContext } from "../Node3DGUIContext";
+import type { RotativeParameter } from "../tools/gui";
 
 
 export class OscillatorN3DGUI implements Node3DGUI{
@@ -8,7 +9,7 @@ export class OscillatorN3DGUI implements Node3DGUI{
     audioOutput
     block
     root
-    frequency
+    frequency: RotativeParameter
 
     get worldSize(){ return 1 }
 
@@ -26,9 +27,9 @@ export class OscillatorN3DGUI implements Node3DGUI{
         this.block.parent = this.root
         this.block.position.set(0,-.25,0)
 
-        this.frequency = B.CreateSphere("frequency param", {diameter:.5}, context.scene)
-        this.frequency.parent = this.root
-        this.frequency.position.set(0,0.25,0)
+        this.frequency = new T.RotativeParameter("frequency param", context)
+        this.frequency.root.parent = this.root
+        this.frequency.root.position.set(0,0.25,0)
     }
 
     async dispose(){ }
@@ -46,7 +47,7 @@ export class OscillatorN3D implements Node3D{
 
         const audionode = this.audionode = context.audioCtx.createOscillator()
         audionode.frequency.value = 130 // Hz
-        gui.frequency.scaling.setAll((130-130)/100  * .8 + .2)
+        gui.frequency.setValue((130-130)/100)
         audionode.start()
 
         context.createConnectable(new T.AudioN3DConnectable.Output("audioOutput", [gui.audioOutput], "Audio Output", audionode))
@@ -58,10 +59,10 @@ export class OscillatorN3D implements Node3D{
             getValue() { return (audionode.frequency.value-130)/100 },
             setValue(value: number) { 
                 audionode.frequency.value = value * 100 + 130
-                gui.frequency.scaling.setAll(value * .8 + .2)
+                gui.frequency.setValue(value)
                 context.notifyStateChange("frequency")
             },
-            meshes: [gui.frequency],
+            meshes: gui.frequency.meshes,
             stringify(value) { return `Frequency: ${Math.round(value * 100 + 130)} Hz` },
         })
     }
@@ -72,7 +73,9 @@ export class OscillatorN3D implements Node3D{
 
     getStateKeys(){ return ["frequency"] }
     
-    async dispose(){ }
+    async dispose(){ 
+        this.gui.frequency.dispose()
+    }
 
 }
 
