@@ -1,11 +1,10 @@
-import { Color4, ImportMeshAsync, InstancedMesh, Mesh, Node, Quaternion, Scene, TransformNode, Tuple, Vector3 } from "@babylonjs/core";
+import { AbstractMesh, Color4, ImportMeshAsync, InstancedMesh, Mesh, Quaternion, Scene, TransformNode, Tuple, Vector3 } from "@babylonjs/core";
 import avatarUrl from "./avatar.glb?url";
 import { SyncSerializable } from "../../network/sync/SyncSerializable";
 import { Synchronized } from "../../network/sync/Synchronized";
 import { InputManager } from "../../xr/inputs/InputManager";
 import { Doc } from "yjs";
 import { SyncManager } from "../../network/sync/SyncManager";
-import { N3DText } from "../../node3d/instance/utils/N3DText";
 
 /**
  * A player avatar visual.
@@ -15,14 +14,11 @@ import { N3DText } from "../../node3d/instance/utils/N3DText";
  */
 export class Avatar implements Synchronized{
 
-    root!: TransformNode
-    head!: InstancedMesh
-    leftHand!: InstancedMesh
-    rightHand!: InstancedMesh
-    leftHandClosed!: InstancedMesh
-    rightHandClosed!: InstancedMesh
-    body!: InstancedMesh
-    label!: N3DText
+    private root!: TransformNode
+    private head!: AvaterPart
+    private leftHand!: AvaterPart
+    private rightHand!: AvaterPart
+    private body!: AvaterPart
 
 
     constructor(
@@ -31,153 +27,62 @@ export class Avatar implements Synchronized{
 
     async initialize(){
         const models = await this.shared.getModel()
-        this.root = new TransformNode("avatarRoot", models.hand.getScene())
-        this.head = models.head.createInstance("head")
-        this.leftHand = models.hand.createInstance("lefthand")
-        this.rightHand = models.hand.createInstance("righthand")
-        this.leftHandClosed = models.hand_closed.createInstance("lefthand_closed")
-        this.rightHandClosed = models.hand_closed.createInstance("righthand_closed")
-        this.body = models.body.createInstance("body")
+        const scene = models.parts.head.default.default.getScene()
+        this.root = new TransformNode("avatarRoot", scene)
+
+        this.head = new AvaterPart("head", models.parts.head)
+        this.body = new AvaterPart("body", models.parts.body)
+        this.leftHand = new AvaterPart("leftHand", models.parts.hand)
+        this.rightHand = new AvaterPart("rightHand", models.parts.hand)
         this.place_color(new Color4(1, 1, 1, 1))
-        this.place_leftClosed(false)
-        this.place_rightClosed(false)
 
-        this.label = new N3DText(
-            "avatar name",
-            [this.head],
-            this.head.getScene()
-        )
-        this.label.show()
+        for(let part of [this.head, this.leftHand, this.rightHand, this.body]){
+            part.modify("root",it=>it.parent = this.root)
+        }
 
-        for(let mesh of [this.head, this.leftHand, this.rightHand, this.body, this.leftHandClosed, this.rightHandClosed]){
-            mesh.isPickable = false
-            mesh.checkCollisions = false
-            mesh.parent = this.root
+        for(let hand of [this.leftHand, this.rightHand]){
+            hand.modify("scale", it=>it.scaling = new Vector3(0.5,0.5,0.5))
         }
     }
 
     // Visual Model : Local side only
     place_color(color: Color4){
-        for(let mesh of [
-            this.head,
-            this.leftHand,
-            this.rightHand,
-            this.body,
-            this.leftHandClosed,
-            this.rightHandClosed,
-        ]){
-            mesh.instancedBuffers.color = color
+        for(let part of [this.head, this.leftHand, this.rightHand, this.body]){
+            part.modify("color", (mesh)=>mesh.instancedBuffers.color = color)
         }
     }
 
-    place_head(position: Vector3, rotation: Quaternion){
-        this.head.position = position
-        this.head.rotationQuaternion = rotation
-            .multiply(Quaternion.FromEulerAngles(0, -Math.PI/2, 0))
-        this.label.updatePosition()
-    }
-
-    place_body(position: Vector3, rotation: Quaternion){
-        this.body.position = position
-        this.body.rotationQuaternion = rotation
-            .multiply(Quaternion.FromEulerAngles(0, -Math.PI/2, 0))
-    }
-
-    place_leftHand(position: Vector3, rotation: Quaternion){
-        this.leftHand.position = position
-        this.leftHand.rotationQuaternion = rotation
-            .multiply(Quaternion.FromEulerAngles(0, -Math.PI/2, 0))
-        this.leftHand.scaling.setAll(.5)
-        
-        this.leftHandClosed.position.copyFrom(position)
-        this.leftHandClosed.rotationQuaternion = this.leftHand.rotationQuaternion
-        this.leftHandClosed.scaling.copyFrom(this.leftHand.scaling)
-    }
-
-    place_rightHand(position: Vector3, rotation: Quaternion){
-        this.rightHand.position = position
-        this.rightHand.rotationQuaternion = rotation
-            .multiply(Quaternion.FromEulerAngles(0, -Math.PI/2, 0))
-        this.rightHand.scaling.setAll(.5)
-
-        this.rightHandClosed.position.copyFrom(position)
-        this.rightHandClosed.rotationQuaternion = this.rightHand.rotationQuaternion
-        this.rightHandClosed.scaling.copyFrom(this.rightHand.scaling)
-    }
-
-    place_leftClosed(closed: boolean){
-        this.leftHand.isVisible = !closed
-        this.leftHandClosed.isVisible = closed
-    }
-
-    place_rightClosed(closed: boolean){
-        this.rightHand.isVisible = !closed
-        this.rightHandClosed.isVisible = closed
-    }
-
     place_name(name: string){
-        this.label.set(name)
     }
 
-    // Data
-    private _headPos = new Vector3()
-    private _headRot = new Quaternion()
-
-    private _leftHandPos = new Vector3()
-    private _leftHandRot = new Quaternion()
-    private _leftHandClosed = false
-
-    private _rightHandPos = new Vector3()
-    private _rightHandRot = new Quaternion()
-    private _rightHandClosed = false
-
-    private _bodyPos = new Vector3()
-    private _bodyRot = new Quaternion()
-
-    private color = new Color4()
-
-    private name = ""
-
-    setHeadPosition(position: Vector3, rotation: Quaternion){
-        this._headPos.copyFrom(position)
-        this._headRot.copyFrom(rotation)
-        this.place_head(position, rotation)
-        this.set_state?.("head")
+    randomize_skin(){
+        for(const part of [this.head, this.body, this.leftHand, this.rightHand]){
+            for(const kind of part.getKinds()){
+                if(kind=="default")continue
+                const variants = [...part.getVariants(kind), "nothing"]
+                const selected = variants[Math.floor(Math.random()*variants.length)]
+                if(selected != "nothing") part.set(kind, selected)
+            }
+        }
     }
 
-    setLeftHandPosition(position: Vector3, rotation: Quaternion){
-        this._leftHandPos.copyFrom(position)
-        this._leftHandRot.copyFrom(rotation)
-        this.place_leftHand(position, rotation)
-        this.set_state?.("leftHand")
+    // Setter
+    get headPart(){ return this.head as any as "PART" }
+    get leftHandPart(){ return this.leftHand as any as "PART" }
+    get rightHandPart(){ return this.rightHand as any as "PART" }
+    get bodyPart(){ return this.body as any as "PART" }
+
+    place(part: "PART", position: Vector3, rotation: Quaternion){
+        const partObj = part as any as AvaterPart
+        partObj.place(position, rotation)
+        this.set_state?.(`${partObj.name}_position`)
     }
 
-    setRightHandPosition(position: Vector3, rotation: Quaternion){
-        this._rightHandPos.copyFrom(position)
-        this._rightHandRot.copyFrom(rotation)
-        this.place_rightHand(position, rotation)
-        this.set_state?.("rightHand")
+    setShape(part: "PART", type: string, variant: string){
+        const partObj = part as any as AvaterPart
+        partObj.set(type, variant)
+        this.set_state?.(`${partObj.name}_shape_${type}`)
     }
-
-    setBodyPosition(position: Vector3, rotation: Quaternion){
-        this._bodyPos.copyFrom(position)
-        this._bodyRot.copyFrom(rotation)
-        this.place_body(position, rotation)
-        this.set_state?.("body")
-    }
-
-    setLeftHandClosed(closed: boolean){
-        this._leftHandClosed = closed
-        this.place_leftClosed(closed)
-        this.set_state?.("leftHandClosed")
-    }
-
-    setRightHandClosed(closed: boolean){
-        this._rightHandClosed = closed
-        this.place_rightClosed(closed)
-        this.set_state?.("rightHandClosed")
-    }
-    
 
     setColor(color: Color4){
         this.color.copyFrom(color)
@@ -185,9 +90,11 @@ export class Avatar implements Synchronized{
         this.set_state?.("color")
     }
 
-    getColor(){
-        return this.color
-    }
+    private color = new Color4()
+
+    getColor(){ return this.color }
+
+    private name = ""
 
     setName(name: string){
         this.name = name
@@ -202,31 +109,29 @@ export class Avatar implements Synchronized{
     // Register to inputs
     setVisible(visible: boolean){
         this.root.setEnabled(visible)
-        if(visible) this.label.show()
-        else this.label.hide()
     }
 
     registerInputs(inputs: InputManager){
         inputs.left.pointer.onMove.add((pointer)=>{
-            this.setLeftHandPosition(pointer.origin, Quaternion.FromRotationMatrix(pointer.matrix.getRotationMatrix()))
+            this.place(this.leftHandPart, pointer.origin, Quaternion.FromRotationMatrix(pointer.matrix.getRotationMatrix()))
         })
         inputs.right.pointer.onMove.add((pointer)=>{
-            this.setRightHandPosition(pointer.origin, Quaternion.FromRotationMatrix(pointer.matrix.getRotationMatrix()))
+            this.place(this.rightHandPart, pointer.origin, Quaternion.FromRotationMatrix(pointer.matrix.getRotationMatrix()))
         })
         inputs.head.onMove.add((pointer)=>{
             const headPos = pointer.origin
             const headRot = Quaternion.FromRotationMatrix(pointer.matrix.getRotationMatrix())
-            this.setHeadPosition(headPos, headRot)
+            this.place(this.headPart, headPos, headRot)
 
             const direction = pointer.forward.multiplyByFloats(1,0,1).normalize()
             const bodyPos = headPos.subtract(new Vector3(0,0.9,0))
             const bodyRot = Quaternion.FromLookDirectionLH(direction, Vector3.Up())
-            this.setBodyPosition(bodyPos, bodyRot)
+            this.place(this.bodyPart, bodyPos, bodyRot)
         })
-        inputs.left.trigger.onDown.add(()=>this.setLeftHandClosed(true))
-        inputs.left.trigger.onUp.add(()=>this.setLeftHandClosed(false))
-        inputs.right.trigger.onDown.add(()=>this.setRightHandClosed(true))
-        inputs.right.trigger.onUp.add(()=>this.setRightHandClosed(false))
+        inputs.left.trigger.onDown.add(()=>this.setShape(this.leftHandPart, "default", "closed"))
+        inputs.left.trigger.onUp.add(()=>this.setShape(this.leftHandPart, "default", "default"))
+        inputs.right.trigger.onDown.add(()=>this.setShape(this.rightHandPart, "default", "closed"))
+        inputs.right.trigger.onUp.add(()=>this.setShape(this.rightHandPart, "default", "default"))
     }
 
     // Sync
@@ -239,9 +144,14 @@ export class Avatar implements Synchronized{
     disposeSync(): void { this.set_state = undefined }
 
     askStates(): void {
-        this.set_state?.("head")
-        this.set_state?.("leftHand")
-        this.set_state?.("rightHand")
+        const askPart = (prefix: string, part: AvaterPart)=>{
+            for(const kind of part.getKinds()) this.set_state?.(`${prefix}_shape_${kind}`)
+            this.set_state?.(`${prefix}_position`)
+        }
+        askPart("head", this.head)
+        askPart("leftHand", this.leftHand)
+        askPart("rightHand", this.rightHand)
+        askPart("body", this.body)
         this.set_state?.("leftHandClosed")
         this.set_state?.("rightHandClosed")
         this.set_state?.("body")
@@ -250,30 +160,24 @@ export class Avatar implements Synchronized{
     }
 
     async setState(key: string, value: SyncSerializable): Promise<void> {
-        if(key === "head"){
-            const {position, rotation} = value as {position: Tuple<number,3>, rotation: Tuple<number,4>}
-            this._headPos.copyFrom(new Vector3(...position))
-            this._headRot.copyFrom(new Quaternion(...rotation))
-            this.place_head(this._headPos, this._headRot)
+        const setPart = (prefix: string, part: AvaterPart, key: string, value: SyncSerializable)=>{
+            if(key.startsWith(`${prefix}_shape_`)){
+                const kind = key.substring(`${prefix}_shape_`.length)
+                part.set(kind, value as string)
+                return true
+            }
+            else if(key === `${prefix}_position`){
+                const {position, rotation} = value as {position: Tuple<number,3>, rotation: Tuple<number,4>}
+                part.place(new Vector3(...position), new Quaternion(...rotation))
+                return true
+            }
+            else return false
         }
-        else if(key === "leftHand"){
-            const {position, rotation} = value as {position: Tuple<number,3>, rotation: Tuple<number,4>}
-            this._leftHandPos.copyFrom(new Vector3(...position))
-            this._leftHandRot.copyFrom(new Quaternion(...rotation))
-            this.place_leftHand(this._leftHandPos, this._leftHandRot)
-        }
-        else if(key === "rightHand"){
-            const {position, rotation} = value as {position: Tuple<number,3>, rotation: Tuple<number,4>}
-            this._rightHandPos.copyFrom(new Vector3(...position))
-            this._rightHandRot.copyFrom(new Quaternion(...rotation))
-            this.place_rightHand(this._rightHandPos, this._rightHandRot)
-        }
-        else if(key === "body"){
-            const {position, rotation} = value as {position: Tuple<number,3>, rotation: Tuple<number,4>}
-            this._bodyPos.copyFrom(new Vector3(...position))
-            this._bodyRot.copyFrom(new Quaternion(...rotation))
-            this.place_body(this._bodyPos, this._bodyRot)
-        }
+
+        if(setPart("head", this.head, key, value)){}
+        else if(setPart("leftHand", this.leftHand, key, value)){}
+        else if(setPart("rightHand", this.rightHand, key, value)){}
+        else if(setPart("body", this.body, key, value)){}
         else if(key === "color"){
             const color = value as Tuple<number,4>
             this.color.copyFrom(new Color4(...color))
@@ -284,58 +188,31 @@ export class Avatar implements Synchronized{
             this.name = name
             this.place_name(name)
         }
-        else if(key === "leftHandClosed"){
-            const closed = value as boolean
-            this._leftHandClosed = closed
-            this.place_leftClosed(closed)
-        }
-        else if(key === "rightHandClosed"){
-            const closed = value as boolean
-            this._rightHandClosed = closed
-            this.place_rightClosed(closed)
-        }
     }
 
     async removeState(key: string): Promise<void> { }
 
     async getState(key: string): Promise<SyncSerializable> {
-        if(key === "head"){
-            return {
-                position: [this._headPos.x, this._headPos.y, this._headPos.z],
-                rotation: [this._headRot.x, this._headRot.y, this._headRot.z, this._headRot.w]
+        function getPart(prefix: string, part: AvaterPart, key: string): SyncSerializable|null{
+            if(key.startsWith(`${prefix}_shape_`)){
+                const kind = key.substring(`${prefix}_shape_`.length)
+                return part.getVariants(kind).find(variant=>part.instances[kind]?.variant === variant) ?? null
             }
-        }
-        else if(key === "leftHand"){
-            return {
-                position: [this._leftHandPos.x, this._leftHandPos.y, this._leftHandPos.z],
-                rotation: [this._leftHandRot.x, this._leftHandRot.y, this._leftHandRot.z, this._leftHandRot.w]
+            else if(key === `${prefix}_position`){
+                return {
+                    position: part.position.asArray(),
+                    rotation: part.rotation.asArray(),
+                }
             }
+            else return null
         }
-        else if(key === "rightHand"){
-            return {
-                position: [this._rightHandPos.x, this._rightHandPos.y, this._rightHandPos.z],
-                rotation: [this._rightHandRot.x, this._rightHandRot.y, this._rightHandRot.z, this._rightHandRot.w]
-            }
-        }
-        else if(key === "body"){
-            return {
-                position: [this._bodyPos.x, this._bodyPos.y, this._bodyPos.z],
-                rotation: [this._bodyRot.x, this._bodyRot.y, this._bodyRot.z, this._bodyRot.w]
-            }
-        }
-        else if(key === "color"){
-            return [this.color.r, this.color.g, this.color.b, this.color.a]
-        }
-        else if(key === "name"){
-            return this.name
-        }
-        else if(key === "leftHandClosed"){
-            return this._leftHandClosed
-        }
-        else if(key === "rightHandClosed"){
-            return this._rightHandClosed
-        }
-        else return null
+        { const result = getPart("head", this.head, key); if (result !== null) return result }
+        { const result = getPart("leftHand", this.leftHand, key); if (result !== null) return result }
+        { const result = getPart("rightHand", this.rightHand, key); if (result !== null) return result }
+        { const result = getPart("body", this.body, key); if (result !== null) return result }
+        if(key === "color") return [this.color.r, this.color.g, this.color.b, this.color.a]
+        if(key === "name") return this.name 
+        return null
     }
 
     public on_dispose?: () => void
@@ -349,11 +226,8 @@ export class Avatar implements Synchronized{
 
         this.head.dispose()
         this.leftHand.dispose()
-        this.leftHandClosed.dispose()
         this.rightHand.dispose()
-        this.rightHandClosed.dispose()
         this.body.dispose()
-        this.label.dispose()
         this.root.dispose()
     }
 
@@ -384,6 +258,79 @@ export class Avatar implements Synchronized{
     }
 }
 
+export class AvaterPart{
+
+    private _position = new Vector3()
+    private _rotation = new Quaternion()
+    instances: Record<string, {mesh:InstancedMesh,variant:string}|null> = {}
+    private modifiers: Record<string, (mesh:InstancedMesh)=>void> = {}
+
+
+    constructor(readonly name: string, private model: Record<string, Record<string, Mesh>>){
+        const scene = model.default.default.getScene()
+        this.set("default", "default")
+    }
+
+    set(type: string, variant: string){
+        if(this.instances[type] && this.instances[type].variant === variant) return
+
+        if(this.instances[type]){
+            this.instances[type].mesh.dispose()
+            delete this.instances[type]
+        }
+        
+        if(this.model[type][variant]){
+            const new_instance = this.model[type][variant].createInstance(`part ${type} ${variant}`)
+            new_instance.parent = null
+            new_instance.resetLocalMatrix()
+            new_instance.isPickable = false
+            new_instance.checkCollisions = false
+            new_instance.isVisible = true
+            new_instance.position.copyFrom(this.position)
+            new_instance.rotationQuaternion = this.rotation.multiply(Quaternion.FromEulerAngles(0, -Math.PI/2, 0))
+            for(const modifier of Object.values(this.modifiers)) modifier(new_instance)
+            this.instances[type] = {mesh: new_instance, variant}
+        }
+    }
+
+    place(position: Vector3, rotation: Quaternion){
+        this._position.copyFrom(position)
+        this._rotation.copyFrom(rotation)
+        for(const entry of Object.values(this.instances)){
+            if(entry){
+                entry.mesh.position = position
+                entry.mesh.rotationQuaternion = rotation.multiply(Quaternion.FromEulerAngles(0, -Math.PI/2, 0))
+            }
+        }
+    }
+    
+    get position(){ return this._position }
+
+    get rotation(){ return this._rotation }
+
+    modify(name: string, modifier: (mesh: InstancedMesh)=>void){
+        for(const entry of Object.values(this.instances)){
+            modifier(entry!.mesh)
+        }
+        this.modifiers[name] = modifier
+    }
+
+    getKinds(){
+        return Object.keys(this.model)
+    }
+    
+    getVariants(kind: string){
+        return Object.keys(this.model[kind]??{})
+    }
+
+    dispose(){
+        for(const entry of Object.values(this.instances)){
+            entry?.mesh.dispose()
+        }
+    }
+    
+}
+
 export class AvaterShared{
 
     private model
@@ -396,19 +343,39 @@ export class AvaterShared{
 
     private async fetchModel(){
         const result = await ImportMeshAsync(avatarUrl, this.scene)
-        const head = (result.meshes.find(it=>it.name === "head") as Mesh)
-        const hand = (result.meshes.find(it=>it.name === "hand") as Mesh)
-        const hand_closed = (result.meshes.find(it=>it.name === "hand_closed") as Mesh)
-        const body = (result.meshes.find(it=>it.name === "body") as Mesh)
 
-        for(let mesh of [head, hand, hand_closed, body]){
-            mesh.isVisible = false
-            mesh.registerInstancedBuffer("color", 4)
-            mesh.parent = null
-            mesh.resetLocalMatrix()
+        // Body parts
+        const parts = {} as {
+            [referencial: string]:{
+                [type: string]:{
+                    [variant: string]: Mesh
+                }
+            }
         }
 
-        return {head, hand, hand_closed, body, result}
+        const to_dispose: AbstractMesh[] = []
+        for(const mesh of result.meshes){
+            if(mesh instanceof Mesh && mesh.name.match(/[^_]+_[^_]+_[^_]+/i)){
+                // Prepare
+                mesh.isVisible = false
+                mesh.registerInstancedBuffer("color", 4)
+                mesh.instancedBuffers.color = new Color4(1, 1, 1, 1)
+                mesh.parent = null
+                mesh.resetLocalMatrix()
+                
+                // Get name
+                const [part, type, variant] = mesh.name.split("_")
+                parts[part] ??= {}
+                parts[part][type] ??= {}
+                parts[part][type][variant] = mesh
+            }
+            else{
+                to_dispose.push(mesh)
+            }
+        }
+        for(const mesh of to_dispose) mesh.dispose()
+
+        return {parts, result}
     }
 
     async getModel(){

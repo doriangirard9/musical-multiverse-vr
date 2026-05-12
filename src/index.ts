@@ -155,6 +155,7 @@ let onload = async() => {
                         loadingOverlay.updateText('Loading 3D Environment...');
 
                         const newApp = new NewApp();
+                        console.log("START")
                         await newApp.start(connectionInfo.participantId, sessionId, doc);
                         appStarted = true;
 
