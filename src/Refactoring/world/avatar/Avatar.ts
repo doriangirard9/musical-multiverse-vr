@@ -43,6 +43,9 @@ export class Avatar implements Synchronized{
         for(let hand of [this.leftHand, this.rightHand]){
             hand.modify("scale", it=>it.scaling = new Vector3(0.5,0.5,0.5))
         }
+
+        this.head.modify("scale", it=>it.scaling = new Vector3(0.7,0.7,0.7))
+        this.body.modify("scale", it=>it.scaling = new Vector3(.7,.7,.7))
     }
 
     // Visual Model : Local side only
@@ -124,7 +127,7 @@ export class Avatar implements Synchronized{
             this.place(this.headPart, headPos, headRot)
 
             const direction = pointer.forward.multiplyByFloats(1,0,1).normalize()
-            const bodyPos = headPos.subtract(new Vector3(0,0.9,0))
+            const bodyPos = headPos.subtract(new Vector3(0,0.6,0))
             const bodyRot = Quaternion.FromLookDirectionLH(direction, Vector3.Up())
             this.place(this.bodyPart, bodyPos, bodyRot)
         })

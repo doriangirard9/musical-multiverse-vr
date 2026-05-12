@@ -61,7 +61,7 @@ export class DrawingManager {
             100,
             ()=>{
                 const pos = this.inputs.right.pointer.origin.clone()
-                if(last_pos.subtract(pos).length() > 0.2){
+                if(last_pos.subtract(pos).length() > 0.05){
                     if(curve) curve.points = [...curve.points, pos]
                     last_pos.copyFrom(pos)
                 }
