@@ -1,9 +1,11 @@
-import { CreatePlane, Effect, Mesh, Quaternion, Scene, Trajectory, Tuple, Vector3 } from "@babylonjs/core"
+import { CreatePlane, Effect, Mesh, Quaternion, Ray, Scene, Trajectory, Tuple, Vector3 } from "@babylonjs/core"
 import { AdvancedDynamicTexture, Button, Container, Control, Image, Rectangle, ScrollViewer, StackPanel, TextBlock } from "@babylonjs/gui"
 import { Node3dManager } from "../../app/Node3dManager"
 import { N3DRendering } from "../../node3d/instance/utils/N3DRendering"
 import { N3DText } from "../../node3d/instance/utils/N3DText"
 import { Node3DBuilder } from "../../app/Node3DBuilder"
+import { InputHoverBehavior, InputPressBehavior } from "../../node3d/tools"
+import { InputToPointerBehavior } from "../../xr/inputs/tools/InputToPointer"
 
 
 export class ShopPanel {
@@ -25,6 +27,8 @@ export class ShopPanel {
         this.label.list.background = "rgb(0,0,0,0.5)"
 
 
+        this.plane.addBehavior(new InputToPointerBehavior())
+        
         // Item List
         const items = new Container()
 
@@ -291,10 +295,10 @@ export class ShopPanel {
         return container
     }
 
-    makeFollow() {
+    makeFollow(distance = 2) {
         const o = this.scene.onAfterPhysicsObservable.add(() => {
             const ray = this.scene.activeCamera!.getForwardRay()
-            const position = ray.direction.scale(1).addInPlace(ray.origin)
+            const position = ray.direction.scale(distance).addInPlace(ray.origin)
             this.plane.position.addInPlace(position).scaleInPlace(0.5)
             this.plane.rotationQuaternion = Quaternion.FromLookDirectionLH(ray.direction.scale(-1), Vector3.Up())
                 .multiplyInPlace(Quaternion.FromEulerAngles(0.1, 0, 0))

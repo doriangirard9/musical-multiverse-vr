@@ -94,31 +94,38 @@ export class AbstractPointerInput {
      * Make the pointer input state change on webxr inputs source
      * @param inputSource 
      */
-    _registerXRObserver(controller: WebXRInputSource, scene: Scene): { remove(): void } {
+    _registerXRObserver(controller: WebXRInputSource, scenes: Scene[]): { remove(): void } {
         const that = this
 
         let disposed = false
 
         const o = controller.onDisposeObservable.addOnce(() => disposed = true)
 
-        scene.onAfterPhysicsObservable.add(function tick() {
-            that.onInit.notifyObservers(that)
-            if (disposed) {
-                if(that.targetMesh!=null){
-                    that.hit = false
-                    that.targetMesh = null
-                    that.onNewTarget.notifyObservers(that)
+        scenes[0].onAfterPhysicsObservable.add(function tick() {
+
+            for(let i=scenes.length-1; i>=0; i--){
+                const scene = scenes[i]
+
+                that.onInit.notifyObservers(that)
+                if (disposed) {
+                    if(that.targetMesh!=null){
+                        that.hit = false
+                        that.targetMesh = null
+                        that.onNewTarget.notifyObservers(that)
+                    }
+                    that.onRemove.notifyObservers(that)
+                    scene.onAfterPhysicsObservable.removeCallback(tick)
+                    return
                 }
-                that.onRemove.notifyObservers(that)
-                scene.onAfterPhysicsObservable.removeCallback(tick)
-                return
+
+                // Copy position
+                const root = controller.pointer
+                if (root){
+                    that._raytrace(root.position, root.forward, root.right, root.up, scene)
+                    if(that.targetMesh!=null)break
+                }
             }
 
-            // Copy position
-            const root = controller.pointer
-            if (root){
-                that._raytrace(root.position, root.forward, root.right, root.up, scene)
-            }
         })
 
         return {
@@ -135,32 +142,37 @@ export class AbstractPointerInput {
      * Make the pointer input state change on camera inputs source
      * @param inputSource 
      */
-    _registerCameraObserver(scene: Scene): { remove(): void } {
+    _registerCameraObserver(scenes: Scene[]): { remove(): void } {
         const that = this
 
         let disposed = false
 
         that.onInit.notifyObservers(that)
 
-        scene.onAfterPhysicsObservable.add(function tick() {
-            if (disposed) {
-                if(that.targetMesh!=null){
-                    that.hit = false
-                    that.targetMesh = null
-                    that.onNewTarget.notifyObservers(that)
+        scenes[0].onAfterPhysicsObservable.add(function tick() {
+            for(let i=scenes.length-1; i>=0; i--){
+                const scene = scenes[i]
+                
+                if (disposed) {
+                    if(that.targetMesh!=null){
+                        that.hit = false
+                        that.targetMesh = null
+                        that.onNewTarget.notifyObservers(that)
+                    }
+                    that.onRemove.notifyObservers(that)
+                    scene.onAfterPhysicsObservable.removeCallback(tick)
+                    return
                 }
-                that.onRemove.notifyObservers(that)
-                scene.onAfterPhysicsObservable.removeCallback(tick)
-                return
-            }
 
-            // Copy position
-            const camera = scene.activeCamera!
-            if (camera){
-                const forward = camera.getForwardRay().direction
-                const up = camera.upVector.normalizeToNew()
-                const right = forward.cross(up).negateInPlace().normalize()
-                that._raytrace(camera.position, forward, right, up, scene)
+                // Copy position
+                const camera = scene.activeCamera!
+                if (camera){
+                    const forward = camera.getForwardRay().direction
+                    const up = camera.upVector.normalizeToNew()
+                    const right = forward.cross(up).negateInPlace().normalize()
+                    that._raytrace(camera.position, forward, right, up, scene)
+                    if(that.targetMesh!=null)break
+                }
             }
         })
 
@@ -177,10 +189,10 @@ export class AbstractPointerInput {
      * Make the pointer input state change on mouse inputs
      * @param inputSource 
      */
-    _registerMouseObserver(scene: Scene): { remove(): void } {
+    _registerMouseObserver(scenes: Scene[]): { remove(): void } {
         const that = this
 
-        let canvas = scene.getEngine().getRenderingCanvas()
+        let canvas = scenes[0].getEngine().getRenderingCanvas()
         if (!canvas) return { remove() { } } // No canvas, no mouse input
 
         that.onInit.notifyObservers(that)
@@ -188,16 +200,22 @@ export class AbstractPointerInput {
         const mousemove = (e: MouseEvent) => {
             const canvas_x = e.clientX - canvas!.getBoundingClientRect().left
             const canvas_y = e.clientY - canvas!.getBoundingClientRect().top
-            const pickInfo = scene.pick(canvas_x, canvas_y)
-            const ray = pickInfo?.ray!!
+            
+            for(let i=scenes.length-1; i>=0; i--){
+                const scene = scenes[i]
+            
+                const pickInfo = scene.pick(canvas_x, canvas_y)
+                const ray = pickInfo?.ray!!
 
-            that._raytrace(
-                ray.origin,
-                ray.direction,
-                ray.direction.cross(Vector3.Up()).negateInPlace().normalize(),
-                ray.direction.cross(ray.direction.cross(Vector3.Up()).negateInPlace().normalize()).negateInPlace().normalize(),
-                scene
-            )
+                that._raytrace(
+                    ray.origin,
+                    ray.direction,
+                    ray.direction.cross(Vector3.Up()).negateInPlace().normalize(),
+                    ray.direction.cross(ray.direction.cross(Vector3.Up()).negateInPlace().normalize()).negateInPlace().normalize(),
+                    scene
+                )
+                if(that.targetMesh!=null)break
+            }
         }
 
         window.addEventListener("pointermove", mousemove)

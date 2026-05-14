@@ -253,6 +253,7 @@ export class Node3DBuilder {
 
         this.shared = new N3DShared(
             SceneManager.getInstance().getScene(),
+            SceneManager.getInstance().getUtilityLayer(),
             SceneManager.getInstance().getShadowGenerator(),
             Node3dManager.getInstance().getAudioContext(),
             Node3dManager.getInstance().getAudioEngine(),

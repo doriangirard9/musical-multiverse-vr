@@ -35,19 +35,6 @@ app.use('/api/sessions', require('./routes/sessions'));
 // Legacy config routes (kept for backwards compatibility)
 const fs = require('node:fs');
 
-app.get('/coreConfig/:name', (req, res) => {
-    const filePath = path.join(__dirname, `/public/coreConfig/${req.params.name}.json`);
-    fs.readFile(filePath, 'utf8', (err, data) => {
-        if (err) {
-            console.error('Error reading file:', err);
-            res.status(500).send('Error reading file').end();
-            return;
-        }
-        res.setHeader('Content-Type', 'application/json');
-        res.status(200).json(data).end();
-    });
-});
-
 app.get('/wamsConfig/:name', (req, res) => {
     const filePath = path.join(__dirname, `/public/wamsConfig/${req.params.name}.json`);
     fs.readFile(filePath, 'utf8', (err, data) => {

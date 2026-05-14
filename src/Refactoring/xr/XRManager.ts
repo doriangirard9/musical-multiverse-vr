@@ -41,8 +41,6 @@ export class XRManager {
                 "WebXR experience initialization timed out"
             );
 
-            InputManager.create(this.xrHelper, this._scene)
-
             this._initXRFeatures();
 
             this.xrInputManager = new XRInputManager(this.xrHelper);

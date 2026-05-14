@@ -27,7 +27,7 @@ export class InputManager {
         
     public static getInstance(): InputManager { return this.instance }
 
-    public static create(xrHelper: WebXRDefaultExperience, scene: Scene) { this.instance = new InputManager(xrHelper, scene) }
+    public static create(xrHelper: WebXRDefaultExperience, scene: Scene[]) { this.instance = new InputManager(xrHelper, scene) }
     
     
     //// OBSERVERS ////
@@ -93,7 +93,7 @@ export class InputManager {
 
     private constructor(
         xrHelper: WebXRDefaultExperience,
-        scene: Scene,
+        scenes: Scene[],
     ){
         const im = this
         
@@ -103,7 +103,7 @@ export class InputManager {
         }
 
         for(const controller of [im.left, im.right, im.screen]) {
-            controller._registerDocumentObserver(scene)
+            controller._registerDocumentObserver(scenes)
 
             controller.thumbstick.on_change.add((event) => im.onThumbstickChange.notifyObservers(event))
 
@@ -142,26 +142,31 @@ export class InputManager {
         }
 
         // Register document observers : based on key presses and mouse events
-        this._registerDocument(scene)
+        this._registerDocument(scenes)
         
         // Register XR observers : based on XR controller events
-        this._registerXR(xrHelper, XRManager.getInstance(), scene)
+        this._registerXR(xrHelper, XRManager.getInstance(), scenes)
 
         // General scene control : based on camera per example
-        this._registerScene(scene)
+        this._registerScene(scenes)
     }
 
-    _registerDocument(scene: Scene){
+    _registerDocument(scenes: Scene[]){
         const im = this
 
-        scene.preventDefaultOnPointerDown = false
+        for(const scene of scenes){
+            scene.skipPointerDownPicking = true
+            scene.skipPointerUpPicking = true
+            scene.preventDefaultOnPointerDown = false
+            scene.preventDefaultOnPointerUp = false
+        }
 
         for(const button of [im.x_button, im.y_button, im.a_button, im.b_button]) {
             button._registerDocumentObserver()
         }
 
         this.screen._registerDocumentObserver(
-            scene,
+            scenes,
             0,2,
             null,
             false,
@@ -169,13 +174,13 @@ export class InputManager {
         )
 
         this.left._registerDocumentObserver(
-            scene,
+            scenes,
             null,null,
             ["q", "d", "z", "s"],
         )
 
         this.right._registerDocumentObserver(
-            scene,
+            scenes,
             null,null,
             ["arrowleft", "arrowright", "arrowup", "arrowdown"],
         )
@@ -183,7 +188,7 @@ export class InputManager {
         im.left.thumbstick._registerMouseWheelObserver()
     }
 
-    _registerXR(xrHelper: WebXRDefaultExperience, xrManager: XRManager, scene: Scene){
+    _registerXR(xrHelper: WebXRDefaultExperience, xrManager: XRManager, scenes: Scene[]){
         const im = this
 
         function initController(controller: WebXRInputSource){
@@ -196,7 +201,7 @@ export class InputManager {
                 }
 
                 for(const cinput of [im.left, im.right]) {
-                    cinput._registerXRObserver(controller, scene)
+                    cinput._registerXRObserver(controller, scenes)
                 }
                 
             })
@@ -216,8 +221,8 @@ export class InputManager {
         }
     }
 
-    _registerScene(scene: Scene){
-        this.head._registerCameraObserver(scene)
+    _registerScene(scenes: Scene[]){
+        this.head._registerCameraObserver(scenes)
     }
         
 }

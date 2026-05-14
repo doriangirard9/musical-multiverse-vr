@@ -10,25 +10,28 @@ import { WaveGround } from "../world/ground/WaveGround.ts";
 import { SoundwaveEmitter } from "../world/soundwave/SoundwaveEmitter.ts";
 
 export class SceneManager {
-    private static _instance: SceneManager | null = null;
+    private static _instance: SceneManager | null = null
 
-    private readonly canvas: HTMLCanvasElement;
-    private readonly engine: B.Engine;
-    private readonly scene: B.Scene;
-    private readonly shadowGenerator: B.ShadowGenerator;
-    private waveGround!: WaveGround;
-    private soundwaveEmitter!: SoundwaveEmitter;
+    private readonly canvas
+    private readonly engine: B.Engine
+    private readonly scene
+    private readonly utilityLayer
+    private readonly shadowGenerator
+    private waveGround!: WaveGround
+    private soundwaveEmitter!: SoundwaveEmitter
     //@ts-ignore
-    private readonly ground: B.Mesh;
-    private physicsInitialized: boolean = false;
+    private readonly ground
+    private physicsInitialized: boolean = false
 
 
     private constructor(canvas: HTMLCanvasElement) {
-        this.canvas = canvas;
-        this.engine = new B.Engine(this.canvas, true, { stencil: true});
-        this.scene = new B.Scene(this.engine);
-        this.shadowGenerator = this.initializeShadowGenerator();
-        this.ground = this.createGround();
+        this.canvas = canvas
+        this.engine = new B.Engine(this.canvas, true, { stencil: true })
+        this.scene = new B.Scene(this.engine)
+        this.scene.detachControl()
+        this.shadowGenerator = this.initializeShadowGenerator()
+        this.ground = this.createGround()
+        this.utilityLayer = new B.UtilityLayerRenderer(this.scene)
 
         this.scene.clearColor = new B.Color4(0.15, 0.15, 0.15, 1);
         
@@ -85,21 +88,15 @@ export class SceneManager {
         });
     }
 
-    public getScene(): B.Scene {
-        return this.scene
-    }
+    public getScene() { return this.scene }
+    
+    public getUtilityLayer() { return this.utilityLayer }
 
-    public getWaveGround(): WaveGround {
-        return this.waveGround
-    }
+    public getWaveGround() { return this.waveGround}
 
-    public getShadowGenerator(): B.ShadowGenerator {
-        return this.shadowGenerator
-    }
+    public getShadowGenerator() { return this.shadowGenerator}
 
-    public getSoundwaveEmitter(): SoundwaveEmitter {
-        return this.soundwaveEmitter
-    }
+    public getSoundwaveEmitter() { return this.soundwaveEmitter}
 
     /**
      * Initialize Havok physics engine
