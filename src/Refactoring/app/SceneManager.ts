@@ -82,9 +82,6 @@ export class SceneManager {
             const currentTime = performance.now();
             const deltaTime = (currentTime - lastTime) / 1000; // Convertir en secondes
             lastTime = currentTime;
-
-            // Mettre à jour l'interpolation des joueurs
-            NetworkManager.getInstance().updatePlayers(deltaTime);
         });
     }
 

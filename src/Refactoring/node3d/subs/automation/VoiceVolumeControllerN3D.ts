@@ -76,7 +76,7 @@ export class VoiceVolumeControllerN3DGUI implements Node3DGUI {
 
         // Output
         function createOutput(name: string, position: number) {
-            const output = B.CreateSphere("voice controller output", { diameter: .4 }, context.scene)
+            const output = T.ConnectableUtils.createOutputMesh("voice controller output", .4, context.scene)
             output.parent = that.root
             output.position.set(0.75, -0.25, position)
             output.material = context.materialMat

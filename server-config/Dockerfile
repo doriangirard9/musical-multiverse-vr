@@ -14,7 +14,10 @@ WORKDIR /app
 
 COPY --from=builder /app /app
 
+RUN mkdir -p /app/data && chown -R node:node /app/data
+
+USER node
+
 EXPOSE 3000
 
-CMD ["node", "server.js"]
-
+CMD ["node", "--experimental-sqlite", "server.js"]

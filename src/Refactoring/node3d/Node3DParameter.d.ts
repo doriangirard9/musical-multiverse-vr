@@ -27,7 +27,7 @@ export interface Node3DParameter{
      * Change la valeur du paramètre. Entre 0 et 1.
      * @param value 
      */
-    setValue(value: number): void
+    setValue(value: number, automated?: boolean): void
 
     /**
      * Récupère le nombre de valeurs possibles du paramètre.

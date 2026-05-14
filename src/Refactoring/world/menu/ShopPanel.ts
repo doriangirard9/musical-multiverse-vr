@@ -264,7 +264,7 @@ export class ShopPanel{
         }
         container.pointerUpAnimation = ()=>{
             this.hide()
-            Node3dManager.getInstance().createNode3d(kind, this.plane.absolutePosition.clone())
+            Node3dManager.getInstance().addNode3d(kind, this.plane.absolutePosition.clone())
         }
 
         container.addControl(uiThumbnail)

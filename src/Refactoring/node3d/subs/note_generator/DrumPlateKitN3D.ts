@@ -162,7 +162,7 @@ export class DrumPlateKitN3DGUI implements Node3DGUI {
         })
 
         // Output
-        this.output = B.CreateSphere(`drumkit output`, { diameter: plateSize / 2 }, context.scene)
+        this.output = T.ConnectableUtils.createOutputMesh(`drumkit output`, plateSize / 2, context.scene)
         this.output.parent = this.root
         this.output.position.set(
             width / 2 + plateSize / 5,
@@ -173,7 +173,7 @@ export class DrumPlateKitN3DGUI implements Node3DGUI {
         T.MeshUtils.setColor(this.output, T.MidiN3DConnectable.Color.toColor4())
 
         // Automation Output
-        this.automationOutput = B.CreateSphere(`drumkit automation output`, { diameter: plateSize / 2 }, context.scene)
+        this.automationOutput = T.ConnectableUtils.createOutputMesh(`drumkit automation output`, plateSize / 2, context.scene)
         this.automationOutput.parent = this.root
         this.automationOutput.position.set(
             width / 2 + plateSize / 5,

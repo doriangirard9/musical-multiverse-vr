@@ -1,3 +1,4 @@
+import { Observable } from "@babylonjs/core";
 import { Synchronized } from "./Synchronized";
 import { SyncSerializable } from "./SyncSerializable";
 import * as Y from "yjs";
@@ -10,7 +11,6 @@ export class SyncManager<
     T extends Synchronized,
     D extends SyncSerializable|undefined = undefined
 >{
-
     private shared_data
     private shared_state
 

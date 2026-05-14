@@ -29,6 +29,7 @@ import { AutoDispose } from "../utils/auto_dispose.ts";
 import { SwarmThereminN3DFactory } from "../node3d/subs/SwarmThereminN3D.ts";
 import { AudioPlaqueN3DFactory } from "../node3d/subs/automation/AudioPlaqueN3D.ts";
 import { SuperformulaN3DFactory } from "../node3d/subs/automation/SuperformulaN3D.ts";
+import ParticleEmitterN3DFactory, { ParticleEmitterN3D } from "../node3d/subs/particle/ParticleEmitterN3D.ts";
 
 
 
@@ -110,6 +111,7 @@ export class Node3DBuilder {
         if(kind=="large_harp") return HarpN3DFactory.LARGE
         if(kind=="gaze") return GazeControllerN3DFactory
         if(kind=="voice") return VoiceVolumeControllerN3DFactory
+        if(kind=="particle") return ParticleEmitterN3DFactory
         //if(kind=="function_sequencer") return FunctionSequencerN3DFactory.DEFAULT
 
         // Debug

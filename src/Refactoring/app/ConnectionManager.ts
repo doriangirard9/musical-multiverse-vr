@@ -6,6 +6,7 @@ import { N3DConnectionInstance } from "../node3d/instance/N3DConnectionInstance.
 import { SceneManager } from "./SceneManager.ts";
 import { UIManager } from "./UIManager.ts";
 import { VisualTube } from "../visual/VisualTube.ts";
+import { Observable } from "@babylonjs/core";
 
 export class ConnectionManager {
     private static readonly DEBUG_LOG = false;

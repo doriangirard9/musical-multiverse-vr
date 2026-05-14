@@ -95,7 +95,7 @@ export class N3DPreviewer{
             if(!this.inWorldSize)hitbox.scaling.setAll(1)
 
             if(dragDistance>hitbox.getBoundingInfo().boundingBox.extendSizeWorld.x*2){
-                const new_node3d = await this.node3DManager.createNode3d(this.kind, position)
+                const new_node3d = await this.node3DManager.addNode3d(this.kind, position)
                 if(new_node3d!=null){
                     new_node3d.boundingBoxMesh.setAbsolutePosition(position.clone())
                     new_node3d.boundingBoxMesh.rotationQuaternion = rotation

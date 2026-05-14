@@ -110,10 +110,12 @@ export class N3DConnectionInstance{
         // Check that the connection don't have the maximum number of connection
         if(cA.connections.size >= (cA.config.max_connections??Number.MAX_SAFE_INTEGER)){
             this.messages.showMessage(`The first connectable already have the maximum number of connection`,2000)
+            return false
         }
 
         if(cB.connections.size >= (cB.config.max_connections??Number.MAX_SAFE_INTEGER)){
             this.messages.showMessage(`The second connectable already have the maximum number of connection`,2000)
+            return false
         }
         
         // Check that the connections directions are compatible
@@ -170,7 +172,7 @@ export class N3DConnectionInstance{
 
         const connection = this
         function movetube(){
-            if(!connection.buildTimeout)connection.buildTimeout = setTimeout(()=>{
+            if(!connection.buildTimeout) connection.buildTimeout = setTimeout(()=>{
                 // Some calculations
                 const offset = inputMesh.absolutePosition.subtract(outputMesh.absolutePosition)
                 const length = offset.length()
@@ -299,14 +301,22 @@ export class N3DConnectionInstance{
         scene: Scene,
         doc: Doc,
         nodes: SyncManager<Node3DInstance, any>,
-        messages: UIManager
+        messages: UIManager,
+        onAdd?: (instance:N3DConnectionInstance)=>void,
+        onRemove?: (instance:N3DConnectionInstance)=>void,
     ){
         const syncmanager: SyncManager<N3DConnectionInstance,any> = new SyncManager({
             name: "node3d_connections",
             doc,
             async create() { return new N3DConnectionInstance(scene, nodes, syncmanager, messages) },
-            async on_add(instance) { instance.on_dispose = ()=> syncmanager.remove(instance) },
-            async on_remove(instance) { instance.dispose() },
+            async on_add(instance) {
+                instance.on_dispose = ()=> syncmanager.remove(instance)
+                onAdd?.(instance)
+            },
+            async on_remove(instance) {
+                onRemove?.(instance)
+                instance.dispose()
+            },
         })
         return syncmanager
     }

@@ -49,7 +49,7 @@ export class AutomationControllerN3DGUI implements Node3DGUI {
         rotatorLine.position.set(0, 0, 0.25)
 
         // Output
-        this.output = B.CreateSphere("automation controller output", { diameter: .5 }, context.scene)
+        this.output = T.ConnectableUtils.createOutputMesh("automation controller output", .5, context.scene)
         this.output.parent = this.root
         this.output.position.set(0.75, -0.25, 0)
         this.output.material = context.materialMat

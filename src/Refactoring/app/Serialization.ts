@@ -106,7 +106,7 @@ export class Serialization {
      */
     public async load(description: Node3DGraphDescription): Promise<Node3DInstance[]>{
         const nodes = (await Promise.all(description.nodes.map(async nodeDesc => {
-            const node = await this.mNode.createNode3d(
+            const node = await this.mNode.addNode3d(
                 nodeDesc.kind,
                 Vector3.FromArray(nodeDesc.position)
             )

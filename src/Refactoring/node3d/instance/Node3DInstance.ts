@@ -31,6 +31,7 @@ import { NetworkManager } from "../../network/NetworkManager.ts";
 import { N3DButtonInstance } from "./N3DButtonInstance.ts";
 import { SceneManager } from "../../app/SceneManager.ts";
 import { InputManager } from "../../xr/inputs/InputManager.ts";
+import { BoxWave } from "../../world/BoxWave.ts";
 
 export class Node3DInstance implements Synchronized {
 
@@ -100,7 +101,7 @@ export class Node3DInstance implements Synchronized {
 
             // Les paramètres draggables
             createParameter(info: Node3DParameter) {
-                const param = new N3DParameterInstance(instance.root_transform, highlightLayer, utilityLayer, info)
+                const param = new N3DParameterInstance(instance, instance.root_transform, highlightLayer, utilityLayer, info)
                 instance.parameters.set(info.id, param)
                 const connectableinfo = new AutomationN3DConnectable.Input(
                     `${info.id}_connectable`,
@@ -110,7 +111,7 @@ export class Node3DInstance implements Synchronized {
                         getName() { return info.getLabel() },
                         getStepCount() { return info.getStepCount() },
                         stringify(value) { return info.stringify(value) },
-                        setValue(value) { info.setValue(value) },
+                        setValue(value) { info.setValue(value,true) },
                         lock(isLocked) { },
                     },
                 )
@@ -168,6 +169,11 @@ export class Node3DInstance implements Synchronized {
             sendSignal(position, red, green, blue) {
                 SceneManager.getInstance().getWaveGround().putWorldSpace(position, red, green, blue)
                 SceneManager.getInstance().getSoundwaveEmitter().spawn(new Vector2(position.x, position.z), new Color3(red, green, blue))
+                const boxWave = new BoxWave(
+                    instance.boundingBoxMesh,
+                    new Color3(red, green, blue).toColor4(1),
+                    1
+                )
             },
 
             getPlayerPosition() {
@@ -273,7 +279,7 @@ export class Node3DInstance implements Synchronized {
     }
 
     ///// Synchronized ////
-    private set_state: (key: string) => void = () => { }
+    set_state: (key: string) => void = () => { }
 
     async initSync(_: string, set_state: (key: string) => void): Promise<void> {
         this.set_state = set_state
@@ -344,17 +350,23 @@ export class Node3DInstance implements Synchronized {
     }
 
     static getSyncManager(
-        scene: Scene,
         doc: Doc,
         audioManager: Node3dManager,
-        messages: UIManager
+        onAdd?: (instance:Node3DInstance)=>void,
+        onRemove?: (instance:Node3DInstance)=>void,
     ) {
         const syncmanager: SyncManager<Node3DInstance, string> = new SyncManager({
             name: "node3d_instances",
             doc,
-            async on_add(instance) { instance.on_dispose = () => syncmanager.remove(instance) },
+            async on_add(instance) {
+                instance.on_dispose = () => syncmanager.remove(instance)
+                onAdd?.(instance)
+            },
             async create(_, __, kind) { return (await audioManager.builder.create(kind)) as Node3DInstance },
-            async on_remove(instance) { await instance.dispose() },
+            async on_remove(instance) {
+                onRemove?.(instance)
+                await instance.dispose()
+            },
         })
         // syncmanager.add(node_id,node,kind)
         return syncmanager

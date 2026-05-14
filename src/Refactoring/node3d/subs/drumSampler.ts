@@ -64,9 +64,9 @@ export class WamSamplerN3DGUI implements Node3DGUI {
 
   private _createPorts() {
     // MIDI Input (left)
-    this.midiInput = B.CreateGoldberg(
+    this.midiInput = this.tool.ConnectableUtils.createInputMesh(
       "sampler midi input",
-      { size: 4 },
+      4,
       this.context.scene
     );
     this.tool.MeshUtils.setColor(this.midiInput, MidiN3DConnectable.Color.toColor4());
