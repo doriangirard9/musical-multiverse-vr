@@ -1,4 +1,4 @@
-import { AbstractMesh, Color4, CreateCylinder, CreateIcoSphere, ImportMeshAsync, InstancedMesh, Mesh, Quaternion, Scene, TransformNode, Tuple, Vector3 } from "@babylonjs/core";
+import { AbstractMesh, Color3, Color4, CreateCylinder, CreateIcoSphere, CreatePlane, ImportMeshAsync, InstancedMesh, MaterialPluginManager, Mesh, PBRMaterial, Quaternion, Scene, TransformNode, Tuple, Vector3 } from "@babylonjs/core";
 import avatarUrl from "./avatar.glb?url";
 import { SyncSerializable } from "../../network/sync/SyncSerializable";
 import { Synchronized } from "../../network/sync/Synchronized";
@@ -6,6 +6,10 @@ import { InputManager } from "../../xr/inputs/InputManager";
 import { Doc } from "yjs";
 import { SyncManager } from "../../network/sync/SyncManager";
 import { PointerInput } from "../../xr/inputs/PointerInput";
+import { VertexPlusInstanceColorMaterialPlugin } from "../material/VertexPlusInstanceColorMaterialPlugin";
+import { AdvancedDynamicTexture, TextBlock } from "@babylonjs/gui";
+
+const DEBUG_MODE = false
 
 /**
  * A player avatar visual.
@@ -22,6 +26,7 @@ export class Avatar implements Synchronized{
     private body!: AvaterPart
     private _rightPointer!: AvaterPointer
     private _leftPointer!: AvaterPointer
+    private _label!: AvatarLabel
 
 
     constructor(
@@ -57,19 +62,26 @@ export class Avatar implements Synchronized{
             pointer.instanceSphere.parent = this.root
         }
 
+        this._label = new AvatarLabel("avatar label", scene)
+
         this.place_color(new Color4(1, 1, 1, 1))
     }
 
     // Visual Model : Local side only
     place_color(color: Color4){
         for(let part of [this.head, this.leftHand, this.rightHand, this.body]){
-            part.modify("color", (mesh)=>mesh.instancedBuffers.color = color)
+            part.modify("color", (mesh)=>mesh.instancedBuffers.color2 = color)
         }
         this._rightPointer.color = color
         this._leftPointer.color = color
     }
 
     place_name(name: string){
+        this._label.text = name
+    }
+
+    update_name(){
+        this._label.position = this.head.position.add(new Vector3(0,0.5,0))
     }
 
     randomize_skin(){
@@ -92,6 +104,7 @@ export class Avatar implements Synchronized{
     place(part: "PART", position: Vector3, rotation: Quaternion){
         const partObj = part as any as AvaterPart
         partObj.place(position, rotation)
+        if(part===this.headPart)this.update_name()
         this.set_state?.(`${partObj.name}_position`)
     }
 
@@ -122,21 +135,18 @@ export class Avatar implements Synchronized{
         this.set_state?.("color")
     }
 
-    private name = ""
-
     setName(name: string){
-        this.name = name
         this.place_name(name)
         this.set_state?.("name")
     }
 
     getName(){
-        return this.name
+        return this._label.text
     }
 
     // Register to inputs
     setVisible(visible: boolean){
-        this.root.setEnabled(visible)
+        this.root.setEnabled(DEBUG_MODE||visible)
     }
 
     // Sync
@@ -176,6 +186,7 @@ export class Avatar implements Synchronized{
             else if(key === `${prefix}_position`){
                 const {position, rotation} = value as {position: Tuple<number,3>, rotation: Tuple<number,4>}
                 part.place(new Vector3(...position), new Quaternion(...rotation))
+                if(part===this.head)this.update_name()
                 return true
             }
             else return false
@@ -192,7 +203,6 @@ export class Avatar implements Synchronized{
         }
         else if(key === "name"){
             const name = value as string
-            this.name = name
             this.place_name(name)
         }
         else if(key === `${this._leftPointer.name}_pointer`){
@@ -226,7 +236,7 @@ export class Avatar implements Synchronized{
         { const result = getPart("rightHand", this.rightHand, key); if (result !== null) return result }
         { const result = getPart("body", this.body, key); if (result !== null) return result }
         if(key === "color") return [this.color.r, this.color.g, this.color.b, this.color.a]
-        if(key === "name") return this.name 
+        if(key === "name") return this._label.text 
         if(key === `${this._leftPointer.name}_pointer`) return {from: this._leftPointer.from.asArray(), to: this._leftPointer.to.asArray(), doCollide: this._leftPointer.doCollide}
         if(key === `${this._rightPointer.name}_pointer`) return {from: this._rightPointer.from.asArray(), to: this._rightPointer.to.asArray(), doCollide: this._rightPointer.doCollide}
         return null
@@ -248,6 +258,7 @@ export class Avatar implements Synchronized{
         this.root.dispose()
         this._leftPointer.dispose()
         this._rightPointer.dispose()
+        this._label.dispose()
     }
 
     static getSyncManager(
@@ -349,7 +360,7 @@ export class AvaterPart{
         this._rotation.copyFrom(rotation)
         for(const entry of Object.values(this.instances)){
             if(entry){
-                entry.mesh.position = position
+                if(!DEBUG_MODE) entry.mesh.position = position
                 entry.mesh.rotationQuaternion = rotation.multiply(Quaternion.FromEulerAngles(0, -Math.PI/2, 0))
             }
         }
@@ -435,6 +446,60 @@ export class AvaterPointer{
     }
 }
 
+const TEXT_SCALE = .5
+
+export class AvatarLabel{
+
+    plane
+    texture
+    text_block
+
+    constructor(label: string, scene: Scene){
+
+        const plane = this.plane = CreatePlane(`${label} text plane`, { size: 1*TEXT_SCALE, width: 7*TEXT_SCALE }, scene)
+        plane.scaling.setAll(.4)
+        plane.billboardMode = AbstractMesh.BILLBOARDMODE_ALL
+        plane.isPickable = false
+        plane.alphaIndex = -1
+
+        const texture = this.texture = AdvancedDynamicTexture.CreateForMesh(plane, 1024, Math.floor(1024/7))
+        texture.background = "rgba(0,0,0,0.5)"
+
+        const text = this.text_block = new TextBlock()
+        text.color = 'white'
+        text.outlineColor = 'black'
+        text.fontSize = TEXT_SCALE*200
+        text.outlineWidth = 10
+        text.text = ""
+        text.textHorizontalAlignment = TextBlock.HORIZONTAL_ALIGNMENT_CENTER
+        text.textVerticalAlignment = TextBlock.VERTICAL_ALIGNMENT_CENTER
+        text.width = texture.getSize().width+"px"
+        text.height = texture.getSize().height+"px"
+
+        texture.addControl(text)
+    }
+
+    private _text = ""
+
+    set text(value: string){
+        this._text = value
+        this.text_block.text = this._text
+    }
+
+    get text(){ return this._text }
+
+    get position(){ return this.plane.position }
+
+    set position(value: Vector3){ this.plane.position.copyFrom(value) }
+    
+    get root(){ return this.plane as TransformNode }
+
+    dispose(){
+        this.plane.dispose()
+        this.texture.dispose()
+    }
+}
+
 export class AvaterShared{
 
     private model
@@ -457,15 +522,18 @@ export class AvaterShared{
             }
         }
 
-        const to_dispose: AbstractMesh[] = []
+        const materials = new Set<PBRMaterial>()
+        const to_dispose = [] as AbstractMesh[]
         for(const mesh of result.meshes){
             if(mesh instanceof Mesh && mesh.name.match(/[^_]+_[^_]+_[^_]+/i)){
                 // Prepare
                 mesh.isVisible = false
-                mesh.registerInstancedBuffer("color", 4)
-                mesh.instancedBuffers.color = new Color4(1, 1, 1, 1)
+                mesh.registerInstancedBuffer("color2", 4)
+                mesh.instancedBuffers.color2 = new Color4(1, 1, 1, 1)
                 mesh.parent = null
                 mesh.resetLocalMatrix()
+                mesh.useVertexColors = true
+                materials.add(mesh.material as PBRMaterial)
                 
                 // Get name
                 const [part, type, variant] = mesh.name.split("_")
@@ -478,6 +546,10 @@ export class AvaterShared{
             }
         }
         for(const mesh of to_dispose) mesh.dispose()
+        for(const material of materials){
+            material.pluginManager = new MaterialPluginManager(material)
+            material.pluginManager._addPlugin(new VertexPlusInstanceColorMaterialPlugin(material))
+        }
 
         const pointer = CreateCylinder("avatar pointer model", {diameterTop:0}, this.scene)
         pointer.isVisible = false
