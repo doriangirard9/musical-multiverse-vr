@@ -19,7 +19,7 @@ export class InputDropBehavior implements Behavior<AbstractMesh> {
         private onDrop: (pointer:PointerInput)=>void,
     ){}
 
-    name = "InputDropBehavior"
+    get name(){ return this.constructor.name }
 
     observable?: {remove():void}
 

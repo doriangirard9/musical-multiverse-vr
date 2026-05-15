@@ -20,7 +20,7 @@ export class InputHoverBehavior implements Behavior<AbstractMesh> {
         private onExit: ()=>void,
     ){}
 
-    name = "InputHoverBehavior"
+    get name(){ return this.constructor.name }
 
     isEntered = false
     observables: {remove():void}[] = []

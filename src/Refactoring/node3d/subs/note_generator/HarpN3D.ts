@@ -3,7 +3,7 @@ import type { Node3D, Node3DFactory, Node3DGUI } from "../../Node3D";
 import type { Node3DContext } from "../../Node3DContext";
 import type { Node3DGUIContext } from "../../Node3DGUIContext";
 import { InputManager } from "../../../xr/inputs/InputManager";
-import { InputPressBehavior } from "../../../xr/inputs/tools/InputPressBehavior";
+import { InputMultiPressBehavior } from "../../../xr/inputs/tools/InputMultiPressBehavior";
 
 
 const LINE_IN_ONE = 8
@@ -156,7 +156,7 @@ export class HarpN3D implements Node3D {
         // Press
         gui.lines.forEach((line, index) => {
             let i = 0
-            const press = new InputPressBehavior(
+            const press = new InputMultiPressBehavior(
                 ()=>{
                     this.press(index)
                     i++

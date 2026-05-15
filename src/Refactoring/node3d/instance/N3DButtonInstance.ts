@@ -1,7 +1,7 @@
 import { Behavior, HighlightLayer, TransformNode, UtilityLayerRenderer } from "@babylonjs/core"
 import { InputGrabBehavior } from "../../xr/inputs/tools/InputGrabBehavior"
 import { InputHoverBehavior } from "../../xr/inputs/tools/InputHoverBehavior"
-import { InputMultiPressBehavior } from "../../xr/inputs/tools/InputMultiPressBehavior"
+import { InputPressBehavior } from "../../xr/inputs/tools/InputPressBehavior"
 import { Node3DButton } from "../Node3DButton"
 import { NodeCompUtils } from "../tools/utils/NodeCompUtils"
 import { N3DText } from "./utils/N3DText"
@@ -99,7 +99,7 @@ export class N3DButtonInstance {
 
             let behavior: Behavior<any>
             if(config.supportSwipe){
-                behavior = new InputMultiPressBehavior(on_pick_down, on_pick_up)
+                behavior = new InputPressBehavior(on_pick_down, on_pick_up)
             }
             else{
                 behavior = new InputGrabBehavior(on_pick_down, on_pick_up)

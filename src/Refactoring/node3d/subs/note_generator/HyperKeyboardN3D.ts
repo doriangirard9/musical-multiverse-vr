@@ -4,7 +4,7 @@ import type { Node3DContext } from "../../Node3DContext";
 import type { Node3DGUIContext } from "../../Node3DGUIContext";
 import type { AutomationN3DConnectable, MidiN3DConnectable } from "../../tools";
 import type { InputHoverBehavior } from "../../../xr/inputs/tools/InputHoverBehavior";
-import type { InputMultiPressBehavior } from "../../../xr/inputs/tools/InputMultiPressBehavior";
+import type { InputPressBehavior } from "../../../xr/inputs/tools/InputPressBehavior";
 
 
 

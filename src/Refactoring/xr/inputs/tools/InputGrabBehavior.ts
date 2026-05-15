@@ -23,7 +23,7 @@ export class InputGrabBehavior implements Behavior<AbstractMesh> {
         private onMove?: (pointer:PointerInput)=>void,
     ){}
 
-    name = "InputGrabBehavior"
+    get name(){ return this.constructor.name }
 
     grabbed: PointerInput|null = null
 
