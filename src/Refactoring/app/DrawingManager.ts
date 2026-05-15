@@ -39,7 +39,7 @@ export class DrawingManager {
         this.registerInputs()
     }
 
-    create(color: Color4): Curve3D {
+    create(color: Color3): Curve3D {
         const curve = new Curve3D(color,this.scene.getScene())
         const id = RandomUtils.randomID()
         this.manager.add(id, curve, color.toHexString())
@@ -67,7 +67,7 @@ export class DrawingManager {
                 }
             },
             ()=>{
-                curve = this.create(this.usercolor.toColor4(1))
+                curve = this.create(this.usercolor)
                 last_pos = new Vector3(0,9999,0)
             },
         )

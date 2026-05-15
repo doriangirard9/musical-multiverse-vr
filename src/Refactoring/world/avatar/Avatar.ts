@@ -1,10 +1,11 @@
-import { AbstractMesh, Color4, ImportMeshAsync, InstancedMesh, Mesh, Quaternion, Scene, TransformNode, Tuple, Vector3 } from "@babylonjs/core";
+import { AbstractMesh, Color4, CreateCylinder, CreateIcoSphere, ImportMeshAsync, InstancedMesh, Mesh, Quaternion, Scene, TransformNode, Tuple, Vector3 } from "@babylonjs/core";
 import avatarUrl from "./avatar.glb?url";
 import { SyncSerializable } from "../../network/sync/SyncSerializable";
 import { Synchronized } from "../../network/sync/Synchronized";
 import { InputManager } from "../../xr/inputs/InputManager";
 import { Doc } from "yjs";
 import { SyncManager } from "../../network/sync/SyncManager";
+import { PointerInput } from "../../xr/inputs/PointerInput";
 
 /**
  * A player avatar visual.
@@ -19,6 +20,8 @@ export class Avatar implements Synchronized{
     private leftHand!: AvaterPart
     private rightHand!: AvaterPart
     private body!: AvaterPart
+    private _rightPointer!: AvaterPointer
+    private _leftPointer!: AvaterPointer
 
 
     constructor(
@@ -34,7 +37,6 @@ export class Avatar implements Synchronized{
         this.body = new AvaterPart("body", models.parts.body)
         this.leftHand = new AvaterPart("leftHand", models.parts.hand)
         this.rightHand = new AvaterPart("rightHand", models.parts.hand)
-        this.place_color(new Color4(1, 1, 1, 1))
 
         for(let part of [this.head, this.leftHand, this.rightHand, this.body]){
             part.modify("root",it=>it.parent = this.root)
@@ -46,6 +48,16 @@ export class Avatar implements Synchronized{
 
         this.head.modify("scale", it=>it.scaling = new Vector3(0.7,0.7,0.7))
         this.body.modify("scale", it=>it.scaling = new Vector3(.7,.7,.7))
+
+        this._rightPointer = new AvaterPointer("right", models.pointer, models.pointerSphere)
+        this._leftPointer = new AvaterPointer("left", models.pointer, models.pointerSphere)
+
+        for(let pointer of [this._rightPointer, this._leftPointer]){
+            pointer.instance.parent = this.root
+            pointer.instanceSphere.parent = this.root
+        }
+
+        this.place_color(new Color4(1, 1, 1, 1))
     }
 
     // Visual Model : Local side only
@@ -53,6 +65,8 @@ export class Avatar implements Synchronized{
         for(let part of [this.head, this.leftHand, this.rightHand, this.body]){
             part.modify("color", (mesh)=>mesh.instancedBuffers.color = color)
         }
+        this._rightPointer.color = color
+        this._leftPointer.color = color
     }
 
     place_name(name: string){
@@ -87,15 +101,26 @@ export class Avatar implements Synchronized{
         this.set_state?.(`${partObj.name}_shape_${type}`)
     }
 
+
+    get rightPointer(){ return this._rightPointer as any as "POINTER" }
+    get leftPointer(){ return this._leftPointer as any as "POINTER" }
+
+    placePointer(_pointer: "POINTER", from: Vector3, to: Vector3, doCollide: boolean){
+        const pointer = _pointer as any as AvaterPointer
+        pointer.place(from, to, doCollide)
+        this.set_state?.(`${pointer.name}_pointer`)
+    }
+
+
+    private color = new Color4()
+
+    getColor(){ return this.color }
+
     setColor(color: Color4){
         this.color.copyFrom(color)
         this.place_color(color)
         this.set_state?.("color")
     }
-
-    private color = new Color4()
-
-    getColor(){ return this.color }
 
     private name = ""
 
@@ -112,29 +137,6 @@ export class Avatar implements Synchronized{
     // Register to inputs
     setVisible(visible: boolean){
         this.root.setEnabled(visible)
-    }
-
-    registerInputs(inputs: InputManager){
-        inputs.left.pointer.onMove.add((pointer)=>{
-            this.place(this.leftHandPart, pointer.origin, Quaternion.FromRotationMatrix(pointer.matrix.getRotationMatrix()))
-        })
-        inputs.right.pointer.onMove.add((pointer)=>{
-            this.place(this.rightHandPart, pointer.origin, Quaternion.FromRotationMatrix(pointer.matrix.getRotationMatrix()))
-        })
-        inputs.head.onMove.add((pointer)=>{
-            const headPos = pointer.origin
-            const headRot = Quaternion.FromRotationMatrix(pointer.matrix.getRotationMatrix())
-            this.place(this.headPart, headPos, headRot)
-
-            const direction = pointer.forward.multiplyByFloats(1,0,1).normalize()
-            const bodyPos = headPos.subtract(new Vector3(0,0.6,0))
-            const bodyRot = Quaternion.FromLookDirectionLH(direction, Vector3.Up())
-            this.place(this.bodyPart, bodyPos, bodyRot)
-        })
-        inputs.left.trigger.onDown.add(()=>this.setShape(this.leftHandPart, "default", "closed"))
-        inputs.left.trigger.onUp.add(()=>this.setShape(this.leftHandPart, "default", "default"))
-        inputs.right.trigger.onDown.add(()=>this.setShape(this.rightHandPart, "default", "closed"))
-        inputs.right.trigger.onUp.add(()=>this.setShape(this.rightHandPart, "default", "default"))
     }
 
     // Sync
@@ -160,6 +162,8 @@ export class Avatar implements Synchronized{
         this.set_state?.("body")
         this.set_state?.("color")
         this.set_state?.("name")
+        this.set_state?.(`${this._leftPointer.name}_pointer`)
+        this.set_state?.(`${this._rightPointer.name}_pointer`)
     }
 
     async setState(key: string, value: SyncSerializable): Promise<void> {
@@ -191,6 +195,14 @@ export class Avatar implements Synchronized{
             this.name = name
             this.place_name(name)
         }
+        else if(key === `${this._leftPointer.name}_pointer`){
+            const {from, to, doCollide} = value as {from: Tuple<number,3>, to: Tuple<number,3>, doCollide: boolean}
+            this._leftPointer.place(new Vector3(...from), new Vector3(...to), doCollide)
+        }
+        else if(key === `${this._rightPointer.name}_pointer`){
+            const {from, to, doCollide} = value as {from: Tuple<number,3>, to: Tuple<number,3>, doCollide: boolean}
+            this._rightPointer.place(new Vector3(...from), new Vector3(...to), doCollide)
+        }
     }
 
     async removeState(key: string): Promise<void> { }
@@ -215,6 +227,8 @@ export class Avatar implements Synchronized{
         { const result = getPart("body", this.body, key); if (result !== null) return result }
         if(key === "color") return [this.color.r, this.color.g, this.color.b, this.color.a]
         if(key === "name") return this.name 
+        if(key === `${this._leftPointer.name}_pointer`) return {from: this._leftPointer.from.asArray(), to: this._leftPointer.to.asArray(), doCollide: this._leftPointer.doCollide}
+        if(key === `${this._rightPointer.name}_pointer`) return {from: this._rightPointer.from.asArray(), to: this._rightPointer.to.asArray(), doCollide: this._rightPointer.doCollide}
         return null
     }
 
@@ -232,6 +246,8 @@ export class Avatar implements Synchronized{
         this.rightHand.dispose()
         this.body.dispose()
         this.root.dispose()
+        this._leftPointer.dispose()
+        this._rightPointer.dispose()
     }
 
     static getSyncManager(
@@ -259,6 +275,39 @@ export class Avatar implements Synchronized{
         })
         return syncmanager
     }
+
+    registerInputs(inputs: InputManager){
+        const placeHand = (hand: "PART", pointer: "POINTER", pt: PointerInput)=>{
+            this.place(hand, pt.origin, Quaternion.FromRotationMatrix(pt.matrix.getRotationMatrix()))
+            let target, doCollide
+            if(pt.hit){
+                target = pt.target
+                doCollide = true
+            }
+            else{
+                target = pt.forward.scale(5).addInPlace(pt.origin)
+                doCollide = false
+            }
+            this.placePointer(pointer, pt.origin, target, doCollide)
+        }
+        inputs.left.pointer.onMove.add((pointer)=> placeHand(this.leftHandPart, this.leftPointer, pointer))
+        inputs.right.pointer.onMove.add((pointer)=> placeHand(this.rightHandPart, this.rightPointer, pointer))
+
+        inputs.head.onMove.add((pointer)=>{
+            const headPos = pointer.origin
+            const headRot = Quaternion.FromRotationMatrix(pointer.matrix.getRotationMatrix())
+            this.place(this.headPart, headPos, headRot)
+
+            const direction = pointer.forward.multiplyByFloats(1,0,1).normalize()
+            const bodyPos = headPos.subtract(new Vector3(0,0.6,0))
+            const bodyRot = Quaternion.FromLookDirectionLH(direction, Vector3.Up())
+            this.place(this.bodyPart, bodyPos, bodyRot)
+        })
+        inputs.left.trigger.onDown.add(()=>this.setShape(this.leftHandPart, "default", "closed"))
+        inputs.left.trigger.onUp.add(()=>this.setShape(this.leftHandPart, "default", "default"))
+        inputs.right.trigger.onDown.add(()=>this.setShape(this.rightHandPart, "default", "closed"))
+        inputs.right.trigger.onUp.add(()=>this.setShape(this.rightHandPart, "default", "default"))
+    }
 }
 
 export class AvaterPart{
@@ -267,7 +316,6 @@ export class AvaterPart{
     private _rotation = new Quaternion()
     instances: Record<string, {mesh:InstancedMesh,variant:string}|null> = {}
     private modifiers: Record<string, (mesh:InstancedMesh)=>void> = {}
-
 
     constructor(readonly name: string, private model: Record<string, Record<string, Mesh>>){
         const scene = model.default.default.getScene()
@@ -334,6 +382,59 @@ export class AvaterPart{
     
 }
 
+export class AvaterPointer{
+
+    instance
+    instanceSphere
+
+    constructor(readonly name: string, readonly pointer: Mesh, readonly pointerSphere: Mesh){
+        this.instance = pointer.createInstance(name+" avatar pointer instance")
+        this.instance.checkCollisions = false
+        this.instance.isPickable = false
+
+        this.instanceSphere = pointerSphere.createInstance(name+" avatar pointer sphere instance")
+        this.instanceSphere.checkCollisions = false
+        this.instanceSphere.isPickable = false
+        this.instanceSphere.isVisible = false
+    }
+
+    set color(color: Color4){
+        this.instance.instancedBuffers.color = color
+        this.instanceSphere.instancedBuffers.color = color
+    }
+
+    from = new Vector3()
+    to = new Vector3()
+    doCollide = false
+
+    place(from: Vector3, to: Vector3, doCollide: boolean){
+        this.from.copyFrom(from)
+        this.to.copyFrom(to)
+        this.doCollide = doCollide
+
+        const center = from.add(to).scaleInPlace(0.5)
+        const length = Vector3.Distance(from, to)/2
+        const rotation = Quaternion.FromUnitVectorsToRef(Vector3.Up(), to.subtract(from).normalize(), new Quaternion()) 
+
+        this.instance.position = center
+        this.instance.rotationQuaternion = rotation
+        this.instance.scaling = new Vector3(0.01, length, 0.01)
+
+        if(doCollide){
+            this.instanceSphere.position = to
+            this.instanceSphere.rotationQuaternion = rotation
+            this.instanceSphere.scaling = new Vector3(0.02, 0.02, 0.02)
+            this.instanceSphere.isVisible = true
+        }
+        else this.instanceSphere.isVisible = false
+        
+    }
+
+    dispose(){
+        this.instance.dispose()
+    }
+}
+
 export class AvaterShared{
 
     private model
@@ -378,7 +479,18 @@ export class AvaterShared{
         }
         for(const mesh of to_dispose) mesh.dispose()
 
-        return {parts, result}
+        const pointer = CreateCylinder("avatar pointer model", {diameterTop:0}, this.scene)
+        pointer.isVisible = false
+        pointer.registerInstancedBuffer("color", 4)
+        pointer.instancedBuffers.color = new Color4(1, 1, 1, 1)
+
+        const pointerSphere = CreateIcoSphere("avatar pointer sphere model", {radius:1}, this.scene)
+        pointerSphere.isVisible = false
+        pointerSphere.visibility = .5
+        pointerSphere.registerInstancedBuffer("color", 4)
+        pointerSphere.instancedBuffers.color = new Color4(1, 1, 1, 1)
+
+        return {parts, result, pointer, pointerSphere}
     }
 
     async getModel(){
