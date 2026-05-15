@@ -6,6 +6,13 @@ import type { Node3DGUIContext } from "../../Node3DGUIContext";
 import type { AutomationN3DConnectable } from "../../tools";
 import { InputGrabBehavior } from "../../../xr/inputs/tools/InputGrabBehavior";
 import type { PointerInput } from "../../../xr/inputs/PointerInput";
+import { BoidSwarm } from "../../../behaviours/steering/Boid";
+
+// ── Runtime resize bounds (multiplier applied on top of gui.root's normal scale) ──
+const RESIZE_MIN = 0.5;
+const RESIZE_MAX = 2.0;
+const RESIZE_DEFAULT = 1.0;
+const BOID_MAX = 30;
 
 // ─── GUI (pure visuals + coordinate helper) ───────────────────────────────────
 
@@ -28,8 +35,27 @@ export class AudioPlaqueN3DGUI implements Node3DGUI {
     // Ball is split into:
     //   ballRoot — TransformNode whose XY position the logic class drives
     //   ball     — visible sphere, parented to ballRoot, offset slightly in front
+    //   ballHalo — larger translucent emissive sphere that gives the ball a soft glow
     ballRoot!: TransformNode;
     ball!:     AbstractMesh;
+    ballHalo!: AbstractMesh;
+
+    // Runtime UI: resize handle (bottom-right corner) + 3 boid buttons (top-left)
+    resizeHandle!: AbstractMesh;
+    btnBoidToggle!: AbstractMesh;
+    btnBoidAdd!:    AbstractMesh;
+    btnBoidRemove!: AbstractMesh;
+    boidToggleMat!: StandardMaterial;     // material kept so the logic class can recolor on toggle
+
+    // Five new boid metric outputs (bottom row, below yOut)
+    outBoidCentroidX!:  AbstractMesh;
+    outBoidCentroidY!:  AbstractMesh;
+    outBoidDispersion!: AbstractMesh;
+    outBoidAlignment!:  AbstractMesh;
+    outBoidVorticity!:  AbstractMesh;
+
+    // Parent for boid meshes so they scale with the plaque
+    boidContainer!: TransformNode;
 
     constructor(public factory: AudioPlaqueN3DFactory) { }
 
@@ -140,14 +166,107 @@ export class AudioPlaqueN3DGUI implements Node3DGUI {
         this.ballRoot.parent = this.root;
         this.ballRoot.position.set(0, 0, 0);  // start at centre
 
-        this.ball = B.MeshBuilder.CreateSphere("audio_plaque_ball", { diameter: 0.08 }, context.scene);
+        // Solid core: small bright sphere
+        this.ball = B.MeshBuilder.CreateSphere("audio_plaque_ball", { diameter: 0.06 }, context.scene);
         this.ball.parent     = this.ballRoot;
-        this.ball.position.set(0, 0, -0.05);   // float slightly in front of the plaque
+        this.ball.position.set(0, 0, -0.05);
         this.ball.isPickable = false;
 
         const ballMat = new StandardMaterial("ball_mat", context.scene);
-        ballMat.emissiveColor = new Color3(1, 0, 0.5);   // hot-pink glow
+        ballMat.emissiveColor = new Color3(1, 0.4, 0.7);
+        ballMat.disableLighting = true;
         this.ball.material = ballMat;
+
+        // Halo: bigger semi-transparent sphere around the core, no lighting.
+        // Adds visual "weight" to the ball without obscuring the grid behind it.
+        this.ballHalo = B.MeshBuilder.CreateSphere("audio_plaque_ball_halo", { diameter: 0.16 }, context.scene);
+        this.ballHalo.parent     = this.ballRoot;
+        this.ballHalo.position.set(0, 0, -0.05);
+        this.ballHalo.isPickable = false;
+        const haloMat = new StandardMaterial("ball_halo_mat", context.scene);
+        haloMat.emissiveColor = new Color3(1, 0.3, 0.6);
+        haloMat.alpha = 0.18;
+        haloMat.disableLighting = true;
+        this.ballHalo.material = haloMat;
+
+        // ── Resize handle (bottom-right corner) ───────────────────────────────
+        //
+        //   Drag-controlled by a Node3DParameter the logic class registers.  Maps
+        //   the host's 0..1 value to a [RESIZE_MIN..RESIZE_MAX] multiplier on
+        //   gui.root.scaling.  All children — plaque, ball, knobs, connectors,
+        //   boids — scale together so the layout stays internally consistent.
+        //
+        this.resizeHandle = B.MeshBuilder.CreateSphere("plaque_resize", { diameter: 0.08 }, context.scene);
+        this.resizeHandle.parent = this.root;
+        this.resizeHandle.position.set(0.65, -0.65, 0);
+        const resizeMat = new StandardMaterial("resize_mat", context.scene);
+        resizeMat.emissiveColor = new Color3(0.85, 0.3, 0.95);   // violet
+        this.resizeHandle.material = resizeMat;
+
+        // ── Boid controls (top-left column) ───────────────────────────────────
+        //
+        //   Toggle = round button, cyan when off, gold when on.  +/− are slightly
+        //   smaller spheres beneath it.  All three are wired to Node3DButton
+        //   callbacks by the logic class.
+        //
+        // Cylinder discs feel more like real "buttons" than flat boxes.
+        // We rotate them so the disc face points along +Z (toward the player).
+        const makeDiscButton = (name: string, diameter: number, emissive: Color3): AbstractMesh => {
+            const m = B.MeshBuilder.CreateCylinder(name, {
+                diameter, height: 0.025, tessellation: 24,
+            }, context.scene);
+            m.rotation.x = Math.PI / 2;
+            const mat = new StandardMaterial(`${name}_mat`, context.scene);
+            mat.emissiveColor = emissive;
+            mat.disableLighting = true;
+            m.material = mat;
+            m.parent = this.root;
+            return m;
+        };
+
+        this.btnBoidToggle = makeDiscButton("btn_boid_toggle", 0.11, new Color3(0, 0.5, 0.6));
+        this.btnBoidToggle.position.set(-0.65, 0.45, 0);
+        this.boidToggleMat = this.btnBoidToggle.material as StandardMaterial;
+
+        this.btnBoidAdd = makeDiscButton("btn_boid_add", 0.085, new Color3(0.2, 0.85, 0.35));
+        this.btnBoidAdd.position.set(-0.65, 0.3, 0);
+
+        this.btnBoidRemove = makeDiscButton("btn_boid_remove", 0.085, new Color3(0.85, 0.2, 0.3));
+        this.btnBoidRemove.position.set(-0.65, 0.18, 0);
+
+        // ── Five new boid-metric automation outputs (below yOut, smaller) ─────
+        //
+        //   Layout: bottom row at y = -0.85, x ∈ {-0.4, -0.2, 0, 0.2, 0.4}
+        //   Cohesive palette — five hues equally spaced for easy identification.
+        //   Smaller diameter (0.06) so they read as a distinct "secondary" group
+        //   versus the primary X/Y outputs at y = ±0.65.
+        //
+        const metricColors: Color4[] = [
+            new Color4(1.0,  0.4,  0.7,  1),  // centroidX  — pink
+            new Color4(0.4,  0.7,  1.0,  1),  // centroidY  — light cyan
+            new Color4(1.0,  0.85, 0.3,  1),  // dispersion — gold
+            new Color4(0.3,  0.9,  0.55, 1),  // alignment  — emerald
+            new Color4(0.75, 0.4,  1.0,  1),  // vorticity  — violet
+        ];
+        const metricXs = [-0.4, -0.2, 0, 0.2, 0.4];
+        const makeMetricOut = (name: string, x: number, color: Color4): AbstractMesh => {
+            const m = ConnectableUtils.createOutputMesh(name, 0.06, context.scene);
+            m.parent = this.root;
+            m.position.set(x, -0.85, 0);
+            MeshUtils.setColor(m, color);
+            return m;
+        };
+        this.outBoidCentroidX  = makeMetricOut("plaque_boid_cx",   metricXs[0], metricColors[0]);
+        this.outBoidCentroidY  = makeMetricOut("plaque_boid_cy",   metricXs[1], metricColors[1]);
+        this.outBoidDispersion = makeMetricOut("plaque_boid_disp", metricXs[2], metricColors[2]);
+        this.outBoidAlignment  = makeMetricOut("plaque_boid_algn", metricXs[3], metricColors[3]);
+        this.outBoidVorticity  = makeMetricOut("plaque_boid_vort", metricXs[4], metricColors[4]);
+
+        // ── Boid container ────────────────────────────────────────────────────
+        // Empty TransformNode that swarm boid meshes parent to — keeps them in
+        // plaque local space so they scale with gui.root.
+        this.boidContainer = new B.TransformNode("boid_container", context.scene);
+        this.boidContainer.parent = this.root;
     }
 
     /**
@@ -185,6 +304,18 @@ export class AudioPlaqueN3D implements Node3D {
     // Automation outputs — the public face of this Node3D
     private xOut!: InstanceType<(typeof AutomationN3DConnectable)["Output"]>;
     private yOut!: InstanceType<(typeof AutomationN3DConnectable)["Output"]>;
+    private boidCxOut!:    InstanceType<(typeof AutomationN3DConnectable)["Output"]>;
+    private boidCyOut!:    InstanceType<(typeof AutomationN3DConnectable)["Output"]>;
+    private boidDispOut!:  InstanceType<(typeof AutomationN3DConnectable)["Output"]>;
+    private boidAlignOut!: InstanceType<(typeof AutomationN3DConnectable)["Output"]>;
+    private boidVortOut!:  InstanceType<(typeof AutomationN3DConnectable)["Output"]>;
+
+    // Runtime UI state — synced across peers
+    private userScale = RESIZE_DEFAULT;
+    private boidMode  = false;
+    private boidCount = 5;
+
+    private swarm!: BoidSwarm;
 
     constructor(context: Node3DContext, private gui: AudioPlaqueN3DGUI) {
         const { audioCtx, tools: T } = context;
@@ -286,6 +417,120 @@ export class AudioPlaqueN3D implements Node3D {
         );
         context.createConnectable(this.xOut);
         context.createConnectable(this.yOut);
+
+        // Five boid-swarm metric outputs (computed from the live boid simulation).
+        // Default values match what computeMetrics() returns for an empty swarm:
+        // centroids at 0.5 (centred), motion metrics at 0.
+        this.boidCxOut    = new T.AutomationN3DConnectable.Output(
+            "boidCentroidX",  [gui.outBoidCentroidX],  "Boid Centroid X", 0.5);
+        this.boidCyOut    = new T.AutomationN3DConnectable.Output(
+            "boidCentroidY",  [gui.outBoidCentroidY],  "Boid Centroid Y", 0.5);
+        this.boidDispOut  = new T.AutomationN3DConnectable.Output(
+            "boidDispersion", [gui.outBoidDispersion], "Boid Dispersion", 0);
+        this.boidAlignOut = new T.AutomationN3DConnectable.Output(
+            "boidAlignment",  [gui.outBoidAlignment],  "Boid Alignment", 0);
+        this.boidVortOut  = new T.AutomationN3DConnectable.Output(
+            "boidVorticity",  [gui.outBoidVorticity],  "Boid Vorticity", 0);
+        for (const o of [this.boidCxOut, this.boidCyOut, this.boidDispOut, this.boidAlignOut, this.boidVortOut]) {
+            context.createConnectable(o);
+        }
+
+        // ── Resize handle parameter ───────────────────────────────────────────
+        //
+        //   Maps host's normalised 0..1 value to a [RESIZE_MIN .. RESIZE_MAX]
+        //   scale multiplier on gui.root.
+        //
+        //   IMPORTANT: we do NOT trigger a bounding-box recompute here.
+        //   Node3DInstance.updateBoundingBoxNow() disposes the old outer BB
+        //   mesh, and Babylon's Mesh.dispose() cascades into children by default
+        //   — that would wipe the entire Node3D mesh tree (root_transform,
+        //   gui.root, plaque, ball, trail, all connectors).  Letting the BB
+        //   keep its spawn-time size is fine: at 0.5×–2.0× scale the BB may
+        //   be slightly off, but every interactive child is individually
+        //   pickable so dragging still works fine via any of them.
+        //
+        const applyScale = (s: number) => {
+            this.userScale = Math.max(RESIZE_MIN, Math.min(RESIZE_MAX, s));
+            gui.root.scaling.setAll(this.userScale);
+        };
+        applyScale(this.userScale);
+
+        context.createParameter({
+            id: "userScale",
+            meshes: [gui.resizeHandle],
+            getLabel: () => "Resize",
+            getStepCount: () => 0,
+            getValue: () => (this.userScale - RESIZE_MIN) / (RESIZE_MAX - RESIZE_MIN),
+            setValue: (v01: number) => {
+                applyScale(RESIZE_MIN + v01 * (RESIZE_MAX - RESIZE_MIN));
+                context.notifyStateChange("userScale");
+            },
+            stringify: (v01: number) =>
+                `Size: ${(RESIZE_MIN + v01 * (RESIZE_MAX - RESIZE_MIN)).toFixed(2)}x`,
+        });
+
+        // ── Boid swarm + controls ─────────────────────────────────────────────
+        //
+        //   The swarm seeks the existing pink ball.  Three buttons:
+        //     • boidToggle  — flip boidMode on/off, recolor the button mesh
+        //     • boidAdd     — +1 boid (capped at BOID_MAX)
+        //     • boidRemove  — -1 boid (floored at 0)
+        //   boidCount and boidMode are synced; boid positions are local.
+        //
+        this.swarm = new BoidSwarm(gui.boidContainer, scene);
+        this.swarm.setCount(this.boidCount);
+        this.swarm.setEnabled(this.boidMode);
+
+        const refreshToggleColor = () => {
+            gui.boidToggleMat.emissiveColor = this.boidMode
+                ? new Color3(0.95, 0.75, 0.15)   // gold = ON
+                : new Color3(0, 0.5, 0.6);       // teal = OFF
+        };
+        refreshToggleColor();
+
+        context.createButton({
+            id: "boidToggle",
+            meshes: [gui.btnBoidToggle],
+            label: "Boid Mode",
+            color: new Color3(0.95, 0.75, 0.15),
+            press: () => {
+                this.boidMode = !this.boidMode;
+                this.swarm.setEnabled(this.boidMode);
+                refreshToggleColor();
+                context.notifyStateChange("boidMode");
+                console.log("[AudioPlaque] Boid mode:", this.boidMode ? "ON" : "OFF",
+                    "  count:", this.boidCount);
+            },
+            release: () => {},
+        });
+
+        context.createButton({
+            id: "boidAdd",
+            meshes: [gui.btnBoidAdd],
+            label: "+ Boid",
+            color: new Color3(0.2, 0.85, 0.2),
+            press: () => {
+                this.boidCount = Math.min(BOID_MAX, this.boidCount + 1);
+                this.swarm.setCount(this.boidCount);
+                context.notifyStateChange("boidCount");
+                console.log("[AudioPlaque] Boid count:", this.boidCount);
+            },
+            release: () => {},
+        });
+
+        context.createButton({
+            id: "boidRemove",
+            meshes: [gui.btnBoidRemove],
+            label: "− Boid",
+            color: new Color3(0.85, 0.2, 0.2),
+            press: () => {
+                this.boidCount = Math.max(0, this.boidCount - 1);
+                this.swarm.setCount(this.boidCount);
+                context.notifyStateChange("boidCount");
+                console.log("[AudioPlaque] Boid count:", this.boidCount);
+            },
+            release: () => {},
+        });
 
         // ── Helper: pointer → plaque-local target ─────────────────────────────
         //
@@ -394,7 +639,32 @@ export class AudioPlaqueN3D implements Node3D {
             if (Math.abs(nx - lastX) > VALUE_EPS) { this.xOut.value = nx; lastX = nx; }
             if (Math.abs(ny - lastY) > VALUE_EPS) { this.yOut.value = ny; lastY = ny; }
 
-            // 3. Throttled state log (every 500 ms)
+            // 3. Boid swarm — chase the ball (no-op when boidMode is OFF)
+            this.swarm.update(bp, dt);
+
+            // 4. Boid metrics → 5 automation outputs (computed every frame; values
+            //    naturally freeze when the swarm is disabled since boid positions
+            //    don't change while update() is a no-op).
+            const m = this.swarm.computeMetrics();
+            this.boidCxOut.value    = m.centroidX;
+            this.boidCyOut.value    = m.centroidY;
+            this.boidDispOut.value  = m.dispersion;
+            this.boidAlignOut.value = m.alignment;
+            this.boidVortOut.value  = m.vorticity;
+
+            // 5. Visual polish
+            //    a. Ball breathing  — subtle scale pulse (1.0 .. 1.06 over 2 s)
+            //    b. Toggle glow     — emissive pulse on the boid toggle while ON
+            const t = performance.now() / 1000;
+            const breathe = 1 + Math.sin(t * Math.PI) * 0.06;
+            gui.ball.scaling.setAll(breathe);
+            gui.ballHalo.scaling.setAll(breathe * 1.05);
+            if (this.boidMode) {
+                const pulse = 0.6 + Math.sin(t * Math.PI * 2) * 0.4;   // 0.2..1.0
+                gui.boidToggleMat.emissiveColor.set(0.95 * pulse, 0.75 * pulse, 0.15 * pulse);
+            }
+
+            // 6. Throttled state log (every 500 ms)
             const nowMs = performance.now();
             if (nowMs - _lastLogTime >= 500) {
                 _lastLogTime = nowMs;
@@ -407,6 +677,8 @@ export class AudioPlaqueN3D implements Node3D {
                     "\n  xOut value     :", nx.toFixed(4), `(${this.xOut.senders.size} consumer${this.xOut.senders.size === 1 ? "" : "s"})`,
                     "\n  yOut value     :", ny.toFixed(4), `(${this.yOut.senders.size} consumer${this.yOut.senders.size === 1 ? "" : "s"})`,
                     "\n  follow alpha   :", alpha.toFixed(3),
+                    "\n  scale          :", this.userScale.toFixed(2) + "x",
+                    "\n  boids          :", `${this.boidMode ? "ON" : "OFF"}  (${this.boidCount})`,
                 );
             }
         });
@@ -415,11 +687,42 @@ export class AudioPlaqueN3D implements Node3D {
     async dispose() {
         try { this.gainIn.disconnect();  } catch (_) {}
         try { this.gainOut.disconnect(); } catch (_) {}
+        this.swarm?.dispose();
     }
 
-    async getState(_key: string): Promise<Serializable | void> { }
-    getStateKeys(): string[] { return []; }
-    async setState(_key: string, _value: Serializable | undefined) { }
+    // ── State sync (synced across peers) ──────────────────────────────────────
+    getStateKeys(): string[] { return ["userScale", "boidMode", "boidCount"]; }
+
+    async getState(key: string): Promise<Serializable | void> {
+        switch (key) {
+            case "userScale": return this.userScale;
+            case "boidMode":  return this.boidMode;
+            case "boidCount": return this.boidCount;
+        }
+    }
+
+    async setState(key: string, value: Serializable | undefined): Promise<void> {
+        switch (key) {
+            case "userScale":
+                if (typeof value !== "number") return;
+                this.userScale = Math.max(RESIZE_MIN, Math.min(RESIZE_MAX, value));
+                this.gui.root.scaling.setAll(this.userScale);
+                return;
+            case "boidMode":
+                if (typeof value !== "boolean") return;
+                this.boidMode = value;
+                this.swarm.setEnabled(value);
+                this.gui.boidToggleMat.emissiveColor = value
+                    ? new Color3(0.95, 0.75, 0.15)
+                    : new Color3(0, 0.5, 0.6);
+                return;
+            case "boidCount":
+                if (typeof value !== "number") return;
+                this.boidCount = Math.max(0, Math.min(BOID_MAX, Math.floor(value)));
+                this.swarm.setCount(this.boidCount);
+                return;
+        }
+    }
 }
 
 // ─── Factory ──────────────────────────────────────────────────────────────────

@@ -6,6 +6,13 @@ import type { Node3D, Node3DFactory, Node3DGUI, Serializable } from "../../Node3
 import type { Node3DContext } from "../../Node3DContext";
 import type { Node3DGUIContext } from "../../Node3DGUIContext";
 import type { AutomationN3DConnectable } from "../../tools";
+import { BoidSwarm } from "../../../behaviours/steering/Boid";
+
+// ── Runtime resize bounds + boid limits (same defaults as AudioPlaque) ────────
+const RESIZE_MIN = 0.5;
+const RESIZE_MAX = 2.0;
+const RESIZE_DEFAULT = 1.0;
+const BOID_MAX = 30;
 
 // ─── Superformula math ────────────────────────────────────────────────────────
 //
@@ -87,6 +94,24 @@ export class SuperformulaN3DGUI implements Node3DGUI {
     // Cached scene reference for trail rebuild (LinesMesh has no scene getter)
     private scene!: Scene;
 
+    // Runtime UI (resize handle + 3 boid buttons + container for boid meshes)
+    resizeHandle!:   AbstractMesh;
+    btnBoidToggle!: AbstractMesh;
+    btnBoidAdd!:    AbstractMesh;
+    btnBoidRemove!: AbstractMesh;
+    boidToggleMat!: StandardMaterial;
+    boidContainer!: TransformNode;
+
+    // Ball halo for that soft-glow look (parented to ballRoot)
+    ballHalo!: AbstractMesh;
+
+    // Five new boid-metric outputs
+    outBoidCentroidX!:  AbstractMesh;
+    outBoidCentroidY!:  AbstractMesh;
+    outBoidDispersion!: AbstractMesh;
+    outBoidAlignment!:  AbstractMesh;
+    outBoidVorticity!:  AbstractMesh;
+
     constructor(public factory: SuperformulaN3DFactory) { }
 
     async init(context: Node3DGUIContext) {
@@ -164,13 +189,25 @@ export class SuperformulaN3DGUI implements Node3DGUI {
         this.ballRoot.parent = this.root;
         this.ballRoot.position.set(0, 0, 0);
 
-        this.ball = B.MeshBuilder.CreateSphere("superformula_ball", { diameter: 0.06 }, context.scene);
+        this.ball = B.MeshBuilder.CreateSphere("superformula_ball", { diameter: 0.05 }, context.scene);
         this.ball.parent = this.ballRoot;
         this.ball.position.set(0, 0, -0.04);
         this.ball.isPickable = false;
         const ballMat = new StandardMaterial("superformula_ball_mat", context.scene);
-        ballMat.emissiveColor = new Color3(1, 0, 0.5);
+        ballMat.emissiveColor = new Color3(1, 0.4, 0.7);
+        ballMat.disableLighting = true;
         this.ball.material = ballMat;
+
+        // Halo: bigger soft-glow sphere around the ball (same trick as AudioPlaque)
+        this.ballHalo = B.MeshBuilder.CreateSphere("superformula_ball_halo", { diameter: 0.14 }, context.scene);
+        this.ballHalo.parent = this.ballRoot;
+        this.ballHalo.position.set(0, 0, -0.04);
+        this.ballHalo.isPickable = false;
+        const haloMat = new StandardMaterial("superformula_ball_halo_mat", context.scene);
+        haloMat.emissiveColor = new Color3(1, 0.3, 0.6);
+        haloMat.alpha = 0.18;
+        haloMat.disableLighting = true;
+        this.ballHalo.material = haloMat;
 
         // ── Connectors layout ─────────────────────────────────────────────────
         //
@@ -271,6 +308,68 @@ export class SuperformulaN3DGUI implements Node3DGUI {
         this.trail.parent     = this.root;
         this.trail.isPickable = false;
         this.trail.alpha      = 1;
+
+        // ── Resize handle (top-right corner — outputs row uses the bottom) ────
+        this.resizeHandle = B.MeshBuilder.CreateSphere("sf_resize", { diameter: 0.08 }, context.scene);
+        this.resizeHandle.parent = this.root;
+        this.resizeHandle.position.set(0.45, 0.45, 0);
+        const resizeMat = new StandardMaterial("sf_resize_mat", context.scene);
+        resizeMat.emissiveColor = new Color3(0.85, 0.3, 0.95);   // violet
+        this.resizeHandle.material = resizeMat;
+
+        // ── Boid controls — top-left area, far from the 8 motion outputs ──────
+        //
+        //   Cylinder discs (rotated to face +Z) read more naturally as buttons
+        //   than flat boxes and match the AudioPlaque's redesigned look.
+        //
+        const makeDiscButton = (name: string, diameter: number, emissive: Color3): AbstractMesh => {
+            const m = B.MeshBuilder.CreateCylinder(name, {
+                diameter, height: 0.025, tessellation: 24,
+            }, context.scene);
+            m.rotation.x = Math.PI / 2;
+            const mat = new StandardMaterial(`${name}_mat`, context.scene);
+            mat.emissiveColor = emissive;
+            mat.disableLighting = true;
+            m.material = mat;
+            m.parent = this.root;
+            return m;
+        };
+
+        this.btnBoidToggle = makeDiscButton("sf_boid_toggle", 0.10, new Color3(0, 0.5, 0.6));
+        this.btnBoidToggle.position.set(-0.45, 0.45, 0);
+        this.boidToggleMat = this.btnBoidToggle.material as StandardMaterial;
+
+        this.btnBoidAdd = makeDiscButton("sf_boid_add", 0.08, new Color3(0.2, 0.85, 0.35));
+        this.btnBoidAdd.position.set(-0.55, 0.45, 0);
+
+        this.btnBoidRemove = makeDiscButton("sf_boid_remove", 0.08, new Color3(0.85, 0.2, 0.3));
+        this.btnBoidRemove.position.set(-0.35, 0.45, 0);
+
+        // ── Five new boid-metric outputs (second row below the 8 motion ones) ──
+        const boidMetricColors: Color4[] = [
+            new Color4(1.0,  0.4,  0.7,  1),  // centroidX  — pink
+            new Color4(0.4,  0.7,  1.0,  1),  // centroidY  — light cyan
+            new Color4(1.0,  0.85, 0.3,  1),  // dispersion — gold
+            new Color4(0.3,  0.9,  0.55, 1),  // alignment  — emerald
+            new Color4(0.75, 0.4,  1.0,  1),  // vorticity  — violet
+        ];
+        const boidMetricXs = [-0.4, -0.2, 0, 0.2, 0.4];
+        const makeMetricOut = (name: string, x: number, color: Color4): AbstractMesh => {
+            const m = ConnectableUtils.createOutputMesh(name, 0.06, context.scene);
+            m.parent = this.root;
+            m.position.set(x, -0.85, 0);
+            MeshUtils.setColor(m, color);
+            return m;
+        };
+        this.outBoidCentroidX  = makeMetricOut("sf_boid_cx",   boidMetricXs[0], boidMetricColors[0]);
+        this.outBoidCentroidY  = makeMetricOut("sf_boid_cy",   boidMetricXs[1], boidMetricColors[1]);
+        this.outBoidDispersion = makeMetricOut("sf_boid_disp", boidMetricXs[2], boidMetricColors[2]);
+        this.outBoidAlignment  = makeMetricOut("sf_boid_algn", boidMetricXs[3], boidMetricColors[3]);
+        this.outBoidVorticity  = makeMetricOut("sf_boid_vort", boidMetricXs[4], boidMetricColors[4]);
+
+        // Container for boid meshes so they scale with gui.root
+        this.boidContainer = new B.TransformNode("sf_boid_container", context.scene);
+        this.boidContainer.parent = this.root;
     }
 
     /**
@@ -299,6 +398,11 @@ export class SuperformulaN3DGUI implements Node3DGUI {
      * (newest = 1, oldest = 0), so visually the trail fades behind the ball.
      */
     pushTrailPoint(x: number, y: number): void {
+        // Defensive: if the trail mesh has been disposed for any reason, skip
+        // the update.  Without this guard, `CreateLines({ instance: <disposed mesh> })`
+        // throws "Cannot set properties of null" because the vertex buffer is gone.
+        if (!this.trail || this.trail.isDisposed()) return;
+
         // Slide all points down by one (drop the oldest).
         for (let i = 0; i < TRAIL_POINTS - 1; i++) {
             this.trailPoints[i].copyFrom(this.trailPoints[i + 1]);
@@ -307,8 +411,7 @@ export class SuperformulaN3DGUI implements Node3DGUI {
 
         this.trail = MeshBuilder.CreateLines("superformula_trail", {
             points:    this.trailPoints,
-            colors:    this.trailColors,
-            instance:  this.trail!,
+            instance:  this.trail,
         }, this.scene);
     }
 
@@ -349,6 +452,20 @@ export class SuperformulaN3D implements Node3D {
     private outSpeed!:          InstanceType<(typeof AutomationN3DConnectable)["Output"]>;
     private outAcceleration!:   InstanceType<(typeof AutomationN3DConnectable)["Output"]>;
     private outCurvature!:      InstanceType<(typeof AutomationN3DConnectable)["Output"]>;
+
+    // Five new boid-metric outputs
+    private boidCxOut!:    InstanceType<(typeof AutomationN3DConnectable)["Output"]>;
+    private boidCyOut!:    InstanceType<(typeof AutomationN3DConnectable)["Output"]>;
+    private boidDispOut!:  InstanceType<(typeof AutomationN3DConnectable)["Output"]>;
+    private boidAlignOut!: InstanceType<(typeof AutomationN3DConnectable)["Output"]>;
+    private boidVortOut!:  InstanceType<(typeof AutomationN3DConnectable)["Output"]>;
+
+    // Runtime UI state — synced across peers
+    private userScale = RESIZE_DEFAULT;
+    private boidMode  = false;
+    private boidCount = 5;
+
+    private swarm!: BoidSwarm;
 
     constructor(context: Node3DContext, private gui: SuperformulaN3DGUI) {
         const { audioCtx, tools: T } = context;
@@ -399,6 +516,17 @@ export class SuperformulaN3D implements Node3D {
             this.outAngularVel, this.outSpeed, this.outAcceleration, this.outCurvature,
         ]) context.createConnectable(o);
 
+        // Five new boid swarm metric outputs.  Defaults match what
+        // BoidSwarm.computeMetrics() returns for an empty swarm.
+        this.boidCxOut    = new A("boidCentroidX",  [gui.outBoidCentroidX],  "Boid Centroid X", 0.5);
+        this.boidCyOut    = new A("boidCentroidY",  [gui.outBoidCentroidY],  "Boid Centroid Y", 0.5);
+        this.boidDispOut  = new A("boidDispersion", [gui.outBoidDispersion], "Boid Dispersion", 0);
+        this.boidAlignOut = new A("boidAlignment",  [gui.outBoidAlignment],  "Boid Alignment",  0);
+        this.boidVortOut  = new A("boidVorticity",  [gui.outBoidVorticity],  "Boid Vorticity",  0);
+        for (const o of [this.boidCxOut, this.boidCyOut, this.boidDispOut, this.boidAlignOut, this.boidVortOut]) {
+            context.createConnectable(o);
+        }
+
         // ── Knob parameters (6) ───────────────────────────────────────────────
         const setupKnob = (
             id: string, label: string, mesh: AbstractMesh,
@@ -435,6 +563,87 @@ export class SuperformulaN3D implements Node3D {
         setupKnob("n3",    "Height (n3)",    gui.knobN3,    "n3",     50, 2, () => this.n3,    v => this.n3    = v);
         setupKnob("scale", "Scale",          gui.knobScale, "scale",  40, 2, () => this.scale, v => this.scale = v);
         setupKnob("speed", "Speed",          gui.knobSpeed, "speed",  60, 2, () => this.speed, v => this.speed = v);
+
+        // ── Resize handle + boid controls (same pattern as AudioPlaque) ───────
+        //
+        //   See AudioPlaqueN3D for the long comment explaining why we don't
+        //   recompute the bounding box on scale change — Node3DInstance's
+        //   dispose cascade would wipe the entire mesh tree.
+        //
+        const applyScale = (s: number) => {
+            this.userScale = Math.max(RESIZE_MIN, Math.min(RESIZE_MAX, s));
+            gui.root.scaling.setAll(this.userScale);
+        };
+        applyScale(this.userScale);
+
+        context.createParameter({
+            id: "userScale",
+            meshes: [gui.resizeHandle],
+            getLabel: () => "Resize",
+            getStepCount: () => 0,
+            getValue: () => (this.userScale - RESIZE_MIN) / (RESIZE_MAX - RESIZE_MIN),
+            setValue: (v01: number) => {
+                applyScale(RESIZE_MIN + v01 * (RESIZE_MAX - RESIZE_MIN));
+                context.notifyStateChange("userScale");
+            },
+            stringify: (v01: number) =>
+                `Size: ${(RESIZE_MIN + v01 * (RESIZE_MAX - RESIZE_MIN)).toFixed(2)}x`,
+        });
+
+        this.swarm = new BoidSwarm(gui.boidContainer, scene);
+        this.swarm.setCount(this.boidCount);
+        this.swarm.setEnabled(this.boidMode);
+
+        const refreshToggleColor = () => {
+            gui.boidToggleMat.emissiveColor = this.boidMode
+                ? new Color3(0.95, 0.75, 0.15)
+                : new Color3(0, 0.5, 0.6);
+        };
+        refreshToggleColor();
+
+        context.createButton({
+            id: "boidToggle",
+            meshes: [gui.btnBoidToggle],
+            label: "Boid Mode",
+            color: new Color3(0.95, 0.75, 0.15),
+            press: () => {
+                this.boidMode = !this.boidMode;
+                this.swarm.setEnabled(this.boidMode);
+                refreshToggleColor();
+                context.notifyStateChange("boidMode");
+                console.log("[Superformula] Boid mode:", this.boidMode ? "ON" : "OFF",
+                    "  count:", this.boidCount);
+            },
+            release: () => {},
+        });
+
+        context.createButton({
+            id: "boidAdd",
+            meshes: [gui.btnBoidAdd],
+            label: "+ Boid",
+            color: new Color3(0.2, 0.85, 0.2),
+            press: () => {
+                this.boidCount = Math.min(BOID_MAX, this.boidCount + 1);
+                this.swarm.setCount(this.boidCount);
+                context.notifyStateChange("boidCount");
+                console.log("[Superformula] Boid count:", this.boidCount);
+            },
+            release: () => {},
+        });
+
+        context.createButton({
+            id: "boidRemove",
+            meshes: [gui.btnBoidRemove],
+            label: "− Boid",
+            color: new Color3(0.85, 0.2, 0.2),
+            press: () => {
+                this.boidCount = Math.max(0, this.boidCount - 1);
+                this.swarm.setCount(this.boidCount);
+                context.notifyStateChange("boidCount");
+                console.log("[Superformula] Boid count:", this.boidCount);
+            },
+            release: () => {},
+        });
 
         // ── Spawn log ─────────────────────────────────────────────────────────
         const fmt = (v: Vector3) => `(${v.x.toFixed(3)}, ${v.y.toFixed(3)}, ${v.z.toFixed(3)})`;
@@ -548,6 +757,27 @@ export class SuperformulaN3D implements Node3D {
             sendIfChanged(this.outAcceleration, "accel",       nAccel);
             sendIfChanged(this.outCurvature,    "curvature",   nCurvature);
 
+            // Boid swarm chases the playhead ball (no-op when boidMode is OFF)
+            this.swarm.update(gui.ballRoot.position, dt);
+
+            // Boid metrics → 5 automation outputs (frozen naturally when swarm is OFF)
+            const bm = this.swarm.computeMetrics();
+            this.boidCxOut.value    = bm.centroidX;
+            this.boidCyOut.value    = bm.centroidY;
+            this.boidDispOut.value  = bm.dispersion;
+            this.boidAlignOut.value = bm.alignment;
+            this.boidVortOut.value  = bm.vorticity;
+
+            // Visual polish — same breathing/pulse as AudioPlaque
+            const tw = performance.now() / 1000;
+            const breathe = 1 + Math.sin(tw * Math.PI) * 0.06;
+            gui.ball.scaling.setAll(breathe);
+            gui.ballHalo.scaling.setAll(breathe * 1.05);
+            if (this.boidMode) {
+                const pulse = 0.6 + Math.sin(tw * Math.PI * 2) * 0.4;
+                gui.boidToggleMat.emissiveColor.set(0.95 * pulse, 0.75 * pulse, 0.15 * pulse);
+            }
+
             // Bookkeeping for next frame
             prevVx = dx / Math.max(dt, 1e-6);
             prevVy = dy / Math.max(dt, 1e-6);
@@ -568,6 +798,8 @@ export class SuperformulaN3D implements Node3D {
                     "\n  ball    :", `(${x.toFixed(3)}, ${y.toFixed(3)})  r=${r.toFixed(3)}`,
                     "\n  outputs : posX=", nPosX.toFixed(3), "posY=", nPosY.toFixed(3),
                     "radius=", nRadius.toFixed(3), "speed=", nSpeed.toFixed(3),
+                    "\n  scale   :", this.userScale.toFixed(2) + "x",
+                    "\n  boids   :", `${this.boidMode ? "ON" : "OFF"}  (${this.boidCount})`,
                 );
             }
         });
@@ -576,23 +808,48 @@ export class SuperformulaN3D implements Node3D {
     async dispose() {
         try { this.gainIn.disconnect();  } catch (_) {}
         try { this.gainOut.disconnect(); } catch (_) {}
+        this.swarm?.dispose();
     }
 
-    // ── State sync — only the knob values; theta evolves autonomously per peer ──
-    getStateKeys(): string[] { return ["m", "n1", "n2", "n3", "scale", "speed"]; }
+    // ── State sync — knob values + runtime UI state; theta evolves per peer ──
+    getStateKeys(): string[] {
+        return ["m", "n1", "n2", "n3", "scale", "speed", "userScale", "boidMode", "boidCount"];
+    }
 
     async getState(key: string): Promise<Serializable | void> {
         switch (key) {
-            case "m":     return this.m;
-            case "n1":    return this.n1;
-            case "n2":    return this.n2;
-            case "n3":    return this.n3;
-            case "scale": return this.scale;
-            case "speed": return this.speed;
+            case "m":         return this.m;
+            case "n1":        return this.n1;
+            case "n2":        return this.n2;
+            case "n3":        return this.n3;
+            case "scale":     return this.scale;
+            case "speed":     return this.speed;
+            case "userScale": return this.userScale;
+            case "boidMode":  return this.boidMode;
+            case "boidCount": return this.boidCount;
         }
     }
 
     async setState(key: string, value: Serializable | undefined): Promise<void> {
+        // Runtime-UI keys handled here (boolean/integer values); knob keys fall through.
+        if (key === "userScale" && typeof value === "number") {
+            this.userScale = Math.max(RESIZE_MIN, Math.min(RESIZE_MAX, value));
+            this.gui.root.scaling.setAll(this.userScale);
+            return;
+        }
+        if (key === "boidMode" && typeof value === "boolean") {
+            this.boidMode = value;
+            this.swarm.setEnabled(value);
+            this.gui.boidToggleMat.emissiveColor = value
+                ? new Color3(0.95, 0.75, 0.15)
+                : new Color3(0, 0.5, 0.6);
+            return;
+        }
+        if (key === "boidCount" && typeof value === "number") {
+            this.boidCount = Math.max(0, Math.min(BOID_MAX, Math.floor(value)));
+            this.swarm.setCount(this.boidCount);
+            return;
+        }
         if (typeof value !== "number") return;
         switch (key) {
             case "m":     this.m     = value; this.curveDirty = true; break;
