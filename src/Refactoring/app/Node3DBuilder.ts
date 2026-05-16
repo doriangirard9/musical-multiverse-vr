@@ -28,11 +28,11 @@ import { HarpN3DFactory } from "../node3d/subs/note_generator/HarpN3D.ts";
 import { GazeControllerN3DFactory } from "../node3d/subs/automation/GazeControllerN3D.ts";
 import { VoiceVolumeControllerN3DFactory } from "../node3d/subs/automation/VoiceVolumeControllerN3D.ts";
 import { SyncDebugN3DFactory } from "../node3d/subs/debug/SyncDebugN3D.ts";
-import { N3DRendering } from "../node3d/instance/utils/N3DRendering.ts";
 import { AbstractMesh, CreatePlane, Vector4, VertexBuffer } from "@babylonjs/core";
 import { TextureAtlas } from "../utils/atlas.ts";
 import { AutoDispose } from "../utils/auto_dispose.ts";
 import ParticleEmitterN3DFactory, { ParticleEmitterN3D } from "../node3d/subs/particle/ParticleEmitterN3D.ts";
+import { N3DThumbnailRenderer } from "../world/renderer/N3DThumbnailRenderer.ts";
 
 
 
@@ -185,7 +185,7 @@ export class Node3DBuilder {
     }
 
     private renderer = new AutoDispose(
-        async () => (await new N3DRendering(SceneManager.getInstance().getScene(), 128).initialize()).createAggregator(),
+        async () => await new N3DThumbnailRenderer(SceneManager.getInstance().getScene(), 128, 3).initialize(),
         async (renderer) => renderer.dispose(),
         5_000
     )
@@ -209,7 +209,7 @@ export class Node3DBuilder {
                 if (!factory) return null
 
                 const renderer = await this.renderer.get()
-                const url = await renderer.draw(factory)
+                const url = await renderer.render(factory)
 
                 const uv = await this.atlas.add(url)
                 return { url, uv }

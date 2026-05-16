@@ -58,7 +58,6 @@ export class InputMoveOverBehavior implements Behavior<AbstractMesh> {
         if(this.moveObservers.has(pointer)) return
         const obs = pointer.onMove.add(p=>{
             this.onMove(p)
-            console.log("move", p)
         })
         this.moveObservers.set(pointer, obs)
     }

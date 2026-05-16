@@ -63,6 +63,7 @@ export class Avatar implements Synchronized{
         }
 
         this._label = new AvatarLabel("avatar label", scene)
+        this._label.root.parent = this.root
 
         this.place_color(new Color4(1, 1, 1, 1))
     }
