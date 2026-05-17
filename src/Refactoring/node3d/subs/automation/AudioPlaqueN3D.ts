@@ -270,22 +270,50 @@ export class AudioPlaqueN3DGUI implements Node3DGUI {
     }
 
     /**
-     * Project a world-space position onto the plaque's local XY plane.
+     * Project a world-space position onto the plaque's local XY plane via
+     * dot products with the plaque's own world-space axes.
      *
-     * 1. Invert the root's world matrix → world→local transform.
-     * 2. Multiply the world position by that inverse → local X, Y, Z.
-     * 3. Clamp X and Y to [-0.5, +0.5] (plaque bounds), force Z = 0.
+     *   center = plaque world position
+     *   right  = plaque's local +X expressed in world (= world dir of (1,0,0))
+     *   up     = plaque's local +Y expressed in world (= world dir of (0,1,0))
+     *
+     *   getDirection() applies the rotation+scale parts of the world matrix to
+     *   the local axis, so |right| equals the world-space scale along X.
+     *   Therefore:  localX = (offset · right) / |right|^2
+     *
+     * This is rotation-correct, scale-correct, and parent-hierarchy-correct
+     * regardless of how the plaque is positioned, scaled, or oriented.  It
+     * doesn't rely on `getWorldMatrix().invert()` whose handling of non-uniform
+     * scaling or recently-updated parent transforms was producing wrong values.
      */
     projectOntoPlaque(worldPos: Vector3): Vector3 {
-        const localPos = Vector3.TransformCoordinates(
-            worldPos,
-            this.root.getWorldMatrix().invert(),
-        );
+        const center = this.plaque.getAbsolutePosition();
+        const right  = this.plaque.getDirection(AudioPlaqueN3DGUI._LOCAL_X);
+        const up     = this.plaque.getDirection(AudioPlaqueN3DGUI._LOCAL_Y);
+        const offset = worldPos.subtract(center);
+
+        const rLen2 = right.lengthSquared();
+        const uLen2 = up.lengthSquared();
+        if (rLen2 < 1e-10 || uLen2 < 1e-10) return new Vector3(0, 0, 0);
+
+        const localX = Vector3.Dot(offset, right) / rLen2;
+        const localY = Vector3.Dot(offset, up)    / uLen2;
+
         return new Vector3(
-            Math.max(-0.5, Math.min(0.5, localPos.x)),
-            Math.max(-0.5, Math.min(0.5, localPos.y)),
+            Math.max(-0.5, Math.min(0.5, localX)),
+            Math.max(-0.5, Math.min(0.5, localY)),
             0,
         );
+    }
+
+    // Reusable local-axis constants — avoid allocating new vectors every call.
+    private static readonly _LOCAL_X = new Vector3(1, 0, 0);
+    private static readonly _LOCAL_Y = new Vector3(0, 1, 0);
+    private static readonly _LOCAL_Z = new Vector3(0, 0, 1);
+
+    /** Plaque's world-space normal (used by the logic class for ray-plane math). */
+    plaqueNormal(): Vector3 {
+        return this.plaque.getDirection(AudioPlaqueN3DGUI._LOCAL_Z);
     }
 
     async dispose() { }
@@ -534,23 +562,37 @@ export class AudioPlaqueN3D implements Node3D {
 
         // ── Helper: pointer → plaque-local target ─────────────────────────────
         //
-        //   XR hand  (side = "left" / "right"):
-        //     Project pointer.origin (controller tip world pos) onto the plaque.
-        //     Ray direction doesn't matter — the ball follows the "shadow" of
-        //     your hand on the surface.
+        //   Two paths, both ending in projectOntoPlaque() for the final
+        //   world→local conversion via dot-product axis projection:
         //
-        //   Mouse / Immersive Web Emulator desktop (side = "none"):
-        //     Use pointer.target (the actual ray-hit point on the plaque).
-        //     Returns null when the cursor leaves the plaque so targetPos
-        //     freezes at its last on-surface value.
+        //   1. Ray currently hits the plaque mesh:
+        //      Use pointer.target directly — Babylon already computed the
+        //      exact world-space hit point during its mesh raycast.
+        //
+        //   2. Ray points off the plaque (e.g., dragged past the edge while
+        //      holding trigger):
+        //      Compute the intersection with the plaque's infinite plane
+        //      ourselves, so the ball still tracks the laser direction.
+        //
+        //   Works identically for XR controllers (origin = controller tip,
+        //   forward = controller ray) and mouse (origin = camera, forward =
+        //   camera-through-cursor ray).
         //
         const pointerToTarget = (pointer: PointerInput): Vector3 | null => {
-            if (pointer.controller.side === "none") {
-                if (pointer.hit && pointer.targetMesh === gui.plaque)
-                    return gui.projectOntoPlaque(pointer.target);
-                return null;
+            // Path 1: native raycast hit on the plaque
+            if (pointer.hit && pointer.targetMesh === gui.plaque) {
+                return gui.projectOntoPlaque(pointer.target);
             }
-            return gui.projectOntoPlaque(pointer.origin);
+
+            // Path 2: ray-plane intersection from origin + forward
+            const planeOrigin = gui.plaque.getAbsolutePosition();
+            const planeNormal = gui.plaqueNormal();
+            const denom = Vector3.Dot(pointer.forward, planeNormal);
+            if (Math.abs(denom) < 1e-6) return null;
+            const t = Vector3.Dot(planeOrigin.subtract(pointer.origin), planeNormal) / denom;
+            if (t < 0) return null;
+            const hitWorld = pointer.origin.add(pointer.forward.scale(t));
+            return gui.projectOntoPlaque(hitWorld);
         };
 
         // ── InputGrabBehavior on the plaque surface ───────────────────────────
@@ -562,6 +604,10 @@ export class AudioPlaqueN3D implements Node3D {
             // onDown
             (pointer) => {
                 const t = pointerToTarget(pointer);
+                const center = gui.plaque.getAbsolutePosition();
+                const right  = gui.plaque.getDirection(new Vector3(1, 0, 0));
+                const up     = gui.plaque.getDirection(new Vector3(0, 1, 0));
+                const normal = gui.plaqueNormal();
                 console.log(
                     "[AudioPlaque] GRAB DOWN",
                     "\n  controller     :", pointer.controller.side,
@@ -569,6 +615,10 @@ export class AudioPlaqueN3D implements Node3D {
                     "\n  pointer.hit    :", pointer.hit,
                     "\n  pointer.target :", pointer.hit ? fmt(pointer.target) : "(no hit)",
                     "\n  projected →    :", t ? fmt(t) : "null (off-surface)",
+                    "\n  plaque center  :", fmt(center),
+                    "\n  plaque right   :", fmt(right),  "len:", right.length().toFixed(3),
+                    "\n  plaque up      :", fmt(up),     "len:", up.length().toFixed(3),
+                    "\n  plaque normal  :", fmt(normal), "len:", normal.length().toFixed(3),
                 );
                 if (t) this.targetPos.copyFrom(t);
             },

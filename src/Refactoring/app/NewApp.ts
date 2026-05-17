@@ -159,7 +159,13 @@ export class NewApp {
         let doing = false
         InputManager.getInstance().a_button.onDown.add(()=>{
             if(!shopPanel){
-                shopPanel = new ShopPanel(scene, Node3dManager.getInstance().builder.getShared().utilityLayer.utilityLayerScene)
+                // Pass the main scene for BOTH constructor params so the shop plane
+                // lives in the main scene. The WebXRControllerPointerSelection feature
+                // only raycasts through the main scene — when the plane was in the
+                // utility layer's scene, XR controller pointers couldn't hit it.
+                // The plane sets renderingGroupId=1 internally so it still draws
+                // on top of other world meshes.
+                shopPanel = new ShopPanel(scene, scene)
                 shopPanel.makeFollow()
             }
             else shopPanel.toggle()
