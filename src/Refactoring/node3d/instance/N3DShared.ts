@@ -9,13 +9,12 @@ export class N3DShared{
 
     constructor(
         readonly scene: Scene,
+        readonly utilityLayer: babylonjs.UtilityLayerRenderer,
         readonly shadowGenerator: babylonjs.ShadowGenerator,
         readonly audioContext: AudioContext,
         readonly audioEngine: babylonjs.AudioEngineV2,
         readonly groupId: string,
     ){
-        this.utilityLayer = new babylonjs.UtilityLayerRenderer(this.scene)
-
         this.highlightLayer = new HighlightLayer(`node3D highlight layer`, this.scene, {renderingGroupId:0})
 
         this.materialMat = new StandardMaterial("node3d shared material mat", this.scene)
@@ -49,7 +48,6 @@ export class N3DShared{
         }
     }
 
-    readonly utilityLayer
     readonly highlightLayer
 
     readonly materialMat

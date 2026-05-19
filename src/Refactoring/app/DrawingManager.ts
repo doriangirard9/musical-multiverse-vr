@@ -39,7 +39,7 @@ export class DrawingManager {
         this.registerInputs()
     }
 
-    create(color: Color4): Curve3D {
+    create(color: Color3): Curve3D {
         const curve = new Curve3D(color,this.scene.getScene())
         const id = RandomUtils.randomID()
         this.manager.add(id, curve, color.toHexString())
@@ -61,13 +61,13 @@ export class DrawingManager {
             100,
             ()=>{
                 const pos = this.inputs.right.pointer.origin.clone()
-                if(last_pos.subtract(pos).length() > 0.2){
+                if(last_pos.subtract(pos).length() > 0.05){
                     if(curve) curve.points = [...curve.points, pos]
                     last_pos.copyFrom(pos)
                 }
             },
             ()=>{
-                curve = this.create(this.usercolor.toColor4(1))
+                curve = this.create(this.usercolor)
                 last_pos = new Vector3(0,9999,0)
             },
         )

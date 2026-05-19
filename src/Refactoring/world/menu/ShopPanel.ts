@@ -1,12 +1,14 @@
-import { CreatePlane, Effect, Mesh, Quaternion, Scene, Trajectory, Tuple, Vector3 } from "@babylonjs/core"
+import { CreatePlane, Effect, Mesh, Quaternion, Ray, Scene, Trajectory, Tuple, Vector3 } from "@babylonjs/core"
 import { AdvancedDynamicTexture, Button, Container, Control, Image, Rectangle, ScrollViewer, StackPanel, TextBlock } from "@babylonjs/gui"
 import { Node3dManager } from "../../app/Node3dManager"
 import { N3DRendering } from "../../node3d/instance/utils/N3DRendering"
 import { N3DText } from "../../node3d/instance/utils/N3DText"
 import { Node3DBuilder } from "../../app/Node3DBuilder"
+import { InputHoverBehavior, InputPressBehavior } from "../../node3d/tools"
+import { InputToPointerBehavior } from "../../xr/inputs/tools/InputToPointer"
 
 
-export class ShopPanel{
+export class ShopPanel {
 
     plane: Mesh
     texture: AdvancedDynamicTexture
@@ -15,7 +17,7 @@ export class ShopPanel{
     constructor(
         private scene: Scene,
         private renderScene: Scene,
-    ){
+    ) {
         const that = this
         
         this.plane = CreatePlane("shopPanel", {width: 2, height: 1}, renderScene)
@@ -23,19 +25,22 @@ export class ShopPanel{
         // utility layer scene; explicit now that it lives in the main scene so XR
         // controller pointer rays (main-scene-only) can pick it.
         this.plane.renderingGroupId = 1
+
         this.texture = AdvancedDynamicTexture.CreateForMesh(this.plane, 1024, 512)
         this.label = new N3DText("label", [this.plane], renderScene)
         this.label.plane.renderingGroupId = 1
         this.label.list.background = "rgb(0,0,0,0.5)"
 
 
+        this.plane.addBehavior(new InputToPointerBehavior())
+        
         // Item List
         const items = new Container()
-        
-        function setItems(kinds: string[]){
+
+        function setItems(kinds: string[]) {
             items.clearControls()
-            const list = that.createItemList(4,kinds)
-            that.place(list, 0,0, 100,100)
+            const list = that.createItemList(4, kinds)
+            that.place(list, 0, 0, 100, 100)
             items.addControl(list)
         }
 
@@ -43,22 +48,22 @@ export class ShopPanel{
         // Sub menu
         const submenu = new Container()
 
-        function setSubMenu(selection: string, submenus: Record<string, string[]>){
+        function setSubMenu(selection: string, submenus: Record<string, string[]>) {
             const options = Object.entries(submenus)
-            if(options.length===1) selection = options[0][0]
+            if (options.length === 1) selection = options[0][0]
 
             submenu.clearControls()
             const buttons = that.createButtons(
-                options.map(([label, kinds])=>({
+                options.map(([label, kinds]) => ({
                     label,
                     selected: label === selection,
-                    action: ()=>{
+                    action: () => {
                         setSubMenu(label, submenus)
                         setItems(kinds)
                     }
                 }))
             )
-            if(options.length===1) setItems(options[0][1])
+            if (options.length === 1) setItems(options[0][1])
             submenu.addControl(buttons)
             buttons.horizontalAlignment = StackPanel.HORIZONTAL_ALIGNMENT_CENTER
             buttons.height = "100%"
@@ -68,14 +73,14 @@ export class ShopPanel{
         // Menu
         const menu = new Container()
 
-        function setMenu(selection: string, menus: Record<string, Record<string, string[]>>){
+        function setMenu(selection: string, menus: Record<string, Record<string, string[]>>) {
             menu.clearControls()
             const buttons = that.createButtons(
                 Object.entries(menus)
-                    .map(([label, submenus])=>({
+                    .map(([label, submenus]) => ({
                         label,
                         selected: label === selection,
-                        action: ()=>{
+                        action: () => {
                             setMenu(label, menus)
                             setSubMenu("", submenus)
                         }
@@ -86,115 +91,125 @@ export class ShopPanel{
             buttons.height = "100%"
         }
 
-        
+
         // Clipboard
         const clipboard = this.createClipboard()
 
         const topbar = that.rect()
-        that.place(topbar, 0,0, 100,15)
+        that.place(topbar, 0, 0, 100, 15)
         that.texture.addControl(topbar)
 
         const body = that.rect()
-        that.place(body, 0,15, 100,85)
+        that.place(body, 0, 15, 100, 85)
         that.texture.addControl(body)
 
         body.addControl(items)
-        that.place(items, 0,0, 65,100)
+        that.place(items, 0, 0, 65, 100)
 
         body.addControl(clipboard)
-        that.place(clipboard, 65,0, 35,100)
+        that.place(clipboard, 65, 0, 35, 100)
 
         topbar.addControl(menu)
-        that.place(menu, 0,0, 100,50)
+        that.place(menu, 0, 0, 100, 50)
 
         topbar.addControl(submenu)
-        that.place(submenu, 0,50, 100,50)
+        that.place(submenu, 0, 50, 100, 50)
 
-        // Init menu
-        ;(async ()=>{
-            const builder = Node3dManager.getInstance().builder
-            const kinds = builder.FACTORY_KINDS
-            const factories = (await Promise.all(kinds.map(async kind=>{
+            // Init menu
+            ; (async () => {
+                const builder = Node3dManager.getInstance().builder
+                const kinds = builder.FACTORY_KINDS
+                const factories = (await Promise.all(kinds.map(async kind => {
                     const factory = await builder.getFactory(kind)
-                    if(factory==null)return null
-                    else return [kind,factory] as const
+                    if (factory == null) return null
+                    else return [kind, factory] as const
                 })))
-                .filter(it=>it!=null)
-            const dict = Object.fromEntries(factories)
+                    .filter(it => it != null)
+                const dict = Object.fromEntries(factories)
 
-            const menus = {
-                Audio:{
-                    Generator: [],
-                    Effect: [],
-                    Other: [],
-                },
-                MIDI:{
-                    Generator: [],
-                    Instrument: [],
-                    Other: [],
-                },
-                Automation:{
-                    Automation: [],
-                },
-                Other:{
-                    Other: [],
-                },
-                Output:{
-                    Output:[]
-                },
-            }
-
-            for(const [kind, factory] of factories){
-                const target = [] as string[][]
-
-                console.log(kind, factory.tags)
-                
-                if(factory.tags.includes("consumer")) target.push(menus.Output.Output)
-
-                if(factory.tags.includes("automation")) target.push(menus.Automation.Automation)
-
-                if(factory.tags.includes("midi")){
-                    if(factory.tags.includes("generator")) target.push(menus.MIDI.Generator)
-                    else if(factory.tags.includes("instrument")) target.push(menus.MIDI.Instrument)
-                    else target.push(menus.MIDI.Other)
+                const menus = {
+                    Video: {
+                        Generator: [],
+                        Effect: [],
+                        Other: [],
+                    },
+                    Audio: {
+                        Generator: [],
+                        Effect: [],
+                        Other: [],
+                    },
+                    MIDI: {
+                        Generator: [],
+                        Instrument: [],
+                        Other: [],
+                    },
+                    Automation: {
+                        Automation: [],
+                    },
+                    Other: {
+                        Other: [],
+                    },
+                    Output: {
+                        Output: []
+                    },
                 }
-                else if(factory.tags.includes("audio")){
-                    if(factory.tags.includes("generator")) target.push(menus.Audio.Generator)
-                    else if(factory.tags.includes("effect")) target.push(menus.Audio.Effect)
-                    else target.push(menus.Audio.Other)
-                }
-                console.log(target)
-                if(target.length===0) target.push(menus.Other.Other)
 
-                target.forEach(t=>t.push(kind))
-            }
-            setMenu("", menus)
-        })()
+                for (const [kind, factory] of factories) {
+                    const target = [] as string[][]
+
+                    console.log(kind, factory.tags)
+
+                    if (factory.tags.includes("consumer")) target.push(menus.Output.Output)
+
+                    if (factory.tags.includes("automation")) target.push(menus.Automation.Automation)
+
+                    if (factory.tags.includes("midi")) {
+                        if (factory.tags.includes("generator")) target.push(menus.MIDI.Generator)
+                        else if (factory.tags.includes("instrument")) target.push(menus.MIDI.Instrument)
+                        else target.push(menus.MIDI.Other)
+                    }
+                    else if (factory.tags.includes("audio")) {
+                        if (factory.tags.includes("generator")) target.push(menus.Audio.Generator)
+                        else if (factory.tags.includes("effect")) target.push(menus.Audio.Effect)
+                        else target.push(menus.Audio.Other)
+                    }
+                    else if (factory.tags.includes("video")) {
+                        if (factory.tags.includes("generator")) target.push(menus.Video.Generator)
+                        else if (factory.tags.includes("effect")) target.push(menus.Video.Effect)
+                        else target.push(menus.Video.Other)
+                    }
+                    console.log(target)
+                    if (target.length === 0) target.push(menus.Other.Other)
+
+                    target.forEach(t => t.push(kind))
+                }
+                setMenu("", menus)
+            })()
     }
 
-    private createButtons(buttons: {label:string, selected:boolean, action:()=>void}[] = []){
+    private createButtons(buttons: { label: string, selected: boolean, action: () => void }[] = []) {
         const list = new StackPanel()
         list.isVertical = false
-        for(const {label,selected,action} of buttons){
+        for (const { label, selected, action } of buttons) {
             const button = Button.CreateSimpleButton("button", label)
             button.color = "white"
             button.width = "150px"
-            if(selected) button.background = "rgb(255,255,255,0.5)"
+            if (selected) button.background = "rgb(255,255,255,0.5)"
             else button.onPointerUpObservable.add(action)
             list.addControl(button)
         }
         return list
     }
 
-    private updateClipboard: ()=>void = ()=>{}
+    private updateClipboard: () => void = () => { }
 
-    private createClipboard(){
+    private createClipboard() {
         const container = new Rectangle()
-        this.updateClipboard = async()=>{
+        this.updateClipboard = async () => {
             container.clearControls()
             const kind = await navigator.clipboard.readText()
             const item = await this.createItem(kind)
-            if(item){
+            if (item) {
                 item.width = "300px"
                 item.height = "300px"
                 container.addControl(item)
@@ -204,7 +219,7 @@ export class ShopPanel{
         return container
     }
 
-    private createItemList(columns: number, kinds: string[]){
+    private createItemList(columns: number, kinds: string[]) {
         const root = new Rectangle()
 
         const scroll = new ScrollViewer()
@@ -212,25 +227,25 @@ export class ShopPanel{
         scroll.height = "100%"
         root.addControl(scroll)
 
-        const stack = Array.from({length:columns},(_,i)=>{
+        const stack = Array.from({ length: columns }, (_, i) => {
             const stack = new StackPanel()
             scroll.addControl(stack)
-            stack.width = (90/columns)+"%"
+            stack.width = (90 / columns) + "%"
             stack.horizontalAlignment = StackPanel.HORIZONTAL_ALIGNMENT_LEFT
-            stack.left = `${i*(90/columns)+5}%`
+            stack.left = `${i * (90 / columns) + 5}%`
             return stack
         })
 
-        Promise.all(kinds.map(async kind=>{
+        Promise.all(kinds.map(async kind => {
             const item = await this.createItem(kind)
-            if(!item) return
+            if (!item) return
             item.width = "150px"
             item.height = "150px"
 
             let min = Infinity
-            let index =0
-            for(let i=0; i<stack.length; i++){
-                if(stack[i].children.length<min){
+            let index = 0
+            for (let i = 0; i < stack.length; i++) {
+                if (stack[i].children.length < min) {
                     min = stack[i].children.length
                     index = i
                 }
@@ -241,32 +256,32 @@ export class ShopPanel{
         return root
     }
 
-    private async createItem(kind: string){
+    private async createItem(kind: string) {
         const factory = await Node3dManager.getInstance().builder.getFactory(kind)
-        if(!factory) return
+        if (!factory) return
 
-        const url = await Node3dManager.getInstance().builder.getThumbnail(kind).then(it=>it?.url)
+        const url = await Node3dManager.getInstance().builder.getThumbnail(kind).then(it => it?.url)
 
         const uiThumbnail = new Image("thumb", url)
         const uiName = new TextBlock("name", factory.label)
-        
+
         const container = new Button("container")
-        container.pointerEnterAnimation = ()=>{
+        container.pointerEnterAnimation = () => {
             container.background = "rgb(255,255,255,0.2)"
             this.label.set([
-                {content: factory.label},
-                {content: factory.description, size: .5},
-                {content: factory.tags.join(", "), size: .4, color: "#ffffff9d"},
+                { content: factory.label },
+                { content: factory.description, size: .5 },
+                { content: factory.tags.join(", "), size: .4, color: "#ffffff9d" },
             ])
             this.label.show()
             this.label.updatePosition()
         }
-        container.pointerOutAnimation = ()=>{
+        container.pointerOutAnimation = () => {
             container.background = "rgb(0,0,0,0)"
             this.label.hide()
             this.label.updatePosition()
         }
-        container.pointerUpAnimation = ()=>{
+        container.pointerUpAnimation = () => {
             this.hide()
             Node3dManager.getInstance().addNode3d(kind, this.plane.absolutePosition.clone())
         }
@@ -285,50 +300,50 @@ export class ShopPanel{
         return container
     }
 
-    makeFollow(){
-        const o = this.scene.onAfterPhysicsObservable.add(()=>{
+    makeFollow(distance = 2) {
+        const o = this.scene.onAfterPhysicsObservable.add(() => {
             const ray = this.scene.activeCamera!.getForwardRay()
-            const position = ray.direction.scale(1).addInPlace(ray.origin)
+            const position = ray.direction.scale(distance).addInPlace(ray.origin)
             this.plane.position.addInPlace(position).scaleInPlace(0.5)
             this.plane.rotationQuaternion = Quaternion.FromLookDirectionLH(ray.direction.scale(-1), Vector3.Up())
                 .multiplyInPlace(Quaternion.FromEulerAngles(0.1, 0, 0))
         })
 
-        this.plane.onDisposeObservable.addOnce(()=>{
+        this.plane.onDisposeObservable.addOnce(() => {
             o.remove()
         })
 
         return o
     }
 
-    show(){
+    show() {
         this.plane.isVisible = true
         this.updateClipboard()
     }
 
-    hide(){
+    hide() {
         this.plane.isVisible = false
     }
 
-    toggle(){
-        if(this.plane.isVisible){
+    toggle() {
+        if (this.plane.isVisible) {
             this.hide()
         }
-        else{
+        else {
             this.show()
         }
     }
 
-    place(control: Control, x: number, y: number, width: number, height: number){
+    place(control: Control, x: number, y: number, width: number, height: number) {
         control.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP
         control.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT
-        control.left = x+"%"
-        control.top = y+"%"
-        control.width = width+"%"
-        control.height = height+"%"
+        control.left = x + "%"
+        control.top = y + "%"
+        control.width = width + "%"
+        control.height = height + "%"
     }
 
-    rect(){
+    rect() {
         const rect = new Rectangle()
         rect.background = "rgb(0,0,0,0.5)"
         return rect

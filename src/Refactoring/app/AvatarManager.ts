@@ -49,6 +49,7 @@ export class AvatarManager {
         await avatar.initialize()
         avatar.registerInputs(this.inputs)
         avatar.setVisible(false)
+        avatar.randomize_skin()
         avatar.setColor(this.usercolor.toColor4(1))
         avatar.setName(this.username)
         this.manager.add(id, avatar, this.network.connection.getAwareness().getLocalState()!["playerId"] as string)

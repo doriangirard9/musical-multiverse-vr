@@ -1,20 +1,22 @@
-import { Scene } from "@babylonjs/core";
-import { Node3DFactory, Node3DGUI } from "../../Node3D";
 import * as B from "@babylonjs/core";
-import * as tools from "../../tools"
-import { Node3DGUIContext } from "../../Node3DGUIContext";
-import type { PromiseChain } from "../../../utils/async";
-import { AsyncCallAggregator } from "../../../utils/call_aggregator";
+import { AsyncCallAggregator } from "../../utils/call_aggregator";
 
 const OFFSET = new B.Vector3(616,-3545, 2)
+const DEBUG = true
 
 /**
+ * An utility class for rendering thumbnails of 3D objects.
+ * The objects have to centered and fitted in a 1x1x1 box for correct rendering.
+ * It supports small overlap between objects, but too much overlap may cause rendering issues.
+ * 
  * @warning Pay attention to async race conditions, wrap every calls to this with a {@link PromiseChain}
+ * 
+ * Get aggragators with {@link createAggregator} to render thumbnails with batching mechanism and
+ * avoid race conditions.
+ * 
  */
-export class N3DRendering {
+export class ThumbnailRenderer {
 
-    private ctx!: Node3DGUIContext
-    private renderScene!: Scene
     private rootNode!: B.Node
     private renderTarget!: B.RenderTargetTexture
     private camera!: B.UniversalCamera
@@ -27,29 +29,15 @@ export class N3DRendering {
     ){}
 
     async initialize(){
-        console.log("Initializing N3DRendering...")
+        this.log("Initializing Thumbnail Rendering...")
 
-        const renderscene = this.renderScene = this.scene// new Scene(this.scene.getEngine(),{virtual:true})
-        const rootNode = this.rootNode = new B.Node("N3D Rendering Root Node", renderscene)
-        
-        const ctx: Node3DGUIContext = this.ctx = {
-            babylon: B,
-            materialLight: new B.StandardMaterial("light", renderscene),
-            materialMat: new B.StandardMaterial("mat", renderscene),
-            materialMetal: new B.StandardMaterial("metal", renderscene),
-            materialShiny: new B.StandardMaterial("shiny", renderscene),
-            materialTransparent: new B.StandardMaterial("transparent", renderscene),
-            tools,
-            scene: renderscene,
-            highlight() { },
-            unhighlight() { },
-        }
+        const rootNode = this.rootNode = new B.Node("N3D Rendering Root Node", this.scene)
 
         var renderTarget = this.renderTarget = new B.RenderTargetTexture('render to texture', {height:this.size,width:this.size*this.parallelCount*1.5}, this.scene, {doNotChangeAspectRatio:false})
         renderTarget.clearColor = new B.Color4(0,0,0,0)
         renderTarget.hasAlpha = true
 
-        const camera = this.camera = new B.UniversalCamera("camera", OFFSET.clone().addInPlaceFromFloats(0, 2, 0), renderscene)
+        const camera = this.camera = new B.UniversalCamera("camera", OFFSET.clone().addInPlaceFromFloats(0, 2, 0), this.scene)
         camera.mode = B.Camera.ORTHOGRAPHIC_CAMERA
         camera.orthoLeft = -.5
         camera.orthoRight = (this.parallelCount)*1.5+-.5
@@ -61,59 +49,58 @@ export class N3DRendering {
         camera.parent = rootNode
         renderTarget.activeCamera = this.camera
 
-        const light = this.light = new B.HemisphericLight("light", new B.Vector3(3, 10, 3), renderscene)
+        const light = this.light = new B.HemisphericLight("light", new B.Vector3(3, 10, 3), this.scene)
         light.intensity = 1
         light.parent = rootNode
-        light.includedOnlyMeshes = []
+        light.includeOnlyWithLayerMask = 0x0000200
+        rootNode.setEnabled(false)
 
         
-        renderscene.customRenderTargets.push(renderTarget)
+        this.scene.customRenderTargets.push(renderTarget)
 
-        await Promise.all([ctx.materialLight,ctx.materialMat,ctx.materialMetal,ctx.materialShiny].map(async mat=>{
-            await Promise.all(mat.getBindedMeshes().map(mesh=>mesh.material!.forceCompilationAsync(mesh)))
-        }))
-        await renderscene.whenReadyAsync(true)
+        await this.scene.whenReadyAsync(true)
 
         return this
     }
 
-    async renderThumbnail(factories: Node3DFactory<Node3DGUI,any>[]) {
-
-        const guis = await Promise.all(factories.map(f => f.createGUI(this.ctx)))
-        guis.filter(gui => {
-            if (!gui.root) {
-                console.error(`GUI root is undefined for node3d factory. The createGUI method must return an object with a 'root' TransformNode property.`)
-                return false
-            }
-            else return true
-        })
+    async renderThumbnail(nodes: B.TransformNode[]) {
+        this.rootNode.setEnabled(true)
+        console.log("Rendering thumbnail for", nodes.map(n=>n.name))
 
         this.renderTarget.renderList!.length = 0
         let i = 0
-        for(const gui of guis){
-            this.renderTarget.renderList!.push(...gui.root.getChildMeshes())
-            for(const mesh of gui.root.getChildMeshes()){
+        for(const node of nodes){
+            this.renderTarget.renderList!.push(...node.getChildMeshes())
+            for(const mesh of node.getChildMeshes()){
                 mesh.lightSources.length = 0
                 mesh.lightSources.push(this.light)
+                mesh.layerMask = 0x0000200
             }
-            gui.root.parent = this.rootNode
-            gui.root.position = OFFSET.clone().addInPlaceFromFloats(i * 1.5, 0, 0)
+            node.parent = this.rootNode
+            node.position = OFFSET.clone().addInPlaceFromFloats(i * 1.5, 0, 0)
             i++
         }
 
-        await this.renderScene.whenReadyAsync(true)
+        await this.scene.whenReadyAsync(true)
 
+        await Promise.all(
+            nodes.flatMap(n=>n.getChildMeshes())
+                .map(async mesh =>{
+                    await mesh.material?.forceCompilationAsync(mesh)
+                })
+        )
+
+        await this.scene.whenReadyAsync(true)
+        this.renderTarget.render()
+        await this.scene.whenReadyAsync(true)
         this.renderTarget.render()
 
-        for(const gui of guis){
-            gui.dispose()
-            gui.root.dispose()
-        }
-
+        this.rootNode.setEnabled(false)
+        console.log("Rendering done for", nodes.map(n=>n.name))
     }
 
     dispose(){
-        console.log("Disposing N3DRendering...")
+        this.log("Disposing N3DRendering...")
         this.renderTarget.dispose()
         this.camera.dispose()
         this.light.dispose()
@@ -134,6 +121,7 @@ export class N3DRendering {
         const ctx = tarCanvas.getContext('2d')!!
         const tarData = ctx.createImageData(tarSize, tarSize)
         
+        console.log("Converting thumbnail to image URL...")
         return Array.from({length:count},(_,i)=>{
             const offset = Math.floor(i * tarSize * 1.5) * 4
             if(srcData instanceof Float32Array){
@@ -167,13 +155,12 @@ export class N3DRendering {
     public createAggregator(){
         const renderer = this
 
-        const aggregator = new AsyncCallAggregator<Node3DFactory<Node3DGUI,any>,string>(
+        const aggregator = new AsyncCallAggregator<B.TransformNode,string>(
             this.parallelCount,
             50,
-            async (factories)=>{
-                console.log("factories", factories)
-                await renderer.renderThumbnail(factories)
-                return await renderer.getImageURL(factories.length)
+            async nodes=>{
+                await renderer.renderThumbnail(nodes)
+                return await renderer.getImageURL(nodes.length)
             }
         )
 
@@ -182,9 +169,13 @@ export class N3DRendering {
                 await new Promise<void>(resolve=>aggregator.addOnFinish(resolve))
                 renderer.dispose()
             },
-            draw(factory: Node3DFactory<Node3DGUI,any>){
-                return aggregator.add(factory)
+            draw(node: B.TransformNode){
+                return aggregator.add(node)
             }
         }
+    }
+
+    private log(...args: any[]){
+        if(DEBUG) console.log("[THUMBNAIL RENDERING] ", ...args)
     }
 }

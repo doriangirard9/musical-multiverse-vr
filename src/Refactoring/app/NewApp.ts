@@ -16,6 +16,8 @@ import { DrawingManager } from "./DrawingManager.ts";
 import { AvatarManager } from "./AvatarManager.ts";
 import { NetworkEventBus } from "../eventBus/NetworkEventBus.ts";
 import { RandomUtils } from "../node3d/tools/utils/RandomUtils.ts";
+import { Doc } from "yjs";
+import { N3DPreviewer } from "../world/N3DPreviewer.ts";
 export class NewApp {
     private static readonly DEBUG_LOG = false;
     private controlsUI?: ControlsUI;
@@ -30,7 +32,7 @@ export class NewApp {
         return NewApp.instance;
     }
 
-    public async start(participantId: string, roomName: string, doc: Y.Doc): Promise<void> {
+    public async start(participantId: string, roomName: string, doc: Doc): Promise<void> {
         NewApp.instance = this
         
         const username = RandomUtils.randomName()
@@ -59,6 +61,11 @@ export class NewApp {
         // Initialization of App Parts
         UIManager.initialize()
         await XRManager.getInstance()!!.init(SceneManager.getInstance().getScene(), audioEngine);
+
+        InputManager.create(XRManager.getInstance().xrHelper, [
+            SceneManager.getInstance().getScene(),
+            SceneManager.getInstance().getUtilityLayer().utilityLayerScene
+        ])
 
         await Node3dManager.initialize(audioContext, audioEngine)
         
@@ -153,10 +160,15 @@ export class NewApp {
                 const serialized = JSON.parse(str)
                 await Serialization.getInstance().load(serialized)
             }
+            else if(e.key=="c"){
+                InputManager.getInstance().movement.stackEnable()
+            }
+            else if(e.key=="v"){
+                InputManager.getInstance().movement.stackDisable()
+            }
         })
 
         let shopPanel: ShopPanel
-        let doing = false
         InputManager.getInstance().a_button.onDown.add(()=>{
             if(!shopPanel){
                 // Pass the main scene for BOTH constructor params so the shop plane
@@ -175,15 +187,6 @@ export class NewApp {
         InputVisualPointer.CreateSimple(scene, InputManager.getInstance().left.pointer)
         InputVisualPointer.CreateSimple(scene, InputManager.getInstance().right.pointer)
 
-        //// TESTS ////
-        // const node = await node3dBuilder.create("harp") as Node3DInstance
-        // const node2 = await node3dBuilder.create("large_harp") as Node3DInstance
-        // node.boundingBoxMesh.position.z += 5
-        // node2.boundingBoxMesh.position.z += 5
-        // node2.boundingBoxMesh.position.x += 1
-        // await node3dBuilder.create("sequencer") as Node3DInstance
-        // await node3dBuilder.create("sequencer") as Node3DInstance
-        // await node3dBuilder.create("function_sequencer") as Node3DInstance
     }
 
 }

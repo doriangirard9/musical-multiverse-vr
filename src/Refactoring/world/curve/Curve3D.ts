@@ -1,4 +1,4 @@
-import { Color4, CreateLines, Immutable, Mesh, Scene, Vector3 } from "@babylonjs/core";
+import { Color3, Color4, CreateGreasedLine, CreateLines, Immutable, Mesh, Scene, Vector3 } from "@babylonjs/core";
 import { Synchronized } from "../../network/sync/Synchronized";
 import { SyncSerializable } from "../../network/sync/SyncSerializable";
 import { Doc } from "yjs";
@@ -10,7 +10,7 @@ import { SyncManager } from "../../network/sync/SyncManager";
  */
 export class Curve3D implements Synchronized {
 
-    constructor(readonly color: Color4, readonly scene: Scene){}
+    constructor(readonly color: Color3, readonly scene: Scene){}
 
 
     // Points
@@ -34,11 +34,15 @@ export class Curve3D implements Synchronized {
             this._mesh = undefined
         }
         if(this._points.length >= 2){
-            this._mesh = CreateLines("curve3d", {
-                points: this._points, 
-                colors: Array.from({length: this._points.length}, _ => this.color),
-                updatable: false,
-            }, this.scene)
+            this._mesh = CreateGreasedLine("curve3d",
+                {
+                    points: this._points,
+                },{
+                    color: this.color,
+                    width: 0.05,
+                },
+                this.scene
+            )
             this._mesh.isPickable = false
             this._mesh.checkCollisions = false
         }
@@ -97,7 +101,7 @@ export class Curve3D implements Synchronized {
                 instance.on_dispose = () => syncmanager.remove(instance)
                 onAdd?.(instance)
             },
-            async create(_, __, color) { return new Curve3D(Color4.FromHexString(color),scene) },
+            async create(_, __, color) { return new Curve3D(Color3.FromHexString(color),scene) },
             async on_remove(instance) {
                 onRemove?.(instance)
                 instance.dispose()

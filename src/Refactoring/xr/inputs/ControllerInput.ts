@@ -39,10 +39,10 @@ export class ControllerInput {
         }
     }
 
-    _registerXRObserver(controller: WebXRInputSource, scene: Scene): { remove(): void } {
+    _registerXRObserver(controller: WebXRInputSource, scenes: Scene[]): { remove(): void } {
         if(controller.motionController!!.handedness!==this.side) return { remove: () => {} }
         const observers = [
-            this.pointer._registerXRObserver(controller, scene),
+            this.pointer._registerXRObserver(controller, scenes),
             this.trigger._registerXRObserver(controller.motionController!!),
             this.squeeze._registerXRObserver(controller.motionController!!),
             this.thumbstick._registerXRObserver(controller.motionController!!),
@@ -55,7 +55,7 @@ export class ControllerInput {
     }
 
     _registerDocumentObserver(
-        scene: Scene,
+        scenes: Scene[],
         trigger: string|number|null = null,
         squeeze: string|number|null = null,
         thumbstick: [string,string,string,string]|null = null,
@@ -67,7 +67,7 @@ export class ControllerInput {
         if(squeeze!=null) observers.push(this.squeeze._registerDocumentObserver(squeeze))
         if(thumbstick!=null) observers.push(this.thumbstick._registerKeyObserver(...thumbstick))
         if(thumbstickScroll) observers.push(this.thumbstick._registerMouseWheelObserver())
-        if(pointerMovement) observers.push(this.pointer._registerMouseObserver(scene))
+        if(pointerMovement) observers.push(this.pointer._registerMouseObserver(scenes))
         return {
             remove() {
                 observers.forEach(o => o.remove())

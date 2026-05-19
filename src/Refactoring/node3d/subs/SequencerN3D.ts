@@ -15,6 +15,7 @@ class SequencerN3DGUI implements Node3DGUI {
     syncInput
     syncOutput
     notePadTemplate: AbstractMesh | null = null
+    noteSliderTemplate: AbstractMesh | null = null
 
     readonly stepCount = 12
     readonly noteCount = 8
@@ -109,10 +110,18 @@ class SequencerN3DGUI implements Node3DGUI {
                     note_pad.position.set(x,baseSize*.1,y)
                 }
             }
+            const sliderTemplate = B.CreateSphere("sequence note slider template", {diameter: h}, context.scene)
+            sliderTemplate.material = context.materialMat
+            sliderTemplate.isVisible = false
+            sliderTemplate.parent = this.root
+            sliderTemplate.registerInstancedBuffer("color", 4)
+            sliderTemplate.instancedBuffers.color = new B.Color4(1, 1, 1, 1)
+            this.noteSliderTemplate = sliderTemplate
+
             for(let n = 0; n<this.noteCount; n++){
                 const x = fx - baseSize*.7
                 const y = ty-(n+.5)*note_height
-                const slider = B.CreateSphere(`sequence note slider ${n}`, {diameter: h}, context.scene)
+                const slider = sliderTemplate.createInstance(`sequence note slider ${n}`)
                 slider.position.set(x,baseSize*.1,y)
                 slider.parent = this.root
                 this.noteSliders.push(slider)
@@ -140,6 +149,18 @@ class SequencerN3DGUI implements Node3DGUI {
         
         const instance = this.getNodePad(step, note)
         instance.instancedBuffers.color = color
+    }
+
+    colorizeSlider(note: number, midiNote: number){
+        const {babylon:B} = this.context
+        const noteIndex = (midiNote)%12
+        const hue = noteIndex/12
+        const isBlackKey = noteIndex === 1 || noteIndex === 3 || noteIndex === 6 || noteIndex === 8 || noteIndex === 10
+        const saturation = isBlackKey ? 0.6 : 0.8
+        const value = isBlackKey ? 0.5 : 1
+        const color = B.Color3.FromHSV(hue*360, saturation, value).toColor4(1)
+        const slider = this.noteSliders[note]
+        slider.instancedBuffers.color = color
     }
 
     async dispose(): Promise<void> {
@@ -178,6 +199,7 @@ class SequencerN3D implements Node3D{
 
     private set_midi(note:number, midiNote: number){
         this.notes_midi[note] = midiNote
+        this.gui.colorizeSlider(note, midiNote)
         for(let s=0; s<this.notes_state.length; s++){
             this.updateNote(s, note)
         }

@@ -4,7 +4,7 @@ import { AbstractPointerInput } from "./AbstractPointerInput";
 /**
  * Class representing the pointer input of a controller. It provides the position and orientation of the pointer, as well as the mesh it is targeting (if any).
  */
-export class PointerInput extends AbstractPointerInput {
+export class PointerInput extends AbstractPointerInput implements AbstractPointerInput {
 
     constructor(
         readonly controller: ControllerInput

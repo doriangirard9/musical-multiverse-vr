@@ -1,6 +1,7 @@
-import {initializeWamHost, WebAudioModule} from "@webaudiomodules/sdk";
-import {NoteExtension} from "../wamExtensions/notes/NoteExtension.ts";
-import {PatternExtension} from "../wamExtensions/patterns/PatternExtension.ts";
+import { initializeWamHost, WebAudioModule } from "@webaudiomodules/sdk";
+import { NoteExtension } from "../wamExtensions/notes/NoteExtension.ts";
+import { PatternExtension } from "../wamExtensions/patterns/PatternExtension.ts";
+import { VideoExtension } from "../wamExtensions/video/VideoExtension.ts";
 
 export class WamInitializer {
     private static readonly DEBUG_LOG = false;
@@ -47,7 +48,7 @@ export class WamInitializer {
         }
     }
     public async initWamInstance(wamUrl: string): Promise<WebAudioModule> {
-        const {default: WAM} = await import(/* @vite-ignore */ wamUrl);
+        const { default: WAM } = await import(/* @vite-ignore */ wamUrl);
         const [hostGroupId] = await this.getHostGroupId();
         return await WAM.createInstance(hostGroupId, this._audioCtx);
     }
@@ -55,10 +56,11 @@ export class WamInitializer {
         return await initializeWamHost(this._audioCtx);
     }
 
-    private _wamExtensionSetup(){
+    private _wamExtensionSetup() {
         window.WAMExtensions = window.WAMExtensions || {};
         window.WAMExtensions.notes = new NoteExtension();
         window.WAMExtensions.patterns = new PatternExtension();
+        window.WAMExtensions.video = new VideoExtension();
 
         if (WamInitializer.DEBUG_LOG) console.log("[*] WamExtension setup done");
     }
