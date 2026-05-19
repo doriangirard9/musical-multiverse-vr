@@ -4,9 +4,8 @@ import type { Node3D, Node3DFactory, Node3DGUI, Serializable } from "../../Node3
 import type { Node3DContext } from "../../Node3DContext";
 import type { Node3DGUIContext } from "../../Node3DGUIContext";
 import type { AutomationN3DConnectable } from "../../tools";
-import { InputGrabBehavior } from "../../../xr/inputs/tools/InputGrabBehavior";
 import type { PointerInput } from "../../../xr/inputs/PointerInput";
-import { BoidSwarm } from "../../../behaviours/steering/Boid";
+import { BoidSwarm } from "./steering/Boid";
 
 // ── Runtime resize bounds (multiplier applied on top of gui.root's normal scale) ──
 const RESIZE_MIN = 0.5;
@@ -600,7 +599,7 @@ export class AudioPlaqueN3D implements Node3D {
         //   Fires onDown when trigger pressed while ray is on the plaque,
         //   onMove on every pointer movement while grabbed, onUp on release.
         //
-        const grab = new InputGrabBehavior(
+        const grab = new T.InputGrabBehavior(
             // onDown
             (pointer) => {
                 const t = pointerToTarget(pointer);

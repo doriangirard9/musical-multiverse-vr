@@ -1,10 +1,7 @@
-import { CreatePlane, Effect, Mesh, Quaternion, Ray, Scene, Trajectory, Tuple, Vector3 } from "@babylonjs/core"
+import { CreatePlane, Mesh, Quaternion, Scene, Vector3 } from "@babylonjs/core"
 import { AdvancedDynamicTexture, Button, Container, Control, Image, Rectangle, ScrollViewer, StackPanel, TextBlock } from "@babylonjs/gui"
 import { Node3dManager } from "../../app/Node3dManager"
-import { N3DRendering } from "../../node3d/instance/utils/N3DRendering"
 import { N3DText } from "../../node3d/instance/utils/N3DText"
-import { Node3DBuilder } from "../../app/Node3DBuilder"
-import { InputHoverBehavior, InputPressBehavior } from "../../node3d/tools"
 import { InputToPointerBehavior } from "../../xr/inputs/tools/InputToPointer"
 
 
@@ -21,10 +18,6 @@ export class ShopPanel {
         const that = this
         
         this.plane = CreatePlane("shopPanel", {width: 2, height: 1}, renderScene)
-        // Render on top of world meshes — was implicit when the plane lived in the
-        // utility layer scene; explicit now that it lives in the main scene so XR
-        // controller pointer rays (main-scene-only) can pick it.
-        this.plane.renderingGroupId = 1
 
         this.texture = AdvancedDynamicTexture.CreateForMesh(this.plane, 1024, 512)
         this.label = new N3DText("label", [this.plane], renderScene)
@@ -125,7 +118,6 @@ export class ShopPanel {
                     else return [kind, factory] as const
                 })))
                     .filter(it => it != null)
-                const dict = Object.fromEntries(factories)
 
                 const menus = {
                     Video: {

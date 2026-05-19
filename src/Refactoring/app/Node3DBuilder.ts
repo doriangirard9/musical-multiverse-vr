@@ -31,9 +31,9 @@ import { SyncDebugN3DFactory } from "../node3d/subs/debug/SyncDebugN3D.ts";
 import { AbstractMesh, CreatePlane, Vector4, VertexBuffer } from "@babylonjs/core";
 import { TextureAtlas } from "../utils/atlas.ts";
 import { AutoDispose } from "../utils/auto_dispose.ts";
-import { SwarmThereminN3DFactory } from "../node3d/subs/SwarmThereminN3D.ts";
-import { AudioPlaqueN3DFactory } from "../node3d/subs/automation/AudioPlaqueN3D.ts";
-import { SuperformulaN3DFactory } from "../node3d/subs/automation/SuperformulaN3D.ts";
+import { SwarmThereminN3DFactory } from "../node3d/subs/behaviours/SwarmThereminN3D.ts";
+import { AudioPlaqueN3DFactory } from "../node3d/subs/behaviours/AudioPlaqueN3D.ts";
+import { SuperformulaN3DFactory } from "../node3d/subs/behaviours/SuperformulaN3D.ts";
 import ParticleEmitterN3DFactory, { ParticleEmitterN3D } from "../node3d/subs/particle/ParticleEmitterN3D.ts";
 import { N3DThumbnailRenderer } from "../world/renderer/N3DThumbnailRenderer.ts";
 

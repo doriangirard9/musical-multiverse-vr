@@ -1,7 +1,7 @@
-import type { Node3D, Node3DFactory, Node3DGUI } from "../Node3D";
-import type { Node3DContext } from "../Node3DContext";
-import type { Node3DGUIContext } from "../Node3DGUIContext";
-import { SteeringVehicle } from "../../behaviours/steering/SteeringVehicle";
+import type { Node3D, Node3DFactory, Node3DGUI } from "../../Node3D";
+import type { Node3DContext } from "../../Node3DContext";
+import type { Node3DGUIContext } from "../../Node3DGUIContext";
+import { SteeringVehicle } from "./steering/SteeringVehicle";
 import { Observer, Scene } from "@babylonjs/core";
 import { PointerDragBehavior } from "@babylonjs/core";
 import { Vector3 } from '@babylonjs/core';
@@ -65,6 +65,7 @@ export class SwarmThereminN3D implements Node3D {
     private renderObserver: Observer<Scene> | null = null;
 
     constructor(private context: Node3DContext, private gui: SwarmThereminN3DGUI) {
+        const {tools:T} = context
         
         // Register the main plate to the node's bounding box so you can grab/move the whole instrument structure in VR
         context.addToBoundingBox(gui.plate);
@@ -74,18 +75,28 @@ export class SwarmThereminN3D implements Node3D {
         this.targetPos = gui.targetMesh.position.clone();
 
         // 2. Attach a Drag Behavior constrained to the X/Z plane (the flat grid)
+
+        /*const dragBehavior = new T.InputGrabBehavior(
+            ()=>{},
+            ()=>{},
+            ()=>{
+                gui.targetMesh.position.x = Math.max(-2.5, Math.min(2.5, gui.targetMesh.position.x));
+                gui.targetMesh.position.z = Math.max(-2.5, Math.min(2.5, gui.targetMesh.position.z));
+                gui.targetMesh.position.y = 0.25; // Lock the height
+                
+                // Update the physics target for the boids
+                this.targetPos.copyFrom(gui.targetMesh.position);
+            },
+        )
+        gui.targetMesh.addBehavior(dragBehavior)*/
+
         const dragBehavior = new PointerDragBehavior({ dragPlaneNormal: new Vector3(0, 1, 0) });
         dragBehavior.useObjectOrientationForDragging = false;
         gui.targetMesh.addBehavior(dragBehavior);
 
         // 3. Keep the ball strictly within the bounds of the 5x5 plate while dragging
         dragBehavior.onDragObservable.add(() => {
-            gui.targetMesh.position.x = Math.max(-2.5, Math.min(2.5, gui.targetMesh.position.x));
-            gui.targetMesh.position.z = Math.max(-2.5, Math.min(2.5, gui.targetMesh.position.z));
-            gui.targetMesh.position.y = 0.25; // Lock the height
             
-            // Update the physics target for the boids
-            this.targetPos.copyFrom(gui.targetMesh.position);
         });
 
         // Initialize Physics for the Boids

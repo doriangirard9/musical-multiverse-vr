@@ -6,7 +6,7 @@ import type { Node3D, Node3DFactory, Node3DGUI, Serializable } from "../../Node3
 import type { Node3DContext } from "../../Node3DContext";
 import type { Node3DGUIContext } from "../../Node3DGUIContext";
 import type { AutomationN3DConnectable } from "../../tools";
-import { BoidSwarm } from "../../../behaviours/steering/Boid";
+import { BoidSwarm } from "./steering/Boid";
 
 // ── Runtime resize bounds + boid limits (same defaults as AudioPlaque) ────────
 const RESIZE_MIN = 0.5;
@@ -140,8 +140,8 @@ export class SuperformulaN3DGUI implements Node3DGUI {
         this.plaque.visibility = 0;
 
         // ── Glowing teal frame (4 thin edge boxes, like AudioPlaque) ──────────
-        const edgeMat = new StandardMaterial("superformula_edge_mat", context.scene);
-        edgeMat.emissiveColor = new Color3(0, 0.9, 0.9);
+        const edgeMat = new B.StandardMaterial("superformula_edge_mat", context.scene);
+        edgeMat.emissiveColor = new B.Color3(0, 0.9, 0.9);
 
         const t = 0.012, half = 0.5;
         const edgeDefs: [string, number, number, number, number][] = [
@@ -171,14 +171,14 @@ export class SuperformulaN3DGUI implements Node3DGUI {
         const placeholderPath: Vector3[] = [];
         for (let i = 0; i <= CURVE_SEGMENTS; i++) {
             const a = (i / CURVE_SEGMENTS) * Math.PI * 2;
-            placeholderPath.push(new Vector3(Math.cos(a) * 0.3, Math.sin(a) * 0.3, 0));
+            placeholderPath.push(new B.Vector3(Math.cos(a) * 0.3, Math.sin(a) * 0.3, 0));
         }
-        this.curveTube = MeshBuilder.CreateTube("superformula_curve", {
+        this.curveTube = B.MeshBuilder.CreateTube("superformula_curve", {
             path:         placeholderPath,
             radius:       CURVE_RADIUS,
             tessellation: TUBE_TESS,
             updatable:    true,
-            cap:          Mesh.NO_CAP,
+            cap:          B.Mesh.NO_CAP,
         }, context.scene);
         this.curveTube.parent     = this.root;
         this.curveTube.material   = this.curveMaterial;
@@ -193,8 +193,8 @@ export class SuperformulaN3DGUI implements Node3DGUI {
         this.ball.parent = this.ballRoot;
         this.ball.position.set(0, 0, -0.04);
         this.ball.isPickable = false;
-        const ballMat = new StandardMaterial("superformula_ball_mat", context.scene);
-        ballMat.emissiveColor = new Color3(1, 0.4, 0.7);
+        const ballMat = new B.StandardMaterial("superformula_ball_mat", context.scene);
+        ballMat.emissiveColor = new B.Color3(1, 0.4, 0.7);
         ballMat.disableLighting = true;
         this.ball.material = ballMat;
 
@@ -203,8 +203,8 @@ export class SuperformulaN3DGUI implements Node3DGUI {
         this.ballHalo.parent = this.ballRoot;
         this.ballHalo.position.set(0, 0, -0.04);
         this.ballHalo.isPickable = false;
-        const haloMat = new StandardMaterial("superformula_ball_halo_mat", context.scene);
-        haloMat.emissiveColor = new Color3(1, 0.3, 0.6);
+        const haloMat = new B.StandardMaterial("superformula_ball_halo_mat", context.scene);
+        haloMat.emissiveColor = new B.Color3(1, 0.3, 0.6);
         haloMat.alpha = 0.18;
         haloMat.disableLighting = true;
         this.ballHalo.material = haloMat;
@@ -244,8 +244,8 @@ export class SuperformulaN3DGUI implements Node3DGUI {
             return k;
         };
 
-        const mathColor   = new Color4(0.95, 0.85, 0.20, 1);   // gold/yellow
-        const motionColor = new Color4(1.00, 0.55, 0.10, 1);   // orange
+        const mathColor   = new B.Color4(0.95, 0.85, 0.20, 1);   // gold/yellow
+        const motionColor = new B.Color4(1.00, 0.55, 0.10, 1);   // orange
         this.knobM     = makeKnob("knob_m",     mathColor);
         this.knobN1    = makeKnob("knob_n1",    mathColor);
         this.knobN2    = makeKnob("knob_n2",    mathColor);
@@ -265,14 +265,14 @@ export class SuperformulaN3DGUI implements Node3DGUI {
 
         // ── Eight metric output meshes — bottom row, single line ──────────────
         const outColors: Record<string, Color4> = {
-            posX:        new Color4(0.90, 0.15, 0.15, 1),  // red
-            posY:        new Color4(0.15, 0.40, 0.95, 1),  // blue
-            radius:      new Color4(0.15, 0.85, 0.35, 1),  // green
-            radiusDelta: new Color4(0.85, 0.85, 0.15, 1),  // yellow
-            angVel:      new Color4(0.85, 0.40, 0.15, 1),  // orange
-            speed:       new Color4(0.65, 0.20, 0.85, 1),  // purple
-            accel:       new Color4(0.85, 0.20, 0.55, 1),  // magenta
-            curvature:   new Color4(0.20, 0.85, 0.85, 1),  // cyan
+            posX:        new B.Color4(0.90, 0.15, 0.15, 1),  // red
+            posY:        new B.Color4(0.15, 0.40, 0.95, 1),  // blue
+            radius:      new B.Color4(0.15, 0.85, 0.35, 1),  // green
+            radiusDelta: new B.Color4(0.85, 0.85, 0.15, 1),  // yellow
+            angVel:      new B.Color4(0.85, 0.40, 0.15, 1),  // orange
+            speed:       new B.Color4(0.65, 0.20, 0.85, 1),  // purple
+            accel:       new B.Color4(0.85, 0.20, 0.55, 1),  // magenta
+            curvature:   new B.Color4(0.20, 0.85, 0.85, 1),  // cyan
         };
         const makeOut = (name: string, color: Color4): AbstractMesh => {
             const m = ConnectableUtils.createOutputMesh(name, 0.06, context.scene);
@@ -297,7 +297,7 @@ export class SuperformulaN3DGUI implements Node3DGUI {
             this.trailPoints.push(new Vector3(0, 0, -0.005));
             // Alpha fades from 0 (oldest) to 1 (newest). New points go at the END.
             const a = i / (TRAIL_POINTS - 1);
-            this.trailColors.push(new Color4(1, 0.3, 0.6, a));
+            this.trailColors.push(new B.Color4(1, 0.3, 0.6, a));
         }
         this.trail = MeshBuilder.CreateLines("superformula_trail", {
             points:         this.trailPoints,
@@ -347,11 +347,11 @@ export class SuperformulaN3DGUI implements Node3DGUI {
 
         // ── Five new boid-metric outputs (second row below the 8 motion ones) ──
         const boidMetricColors: Color4[] = [
-            new Color4(1.0,  0.4,  0.7,  1),  // centroidX  — pink
-            new Color4(0.4,  0.7,  1.0,  1),  // centroidY  — light cyan
-            new Color4(1.0,  0.85, 0.3,  1),  // dispersion — gold
-            new Color4(0.3,  0.9,  0.55, 1),  // alignment  — emerald
-            new Color4(0.75, 0.4,  1.0,  1),  // vorticity  — violet
+            new B.Color4(1.0,  0.4,  0.7,  1),  // centroidX  — pink
+            new B.Color4(0.4,  0.7,  1.0,  1),  // centroidY  — light cyan
+            new B.Color4(1.0,  0.85, 0.3,  1),  // dispersion — gold
+            new B.Color4(0.3,  0.9,  0.55, 1),  // alignment  — emerald
+            new B.Color4(0.75, 0.4,  1.0,  1),  // vorticity  — violet
         ];
         const boidMetricXs = [-0.4, -0.2, 0, 0.2, 0.4];
         const makeMetricOut = (name: string, x: number, color: Color4): AbstractMesh => {
