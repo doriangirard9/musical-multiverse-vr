@@ -17,7 +17,7 @@ import { AvatarManager } from "./AvatarManager.ts";
 import { NetworkEventBus } from "../eventBus/NetworkEventBus.ts";
 import { RandomUtils } from "../node3d/tools/utils/RandomUtils.ts";
 import { Doc } from "yjs";
-import { N3DPreviewer } from "../world/N3DPreviewer.ts";
+
 export class NewApp {
     private static readonly DEBUG_LOG = false;
     private controlsUI?: ControlsUI;
