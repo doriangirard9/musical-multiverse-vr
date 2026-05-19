@@ -19,8 +19,13 @@ export class ShopPanel {
         private renderScene: Scene,
     ) {
         const that = this
+        
+        this.plane = CreatePlane("shopPanel", {width: 2, height: 1}, renderScene)
+        // Render on top of world meshes — was implicit when the plane lived in the
+        // utility layer scene; explicit now that it lives in the main scene so XR
+        // controller pointer rays (main-scene-only) can pick it.
+        this.plane.renderingGroupId = 1
 
-        this.plane = CreatePlane("shopPanel", { width: 2, height: 1 }, renderScene)
         this.texture = AdvancedDynamicTexture.CreateForMesh(this.plane, 1024, 512)
         this.label = new N3DText("label", [this.plane], renderScene)
         this.label.plane.renderingGroupId = 1
