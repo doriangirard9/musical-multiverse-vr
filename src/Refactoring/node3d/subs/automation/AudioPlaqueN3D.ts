@@ -9,8 +9,11 @@ import type { PointerInput } from "../../../xr/inputs/PointerInput";
 import { BoidSwarm } from "../../../behaviours/steering/Boid";
 
 // ── Runtime resize bounds (multiplier applied on top of gui.root's normal scale) ──
-const RESIZE_MIN = 0.5;
-const RESIZE_MAX = 2.0;
+// Runtime resize bounds — multiplier applied on top of gui.root's normal scale.
+// Range widened to 0.3×–4× so the resize handle alone covers what the old
+// SMALL/DEFAULT/LARGE spawn variants used to provide (and then some).
+const RESIZE_MIN = 0.3;
+const RESIZE_MAX = 4.0;
 const RESIZE_DEFAULT = 1.0;
 const BOID_MAX = 30;
 
@@ -812,22 +815,14 @@ export class AudioPlaqueN3DFactory implements Node3DFactory<AudioPlaqueN3DGUI, A
         return new AudioPlaqueN3D(context, gui);
     }
 
-    static SMALL = new AudioPlaqueN3DFactory(
-        2.0,
-        "Small Audio Plaque",
-        "Compact 2D XY pad. Audio passes through; X/Y ball position exposed as automation outputs.",
-    );
-
+    // Single canonical instance — runtime resize handle (0.5×..4×) replaces
+    // the old SMALL/DEFAULT/LARGE spawn variants.
     static DEFAULT = new AudioPlaqueN3DFactory(
         3.0,
         "Audio Plaque",
-        "2D XY pad. Audio passes through unchanged; the ball's X and Y positions " +
-        "(0..1) are exposed as automation outputs you can wire to any WAM parameter.",
-    );
-
-    static LARGE = new AudioPlaqueN3DFactory(
-        5.0,
-        "Large Audio Plaque",
-        "Wall-sized 2D XY pad for fine-grained control. Same audio + automation contract as the default.",
+        "2D XY pad with a ball that tracks the controller laser. Audio passes through " +
+        "unchanged; the ball's X and Y positions (0..1) plus 5 boid-swarm metrics are " +
+        "exposed as automation outputs you can wire to any WAM parameter. " +
+        "Drag the violet corner handle to resize (0.5×–4×).",
     );
 }

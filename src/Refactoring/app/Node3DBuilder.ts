@@ -31,7 +31,6 @@ import { SyncDebugN3DFactory } from "../node3d/subs/debug/SyncDebugN3D.ts";
 import { AbstractMesh, CreatePlane, Vector4, VertexBuffer } from "@babylonjs/core";
 import { TextureAtlas } from "../utils/atlas.ts";
 import { AutoDispose } from "../utils/auto_dispose.ts";
-import { SwarmThereminN3DFactory } from "../node3d/subs/SwarmThereminN3D.ts";
 import { AudioPlaqueN3DFactory } from "../node3d/subs/automation/AudioPlaqueN3D.ts";
 import { SuperformulaN3DFactory } from "../node3d/subs/automation/SuperformulaN3D.ts";
 import ParticleEmitterN3DFactory, { ParticleEmitterN3D } from "../node3d/subs/particle/ParticleEmitterN3D.ts";
@@ -54,7 +53,7 @@ export class Node3DBuilder {
      */
     FACTORY_KINDS = [
         "audiooutput", "oscillator", "maracas", "livepiano", "notesbox", "pianoroll", "drumkit", "pro54michel", "butterchurn", "screen", "box_screen", "sphere_screen", "cylinder_screen", "isf_shader",
-        "hyperkeyboard", "drumplatekit", "automation_controller", "the_cube", "harp", "large_harp", "voice", "gaze", "sequencer", "small_audio_plaque", "audio_plaque", "large_audio_plaque", "small_superformula", "superformula", "large_superformula",
+        "hyperkeyboard", "drumplatekit", "automation_controller", "the_cube", "harp", "large_harp", "voice", "gaze", "sequencer", "audio_plaque", "superformula",
         ...Object.keys(examples).map(k => `wam3d-${k}`),
         ...Object.keys(additionalConfig).map(k => `add-` + k)
     ]
@@ -95,13 +94,8 @@ export class Node3DBuilder {
         }
 
         // Builtin
-        if (kind == "small_audio_plaque") return AudioPlaqueN3DFactory.SMALL;
         if (kind == "audio_plaque") return AudioPlaqueN3DFactory.DEFAULT;
-        if (kind == "large_audio_plaque") return AudioPlaqueN3DFactory.LARGE;
-        if (kind == "small_superformula") return SuperformulaN3DFactory.SMALL;
         if (kind == "superformula") return SuperformulaN3DFactory.DEFAULT;
-        if (kind == "large_superformula") return SuperformulaN3DFactory.LARGE;
-        if (kind == "swarmtheremin") return SwarmThereminN3DFactory;
         if (kind == "audiooutput") return SpeakerN3DFactory
         if (kind == "sequencer") return SequencerN3DFactory
         if (kind == "oscillator") return OscillatorN3DFactory

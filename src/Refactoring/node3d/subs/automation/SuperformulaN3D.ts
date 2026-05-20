@@ -9,8 +9,9 @@ import type { AutomationN3DConnectable } from "../../tools";
 import { BoidSwarm } from "../../../behaviours/steering/Boid";
 
 // ── Runtime resize bounds + boid limits (same defaults as AudioPlaque) ────────
-const RESIZE_MIN = 0.5;
-const RESIZE_MAX = 2.0;
+// Runtime resize bounds — see AudioPlaqueN3D.ts for rationale (0.3×–4×).
+const RESIZE_MIN = 0.3;
+const RESIZE_MAX = 4.0;
 const RESIZE_DEFAULT = 1.0;
 const BOID_MAX = 30;
 
@@ -886,23 +887,14 @@ export class SuperformulaN3DFactory implements Node3DFactory<SuperformulaN3DGUI,
         return new SuperformulaN3D(context, gui);
     }
 
-    static SMALL = new SuperformulaN3DFactory(
-        2.0,
-        "Small Superformula",
-        "Compact Gielis Superformula controller with 8 motion-metric automation outputs.",
-    );
-
+    // Single canonical instance — runtime resize handle (0.5×..4×) replaces
+    // the old SMALL/DEFAULT/LARGE spawn variants.
     static DEFAULT = new SuperformulaN3DFactory(
         3.0,
         "Superformula",
         "Gielis Superformula controller. Six knobs shape the parametric curve; a playhead " +
-        "ball traces it autonomously. Eight motion metrics (X, Y, Radius, Speed, etc.) are " +
-        "exposed as automation outputs you can wire to any WAM parameter.",
-    );
-
-    static LARGE = new SuperformulaN3DFactory(
-        5.0,
-        "Large Superformula",
-        "Wall-sized Superformula controller for fine-grained shape and timing. Same 8 outputs as the default.",
+        "ball traces it autonomously. Eight motion metrics (X, Y, Radius, Speed, etc.) plus " +
+        "5 boid-swarm metrics are exposed as automation outputs. " +
+        "Drag the violet corner handle to resize (0.5×–4×).",
     );
 }
