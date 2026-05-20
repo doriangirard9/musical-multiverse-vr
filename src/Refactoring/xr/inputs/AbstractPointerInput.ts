@@ -101,6 +101,8 @@ export class AbstractPointerInput {
 
         const o = controller.onDisposeObservable.addOnce(() => disposed = true)
 
+        console.log("components",controller.motionController?.components)
+
         scenes[0].onAfterPhysicsObservable.add(function tick() {
 
             for(let i=scenes.length-1; i>=0; i--){
@@ -114,7 +116,7 @@ export class AbstractPointerInput {
                         that.onNewTarget.notifyObservers(that)
                     }
                     that.onRemove.notifyObservers(that)
-                    scene.onAfterPhysicsObservable.removeCallback(tick)
+                    scenes[0].onAfterPhysicsObservable.removeCallback(tick)
                     return
                 }
 

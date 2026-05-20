@@ -31,9 +31,9 @@ import { SyncDebugN3DFactory } from "../node3d/subs/debug/SyncDebugN3D.ts";
 import { AbstractMesh, CreatePlane, Vector4, VertexBuffer } from "@babylonjs/core";
 import { TextureAtlas } from "../utils/atlas.ts";
 import { AutoDispose } from "../utils/auto_dispose.ts";
-import { AudioPlaqueN3DFactory } from "../node3d/subs/automation/AudioPlaqueN3D.ts";
-import { SuperformulaN3DFactory } from "../node3d/subs/automation/SuperformulaN3D.ts";
-import ParticleEmitterN3DFactory, { ParticleEmitterN3D } from "../node3d/subs/particle/ParticleEmitterN3D.ts";
+import { AudioPlaqueN3DFactory } from "../node3d/subs/behaviours/AudioPlaqueN3D.ts";
+import { SuperformulaN3DFactory } from "../node3d/subs/behaviours/SuperformulaN3D.ts";
+import ParticleEmitterN3DFactory from "../node3d/subs/particle/ParticleEmitterN3D.ts";
 import { N3DThumbnailRenderer } from "../world/renderer/N3DThumbnailRenderer.ts";
 
 
@@ -45,6 +45,18 @@ const additionalConfig: Record<string, any> = await fetch(`${WAM_CONFIGS_URL}/wa
 /**
  * The Node3DBuilder is responsible for creating Node3D instances from their kind name.
  * It map a kind name to a Node3DFactory.
+ * 
+ * **To add a new Node3D**:
+ * - The list of every factory kinds is {@link FACTORY_KINDS}.
+ * - The function that associate a kind name to a factory is {@link createFactories}.
+ * 
+ * **To get a Node3D**:
+ * - To get a Node3DFactory from a kind name is {@link getFactory}.
+ * - To create a Node3D from a kind name is {@link create}.
+ * - To get a thumbnail of a Node3D from a kind name is {@link getThumbnail}.
+ * - to create an impostor of a Node3D from a kind name is {@link createImpostor}.
+ * 
+ * Do not call directly {@link create} to create a Node3D in the shared world, use {@link Node3dManager.addNode3d} instead, which will handle the network synchronization and loading. 
  */
 export class Node3DBuilder {
 
@@ -177,6 +189,7 @@ export class Node3DBuilder {
     /**
      * Create a Node3D from a kind name and a configuration
      * The Node3D is not added to the world, it should be added before being used.
+     * To add a Node3D to the world, use {@link Node3dManager.addNode3d} instead, which will handle the network synchronization and loading.
      * @param id The id of the Node3D, unique for every Node3D
      * @param kind The kind of Node3D, correspond to the name of its config file.
      * @returns The new Node3D or a description of the error

@@ -17,7 +17,7 @@ import { AvatarManager } from "./AvatarManager.ts";
 import { NetworkEventBus } from "../eventBus/NetworkEventBus.ts";
 import { RandomUtils } from "../node3d/tools/utils/RandomUtils.ts";
 import { Doc } from "yjs";
-import { N3DPreviewer } from "../world/N3DPreviewer.ts";
+
 export class NewApp {
     private static readonly DEBUG_LOG = false;
     private controlsUI?: ControlsUI;
@@ -171,13 +171,7 @@ export class NewApp {
         let shopPanel: ShopPanel
         InputManager.getInstance().a_button.onDown.add(()=>{
             if(!shopPanel){
-                // Pass the main scene for BOTH constructor params so the shop plane
-                // lives in the main scene. The WebXRControllerPointerSelection feature
-                // only raycasts through the main scene — when the plane was in the
-                // utility layer's scene, XR controller pointers couldn't hit it.
-                // The plane sets renderingGroupId=1 internally so it still draws
-                // on top of other world meshes.
-                shopPanel = new ShopPanel(scene, scene)
+                shopPanel = new ShopPanel(scene, SceneManager.getInstance().getUtilityLayer().utilityLayerScene)
                 shopPanel.makeFollow()
             }
             else shopPanel.toggle()

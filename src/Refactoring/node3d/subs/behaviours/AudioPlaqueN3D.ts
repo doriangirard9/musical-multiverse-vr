@@ -4,9 +4,8 @@ import type { Node3D, Node3DFactory, Node3DGUI, Serializable } from "../../Node3
 import type { Node3DContext } from "../../Node3DContext";
 import type { Node3DGUIContext } from "../../Node3DGUIContext";
 import type { AutomationN3DConnectable } from "../../tools";
-import { InputGrabBehavior } from "../../../xr/inputs/tools/InputGrabBehavior";
 import type { PointerInput } from "../../../xr/inputs/PointerInput";
-import { BoidSwarm } from "../../../behaviours/steering/Boid";
+import { BoidSwarm } from "./steering/Boid";
 
 // ── Runtime resize bounds (multiplier applied on top of gui.root's normal scale) ──
 // Runtime resize bounds — multiplier applied on top of gui.root's normal scale.
@@ -603,7 +602,7 @@ export class AudioPlaqueN3D implements Node3D {
         //   Fires onDown when trigger pressed while ray is on the plaque,
         //   onMove on every pointer movement while grabbed, onUp on release.
         //
-        const grab = new InputGrabBehavior(
+        const grab = new T.InputGrabBehavior(
             // onDown
             (pointer) => {
                 const t = pointerToTarget(pointer);
@@ -721,18 +720,6 @@ export class AudioPlaqueN3D implements Node3D {
             const nowMs = performance.now();
             if (nowMs - _lastLogTime >= 500) {
                 _lastLogTime = nowMs;
-                console.log(
-                    "[AudioPlaque] TICK",
-                    "\n  ball local pos :", fmt(bp),
-                    "\n  ball world pos :", fmt(gui.ballRoot.getAbsolutePosition()),
-                    "\n  targetPos      :", fmt(this.targetPos),
-                    "\n  plaque world   :", fmt(gui.root.getAbsolutePosition()),
-                    "\n  xOut value     :", nx.toFixed(4), `(${this.xOut.senders.size} consumer${this.xOut.senders.size === 1 ? "" : "s"})`,
-                    "\n  yOut value     :", ny.toFixed(4), `(${this.yOut.senders.size} consumer${this.yOut.senders.size === 1 ? "" : "s"})`,
-                    "\n  follow alpha   :", alpha.toFixed(3),
-                    "\n  scale          :", this.userScale.toFixed(2) + "x",
-                    "\n  boids          :", `${this.boidMode ? "ON" : "OFF"}  (${this.boidCount})`,
-                );
             }
         });
     }
