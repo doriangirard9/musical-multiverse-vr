@@ -45,8 +45,10 @@ J'ai conçu et intégré dans le projet quatre choses principales :
    exposée comme cinq sorties d'automation supplémentaires.
 
 4. **Redimensionnement en temps réel** — Une poignée violette à un coin de
-   chaque instrument permet de l'agrandir/rétrécir de 0.5× à 2.0× en VR, avec
-   synchronisation réseau.
+   chaque instrument permet de l'agrandir/rétrécir de **0.3× à 4×** en VR, avec
+   synchronisation réseau. Cette plage couvre largement les anciens variants
+   `Small` et `Large` qui ont donc été supprimés (une seule entrée par
+   instrument dans le shop).
 
 S'ajoutent à cela :
 - Un correctif du shop en mode VR (les contrôleurs ne pouvaient pas le
@@ -115,13 +117,13 @@ Une fois dans le monde 3D :
 
 2. **Naviguer vers la catégorie Automation** dans le shop.
 
-3. **Mes six entrées** :
-   - `Small Audio Plaque` — Pavé compact (~0.40 unité)
-   - `Audio Plaque` — Taille par défaut (~0.60 unité)
-   - `Large Audio Plaque` — Pavé mural (~1.00 unité)
-   - `Small Superformula` — Courbe compacte
-   - `Superformula` — Taille par défaut
-   - `Large Superformula` — Courbe murale pour contrôle fin
+3. **Mes deux entrées** :
+   - `Audio Plaque` — Pavé tactile XY
+   - `Superformula` — Courbe paramétrique de Gielis
+
+   *Une seule taille par instrument :* le redimensionnement en temps réel
+   (poignée violette, 0.3×–4×) couvre largement les anciens variants
+   `Small` / `Large` qui ont été retirés.
 
 4. **Cliquer (gâchette)** sur une vignette → l'instrument apparaît devant moi.
 
@@ -289,13 +291,23 @@ position est préservée → les sorties émettent les valeurs gelées.
 ## Le redimensionnement
 
 Chaque instrument a une **poignée violette** dans un coin. Tirer dessus avec la
-gâchette modifie l'échelle entre **0.5× et 2.0×** de la taille de spawn.
+gâchette modifie l'échelle entre **0.3× et 4×** de la taille de spawn.
+
+À l'échelle par défaut, l'instrument fait ~0.60 unité de large dans le monde.
+La plage de resize couvre donc concrètement :
+
+| Échelle | Taille mondiale | Commentaire |
+|---------|-----------------|-------------|
+| 0.3×    | ~0.18 unité     | Compact, tient dans un coin de la scène |
+| 1.0×    | ~0.60 unité     | Par défaut |
+| 2.0×    | ~1.20 unité     | Confortable pour la VR |
+| 4.0×    | ~2.40 unité     | Mural, contrôle très fin |
 
 - La taille est **synchronisée sur le réseau** (visible par les autres joueurs).
 - L'opération est sûre : la BoundingBox externe se recalcule automatiquement
   après chaque drag (avec un *debounce* de 150 ms pour éviter le churn).
-- Pour des écarts plus extrêmes, spawner directement la variante `Small` ou
-  `Large` depuis le shop.
+- Cette plage remplace les anciens variants `Small` / `Large` du shop, désormais
+  retirés au profit d'une seule entrée par instrument.
 
 ---
 
@@ -405,18 +417,24 @@ Une main joue du clavier, l'autre balaye la plaque pour façonner le timbre.
 
 | Fichier | Rôle |
 |---------|------|
-| `src/Refactoring/node3d/subs/automation/AudioPlaqueN3D.ts` | Instrument plaque + variantes |
-| `src/Refactoring/node3d/subs/automation/SuperformulaN3D.ts` | Instrument superformule + variantes |
+| `src/Refactoring/node3d/subs/automation/AudioPlaqueN3D.ts` | Instrument plaque |
+| `src/Refactoring/node3d/subs/automation/SuperformulaN3D.ts` | Instrument superformule |
 | `src/Refactoring/behaviours/steering/Boid.ts` | Classes `Boid` + `BoidSwarm` partagées |
-| `src/Refactoring/app/Node3DBuilder.ts` | Enregistrement des 6 variantes (3 tailles × 2 instruments) |
+| `src/Refactoring/app/Node3DBuilder.ts` | Enregistrement des kinds `audio_plaque` et `superformula` |
 | `src/Refactoring/world/menu/ShopPanel.ts` | Correctif : le panneau passe dans la scène principale pour être pickable en VR |
 | `src/Refactoring/app/NewApp.ts` | Câblage du shop sur la bonne scène |
+| `src/Refactoring/xr/menuConfig.json` | Entrée Superformula ajoutée, Swarm Theremin retirée |
 | `Makefile` | Tue le port `:3000` dans `make all` + attend la disponibilité du backend |
-| `LISEZ-MOI.md` | Le présent document |
+| `CONTRIBUTIONS_YASSINE.md` | Le présent document |
 
 L'architecture respecte le pattern Node3D existant : chaque instrument est
 composé d'une classe **GUI** (visuels), d'une classe **logique** (audio +
-automation + synchro), et d'une **factory** avec trois instances statiques
-`SMALL` / `DEFAULT` / `LARGE`. Toute la synchronisation réseau passe par
-le système `getState` / `setState` du host (paramètres synchronisés
+automation + synchro), et d'une **factory** avec une seule instance statique
+`DEFAULT`. Le redimensionnement en temps réel (0.3×–4×) remplace les anciens
+variants statiques `SMALL` / `LARGE`. Toute la synchronisation réseau passe
+par le système `getState` / `setState` du host (paramètres synchronisés
 automatiquement à travers les peers).
+
+> **Note historique :** un premier brouillon (`SwarmThereminN3DFactory`) avait
+> été inclus comme test préliminaire avant la conception définitive. Il a été
+> retiré du projet une fois la Plaque et la Superformula stabilisées.

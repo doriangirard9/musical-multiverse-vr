@@ -31,7 +31,6 @@ import { SyncDebugN3DFactory } from "../node3d/subs/debug/SyncDebugN3D.ts";
 import { AbstractMesh, CreatePlane, Vector4, VertexBuffer } from "@babylonjs/core";
 import { TextureAtlas } from "../utils/atlas.ts";
 import { AutoDispose } from "../utils/auto_dispose.ts";
-import { SwarmThereminN3DFactory } from "../node3d/subs/behaviours/SwarmThereminN3D.ts";
 import { AudioPlaqueN3DFactory } from "../node3d/subs/behaviours/AudioPlaqueN3D.ts";
 import { SuperformulaN3DFactory } from "../node3d/subs/behaviours/SuperformulaN3D.ts";
 import ParticleEmitterN3DFactory from "../node3d/subs/particle/ParticleEmitterN3D.ts";
@@ -109,7 +108,6 @@ export class Node3DBuilder {
         // Builtin
         if (kind == "audio_plaque") return AudioPlaqueN3DFactory.DEFAULT;
         if (kind == "superformula") return SuperformulaN3DFactory.DEFAULT;
-        if (kind == "swarmtheremin") return SwarmThereminN3DFactory;
         if (kind == "audiooutput") return SpeakerN3DFactory
         if (kind == "sequencer") return SequencerN3DFactory
         if (kind == "oscillator") return OscillatorN3DFactory
