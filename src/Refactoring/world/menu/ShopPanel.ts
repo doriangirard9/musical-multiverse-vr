@@ -1,38 +1,29 @@
-import { CreatePlane, Mesh, Quaternion, Scene, Vector3 } from "@babylonjs/core"
-import { AdvancedDynamicTexture, Button, Container, Control, Image, Rectangle, ScrollViewer, StackPanel, TextBlock } from "@babylonjs/gui"
+import { Scene } from "@babylonjs/core"
+import { Button, Container, Image, Rectangle, ScrollViewer, StackPanel, TextBlock } from "@babylonjs/gui"
 import { Node3dManager } from "../../app/Node3dManager"
 import { N3DText } from "../../node3d/instance/utils/N3DText"
-import { InputToPointerBehavior } from "../../xr/inputs/tools/InputToPointer"
+import { PanelBase } from "./PanelBase"
 
-
-export class ShopPanel {
-
-    plane: Mesh
-    texture: AdvancedDynamicTexture
-    label
+export class ShopPanel extends PanelBase {
 
     constructor(
-        private scene: Scene,
+        scene: Scene,
         renderScene: Scene,
     ) {
-        const that = this
+        super(scene, renderScene)
+
+        this.initPanel("shopPanel", 2, 1, 1024)
+        this.initLabel("label", N3DText)
         
-        this.plane = CreatePlane("shopPanel", {width: 2, height: 1}, renderScene)
-
-        this.texture = AdvancedDynamicTexture.CreateForMesh(this.plane, 1024, 512)
-        this.label = new N3DText("label", [this.plane], renderScene)
-        this.label.plane.renderingGroupId = 1
-        this.label.list.background = "rgb(0,0,0,0.5)"
-
-        this.plane.addBehavior(new InputToPointerBehavior())
+        // Use arrow functions to capture 'this'
         
         // Item List
         const items = new Container()
 
-        function setItems(kinds: string[]) {
+        const setItems = (kinds: string[]) => {
             items.clearControls()
-            const list = that.createItemList(4, kinds)
-            that.place(list, 0, 0, 100, 100)
+            const list = this.createItemList(4, kinds)
+            this.place(list, 0, 0, 100, 100)
             items.addControl(list)
         }
 
@@ -40,12 +31,12 @@ export class ShopPanel {
         // Sub menu
         const submenu = new Container()
 
-        function setSubMenu(selection: string, submenus: Record<string, string[]>) {
+        const setSubMenu = (selection: string, submenus: Record<string, string[]>) => {
             const options = Object.entries(submenus)
             if (options.length === 1) selection = options[0][0]
 
             submenu.clearControls()
-            const buttons = that.createButtons(
+            const buttons = this.createButtons(
                 options.map(([label, kinds]) => ({
                     label,
                     selected: label === selection,
@@ -65,9 +56,9 @@ export class ShopPanel {
         // Menu
         const menu = new Container()
 
-        function setMenu(selection: string, menus: Record<string, Record<string, string[]>>) {
+        const setMenu = (selection: string, menus: Record<string, Record<string, string[]>>) => {
             menu.clearControls()
-            const buttons = that.createButtons(
+            const buttons = this.createButtons(
                 Object.entries(menus)
                     .map(([label, submenus]) => ({
                         label,
@@ -87,25 +78,25 @@ export class ShopPanel {
         // Clipboard
         const clipboard = this.createClipboard()
 
-        const topbar = that.rect()
-        that.place(topbar, 0, 0, 100, 15)
-        that.texture.addControl(topbar)
+        const topbar = this.rect()
+        this.place(topbar, 0, 0, 100, 15)
+        this.texture.addControl(topbar)
 
-        const body = that.rect()
-        that.place(body, 0, 15, 100, 85)
-        that.texture.addControl(body)
+        const body = this.rect()
+        this.place(body, 0, 15, 100, 85)
+        this.texture.addControl(body)
 
         body.addControl(items)
-        that.place(items, 0, 0, 65, 100)
+        this.place(items, 0, 0, 65, 100)
 
         body.addControl(clipboard)
-        that.place(clipboard, 65, 0, 35, 100)
+        this.place(clipboard, 65, 0, 35, 100)
 
         topbar.addControl(menu)
-        that.place(menu, 0, 0, 100, 50)
+        this.place(menu, 0, 0, 100, 50)
 
         topbar.addControl(submenu)
-        that.place(submenu, 0, 50, 100, 50)
+        this.place(submenu, 0, 50, 100, 50)
 
             // Init menu
             ; (async () => {
@@ -291,68 +282,9 @@ export class ShopPanel {
         return container
     }
 
-    makeFollow(distance = 2) {
-        const o = this.scene.onAfterPhysicsObservable.add(() => {
-            const ray = this.scene.activeCamera!.getForwardRay()
-            const d = ray.direction.multiplyByFloats(1,0,1).normalize()
-            const position = d.scale(distance).addInPlace(ray.origin)
-
-            // Get target position
-            const targetPosition = position
-            const targetRotation = Quaternion.FromLookDirectionLH(d.scale(-1), Vector3.Up())
-                .multiplyInPlace(Quaternion.FromEulerAngles(0.1, 0, 0))
-
-            // Check is sufficiently different
-            const positionDiff = Vector3.DistanceSquared(this.plane.position, targetPosition)
-
-            if (positionDiff > 0.4) {
-                this.plane.position.scaleInPlace(.95).addInPlace(targetPosition.scaleInPlace(.05))
-            }
-            this.plane.rotationQuaternion = targetRotation
-
-            //this.debug.position = targetPosition
-            //this.debug.rotationQuaternion = targetRotation
-            
-        })
-
-        this.plane.onDisposeObservable.addOnce(() => {
-            o.remove()
-        })
-
-        return o
-    }
-
-
-    show() {
-        this.plane.isVisible = true
+    override show() {
+        super.show()
         this.updateClipboard()
     }
-
-    hide() {
-        this.plane.isVisible = false
-    }
-
-    toggle() {
-        if (this.plane.isVisible) {
-            this.hide()
-        }
-        else {
-            this.show()
-        }
-    }
-
-    place(control: Control, x: number, y: number, width: number, height: number) {
-        control.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP
-        control.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT
-        control.left = x + "%"
-        control.top = y + "%"
-        control.width = width + "%"
-        control.height = height + "%"
-    }
-
-    rect() {
-        const rect = new Rectangle()
-        rect.background = "rgb(0,0,0,0.5)"
-        return rect
-    }
 }
+

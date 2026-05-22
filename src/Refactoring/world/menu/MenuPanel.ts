@@ -1,7 +1,6 @@
-import { CreatePlane, Material, Mesh, Quaternion, Scene, StandardMaterial, Vector3 } from "@babylonjs/core"
-import { AdvancedDynamicTexture, Button, Control, ScrollViewer, StackPanel } from "@babylonjs/gui"
-import { InputToPointerBehavior } from "../../xr/inputs/tools/InputToPointer"
-import { InputManager } from "../../xr/inputs/InputManager"
+import { Scene } from "@babylonjs/core"
+import { Button, Control, ScrollViewer, StackPanel } from "@babylonjs/gui"
+import { PanelBase } from "./PanelBase"
 
 export interface MenuButton{
     label: string
@@ -10,30 +9,28 @@ export interface MenuButton{
 }
 
 /**
- * A simple menu pannel that show text buttons in front of the users.
+ * A simple menu panel that show text buttons in front of the users.
  */
-export class MenuPanel {
+export class MenuPanel extends PanelBase {
 
-    plane: Mesh
-    texture: AdvancedDynamicTexture
+    buttons: StackPanel
 
     constructor(
-        private scene: Scene,
+        scene: Scene,
         renderScene: Scene,
-        buttonsInfo: MenuButton[]
+        buttonsInfo?: MenuButton[]
     ) {
-        const that = this
+        super(scene, renderScene)
         
-        this.plane = CreatePlane("MenuPanel", {width: 1, height: 2}, renderScene)
+        this.initPanel("MenuPanel", .75, 1.5, 256)
 
-        this.texture = AdvancedDynamicTexture.CreateForMesh(this.plane, 256, 512)
 
-        this.plane.addBehavior(new InputToPointerBehavior())
+        const that = this
 
         const scroll = new ScrollViewer()
         scroll.background = "rgb(0,0,0,0.5)"
 
-        const buttons = new StackPanel()
+        const buttons = this.buttons = new StackPanel()
         buttons.isVertical = true
         buttons.verticalAlignment = Control.VERTICAL_ALIGNMENT_CENTER
         buttons.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_CENTER
@@ -44,11 +41,14 @@ export class MenuPanel {
         scroll.addControl(buttons)
         scroll.height = "100%"
 
-        // Buttons
+        if(buttonsInfo) this.set(buttonsInfo)
+    }
+
+    set(buttonsInfo: MenuButton[]){
         for(const buttonInfo of buttonsInfo){
             const button = Button.CreateSimpleButton(buttonInfo.label, buttonInfo.label)
             button.color = buttonInfo.color
-            button.textBlock!.fontSize = 20
+            button.textBlock!.fontSize = 25
             button.textBlock!.outlineColor = "black"
             button.textBlock!.outlineWidth = 4
             button.width = "230px"
@@ -74,55 +74,8 @@ export class MenuPanel {
                 button.scaleY = 0.95
                 console.log("Button down:", buttonInfo.label)
             }
-            buttons.addControl(button)
+            this.buttons.addControl(button)
         }
     }
 
-    makeFollow(distance = 2) {
-        const o = this.scene.onAfterPhysicsObservable.add(() => {
-            const ray = this.scene.activeCamera!.getForwardRay()
-            const d = ray.direction.multiplyByFloats(1,0,1)
-            const position = d.scale(distance).addInPlace(ray.origin)
-            this.plane.position.addInPlace(position).scaleInPlace(0.5)
-            this.plane.rotationQuaternion = Quaternion.FromLookDirectionLH(d.scale(-1), Vector3.Up())
-                .multiplyInPlace(Quaternion.FromEulerAngles(0.1, 0, 0))
-        })
-
-        this.plane.onDisposeObservable.addOnce(() => {
-            o.remove()
-        })
-
-        return o
-    }
-
-    show() {
-        this.plane.isVisible = true
-    }
-
-    hide() {
-        this.plane.isVisible = false
-    }
-
-    toggle() {
-        if (this.plane.isVisible) {
-            this.hide()
-        }
-        else {
-            this.show()
-        }
-    }
-
-    place(control: Control, x: number, y: number, width: number, height: number) {
-        control.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP
-        control.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT
-        control.left = x + "%"
-        control.top = y + "%"
-        control.width = width + "%"
-        control.height = height + "%"
-    }
-
-    dispose() {
-        this.plane.dispose()
-        this.texture.dispose()
-    }
 }

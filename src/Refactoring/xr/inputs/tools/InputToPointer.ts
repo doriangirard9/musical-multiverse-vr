@@ -50,6 +50,8 @@ export class InputToPointerBehavior implements Behavior<AbstractMesh> {
                 }
             },
         )
+
+        
         target.addBehavior(this.press)
 
         const checkIfIsActualPointer = (input: PointerInput)=>{
