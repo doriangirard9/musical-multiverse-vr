@@ -1,4 +1,6 @@
-import {AbstractMesh, Behavior, PointerDragBehavior, SixDofDragBehavior, Vector3} from "@babylonjs/core"
+import {AbstractMesh, Behavior, CreateSphere, Vector3} from "@babylonjs/core"
+import { InputGrabBehavior } from "../xr/inputs/tools/InputGrabBehavior"
+import { PointerInput } from "../xr/inputs/PointerInput"
 
 /**
  * A useful behavior used for shake detection.
@@ -37,20 +39,20 @@ export class ShakeBehavior implements Behavior<AbstractMesh> {
 
     name = "shakeBehavior";
 
-    private dragger : PointerDragBehavior
     private target : AbstractMesh | null = null
 
     private shake_power = 0
     private shake_counter = 0
-
-    private last_delta: Vector3 = Vector3.Zero()
-    private last_distance = 0
-
     private interval : any = null
 
-    constructor() {
-        this.dragger = new PointerDragBehavior()
-        this.dragger.moveAttached = false
+    private grab
+    
+    constructor(){
+        this.grab = new InputGrabBehavior(
+            this.onGrab.bind(this),
+            this.onUp.bind(this),
+            this.onMove.bind(this)
+        )
     }
 
     private setShakePower(power: number) {
@@ -69,50 +71,65 @@ export class ShakeBehavior implements Behavior<AbstractMesh> {
     }
 
     attach(target: AbstractMesh): void {
-        this.target = target;
+        this.target = target
+        target.addBehavior(this.grab)
+    }
 
-        target.addBehavior(this.dragger);
-    
-        // When the mesh is picked up, we start detecting shakes.
-        this.dragger.onDragStartObservable.add(() => {
-            this.on_pick()
-            this.shake_power = 0
-            this.interval = setInterval(() => {
-                this.setShakePower(Math.floor(this.shake_power * 0.9))
+    onGrab(){
+        this.on_pick()
+        this.shake_power = 0
+        this.interval = setInterval(() => {
+            this.setShakePower(Math.floor(this.shake_power * 0.9))
+            if(this.shake_power<0.01) this.shake_counter = 0
+            else{
                 this.shake_counter = this.shake_counter + 1
-            },200)
-        })
-
-        // When the mesh is being dragged, we calculate the shake power based on the movement.
-        this.dragger.onDragObservable.add(({delta}) => {
-            const current_delta = delta.normalizeToNew()
-
-            if (current_delta.length() != 0) {
-                const dot = Vector3.Dot(current_delta, this.last_delta);
-
-
-                // Shake movement detected
-                if (dot < -.2){
-                    if(this.last_distance>.5)this.setShakePower(this.shake_power+1)
-                    this.last_distance = 0
-                }
-                else this.last_distance += delta.length()
-
-                this.last_delta = current_delta
+                this.on_shake(this.shake_power, this.shake_counter)
             }
-            if(this.shake_power>=this.shake_threshold) this.on_shake(this.shake_power, this.shake_counter)
-        })
+        },150)
+    }
 
-        // When the mesh is released, we stop detecting shakes and reset the shake power.
-        this.dragger.onDragEndObservable.add(() => {
-            this.setShakePower(0)
-            this.on_drop()
-            clearInterval(this.interval)
-        })
+    private last_position = Vector3.Zero()
+    private position = Vector3.Zero()
+
+    private speed = Vector3.Zero()
+    private last_speed = Vector3.Zero()
+
+
+    private last_time = 0
+    private time = 0
+
+    onMove(pointer: PointerInput){
+        // Time
+        const now = Date.now()
+        if(now - this.time < 100) return
+
+        this.last_time = this.time
+        this.time = now
+
+        // Positions
+        this.last_position.copyFrom(this.position)
+        this.position.copyFrom(pointer.origin)
+
+        // Speed
+        this.last_speed.copyFrom(this.speed)
+        this.speed.copyFrom(this.position).subtractInPlace(this.last_position).scaleInPlace(1/(this.time-this.last_time))
+        
+        // Redirection
+        const redirection = Vector3.Dot(this.last_speed.normalizeToNew(), this.speed.normalizeToNew())
+
+        if(redirection<-0.5) this.setShakePower(this.shake_power+1)
+
+        if(this.shake_power>=this.shake_threshold) this.on_shake(this.shake_power, this.shake_counter)
+    }
+
+    onUp(){
+        this.setShakePower(0)
+        this.on_drop()
+        clearInterval(this.interval)
     }
 
     detach(): void {
-        this.target?.removeBehavior(this.dragger);
+        this.target?.removeBehavior(this.grab);
     }
 
     init(): void { }

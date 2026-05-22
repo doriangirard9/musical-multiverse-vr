@@ -1,7 +1,5 @@
 import * as GUI from "@babylonjs/gui";
 import { Scene } from "@babylonjs/core";
-import {UIEventBus} from "../eventBus/UIEventBus.ts";
-import {AudioEventBus} from "../eventBus/AudioEventBus.ts";
 import {MessageManager} from "./MessageManager.ts";
 import {SceneManager} from "./SceneManager.ts";
 
@@ -13,19 +11,13 @@ export class UIManager {
     private readonly gui: GUI.AdvancedDynamicTexture;
     private readonly guiManager: GUI.GUI3DManager;
     private messageManager: MessageManager;
-    private uiEventBus: UIEventBus;
-    private AudioEventBus: AudioEventBus;
 
     private constructor(scene: Scene) {
         this.scene = scene;
-        this.gui = GUI.AdvancedDynamicTexture.CreateFullscreenUI("UI");
+        this.gui = GUI.AdvancedDynamicTexture.CreateFullscreenUI("UI",undefined, this.scene);
         this.guiManager = new GUI.GUI3DManager(this.scene);
         this.guiManager.controlScaling = 0.5;
         this.messageManager = new MessageManager(); // CHANGER MESSAGE MANAGER EN SINGLETON
-        this.uiEventBus = UIEventBus.getInstance();
-        this.AudioEventBus = AudioEventBus.getInstance();
-
-        this.setupEventListeners();
     }
 
     public static initialize(){
@@ -35,12 +27,6 @@ export class UIManager {
     public static getInstance(): UIManager {
         if (!UIManager._instance) throw new Error("UIManager not initialized. Call initialize() first.")
         return UIManager._instance
-    }
-
-    private setupEventListeners(): void {
-        this.AudioEventBus.on("AUDIO_NODE_CREATED", () => this.messageManager.showMessage("Loading...", 0));
-        this.AudioEventBus.on("AUDIO_NODE_LOADED", () => this.messageManager.hideMessage());
-        this.AudioEventBus.on("AUDIO_NODE_ERROR", ({error_message}) => this.messageManager.showMessage(error_message,2000));
     }
 
     public getGui(): GUI.AdvancedDynamicTexture {

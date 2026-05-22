@@ -1,6 +1,66 @@
 import { SyncSerializable } from "./SyncSerializable"
 
-
+/**
+ * A synchronizable object.
+ * A synchronizable object is an object that can be synchronized across the network.
+ * It can have multiple states, each identified by a key. The state can be of any type that can be serialized (number, string, boolean, null, object, array).
+ * 
+ * Example of usage:
+ * ```ts
+ * class Sphere extends Synchronized{
+ * 
+ *   constructor(
+ *    private color: string
+ *    private position: {x:number,y:number,z:number} 
+ *   ){}
+ * 
+ *   set_state: (key:string) => void = () => {}
+ *   remove_state: (key:string) => void = () => {}
+ *      
+ *   initSync(
+ *    id: string,
+ *    set_state: (key:string)=>void,
+ *    remove_state: (key:string)=>void,
+ *   ): Promise<void>{
+ *    this.set_state = set_state
+ *    this.remove_state = remove_state
+ *   }
+ * 
+ *   disposeSync(): void{
+ *    this.set_state = ()=>{}
+ *    this.remove_state = ()=>{}
+ *   }
+ * 
+ *   askStates(){
+ *    this.set_state("color")
+ *    this.set_state("position")
+ *   }
+ * 
+ *   setState(key: string, value: SyncSerializable): Promise<void>{
+ *    if(key=="color") this.color = value as string
+ *    else if(key=="position") this.position = value as {x:number,y:number,z:number}
+ *   }
+ * 
+ *   getState(key: string): Promise<SyncSerializable>{
+ *    if(key=="color") return this.color
+ *    else if(key=="position") return this.position
+ *   }
+ * 
+ *   removeState(key: string): Promise<void>{
+ *   }
+ * 
+ *   set color(color: string){
+ *    this.color = color
+ *    this.set_state("color")
+ *   }
+ * 
+ *   set position(position: {x:number,y:number,z:number}){
+ *    this.position = position
+ *    this.set_state("position")
+ *   }
+ * }
+ * ```
+ */
 export interface Synchronized{
 
     /**

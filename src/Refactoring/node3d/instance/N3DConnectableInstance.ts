@@ -1,9 +1,14 @@
-import { ActionManager, ExecuteCodeAction, HighlightLayer } from "@babylonjs/core";
-import { NodeCompUtils } from "../tools/utils/NodeCompUtils";
-import { Node3DConnectable } from "../Node3DConnectable";
-import { Node3DInstance } from "./Node3DInstance";
+import { HighlightLayer, UtilityLayerRenderer } from "@babylonjs/core";
 import { IOEventBus } from "../../eventBus/IOEventBus";
+import { PointerInput } from "../../xr/inputs/PointerInput";
+import { InputDropBehavior } from "../../xr/inputs/tools/InputDropBehavior";
+import { InputGrabBehavior } from "../../xr/inputs/tools/InputGrabBehavior";
+import { InputHoverBehavior } from "../../xr/inputs/tools/InputHoverBehavior";
+import { Node3DConnectable } from "../Node3DConnectable";
+import { NodeCompUtils } from "../tools/utils/NodeCompUtils";
 import { N3DConnectionInstance } from "./N3DConnectionInstance";
+import { Node3DInstance } from "./Node3DInstance";
+import { N3DText } from "./utils/N3DText";
 
 /**
  * A simple connection node that is used to connect to other nodes.
@@ -24,7 +29,10 @@ export class N3DConnectableInstance {
         readonly instance: Node3DInstance,
         readonly config: Node3DConnectable,
         highlightLayer: HighlightLayer,
+        utilityLayer: UtilityLayerRenderer,
         ioEventBus: IOEventBus,
+        targetOnly: boolean = false,
+        hoveringHelp: boolean = true
     ) {
         const disposes: (()=>void)[] = []
 
@@ -34,9 +42,14 @@ export class N3DConnectableInstance {
 
         const connectable = this
 
+        const text = new N3DText(`text ${config.id}`, config.meshes, utilityLayer.utilityLayerScene)
+        text.set(config.label)
+
         function hover(){
             if(!hovered) {
                 hovered = true
+                text.show()
+                text.updatePosition()
                 for(const mesh of meshes) NodeCompUtils.highlight(highlightLayer, mesh, color)
             }
         }
@@ -44,45 +57,64 @@ export class N3DConnectableInstance {
         function unhover(){
             if(hovered) {
                 hovered = false
+                text.hide()
                 for(const mesh of meshes) NodeCompUtils.unhighlight(highlightLayer, mesh)
             }
         }
 
-        function onleftpick(){
-            ioEventBus.emit('IO_CONNECT', { pickType : "down", connectable })
+        function onpickdown(pointer: PointerInput){
+            console.log("pick down", config.id)
+            ioEventBus.emit('IO_CONNECT', { pickType : "down", connectable, pointer })
         }
 
-        function onpickup(){
-            ioEventBus.emit('IO_CONNECT', { pickType : "up", connectable })
+        function onpickup(pointer: PointerInput){
+            console.log("pick up", config.id)
+            ioEventBus.emit('IO_CONNECT', { pickType : "up", connectable, pointer })
         }
 
-        function onpickout(){
-            ioEventBus.emit('IO_CONNECT', { pickType : "out", connectable })
+        function onpickout(pointer: PointerInput){
+            console.log("pick out", config.id)
+            ioEventBus.emit('IO_CONNECT', { pickType : "out", connectable, pointer })
         }
 
         for(const mesh of meshes) {
-            const action = mesh.actionManager ??= new ActionManager(mesh.getScene())
-        
-            const _onover = action.registerAction(new ExecuteCodeAction(ActionManager.OnPointerOverTrigger, hover))!!
-            const _onout = action.registerAction(new ExecuteCodeAction(ActionManager.OnPointerOutTrigger, unhover))!!
-            
-            const _onleftpick = action.registerAction(new ExecuteCodeAction(ActionManager.OnLeftPickTrigger, onleftpick))!!
-            const _onpickup = action.registerAction(new ExecuteCodeAction(ActionManager.OnPickUpTrigger, onpickup))!!
-            const _onpickout = action.registerAction(new ExecuteCodeAction(ActionManager.OnPickOutTrigger, onpickout))!!
+            if(!targetOnly){
+                const grab = new InputGrabBehavior(
+                    pointer => onpickdown(pointer),
+                    pointer => {
+                        onpickout(pointer)
+                    },
+                )
 
-            disposes.push(() => {
-                action.unregisterAction(_onover)
-                action.unregisterAction(_onout)
-                action.unregisterAction(_onleftpick)
-                action.unregisterAction(_onpickup)
-                action.unregisterAction(_onpickout)
-                unhover()
+                mesh.addBehavior(grab)
+
+                disposes.push(()=>{
+                    mesh.removeBehavior(grab)
+                })
+            }
+
+            const drop = new InputDropBehavior((pointer)=>onpickup(pointer))
+            mesh.addBehavior(drop)
+
+            disposes.push(()=>{
+                mesh.removeBehavior(drop)
             })
+
+
+            if(hoveringHelp){
+                const hoverb = new InputHoverBehavior(hover, unhover)
+                mesh.addBehavior(hoverb)
+                disposes.push(() => {
+                    mesh.removeBehavior(hoverb)
+                })
+            }
+            
         }
 
         this.dispose = ()=>{
             this.connections.forEach(c => c.remove())
             disposes.forEach(d => d())
+            text.dispose()
         }
     }
 

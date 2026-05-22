@@ -1,4 +1,7 @@
-import { ActionManager, ExecuteCodeAction, HighlightLayer, TransformNode } from "@babylonjs/core"
+import { Behavior, HighlightLayer, TransformNode, UtilityLayerRenderer } from "@babylonjs/core"
+import { InputGrabBehavior } from "../../xr/inputs/tools/InputGrabBehavior"
+import { InputHoverBehavior } from "../../xr/inputs/tools/InputHoverBehavior"
+import { InputPressBehavior } from "../../xr/inputs/tools/InputPressBehavior"
 import { Node3DButton } from "../Node3DButton"
 import { NodeCompUtils } from "../tools/utils/NodeCompUtils"
 import { N3DText } from "./utils/N3DText"
@@ -23,13 +26,14 @@ export class N3DButtonInstance {
     constructor(
         root: TransformNode,
         highlightLayer: HighlightLayer,
+        utilityLayer: UtilityLayerRenderer,
         readonly config: Node3DButton,
     ) {
         const {meshes} = config
 
         /* Parameter value text visual */
         // Gère l'affichage du texte de la valeur du paramètre
-        const text = this.text = new N3DText(`button ${config.id}`, config.meshes)
+        const text = this.text = new N3DText(`button ${config.id}`, config.meshes, utilityLayer.utilityLayerScene)
         /* */
 
 
@@ -90,21 +94,21 @@ export class N3DButtonInstance {
         const disposables: (()=>void)[] = []
 
         for(const draggable of meshes){
-            const action = draggable.actionManager ??= new ActionManager(root.getScene())
-        
-            const _onover = action.registerAction(new ExecuteCodeAction(ActionManager.OnPointerOverTrigger, on_pointer_over))!!
-            const _onout = action.registerAction(new ExecuteCodeAction(ActionManager.OnPointerOutTrigger, on_pointer_out))!!
+            const hover = new InputHoverBehavior(on_pointer_over, on_pointer_out)
+            draggable.addBehavior(hover)
 
-            const _onpickdown = action.registerAction(new ExecuteCodeAction(ActionManager.OnPickDownTrigger, on_pick_down))!!
-            const _onpickout = action.registerAction(new ExecuteCodeAction(ActionManager.OnPickOutTrigger, on_pick_up))!!
-            const _onpickup = action.registerAction(new ExecuteCodeAction(ActionManager.OnPickUpTrigger, on_pick_up))!!
+            let behavior: Behavior<any>
+            if(config.supportSwipe){
+                behavior = new InputPressBehavior(on_pick_down, on_pick_up)
+            }
+            else{
+                behavior = new InputGrabBehavior(on_pick_down, on_pick_up)
+            }
+            draggable.addBehavior(behavior)
 
             disposables.push(() => {
-                action.unregisterAction(_onover)
-                action.unregisterAction(_onout)
-                action.unregisterAction(_onpickdown)
-                action.unregisterAction(_onpickout)
-                action.unregisterAction(_onpickup)
+                draggable.removeBehavior(hover)
+                draggable.removeBehavior(behavior)
             })
         }
 

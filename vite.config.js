@@ -11,6 +11,13 @@ export default defineConfig(({ mode }) => ({
       }
     }),
     host: true,
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+        secure: false,
+      }
+    }
   },
   preview: {
     host: '0.0.0.0',
@@ -24,8 +31,13 @@ export default defineConfig(({ mode }) => ({
     target: "es2022"
   },
   optimizeDeps: {
+    exclude: ['@babylonjs/havok'],
     esbuildOptions: {
       target: "es2022",
     }
+  },
+  assetsInclude: ['**/*.wasm'],
+  worker: {
+    format: 'es'
   }
 }))

@@ -1,6 +1,7 @@
-import { Behavior, Matrix, Quaternion, TransformNode } from "@babylonjs/core";
+import { Behavior, Matrix, Quaternion, TransformNode, Vector3 } from "@babylonjs/core";
 import { InputManager, PointerMovementEvent } from "../../xr/inputs/InputManager";
 import { XRManager } from "../../xr/XRManager";
+import { PointerInput } from "../../xr/inputs/PointerInput";
 
 /**
  * An object attached to this behavior will be rotated by the user with his controller.
@@ -13,12 +14,13 @@ export class RotateHoldBehaviour implements Behavior<TransformNode> {
   name = RotateHoldBehaviour.name
 
   target!: TransformNode
-  pointer!: PointerMovementEvent
   oldRotation?: Quaternion
 
   on_rotate: () => void = () => {}
 
-  constructor(){}
+  pointerInfo?: {forward: Vector3, up: Vector3, right: Vector3, origin: Vector3}
+
+  constructor(readonly pointer: PointerInput){}
 
   init(): void {}
 
@@ -27,13 +29,18 @@ export class RotateHoldBehaviour implements Behavior<TransformNode> {
 
     const inputs = InputManager.getInstance()
 
-    XRManager.getInstance().setMovement(["translation"])
+    inputs.movement.stackDisable()
 
-    const o = inputs.pointer_move.add(() => {
-      const new_pointer = inputs.current_pointer
-      if(!this.pointer)this.pointer = new_pointer // Initialize pointer if not set yet
-      if(this.pointer.forward.equals(new_pointer.forward) && this.pointer.origin.equals(new_pointer.origin)) return // Ignore if ray didn't change
-      this.pointer = new_pointer
+    const o = this.pointer.onMove.add(() => {
+      const new_pointer = {
+        forward: this.pointer.forward.clone(),
+        up: this.pointer.up.clone(),
+        right: this.pointer.right.clone(),
+        origin: this.pointer.origin.clone()
+      }
+      if(!this.pointerInfo) this.pointerInfo = new_pointer
+      if(this.pointerInfo.forward.equals(new_pointer.forward) && this.pointerInfo.origin.equals(new_pointer.origin)) return // Ignore if ray didn't change
+      this.pointerInfo = new_pointer
 
       
       // Rotate by rotating hand
@@ -50,7 +57,7 @@ export class RotateHoldBehaviour implements Behavior<TransformNode> {
 
     // Rotate with RIGHT thumbstick
     let power = 4
-    const o2 = inputs.right_thumbstick.setPullInterval(20,
+    const o2 = inputs.right.thumbstick.setPullInterval(20,
       (x,y)=>{
         this.rotate(-x*power,y*power)
         power+=0.2
@@ -63,7 +70,7 @@ export class RotateHoldBehaviour implements Behavior<TransformNode> {
     this.detach = ()=>{
       o.remove()
       o2.remove()
-      XRManager.getInstance().setMovement(["translation","rotation"])
+      inputs.movement.stackEnable()
     }
 
   }
@@ -71,7 +78,7 @@ export class RotateHoldBehaviour implements Behavior<TransformNode> {
   detach!: () => void
 
   rotate(x: number, y: number){
-    const pointer = InputManager.getInstance().current_pointer
+    const pointer = this.pointer
 
     const rotate_x = Quaternion.RotationAxis(pointer.up, x/50)
     const rotate_y = Quaternion.RotationAxis(pointer.right, y/50)

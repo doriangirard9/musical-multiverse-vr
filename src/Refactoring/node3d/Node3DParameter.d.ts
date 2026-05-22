@@ -1,7 +1,8 @@
-import { AbstractMesh } from "@babylonjs/core"
+import { AbstractMesh, Vector3 } from "@babylonjs/core"
 
 /**
- * Un paramètre d'un Node3D, on peut changer sa valeur en le draggant.
+ * Un paramètre d'un Node3D. Sa valeur peut être changé en le draggant.
+ * Sa valeur peut être aussi changé par la synchronisation, ou par automation.
  */
 export interface Node3DParameter{
 
@@ -17,10 +18,16 @@ export interface Node3DParameter{
     meshes: AbstractMesh[]
 
     /**
+     * Est-ce que le paramètre doit ne pas être automatiquement synchronisé.
+     * Si le paramètre est contrôlé par une automation, alors il n'est plus synchronisé.
+     */
+    notSynced?: boolean
+
+    /**
      * Change la valeur du paramètre. Entre 0 et 1.
      * @param value 
      */
-    setValue(value: number): void
+    setValue(value: number, automated?: boolean): void
 
     /**
      * Récupère le nombre de valeurs possibles du paramètre.
@@ -44,4 +51,14 @@ export interface Node3DParameter{
      * Récupère le nom du paramètre.
      */
     getLabel(): string
+
+    /**
+     * Optionnel.
+     * Permet de définir une fonction de conversion de l'offset de drag en valeur du paramètre.
+     * Utile pour personnaliser le comportement de drag, par exemple pour faire un drag horizontal au lieu de vertical, ou pour faire un drag en rotation.
+     * Par défaut, l'offset de position sur l'axe Y d'un point situé à 1 unité de distance à l'avant est utilisé.
+     * @param positionOffset L'offset de position du drag par rapport à la position initiale du drag.
+     * @param directionOffset La direction du drag par rapport à la direction initiale du drag.
+     */
+    fromOffset?(positionOffset: Vector3, directionOffset: Vector3): number
 }

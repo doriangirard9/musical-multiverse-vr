@@ -4,34 +4,33 @@ import type { Node3DGUIContext } from "../Node3DGUIContext";
 import type { Node3DContext } from "../Node3DContext";
 import { AbstractMesh } from "@babylonjs/core";
 import { WamDescriptor } from "@webaudiomodules/api";
+import { VideoWamRenderer } from "../../wamExtensions/video/VideoWamRenderer.ts";
 
-
-class Wam3DGeneratorN3DGui implements Node3DGUI{
+class Wam3DGeneratorN3DGui implements Node3DGUI {
 
     root
     wam_generator!: WamGUIGenerator
 
-    get worldSize(){ return .8/this.wam_generator.calculateAverageControlSize() }
+    get worldSize() { return .8 / this.wam_generator.calculateAverageControlSize() }
 
-    constructor(context: Node3DGUIContext){
-        const {babylon:B} = context
+    constructor(context: Node3DGUIContext) {
+        const { babylon: B } = context
         this.root = new B.TransformNode("wam3d generator root", context.scene)
-
     }
 
-    async init(guicode: WAMGuiInitCode){
+    async init(guicode: WAMGuiInitCode) {
         this.wam_generator = await WamGUIGenerator.create({
-            babylonjs:{
+            babylonjs: {
                 root: this.root,
-                defineAnInput(){},
-                defineAnOutput(){},
-                defineAnEventInput(){},
-                defineAnEventOutput(){},
-                defineField(){},
-                defineDraggableField(){}
+                defineAnInput() { },
+                defineAnOutput() { },
+                defineAnEventInput() { },
+                defineAnEventOutput() { },
+                defineField() { },
+                defineDraggableField() { }
             }
         })
-        await this.wam_generator.load(guicode,controls)
+        await this.wam_generator.load(guicode, controls)
     }
 
     async dispose(): Promise<void> {
@@ -40,19 +39,23 @@ class Wam3DGeneratorN3DGui implements Node3DGUI{
     }
 }
 
-class Wam3DGeneratorN3D implements Node3D{
+class Wam3DGeneratorN3D implements Node3D {
+    private static readonly DEBUG_LOG = false;
 
     states!: ControlStateManager
+    private videoRenderer: VideoWamRenderer | null = null;
 
-    constructor(){}
+    constructor() { }
 
-    async init(context: Node3DContext, guicode: WAMGuiInitCode, gui: Wam3DGeneratorN3DGui){
-        const {tools:T} = context
+    async init(context: Node3DContext, guicode: WAMGuiInitCode, gui: Wam3DGeneratorN3DGui) {
+        const { tools: T } = context
 
         let count = 0
+        let wamNode: any = null
         gui.wam_generator.dispose()
+
         gui.wam_generator = await WamGUIGenerator.create_and_init({
-            babylonjs:{
+            babylonjs: {
                 root: gui.root,
                 defineField(settings) {
                     context.createParameter({
@@ -63,10 +66,13 @@ class Wam3DGeneratorN3D implements Node3D{
                         getValue() { return settings.getValue() },
                         setValue(value) { settings.setValue(value) },
                         stringify(value) { return settings.stringify(value) },
+                        notSynced: true
                     })
                 },
                 defineAnInput(settings) {
+                    wamNode = settings.node
                     count++
+                    let target = settings.target
                     context.createConnectable(new T.AudioN3DConnectable.Input(
                         `audioinput${count}`,
                         settings.target,
@@ -75,6 +81,7 @@ class Wam3DGeneratorN3D implements Node3D{
                     ))
                 },
                 defineAnOutput(settings) {
+                    wamNode = settings.node
                     count++
                     context.createConnectable(new T.AudioN3DConnectable.Output(
                         `audiooutput${count}`,
@@ -84,6 +91,7 @@ class Wam3DGeneratorN3D implements Node3D{
                     ))
                 },
                 defineAnEventInput(settings) {
+                    wamNode = settings.node
                     count++
                     context.createConnectable(new T.MidiN3DConnectable.Input(
                         `midiinput${count}`,
@@ -93,23 +101,43 @@ class Wam3DGeneratorN3D implements Node3D{
                     ))
                 },
                 defineAnEventOutput(settings) {
+                    wamNode = settings.node
                     count++
                     context.createConnectable(new T.MidiN3DConnectable.Output(
                         `midioutput${count}`,
                         settings.target,
                         "Midi Output",
-                        settings.node
+                        settings.node,
                     ))
                 },
                 defineDraggableField(_) { },
             }
-        },guicode,controls,context.audioCtx,context.groupId)
+        }, guicode, controls, context.audioCtx, context.groupId)
         this.states = new ControlStateManager(gui.wam_generator.controls)
         this.states.onStateChange = name => context.notifyStateChange(name)
         context.addToBoundingBox(gui.wam_generator.pad_node as AbstractMesh)
+
+        // Check for video extension delegate
+        if (wamNode && wamNode.instanceId) {
+            const videoDelegate = (window as any).WAMExtensions?.video?.getDelegate(wamNode.instanceId);
+            if (videoDelegate) {
+                this.videoRenderer = new VideoWamRenderer(gui.root.getScene(), videoDelegate, wamNode.instanceId, context.audioCtx);
+
+                // If there's a mesh named "video" or "screen" in the GUI, attach the video to it
+                let videoMesh = gui.root.getChildMeshes().find(m => m.name.toLowerCase().includes("video") || m.name.toLowerCase().includes("screen"));
+
+                if (videoMesh) {
+                    this.videoRenderer.attachToMesh(videoMesh as AbstractMesh);
+                    context.addToBoundingBox(videoMesh as AbstractMesh);
+                }
+            }
+        }
+
+        await new Promise(r => setTimeout(r, 1000)) // Wait a frame to ensure everything is initialized
     }
 
     async dispose(): Promise<void> {
+        this.videoRenderer?.dispose();
         this.states.dispose()
     }
 
@@ -118,6 +146,7 @@ class Wam3DGeneratorN3D implements Node3D{
     }
 
     async setState(name: string, value: any): Promise<void> {
+        if (Wam3DGeneratorN3D.DEBUG_LOG) console.log("Wam3DGeneratorN3D setState", name, value)
         await this.states.set(name, value)
     }
 
@@ -127,46 +156,63 @@ class Wam3DGeneratorN3D implements Node3D{
 
 }
 
-export class Wam3DGeneratorN3DFactory implements Node3DFactory<Wam3DGeneratorN3DGui,Wam3DGeneratorN3D>{
+export class Wam3DGeneratorN3DFactory implements Node3DFactory<Wam3DGeneratorN3DGui, Wam3DGeneratorN3D> {
 
     constructor(
         readonly label: string,
         readonly description: string,
         readonly tags: string[],
         private code: WAMGuiInitCode
-    ){}
+    ) { }
 
-    static async create(code: WAMGuiInitCode){
-        try{
-            const {wam_url} = code
-            const descriptor_url = wam_url.substring(0,wam_url.lastIndexOf("/"))+"/descriptor.json"
-            const descriptor = (await(await fetch(descriptor_url)).json()) as WamDescriptor
-            const tags = new Set<string>(descriptor.keywords.map(k=>k.toLowerCase()))
+    static async create(code: WAMGuiInitCode) {
+        try {
+            const { wam_url } = code
+            const descriptor_url = wam_url.substring(0, wam_url.lastIndexOf("/")) + "/descriptor.json"
+            const descriptor = (await (await fetch(descriptor_url)).json()) as WamDescriptor
+            const tags = new Set<string>(descriptor.keywords.map(k => k.toLowerCase()))
 
-            if(descriptor.hasAudioInput && descriptor.hasAudioOutput && !descriptor.hasMidiInput && !descriptor.hasMidiOutput){
+            if (descriptor.hasAudioInput && descriptor.hasAudioOutput && !descriptor.hasMidiInput && !descriptor.hasMidiOutput) {
                 tags.add("audio")
                 tags.add("effect")
             }
+            if (!descriptor.hasAudioInput && descriptor.hasAudioOutput && !descriptor.hasMidiInput && !descriptor.hasMidiOutput) {
+                tags.add("audio")
+                tags.add("generator")
+            }
+            if (descriptor.hasAudioInput && !descriptor.hasAudioOutput && !descriptor.hasMidiInput && !descriptor.hasMidiOutput) {
+                tags.add("audio")
+                tags.add("consumer")
+            }
 
-            if(!descriptor.hasAudioInput && descriptor.hasAudioOutput && descriptor.hasMidiInput && !descriptor.hasMidiOutput){
+            if (!descriptor.hasAudioInput && descriptor.hasAudioOutput && descriptor.hasMidiInput && !descriptor.hasMidiOutput) {
                 tags.add("audio")
                 tags.add("midi")
                 tags.add("instrument")
             }
 
-            if(!descriptor.hasAudioInput && !descriptor.hasAudioOutput && !descriptor.hasMidiInput && descriptor.hasMidiOutput){
+            if (!descriptor.hasAudioInput && !descriptor.hasAudioOutput && descriptor.hasMidiInput && descriptor.hasMidiOutput) {
+                tags.add("midi")
+                tags.add("effect")
+            }
+            if (!descriptor.hasAudioInput && !descriptor.hasAudioOutput && !descriptor.hasMidiInput && descriptor.hasMidiOutput) {
                 tags.add("midi")
                 tags.add("generator")
             }
+            if (!descriptor.hasAudioInput && !descriptor.hasAudioOutput && descriptor.hasMidiInput && !descriptor.hasMidiOutput) {
+                tags.add("midi")
+                tags.add("consumer")
+            }
 
-            if(descriptor.isInstrument) tags.add("instrument")
+            if (descriptor.isInstrument) tags.add("instrument")
+
             return new Wam3DGeneratorN3DFactory(
                 descriptor.name,
                 descriptor.description,
                 [...tags],
                 code
             )
-        }catch(e){
+        } catch (e) {
             return null
         }
     }

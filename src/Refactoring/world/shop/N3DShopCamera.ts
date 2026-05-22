@@ -1,6 +1,7 @@
 import { Vector3, WebXRCamera, WebXRFeatureName } from "@babylonjs/core";
 import { XRManager } from "../../xr/XRManager";
 import { N3DShop, N3DShopObject, N3DShopType } from "./N3DShop";
+import { InputManager } from "../../xr/inputs/InputManager";
 
 const TRANSITION_TIME = 250 // ms
 
@@ -30,7 +31,7 @@ export class N3DShopCamera implements N3DShopType {
         if(this.cameras.length==1){
             const camera = XRManager.getInstance().xrHelper.baseExperience.camera
             
-            shop.inputs.y_button.on_down.add(()=>{
+            shop.inputs.y_button.onDown.add(()=>{
                 if(DEBUG_LOG) console.log(`[Y Button] pressed - selected: ${this.selected}, to_show: ${this.to_show}`)
                 this.animation = this.animation.then(async()=>{
                     if(this.selected==-1) await this.show(this.to_show)
@@ -41,7 +42,7 @@ export class N3DShopCamera implements N3DShopType {
                     
                 })
             })
-            shop.inputs.b_button.on_down.add(()=>{
+            shop.inputs.b_button.onDown.add(()=>{
                 this.animation = this.animation.then(async()=>{
                     if(this.selected!=-1){
                         await this.show(-1)
@@ -49,13 +50,13 @@ export class N3DShopCamera implements N3DShopType {
                     }
                 })
             })
-            shop.inputs.left_thumbstick.on_left_down.add(()=>{
+            shop.inputs.left.thumbstick.on_left_down.add(()=>{
                 this.animation = this.animation.then(async()=>{
                     if(this.selected!=-1) await this.switch(-1)
                 })
                 
             })
-            shop.inputs.left_thumbstick.on_right_down.add(()=>{
+            shop.inputs.left.thumbstick.on_right_down.add(()=>{
                 this.animation = this.animation.then(async()=>{
                     if(this.selected!=-1) await this.switch(1)
                 })
@@ -106,14 +107,12 @@ export class N3DShopCamera implements N3DShopType {
         // FROM WORLD
         if(this.selected==-1){
             this.initialPosition = camera.globalPosition.clone()
-            this.initialRotation = camera.rotation.clone()
+            this.initialRotation = camera.rotationQuaternion?.toEulerAngles() ?? camera.rotation.clone()
                                     
             fromPosition = this.initialPosition
             fromRotation = this.initialRotation
 
-            if(XRManager.getInstance().xrFeaturesManager.getEnabledFeatures().includes(WebXRFeatureName.MOVEMENT)){
-                XRManager.getInstance().xrFeaturesManager.disableFeature(WebXRFeatureName.MOVEMENT)
-            }
+            InputManager.getInstance().movement.stackDisable()
             camera.applyGravity = false
             await this._stopCameraVelocity(camera)
         }
@@ -134,8 +133,7 @@ export class N3DShopCamera implements N3DShopType {
             toPosition = this.initialPosition!
             toRotation = this.initialRotation!
 
-            if(!XRManager.getInstance().xrFeaturesManager.getEnabledFeatures().includes(WebXRFeatureName.MOVEMENT))
-                XRManager.getInstance().setMovement(["rotation", "translation"])
+            InputManager.getInstance().movement.stackEnable()
             camera.applyGravity = true
 
             this.initialPosition = null

@@ -26,17 +26,17 @@ export class SpeakerN3DGUI implements Node3DGUI{
     constructor(){}
 
     async init(context: Node3DGUIContext){
-        const {babylon:B, tools:{MeshUtils}} = context
+        const {babylon:B, tools:{MeshUtils,ConnectableUtils}} = context
 
         this.root = new B.TransformNode("audio output root", context.scene)
 
         this.speaker = await B.ImportMeshAsync(SPEAKER_URL, context.scene) .then(it=>it.meshes[0])
         this.speaker.parent = this.root
 
-        this.audioInput = B.CreateSphere("audio output input", {diameter:.5}, context.scene)
+        this.audioInput = ConnectableUtils.createInputMesh("test button", .7, context.scene)
         MeshUtils.setColor(this.audioInput, new B.Color4(0,1,0,1))
         this.audioInput.parent = this.root
-        this.audioInput.position.set(-0.5,0,0)
+        this.audioInput.position.set(-0.7,0,0)
 
         /* FallOff selon l'idée de michel, il veut que ça soit tout le temps visible,
            au départ je voulais afficher uniquement si on drag puis uniquement si on est a l'extérieur
@@ -110,6 +110,7 @@ export class SpeakerPannerNodeN3D implements Node3D{
     audioCtx!: AudioContext
     interval: any
     pannerNode!: PannerNode
+    analyserNode!: AnalyserNode
 
     constructor(){}
 
@@ -131,11 +132,21 @@ export class SpeakerPannerNodeN3D implements Node3D{
         pannerNode.maxDistance = 200 // Distance maximale à laquelle le son sera réduit, passé cette distance le son ne sera pas réduit
         pannerNode.rolloffFactor = 3 // Vitesse de décroissance du volume en fonction de la distance
 
-        pannerNode.connect(audioCtx.destination)
+        const analyserNode = this.analyserNode = audioCtx.createAnalyser()
+        const data = new Uint8Array(analyserNode.frequencyBinCount)
+        analyserNode.fftSize = 32
 
+        pannerNode.connect(analyserNode)
+        analyserNode.connect(audioCtx.destination)
+
+        let i=0
+        let speed = 0
+        let prev = 0
         // TODO: audioCtx.listener ne devrait pas être changé par un Node3d car c'est un paramètre général
         // Il faut déplacer ça dehors.
         this.interval = setInterval(() => {
+
+            // Son 3D
             const output_transform = context.getPosition()
             const output_forward = Vector3.Forward().applyRotationQuaternionInPlace(output_transform.rotation)
             const player_transform = context.getPlayerPosition()
@@ -166,6 +177,23 @@ export class SpeakerPannerNodeN3D implements Node3D{
                 // setTargetAtTime change le paramètre de manière progressive et évite les "pop"
                 parameter.setTargetAtTime(value, audioCtx.currentTime, 40/1000)
             }
+
+            // Effet visuel
+            analyserNode.getByteFrequencyData(data)
+
+            let volume = 0
+            for(let j=0; j<data.length; j++) volume = Math.max(volume, data[j])
+            let prevSpeed = speed
+            speed = speed*.5 + (volume-prev)*.5
+            prev = volume
+            
+            if(Math.sign(speed) !== Math.sign(prevSpeed) && speed > 2 && volume > 10){
+                const red = (data[0]+data[1]+data[2])/3/255
+                const green = (data[3]+data[4]+data[5])/3/255
+                const blue = (data[6]+data[7]+data[8])/3/255
+                context.sendSignal(gui.root.absolutePosition, (red-green-blue), (green-blue), blue)
+            }
+
         },50)
 
         context.createConnectable(new AudioN3DConnectable.Input("audioInput", [gui.audioInput], "Destination", pannerNode))
@@ -182,7 +210,8 @@ export class SpeakerPannerNodeN3D implements Node3D{
     getStateKeys(): string[] { return [] }
     
     async dispose(){
-        this.pannerNode.disconnect(this.audioCtx.destination)
+        this.pannerNode.disconnect(this.analyserNode)
+        this.analyserNode.disconnect(this.audioCtx.destination)
         clearInterval(this.interval)
     }
 

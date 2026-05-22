@@ -7,6 +7,12 @@ type Serializable = { [key: string]: Serializable } | Serializable[] | string | 
 
 /**
  * Représente l'interface d'un Node3D.
+ * Les coordonnées des éléments de la GUI fonctionnent comme ci:
+ * - Elles sont comprise entre -0.5 et 0.5 pour x, y et z.
+ * - X corresponds à l'axe gauche-droite
+ * - Y corresponds à l'axe arrière-avant
+ * - Z corresponds à l'axe bas-haut 
+ * - Le point 0,0,0 correspond au centre de la GUI
  */
 export interface Node3DGUI{
 
@@ -89,13 +95,19 @@ export interface Node3DFactory<G extends Node3DGUI, T extends Node3D>{
      * Ces tags doivent être au singulier et tout en minuscules, sans accents, sans espace (utilisé des _) et en anglais.
      * Par exemple : "instrument", "effect", "generator", "midi", "audio", "synthetiser", "delay", "reverb", "live_instrument"
      * Des tags standards:
+     * 
      *  "instrument": Un node3D qui prend en entrée du MIDI et qui produit du son.
+     *  "live_instrument": Un "generator" qui produit du son/des notes grâce à des intéractions en temps réel, comme un instrument de musique. (exemple: clavier)
+     *  "controller": Un node3D qui produit des données d'automation grâce à des intéractions en temps réel, mais qui ne produit pas de son directement. (exemple: pad de contrôle)
+     * 
      *  "generator": Un node3D qui produit du son, ou du midi sans entrée.
      *  "effect": Un node3D qui prend en entrée du son ou du midi et qui le modifie et le renvoie en sortie.
      *  "consumer": Un node3D qui consomme du son ou du midi et ne renvoie rien en sortie.
-     *  "live_instrument": Un "generator" qui produit du son grâce à des intéractions en temps réel, comme un instrument de musique. (exemple: clavier)
+     *  
      *  "midi": Un node3D qui produit ou consomme du MIDI.
      *  "audio": Un node3D qui produit ou consomme de l'audio
+     *  "automation": Un node3D qui produit ou consomme de l'automation
+     * 
      */
     tags: string[]
 

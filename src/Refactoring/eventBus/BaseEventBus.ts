@@ -1,9 +1,10 @@
 export class BaseEventBus<T extends object> {
+    private static readonly DEBUG_LOG = false;
     protected listeners: Map<keyof T, Function[]> = new Map();
     protected debugMode: boolean = process.env.NODE_ENV === 'development';
 
     protected constructor() {
-        if (this.debugMode) {
+        if (BaseEventBus.DEBUG_LOG && this.debugMode) {
             console.log(`[EventBus] Initialized: ${this.constructor.name}`);
         }
     }

@@ -1,7 +1,6 @@
 import {XRInputManager} from "./XRInputManager.ts";
 import * as B from "@babylonjs/core";
 import {withTimeout} from "../utils/utils.ts";
-import { InputManager } from "./inputs/InputManager.ts";
 import {HandMenu} from "../menus/HandMenu.ts";
 import {Nullable} from "@babylonjs/core";
 
@@ -10,6 +9,7 @@ export class XRManager {
     private static _instance: XRManager;
     public xrInputManager!: XRInputManager;
     public xrHelper!: B.WebXRDefaultExperience;
+    public handTracking!: B.WebXRHandTracking
     private _scene!: B.Scene;
     public xrFeaturesManager!: B.WebXRFeaturesManager;
     private _controllersInitialized: boolean = false;
@@ -41,16 +41,15 @@ export class XRManager {
                 "WebXR experience initialization timed out"
             );
 
-            InputManager.create(this.xrHelper, this._scene)
-
             this._initXRFeatures();
 
             this.xrInputManager = new XRInputManager(this.xrHelper);
 
-
             this.xrHelper.baseExperience.camera.checkCollisions = true;
             this.xrHelper.baseExperience.camera.applyGravity = true;
             this.xrHelper.baseExperience.camera.ellipsoid = new B.Vector3(1, 1, 1);
+
+            this.handTracking = this.xrFeaturesManager.getEnabledFeature(B.WebXRFeatureName.HAND_TRACKING) as B.WebXRHandTracking
             
             this.xrHelper.baseExperience.onStateChangedObservable.add((state) => {
                 switch (state) {
@@ -159,14 +158,19 @@ export class XRManager {
         }
         const xrExperience = await this._scene.createDefaultXRExperienceAsync({
             uiOptions: { sessionMode: 'immersive-vr' },
+            optionalFeatures: [B.WebXRFeatureName.HAND_TRACKING],
+            disableNearInteraction: true, // On gère ça nous même pour de meilleures performances
         });
         this.xrFeaturesManager = xrExperience.baseExperience.featuresManager;
+        this.xrFeaturesManager.disableFeature(B.WebXRFeatureName.LAYERS)
+
         return xrExperience;
     }
 
     private _initXRFeatures(): void {
         const featuresManager: B.WebXRFeaturesManager = this.xrHelper.baseExperience.featuresManager
         featuresManager.disableFeature(B.WebXRFeatureName.TELEPORTATION)
+        featuresManager.disableFeature(B.WebXRNearInteraction.name) //Deactivated for performance (XR Drumkit)
         this.setMovement(["rotation", "translation"])
     }
 

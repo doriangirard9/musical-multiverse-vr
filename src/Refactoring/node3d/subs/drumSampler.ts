@@ -1,11 +1,11 @@
 import * as B from "@babylonjs/core";
-import type { Node3D, Node3DFactory, Node3DGUI } from "../Node3D";
-import type { Node3DGUIContext } from "../Node3DGUIContext";
-import { Node3DContext } from "../Node3DContext";
-import { AudioN3DConnectable, MidiN3DConnectable } from "../tools";
-import { WamInitializer } from "../../app/WamInitializer";
-import { WamTransportManager } from "./PianoRoll/WamTransportManager";
 import { WebAudioModule } from "@webaudiomodules/api";
+import { WamInitializer } from "../../app/WamInitializer";
+import type { Node3D, Node3DFactory, Node3DGUI } from "../Node3D";
+import { Node3DContext } from "../Node3DContext";
+import type { Node3DGUIContext } from "../Node3DGUIContext";
+import { MidiN3DConnectable } from "../tools";
+import { WamTransportManager } from "./PianoRoll/WamTransportManager";
 
 /**
  * Minimal 3D WAM Sampler block (e.g., Burns Audio DrumSampler)
@@ -64,12 +64,12 @@ export class WamSamplerN3DGUI implements Node3DGUI {
 
   private _createPorts() {
     // MIDI Input (left)
-    this.midiInput = B.CreateIcoSphere(
+    this.midiInput = this.tool.ConnectableUtils.createInputMesh(
       "sampler midi input",
-      { radius: 2 },
+      4,
       this.context.scene
     );
-    this.tool.MeshUtils.setColor(this.midiInput, MidiN3DConnectable.InputColor.toColor4());
+    this.tool.MeshUtils.setColor(this.midiInput, MidiN3DConnectable.Color.toColor4());
     const halfW = (this.block.getBoundingInfo().boundingBox.extendSize.x);
     this.midiInput.position.set(-halfW - 1.5, this.block.position.y, this.block.position.z);
     this.midiInput.scaling.setAll(0.7);
@@ -81,8 +81,8 @@ export class WamSamplerN3DGUI implements Node3DGUI {
       { radius: 2 },
       this.context.scene
     );
-    // Use OutputColor for visual consistency (even if it's audio, not MIDI)
-    this.tool.MeshUtils.setColor(this.audioOutput, MidiN3DConnectable.OutputColor.toColor4());
+    // Use Color for visual consistency (even if it's audio, not MIDI)
+    this.tool.MeshUtils.setColor(this.audioOutput, MidiN3DConnectable.Color.toColor4());
     this.audioOutput.position.set(+halfW + 1.5, this.block.position.y, this.block.position.z);
     this.audioOutput.scaling.setAll(0.7);
     this.audioOutput.parent = this.root;

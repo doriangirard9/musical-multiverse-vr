@@ -44,4 +44,8 @@ export class Piano88Strategy implements GridStrategy {
   getRowBaseColor(row: number): B.Color3 {
     return this.isBlackRow(row) ? new B.Color3(0.1,0.1,0.1) : new B.Color3(1,1,1);
   }
+  /** Get the row index for a specific note name (e.g., "C4") */
+  getRowForNote(noteName: string): number {
+    return NOTES_88.indexOf(noteName);
+  }
 }

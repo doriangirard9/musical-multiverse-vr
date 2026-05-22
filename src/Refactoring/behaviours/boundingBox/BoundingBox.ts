@@ -4,6 +4,7 @@ import {Scene} from "@babylonjs/core";
 import {SceneManager} from "../../app/SceneManager.ts";
 import {PlayerManager} from "../../app/PlayerManager.ts";
 import { HoldableBehaviour } from "./HoldableBehaviour.ts";
+import { InputHoverBehavior } from "../../xr/inputs/tools/InputHoverBehavior.ts";
 
 
 
@@ -21,7 +22,7 @@ export class BoundingBox {
         let h = this.draggable.getBoundingInfo().boundingBox.extendSize.y * 2
         let d = this.draggable.getBoundingInfo().boundingBox.extendSize.z * 2
 
-        const boundingBox = this.boundingBox = B.MeshBuilder.CreateBox(`boundingBox`, {width:w+.01, height:h+.01, depth:d+.5}, this.scene)
+        const boundingBox = this.boundingBox = B.MeshBuilder.CreateBox(`boundingBox`, {width:w+.01, height:h+.01, depth:d+.1}, this.scene)
         this.draggable.parent = this.boundingBox
 
         this.boundingBox.isVisible = true
@@ -50,15 +51,16 @@ export class BoundingBox {
             else boundingBox.visibility = 0
         }
 
-        const action = this.boundingBox.actionManager ??= new B.ActionManager(this.scene)
-        action.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPointerOverTrigger, ()=>{
-            hover = true
-            updateVisibility()
-        }))
-        action.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPointerOutTrigger, ()=>{
-            hover = false
-            updateVisibility()
-        }))
+        this.boundingBox.addBehavior(new InputHoverBehavior(
+            ()=>{
+                hover = true
+                updateVisibility()
+            },
+            ()=>{
+                hover = false
+                updateVisibility()
+            }
+        ))
         this.holdable.onGrabObservable.add(() => {
             took = true
             updateVisibility()

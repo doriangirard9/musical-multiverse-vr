@@ -3,7 +3,8 @@ import { AbstractMesh, Color3 } from "@babylonjs/core"
 
 
 /**
- * Un objet connectable (entrée ou sortie) d'un Node3D, connectable à une sortie d'un autre Node3D.
+ * Un bouton d'un Node3D. Il peut être cliqué pour déclencher une action.
+ * Non-synchronisé, il est destiné à déclencher des actions locales, comme le déclenchement d'une note ou d'un sample.
  */
 export interface Node3DButton{
 
@@ -28,6 +29,12 @@ export interface Node3DButton{
      * La couleur du bouton
      */
     readonly color: Color3
+
+    /**
+     * Indique si le bouton supporte les swipe. (Le bouton est pressé si on passe le pointeur dessus alors que le bouton est déjà pressé, et relâché si le pointeur sort alors que le bouton est encore pressé)
+     * Idéale pour les pianos.
+     */
+    readonly supportSwipe?: bool
 
     /**
      * Appelé lorsque le bouton est cliqué.

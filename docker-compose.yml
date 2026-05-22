@@ -14,7 +14,8 @@ services:
       context: ./server-config
       dockerfile: Dockerfile
     ports:
-        - "3000:3000"
+      - "3000:3000"
+      - "5173:5173"
     restart: always
   app:
     build:
@@ -22,4 +23,8 @@ services:
       dockerfile: Dockerfile-app
     ports:
       - "5173:5173"
-    restart: always
+    volumes:
+      - ./server-config/data:/usr/src/app/data
+    environment:
+      - NODE_ENV=production
+      - JWT_SECRET=c76d5fc8-8d7e-4750-9cde-26d97e117c24

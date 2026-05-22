@@ -3,10 +3,11 @@ import {
     Behavior,
     Nullable,
     Observer,
+    Ray,
     Scene,
 
-} from "@babylonjs/core";
-import { XRManager } from "../xr/XRManager";
+} from "@babylonjs/core"
+import { InputManager } from "../xr/inputs/InputManager"
 
 enum GazeState {
     IDLE,
@@ -15,45 +16,46 @@ enum GazeState {
 }
 
 export class GazeBehavior implements Behavior<AbstractMesh> {
-    public name = "GazeBehavior";
+    public name = "GazeBehavior"
+    private static readonly DEBUG_LOG = false
 
-    public onGazeStart: () => void = () => {};
-    public onGazeActivated: () => void = () => {};
-    public onGazeStop: () => void = () => {};
-    public onCustomCheck: () => boolean = () => true;
+    public onGazeStart: () => void = () => {}
+    public onGazeActivated: () => void = () => {}
+    public onGazeStop: () => void = () => {}
+    public onCustomCheck: () => boolean = () => true
 
     /**
      * Le délai (en ms) que l'utilisateur doit fixer l'objet pour déclencher l'activation.
      */
-    public activationDelay: number = 1500;
+    public activationDelay: number = 1500
     /**
      * L'intervalle (en ms) entre chaque vérification de la direction du regard.
      */
-    public checkInterval: number = 100;
+    public checkInterval: number = 100
 
     /**
      * Le nœud auquel ce comportement est attaché.
      * @private
      */
-    private _attachedNode: Nullable<AbstractMesh> = null;
-    private _scene: Nullable<Scene> = null;
-    private _xrManager: XRManager = XRManager.getInstance();
-    private _renderObserver: Nullable<Observer<Scene>> = null;
+    private _attachedNode: Nullable<AbstractMesh> = null
+    private _scene: Nullable<Scene> = null
+    private _inputs = InputManager.getInstance()
+    private _renderObserver: Nullable<Observer<Scene>> = null
 
     /**
      * L'état actuel du behavior.
      * @private
      */
-    private _gazeState: GazeState = GazeState.IDLE;
-    private _gazeStartTime: number = 0;
+    private _gazeState: GazeState = GazeState.IDLE
+    private _gazeStartTime: number = 0
 
 
     /**
      * Le temps de la dernière mise à jour.
      * @private
      */
-    private _lastCheckTime: number = 0;
-    private _isCurrentlyGazing: boolean = false;
+    private _lastCheckTime: number = 0
+    private _isCurrentlyGazing: boolean = false
 
     public init(): void {}
 
@@ -62,30 +64,30 @@ export class GazeBehavior implements Behavior<AbstractMesh> {
      * @param target
      */
     public attach(target: AbstractMesh): void {
-        this._attachedNode = target;
-        this._scene = this._attachedNode.getScene();
+        this._attachedNode = target
+        this._scene = this._attachedNode.getScene()
 
         this._renderObserver = this._scene.onBeforeRenderObservable.add(() => {
             if (Date.now() - this._lastCheckTime > this.checkInterval) {
-                this._performCheck();
+                this._performCheck()
             }
 
-            const isGazingNow = this._isCurrentlyGazing && this.onCustomCheck();
+            const isGazingNow = this._isCurrentlyGazing && this.onCustomCheck()
 
             if (isGazingNow) {
                 if (this._gazeState === GazeState.IDLE) {
-                    this._changeState(GazeState.GAZING);
+                    this._changeState(GazeState.GAZING)
                 } else if (this._gazeState === GazeState.GAZING) {
                     if (Date.now() - this._gazeStartTime >= this.activationDelay) {
-                        this._changeState(GazeState.ACTIVATED);
+                        this._changeState(GazeState.ACTIVATED)
                     }
                 }
             } else {
                 if (this._gazeState !== GazeState.IDLE) {
-                    this._changeState(GazeState.IDLE);
+                    this._changeState(GazeState.IDLE)
                 }
             }
-        });
+        })
     }
 
     /**
@@ -93,11 +95,11 @@ export class GazeBehavior implements Behavior<AbstractMesh> {
      */
     public detach(): void {
         if (this._scene && this._renderObserver) {
-            this._scene.onBeforeRenderObservable.remove(this._renderObserver);
-            this._renderObserver = null;
+            this._scene.onBeforeRenderObservable.remove(this._renderObserver)
+            this._renderObserver = null
         }
-        this._attachedNode = null;
-        this._scene = null;
+        this._attachedNode = null
+        this._scene = null
     }
 
     /**
@@ -106,20 +108,20 @@ export class GazeBehavior implements Behavior<AbstractMesh> {
      * @private
      */
     private _changeState(newState: GazeState): void {
-        if (this._gazeState === newState) return;
+        if (this._gazeState === newState) return
 
-        const oldState = this._gazeState;
-        this._gazeState = newState;
+        const oldState = this._gazeState
+        this._gazeState = newState
         if (newState === GazeState.GAZING) {
-            this._gazeStartTime = Date.now();
-            this.onGazeStart();
+            this._gazeStartTime = Date.now()
+            this.onGazeStart()
         } else if (newState === GazeState.ACTIVATED) {
-            this.onGazeActivated();
+            this.onGazeActivated()
         } else if (newState === GazeState.IDLE) {
             if (oldState === GazeState.GAZING || oldState === GazeState.ACTIVATED) {
-                this.onGazeStop();
+                this.onGazeStop()
             }
-            this._gazeStartTime = 0;
+            this._gazeStartTime = 0
         }
     }
 
@@ -128,34 +130,17 @@ export class GazeBehavior implements Behavior<AbstractMesh> {
      * @private
      */
     private _performCheck(): void {
-        this._lastCheckTime = Date.now();
+        this._lastCheckTime = Date.now()
 
         if (!this._attachedNode || !this._scene) {
-            this._isCurrentlyGazing = false;
-            return;
+            this._isCurrentlyGazing = false
+            return
         }
 
-        const camera = this._xrManager.xrHelper.baseExperience.camera;
-        if (!camera) {
-            this._isCurrentlyGazing = false;
-            return;
-        }
+        const gaze = this._inputs.head
+        this._isCurrentlyGazing = gaze.targetMesh === this._attachedNode
 
-        const gazeRay = camera.getForwardRay();
-
-        // Censé ignorer les objets non pickables pour gagner en performance.
-        const predicate = (mesh: AbstractMesh): boolean => {
-            return mesh.isPickable;
-        };
-
-        const pickInfo = this._scene.pickWithRay(gazeRay, predicate);
-        console.log("PICKED MESH:", pickInfo?.pickedMesh?.name);
-        // Vérifier si le mesh ramassé est celui auquel nous sommes attachés.
-        if (pickInfo && pickInfo.hit && pickInfo.pickedMesh === this._attachedNode) {
-            this._isCurrentlyGazing = true;
-        } else {
-            this._isCurrentlyGazing = false;
-        }
+        if (GazeBehavior.DEBUG_LOG) console.log("PICKED MESH:", gaze.targetMesh?.name)
     }
 
 }

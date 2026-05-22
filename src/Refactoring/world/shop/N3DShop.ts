@@ -10,6 +10,7 @@ import { parallel } from "../../utils/utils";
 export interface N3DShopOptions{
     kinds?: string[],
     categories?: Record<string, string[]>,
+    forcedOption?: Record<string, any>,
 }
 
 export interface N3DShopObject {
@@ -63,6 +64,8 @@ export class N3DShop {
         readonly inputs: InputManager,
         readonly shopOptions: N3DShopOptions = {},
     ){
+        const forcedOption = shopOptions.forcedOption ?? {}
+
         for(const mesh of target.getChildMeshes(false)){
             try{
                 const splitted = mesh.name.split(".")
@@ -77,7 +80,8 @@ export class N3DShop {
                     .replace(/"\s*"/g,'", "') // Relaxed absent commas
                     .replace(/(?<=[,{]\s*)([a-z0-9A-Z_]+)(?=\s*[,}])/g,'"$1":true') // Relaxed boolean without value
 
-                const options = JSON.parse(realJson) as any
+                const options = {...(JSON.parse(realJson) as any), ...(forcedOption[type]??{})}
+                
                 
                 const zone = options.zone ?? "default"
 
@@ -156,7 +160,11 @@ export class N3DShop {
                 }
             }))
             z.dispose = async()=>{
-                await Promise.all(disposers.map(d=>d?.()))
+                try{
+                    await Promise.all(disposers.map(d=>d?.()))
+                }catch(e){
+                    console.error(e)
+                }
             }
         })()
     }
@@ -187,12 +195,12 @@ export class N3DShop {
     static BASE_OPTIONS: N3DShopOptions = {
         kinds: [
             "livepiano", "maracas", "audiooutput", "oscillator", "notesbox",
-            "wam3d-modal", "wam3d-tiny54", "wam3d-voxamp", "wam3d-flute", "wam3d-disto_machine", "wam3d-guitar", "wam3d-kverb",
+            "wam3d-modal", "wam3d-Micro 54", "wam3d-Vox Amp 30", "wam3d-Faust Flute", "wam3d-Disto Machine", "wam3d-FAUST Guitar", "wam3d-KVerb",
         ],
         categories: {
             generator: ["livepiano", "oscillator", "notesbox", "maracas"],
-            instrument: ["wam3d-tiny54", "wam3d-flute", "wam3d-guitar", "wam3d-modal"],
-            effect: ["wam3d-voxamp", "wam3d-disto_machine", "wam3d-kverb"],
+            instrument: ["wam3d-Micro 54", "wam3d-Faust Flute", "wam3d-FAUST Guitar", "wam3d-modal"],
+            effect: ["wam3d-Vox Amp 30", "wam3d-Disto Machine", "wam3d-KVerb"],
             technical: ["audiooutput"],
         }
     }

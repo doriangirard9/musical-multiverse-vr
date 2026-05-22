@@ -4,6 +4,17 @@ import { AbstractMesh, Color3 } from "@babylonjs/core"
 
 /**
  * Un objet connectable (entrée ou sortie) d'un Node3D, connectable à une sortie d'un autre Node3D.
+ * 
+ * La création et suppression d'une connexion s'effectuent comme suit:
+ * ```ts
+ *  // A la connexion
+ *  const connection = input.connectAsInput()
+ *  output.connectAsOutput(connection)
+ * 
+ *  // A la déconnexion
+ *  input.disconnectAsInput(connection)
+ *  output.disconnectAsOutput(connection)
+ * ```
  */
 export interface Node3DConnectable{
 
@@ -52,25 +63,30 @@ export interface Node3DConnectable{
     readonly label: string
 
     /**
-     * Appelé lorsque l'entrée est connectée à une sortie.
-     * Est appelé d'abord pour la sortie, puis pour l'entrée.
-     * Le callback donné est uniquer pour chaque connectable.
-     * @param sender Une fonction qui peut être appelée pour envoyer une valeur au connectable à l'autre bout de la connexion.
+     * Appelé quand sur le connectable d'entrée.
+     * L'objet retourné est passé à la méthode {@link Node3DConnectable.connectAsOutput} du connectable de sortie.
+     * @return Un objet qui sera passé à la méthode {@link Node3DConnectable.connectAsOutput} du connectable de sortie.
      */
-    connect(sender: (value:any)=>void): void
-   
-    /**
-     * Appelé lorsque l'entrée est déconnectée d'une sortie.
-     * Est appelé d'abord pour la sortie, puis pour l'entrée.
-     * Le callback donné est uniquer pour chaque connectable et est le même que celui donné à la fonction connect, il
-     * peut donc être utilisé pour identifier la connexion.
-     * @param sender Une fonction qui peut être appelée pour envoyer une valeur au connectable à l'autre bout de la connexion.
-     */
-    disconnect(sender: (value:any)=>void): void
+    connectAsInput(): any
 
     /**
-     * Appelé lorsque une valeur est envoyée à la connexion par la connexion à l'autre bout.
-     * @param value La nouvelle valeur de l'entrée.
+     * Appelé quand sur le connectable de sortie.
+     * L'objet retourné est passé à la méthode {@link Node3DConnectable.connectAsInput} du connectable d'entrée.
+     * @param value L'objet retourné par la méthode {@link Node3DConnectable.connectAsInput} du connectable d'entrée.
      */
-    receive(value: any): void
+    connectAsOutput(connection: any): void
+
+    /**
+     * Appelé lorsque l'entrée est déconnectée d'une sortie.
+     * Est appelée avant la méthode {@link Node3DConnectable.disconnectAsOutput} du connectable de sortie.
+     * @param connectable L'objet retourné par la méthode {@link Node3DConnectable.connectAsInput} du connectable d'entrée, ou par la méthode {@link Node3DConnectable.connectAsOutput} du connectable de sortie, selon le connectable qui est déconnecté.
+     */
+    disconnectAsInput(connection: any): void
+
+    /**
+     * Appelé lorsque la sortie est déconnectée d'une entrée.
+     * Est appelée après la méthode {@link Node3DConnectable.disconnectAsInput} du connectable d'entrée.
+     * @param connectable L'objet retourné par la méthode {@link Node3DConnectable.connectAsInput} du connectable d'entrée, ou par la méthode {@link Node3DConnectable.connectAsOutput} du connectable de sortie, selon le connectable qui est déconnecté.
+     */
+    disconnectAsOutput(connection: any): void
 }

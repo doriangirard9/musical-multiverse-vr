@@ -1,5 +1,6 @@
 import { Behavior, Matrix, Quaternion, TransformNode } from "@babylonjs/core";
 import { InputManager } from "../../xr/inputs/InputManager";
+import { PointerInput } from "../../xr/inputs/PointerInput";
 
 /**
  * An object attached to this behavior will be moved around by the user with his controller.
@@ -18,26 +19,28 @@ export class MoveHoldBehaviour implements Behavior<TransformNode> {
 
   on_move: () => void = () => {}
 
-  constructor(){}
+  constructor(readonly pointer: PointerInput){}
 
   init(): void {}
 
   attach(target: TransformNode): void {
+    this.detach()
+
     this.target = target
 
     const inputs = InputManager.getInstance()
 
     // Move around by dragging
-    const o = inputs.pointer_move.add(() => this.updatePos())
+    const o = this.pointer.onMove.add(() => this.updatePos())
     this.updatePos()
 
     // Move forward and backward with RIGHT thumbstick
     let power = 1 
-    const o2 = inputs.right_thumbstick.setPullInterval(50,
+    const o2 = inputs.right.thumbstick.setPullInterval(50,
       (_,y)=>{
         power += 0.1
         this.distance += y/4*power
-        if(this.distance < 1) this.distance = 1 // Prevent negative distance
+        if(this.distance < 0.1) this.distance = 0.1 // Prevent negative distance
         this.updatePos()
       },
       ()=>{
@@ -48,14 +51,15 @@ export class MoveHoldBehaviour implements Behavior<TransformNode> {
     this.detach = ()=>{
       o.remove()
       o2.remove()
+      this.detach = ()=>{}
     }
 
   }
 
-  detach!: () => void
+  detach = ()=>{}
 
   updatePos(){
-    const pointer = InputManager.getInstance().current_pointer
+    const pointer = this.pointer
 
     const {origin, forward, up, right} = pointer
 

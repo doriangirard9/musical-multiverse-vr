@@ -1,4 +1,3 @@
-import {Position3D} from "../shared/SharedTypes.ts";
 
 export type PlayerState = {
     id: string;

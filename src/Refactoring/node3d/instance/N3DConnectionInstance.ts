@@ -14,6 +14,7 @@ import { SceneManager } from "../../app/SceneManager"
  * Gère le visuel et la logique des connections.
  */
 export class N3DConnectionInstance{
+    private static readonly DEBUG_LOG = false;
 
     private tube
     private shake
@@ -24,11 +25,11 @@ export class N3DConnectionInstance{
         private scene: Scene,
         private nodes: SyncManager<Node3DInstance,any>,
         private connections: SyncManager<N3DConnectionInstance,any>,
-        private messages: UIManager
+        private messages: UIManager,
     ){
         this.tube = CreateCylinder("connection tube",{
             height: 1,
-            diameter: .25,
+            diameter: .25*Node3DInstance.CONNECTION_SIZE_MULTIPLIER,
             tessellation: 6
         },this.scene)
 
@@ -38,9 +39,9 @@ export class N3DConnectionInstance{
         this.tube.addBehavior(this.shake)
         this.shake.on_shake = (power, counter) => {
             this.tube.visibility = Math.max(0, 1 - power / 10)
-            if(counter>5) connections.remove(this)
+            if(counter>10) connections.remove(this)
         }
-        this.shake.on_stop = (power, counter) => {
+        this.shake.on_stop = (_, __) => {
             this.tube.visibility = .8
         }
         this.shake.on_pick = () => {
@@ -72,12 +73,16 @@ export class N3DConnectionInstance{
 
     get isConnecting(){ return this.cOutput!=null && this.cInput!=null }
 
+
+
     // Connection
     private cOutput = null as N3DConnectableInstance|null
     private cInput = null as N3DConnectableInstance|null
     private observables = [] as Observer<any>[]
     private color = Color3.White().toColor4(1)
     private buildTimeout?: any
+
+    private connectionObject: any = null
 
     /**
      * Connect la node3D à deux connections. Pas de synchronisation.
@@ -105,10 +110,12 @@ export class N3DConnectionInstance{
         // Check that the connection don't have the maximum number of connection
         if(cA.connections.size >= (cA.config.max_connections??Number.MAX_SAFE_INTEGER)){
             this.messages.showMessage(`The first connectable already have the maximum number of connection`,2000)
+            return false
         }
 
         if(cB.connections.size >= (cB.config.max_connections??Number.MAX_SAFE_INTEGER)){
             this.messages.showMessage(`The second connectable already have the maximum number of connection`,2000)
+            return false
         }
         
         // Check that the connections directions are compatible
@@ -136,8 +143,8 @@ export class N3DConnectionInstance{
         })()
 
         // Logical connection
-        output.config.connect(input.config.receive.bind(input.config))
-        input.config.connect(output.config.receive.bind(output.config))
+        this.connectionObject = input.config.connectAsInput()
+        output.config.connectAsOutput(this.connectionObject)
         
         this.cOutput = output
         this.cInput = input
@@ -153,8 +160,8 @@ export class N3DConnectionInstance{
 
         if(![input.config.direction, output.config.direction].includes("bidirectional")){
             this.arrow = CreateCylinder("connection arrow",{
-                height: 1,
-                diameterBottom: .5,
+                height: Node3DInstance.CONNECTION_SIZE_MULTIPLIER,
+                diameterBottom: .5*Node3DInstance.CONNECTION_SIZE_MULTIPLIER,
                 diameterTop: 0,
                 tessellation: 6,
             },this.scene)
@@ -165,11 +172,11 @@ export class N3DConnectionInstance{
 
         const connection = this
         function movetube(){
-            if(!connection.buildTimeout)connection.buildTimeout = setTimeout(()=>{
+            if(!connection.buildTimeout) connection.buildTimeout = setTimeout(()=>{
                 // Some calculations
                 const offset = inputMesh.absolutePosition.subtract(outputMesh.absolutePosition)
                 const length = offset.length()
-                const tubeLength = (length - 1)
+                const tubeLength = (length - Node3DInstance.CONNECTION_SIZE_MULTIPLIER)
                 offset.normalize()
 
                 const pointA = outputMesh.absolutePosition
@@ -207,8 +214,8 @@ export class N3DConnectionInstance{
     private disconnect(){
         const {cOutput,cInput} = this
         if(cOutput && cInput){
-            cOutput.config.disconnect(cInput.config.receive.bind(cInput.config))
-            cInput.config.disconnect(cOutput.config.receive.bind(cOutput.config))
+            cInput.config.disconnectAsInput(this.connectionObject)
+            cOutput.config.disconnectAsOutput(this.connectionObject)
             cOutput.connections.delete(this)
             cInput.connections.delete(this)
             this.cInput = null
@@ -217,6 +224,21 @@ export class N3DConnectionInstance{
             this.arrow?.dispose()
         }
     }
+
+
+    //// Pulse Visual ////
+    private pulseTimeout?: any
+    public pulse(strength: number, tone: number){
+        if(this.pulseTimeout) clearTimeout(this.pulseTimeout)
+
+        const color = Color3.FromHSV(tone*360, 1-strength, 1).toColor4(1).multiplyInPlace(this.color)
+        MeshUtils.setColor(this.tube, color)
+
+        this.pulseTimeout = setTimeout(()=>{
+            MeshUtils.setColor(this.tube, this.color)
+        }, 100)
+    }
+
 
     //// Synchronization ////
     private set_states: (key: string) => void = () => {}
@@ -239,11 +261,11 @@ export class N3DConnectionInstance{
         if(key=="connectables"){
             const {fromId,fromPortId,toId,toPortId} = value as {fromId:string, fromPortId:string, toId:string, toPortId:string}
             
-            console.log("TRET Wait for node "+fromId)
+            if (N3DConnectionInstance.DEBUG_LOG) console.log("TRET Wait for node "+fromId)
             const from = await this.nodes.get(fromId) ?? null
-            console.log(`TRET  ${this.connections.getId(this)}: ${from} -> *`)
+            if (N3DConnectionInstance.DEBUG_LOG) console.log(`TRET  ${this.connections.getId(this)}: ${from} -> *`)
             const to = await this.nodes.get(toId) ?? null
-            console.log(`TRET ${this.connections.getId(this)}: * -> ${to}`)
+            if (N3DConnectionInstance.DEBUG_LOG) console.log(`TRET ${this.connections.getId(this)}: * -> ${to}`)
 
             const fromConnectable = from?.connectables?.get(fromPortId)
             const toConnectable = to?.connectables?.get(toPortId)
@@ -279,14 +301,22 @@ export class N3DConnectionInstance{
         scene: Scene,
         doc: Doc,
         nodes: SyncManager<Node3DInstance, any>,
-        messages: UIManager
+        messages: UIManager,
+        onAdd?: (instance:N3DConnectionInstance)=>void,
+        onRemove?: (instance:N3DConnectionInstance)=>void,
     ){
         const syncmanager: SyncManager<N3DConnectionInstance,any> = new SyncManager({
             name: "node3d_connections",
             doc,
             async create() { return new N3DConnectionInstance(scene, nodes, syncmanager, messages) },
-            async on_add(instance) { instance.on_dispose = ()=> syncmanager.remove(instance) },
-            async on_remove(instance) { instance.dispose() },
+            async on_add(instance) {
+                instance.on_dispose = ()=> syncmanager.remove(instance)
+                onAdd?.(instance)
+            },
+            async on_remove(instance) {
+                onRemove?.(instance)
+                instance.dispose()
+            },
         })
         return syncmanager
     }

@@ -13,7 +13,6 @@ import { GridStrategy } from "./grid/GridStrategy";
 import { Piano88Strategy } from "./grid/Piano88Strategy";
 import { DrumPadsStrategy } from "./grid/DrumPadsStrategy";
 import { InputManager } from "../../../xr/inputs/InputManager";
-import { XRManager } from "../../../xr/XRManager";
 import { SceneManager } from "../../../app/SceneManager";
 import { XRControllerManager } from "../../../xr/XRControllerManager";
 
@@ -67,6 +66,9 @@ const COLOR_WHITE_KEY = new B.Color3(1, 1, 1);
 const COLOR_DISABLED = new B.Color3(0.2, 0.2, 0.2);
 const COLOR_BASE_MESH = new B.Color3(0.5, 0.2, 0.2);
 const COLOR_HOVER = new B.Color3(1, 1, 0);
+
+const DEBUG_LOG = false;
+
 class PianoRollN3DGUI implements Node3DGUI {
   // Scene / root
   public root: B.TransformNode;
@@ -77,7 +79,9 @@ class PianoRollN3DGUI implements Node3DGUI {
   public playhead!: B.Mesh;
   public menuButton!: B.Mesh;
   public midiOutput!: B.Mesh;
+  public midiInput!: B.Mesh;
   public btnStartStop!: B.Mesh;
+  public btnRecord!: B.Mesh; // Recording button
   public preventClickBetweenNotesMesh!: B.Mesh;
 
   // Scroll arrows
@@ -186,14 +190,19 @@ class PianoRollN3DGUI implements Node3DGUI {
     // Calculate scaling factor to fit within 1x1x1 block
     // Use 0.95 to leave some margin
     const scaleFactor = 0.95 / maxDimension;
-    console.log('maxDimension:', maxDimension );
-    console.log('scaleFactor:', scaleFactor);
+    if (DEBUG_LOG) console.log('maxDimension:', maxDimension );
+    if (DEBUG_LOG) console.log('scaleFactor:', scaleFactor);
     // Apply the scaling
     this.root.scaling.setAll(scaleFactor);
   }
 
   // Allow runtime hot-swap of strategy (e.g., connect to drum sampler)
   public setStrategy(strategy: GridStrategy) {
+    // Only reset grid if the actual constructor changes (strategy type), not just instance
+    if (this.strategy && this.strategy.constructor === strategy.constructor) {
+      return; // Same grid type, no need to reset anything
+    }
+    const oldStrategy = this.strategy;
     this.strategy = strategy;
     this.rows = this.strategy.getRowCount();
 
@@ -201,8 +210,30 @@ class PianoRollN3DGUI implements Node3DGUI {
     if (sugg) this.visibleRowCount = Math.min(this.rows, sugg);
     if (this.rows < this.visibleRowCount) this.visibleRowCount = this.rows;
 
-    // Reset start window safely
-    this._startRowIndex = Math.min(this._startRowIndex, Math.max(0, this.rows - this.visibleRowCount));
+    // When connecting to Piano88Strategy, scroll to the first playing note
+    if (strategy instanceof Piano88Strategy) {
+      const owner = (this as any).owner as PianoRollN3D | undefined;
+      const firstPlayingNoteRow = owner?.getFirstPlayingNoteRow?.(strategy);
+      if (firstPlayingNoteRow !== undefined && firstPlayingNoteRow >= 0) {
+        // Scroll to the first playing note, with some padding to center it nicely
+        const targetRow = Math.max(0, firstPlayingNoteRow - Math.floor(this.visibleRowCount / 4));
+        this._startRowIndex = Math.min(targetRow, Math.max(0, this.rows - this.visibleRowCount));
+      } else {
+        // No playing notes, scroll to C4 (middle note)
+        const c4Row = strategy.getRowForNote("C4");
+        if (c4Row >= 0) {
+          // Center C4 in the visible window
+          const targetRow = Math.max(0, c4Row - Math.floor(this.visibleRowCount / 2));
+          this._startRowIndex = Math.min(targetRow, Math.max(0, this.rows - this.visibleRowCount));
+        } else {
+          // Fallback to top if C4 not found (shouldn't happen)
+          this._startRowIndex = 0;
+        }
+      }
+    } else {
+      // Reset start window safely for other strategies
+      this._startRowIndex = Math.min(this._startRowIndex, Math.max(0, this.rows - this.visibleRowCount));
+    }
 
     // Recalculate scaling for new strategy dimensions
     this._calculateAndApplyScaling();
@@ -211,8 +242,8 @@ class PianoRollN3DGUI implements Node3DGUI {
     this.createGrid();
     this.updateRowVisibility();
 
-    // Notify controller if attached
-    (this as any).owner?.onGridChanged?.();
+    // Notify controller if attached, passing old strategy for note preservation
+    (this as any).owner?.onGridChanged?.(oldStrategy);
   }
 
   // ───────────────────────────────────────────────────────────────────────────
@@ -235,15 +266,27 @@ class PianoRollN3DGUI implements Node3DGUI {
 
     this.midiOutput = B.CreateIcoSphere(
       "piano roll midi output",
-      { radius: this.buttonWidth * 2 },
+      { radius: this.buttonWidth },
       this.context.scene
     );
-    this.tool.MeshUtils.setColor(this.midiOutput, MidiN3DConnectable.OutputColor.toColor4());
-    this.midiOutput.position.set(baseLength, baseY, baseZ + 1);
+    this.tool.MeshUtils.setColor(this.midiOutput, MidiN3DConnectable.Color.toColor4());
+    this.midiOutput.position.set(baseLength, baseY, baseZ);
     this.midiOutput.scaling.setAll(0.5);
     this.midiOutput.parent = this.root;
 
+    this.midiInput = T.ConnectableUtils.createInputMesh(
+      "piano roll midi input",
+      this.buttonWidth*2,
+      this.context.scene
+    );
+    this.tool.MeshUtils.setColor(this.midiInput, MidiN3DConnectable.Color.toColor4());
+    this.midiInput.position.set(-baseLength - this.buttonWidth, baseY, baseZ);  // Position on opposite side
+    this.midiInput.scaling.setAll(0.5);
+    this.midiInput.parent = this.root;
+
     this.startStopButton();
+    this.createRecordButton(); // Add recording button next to start/stop
+
   }
 
   // Add this inside the PianoRollN3DGUI class (same section as the other label helpers)
@@ -860,6 +903,22 @@ class PianoRollN3DGUI implements Node3DGUI {
     this.btnStartStop.isVisible = true;
   }
 
+  public createRecordButton(): void {
+    this.btnRecord = this.createBox(
+      "recordButton",
+      { width: 2, height: 0.6, depth: 0.4 },
+      B.Color3.Red(),
+      new B.Vector3(
+        this.startX - (this.buttonWidth + this.buttonSpacing) + 8, 
+        0.2,
+        this.endZ + (this.buttonDepth + this.buttonSpacing)
+      ),
+      this.root
+    );
+    this.btnRecord.isVisible = true;
+    this.createLabelForMesh(this.btnRecord, "REC", {textColor: "#fff"});
+  }
+
   public createMenuButton(): void {
     this.menuButton = this.createBox(
       "menuButton",
@@ -1091,11 +1150,11 @@ class PianoRollN3DGUI implements Node3DGUI {
 
   private _triggerHapticFeedback(): void {
     try {
-      const xrManager = XRManager.getInstance();
+      const inputs = InputManager.getInstance();
       const scene = this.context.scene;
 
-      const left = xrManager.xrInputManager.leftController;
-      const right = xrManager.xrInputManager.rightController;
+      const left = inputs.left;
+      const right = inputs.right;
 
       if (!left && !right) return;
 
@@ -1104,7 +1163,7 @@ class PianoRollN3DGUI implements Node3DGUI {
       const isNoteCellHit = (pick: B.Nullable<B.PickingInfo>): boolean => !!(pick?.hit && pick.pickedMesh === this.noteCell);
 
       if (left) {
-        const lray = new B.Ray(left.pointer.position, left.pointer.forward, maxLen);
+        const lray = new B.Ray(left.pointer.origin, left.pointer.forward, maxLen);
         const lpick = scene.pickWithRay(lray);
         if (isNoteCellHit(lpick)) {
           XRControllerManager.Instance.triggerHapticFeedback('left', 0.3, 50);
@@ -1113,7 +1172,7 @@ class PianoRollN3DGUI implements Node3DGUI {
       }
 
       if (right) {
-        const rray = new B.Ray(right.pointer.position, right.pointer.forward, maxLen);
+        const rray = new B.Ray(right.pointer.origin, right.pointer.forward, maxLen);
         const rpick = scene.pickWithRay(rray);
         if (isNoteCellHit(rpick)) {
           XRControllerManager.Instance.triggerHapticFeedback('right', 0.3, 50);
@@ -1156,7 +1215,7 @@ export class PianoRollN3D implements Node3D {
   // Music grid timing
   private tempo = 120;               // BPM
   private timeSignatureNumerator = 4;
-  private timeSignatureDenominator = 4; // also “beats per bar” in the step grid sense
+  private timeSignatureDenominator = 4; // also "beats per bar" in the step grid sense
   private ticksPerColumn = 6;        // 1 column = 6 ticks by default
   private beatDuration: number;      // seconds per beat (1/quarter)
   private cellDuration: number;      // seconds per column
@@ -1176,10 +1235,16 @@ export class PianoRollN3D implements Node3D {
   private isAKeyPressed = false;
 
   // Async ready gate for WAM init + pattern delegate
-  private ready!: Promise<void>;
+  public ready!: Promise<void>;
   private isReady = false;
   private pendingPattern: Pattern | null = null;
   private midiOutputConnectable: InstanceType<typeof MidiN3DConnectable.ListOutput>;
+  private midiInputConnectable?: InstanceType<typeof MidiN3DConnectable.Input>;
+  private isRecording = false; // Track recording state
+  
+  // MIDI Note Recording state (adapted from MIDINoteRecorder.ts)
+  private noteStates: Array<{onTick?: number; onVelocity?: number}> = [];
+  private recordingChannel = -1; // -1 means all channels
 
   constructor(context: Node3DContext, gui: PianoRollN3DGUI) {
     this.context = context;
@@ -1203,8 +1268,14 @@ export class PianoRollN3D implements Node3D {
     // back-reference for GUI callbacks
     (this.gui as any).owner = this;
 
+    // Initialize MIDI note recording states (128 MIDI notes)
+    for (let i = 0; i < 128; i++) {
+      this.noteStates.push({});
+    }
+
     // bounding volume
     context.addToBoundingBox(gui.block);
+
 
     this.midiOutputConnectable = new this.context.tools.MidiN3DConnectable.ListOutput(
       "midioutput", 
@@ -1212,7 +1283,7 @@ export class PianoRollN3D implements Node3D {
       "MIDI Output",
       // Callback when instrument connects
       (wamNode: WamNode) => {
-          console.log(`Instrument connected: ${wamNode.instanceId}`);
+          if (DEBUG_LOG) console.log(`Instrument connected: ${wamNode.instanceId}`);
           
           // Connect to WAM instance if it exists
           if (this.wamInstance?.audioNode) {
@@ -1228,7 +1299,7 @@ export class PianoRollN3D implements Node3D {
       },
       // Callback when instrument disconnects
       (wamNode: WamNode) => {
-          console.log(`Instrument disconnected: ${wamNode.instanceId}`);
+          if (DEBUG_LOG) console.log(`Instrument disconnected: ${wamNode.instanceId}`);
           
           // Disconnect from WAM instance if it exists
           if (this.wamInstance?.audioNode) {
@@ -1241,6 +1312,9 @@ export class PianoRollN3D implements Node3D {
 
     context.createConnectable(this.midiOutputConnectable);
 
+    // Note: MIDI input connectable will be created after WAM initialization
+    // because it needs this.wamInstance.audioNode to exist
+    
 
     // ---- Shared Transport ----
     this.transport = WamTransportManager.getInstance(context.audioCtx);
@@ -1259,11 +1333,14 @@ export class PianoRollN3D implements Node3D {
 
     // Start/Stop toggling
     this.toggleStartStopBtn();
+    
+    // Recording button
+    this.setupRecordingButton();
 
     // Settings menu (columns/rows/tempo…)
     this.menu = new PianoRollSettingsMenu(this.gui.context.scene, this);
 
-    // “A” to draw/extend control sequences
+    // "A" to draw/extend control sequences
     window.addEventListener("keydown", (e) => {
       if (e.key.toLowerCase() === "a") this.isAKeyPressed = true;
     });
@@ -1276,7 +1353,7 @@ export class PianoRollN3D implements Node3D {
     
 
 // Right grip (squeeze) acts like holding "A" for long-note editing
-InputManager.getInstance().right_squeeze.on_change.add((event) => {
+InputManager.getInstance().right.squeeze.onChange.add((event) => {
   const active = (event.value ?? 0) > 0 || !!event.pressed; // optional: change 0 -> 0.1 as deadzone
   if (active) {
     this.isAKeyPressed = true;
@@ -1311,9 +1388,9 @@ InputManager.getInstance().right_squeeze.on_change.add((event) => {
     
 
 // initialize input managers
-const im = InputManager.getInstance();
-const xrManager = XRManager.getInstance();
-const t = SceneManager.getInstance().getScene();
+const im = InputManager.getInstance()
+const inputs = InputManager.getInstance()
+const t = SceneManager.getInstance().getScene()
 
 // Track if we're currently scrolling to prevent camera movement
 let isScrolling = false;
@@ -1331,13 +1408,13 @@ const getPianoRollFromMesh = (mesh: B.AbstractMesh): PianoRollN3D | null => {
       this.gui.keyBoard.includes(mesh as B.Mesh) ||
       this.gui.keyLabels.includes(mesh as B.Mesh) ||
       mesh === this.gui.noteCell) {
-        console.log("Piano roll found");
+        if (DEBUG_LOG) console.log("Piano roll found");
     return this; // This is our piano roll instance
   }
   
   // Check if it's a thin instance of our note cell
   if (mesh === this.gui.noteCell) {
-    console.log("Note cell found");
+    if (DEBUG_LOG) console.log("Note cell found");
     return this;
   }
   
@@ -1346,31 +1423,26 @@ const getPianoRollFromMesh = (mesh: B.AbstractMesh): PianoRollN3D | null => {
 
 // Helper function to perform raycast and get pointed piano roll
 const getPointedPianoRollLeftController = (): PianoRollN3D | null => {
-  const leftController = xrManager.xrInputManager.leftController;
-  // const rightController = xrManager.xrInputManager.rightController;
-
-  if (!leftController) return null;
-  // if (!rightController) return null;
+  const leftController = inputs.left
   
   // Create ray from controller
-  const ray = new B.Ray(leftController.pointer.position, leftController.pointer.forward, 100);
-  const pickResult = t.pickWithRay(ray);
+  const {targetMesh} = leftController.pointer
   
-  if (pickResult?.hit && pickResult.pickedMesh) {
+  if (targetMesh) {
     // Check if the picked mesh belongs to this piano roll
-    return getPianoRollFromMesh(pickResult.pickedMesh);
+    return getPianoRollFromMesh(targetMesh);
   }
   
   return null;
 };
 const getPointedPianoRollRightController = (): PianoRollN3D | null => {
 
-   const rightController = xrManager.xrInputManager.rightController;
+   const {right} = InputManager.getInstance();
 
-  if (!rightController) return null;
+  if (!right) return null;
   
   // Create ray from controller
-  const ray = new B.Ray(rightController.pointer.position, rightController.pointer.forward, 100);
+  const ray = new B.Ray(right.pointer.origin, right.pointer.forward, 100);
   const pickResult = t.pickWithRay(ray);
   
   if (pickResult?.hit && pickResult.pickedMesh) {
@@ -1396,7 +1468,7 @@ const startScrolling = (direction: number) => {
   if (pointedPianoRollLeft === this || pointedPianoRollRight === this) {
     isScrolling = true;
     // Completely disable movement features to prevent camera rotation
-    xrManager.setMovement([]);
+    inputs.movement.stackDisable()
     
     // Start continuous scrolling
     scrollInterval = setInterval(() => {
@@ -1413,20 +1485,20 @@ const stopScrolling = () => {
   if (isScrolling) {
     isScrolling = false;
     // Re-enable both rotation and translation
-    xrManager.setMovement(["rotation", "translation"]);
+    inputs.movement.stackEnable();
   }
 };
 
 // Start scrolling when thumbstick is pushed
-im.left_thumbstick.on_up_down.add(() => startScrolling(-1));
-im.left_thumbstick.on_down_down.add(() => startScrolling(1));
+im.right.thumbstick.on_up_down.add(() => startScrolling(-1));
+im.right.thumbstick.on_down_down.add(() => startScrolling(1));
 
 // Stop scrolling when thumbstick is released
-im.left_thumbstick.on_up_up.add(() => stopScrolling());
-im.left_thumbstick.on_down_up.add(() => stopScrolling());
+im.right.thumbstick.on_up_up.add(() => stopScrolling());
+im.right.thumbstick.on_down_up.add(() => stopScrolling());
 
 // Also stop when thumbstick returns to center
-im.left_thumbstick.on_value_change.add(({ x, y }) => {
+im.right.thumbstick.on_value_change.add(({ x, y }) => {
   const deadzone = 0.1;
   const isInDeadzone = Math.abs(x) < deadzone && Math.abs(y) < deadzone;
   
@@ -1463,17 +1535,39 @@ private onInstrumentDisconnected(_wamNode: WamNode) {
   }
 
   /** GUI strategy changed (e.g., switched to drum pads) */
-  public onGridChanged(): void {
+  public onGridChanged(_oldStrategy?: GridStrategy): void {
+    // If PianoRollN3D instance is attached, ensure all notes stop on true reset
+    if ((this as any).owner?.stopAllNotes) {
+      (this as any).owner.stopAllNotes(); // Let the controller cancel all sounds
+    }
     const rows = this.gui.strategy.getRowCount();
     const cols = this.gui.cols;
 
-    // reset on strategy switch (or remap MIDI→row if you prefer)
+    // Always preserve all pattern notes before switching strategies
+    // This ensures notes are kept even if they're not displayed in the new strategy
+    const savedPattern = this.pattern.notes.length > 0
+      ? { ...this.pattern, notes: [...this.pattern.notes] }
+      : null;
+
+    // reset visuals
     this.isActive = Array.from({ length: rows }, () => Array(cols).fill(false));
     this.mode    = Array.from({ length: rows }, () => Array(cols).fill("normal"));
+    
+    // Clear pattern notes array (we'll restore them after rebuilding the grid)
     this.pattern.notes = [];
+    
     Object.values(this.rowControlBorders).flat().forEach(m => m.dispose());
     this.rowControlBorders = {};
-    this.gui.repaintVisibleFromState();
+    
+    // Always restore all preserved notes when switching strategies
+    // Notes that can't be mapped to the new strategy will be kept in the pattern
+    // but won't be displayed (e.g., piano notes when switching to drum)
+    if (savedPattern && savedPattern.notes.length > 0) {
+      this._applyPattern(savedPattern);
+      this._safeSendPatternToPianoRoll();
+    } else {
+      this.gui.repaintVisibleFromState();
+    }
   }
 
   // ───────────────────────────────────────────────────────────────────────────
@@ -1484,7 +1578,7 @@ private onInstrumentDisconnected(_wamNode: WamNode) {
     this.wamInstance = await WamInitializer.getInstance()
       .initWamInstance("https://www.webaudiomodules.com/community/plugins/burns-audio/pianoroll/index.js");
 
-    // // Expose a MIDI Output tied to the plugin’s AudioNode (for your patchbay)
+    // // Expose a MIDI Output tied to the plugin's AudioNode (for your patchbay)
     // const output = new MidiN3DConnectable.Output(
     //   "midiOutput",
     //   [this.gui.midiOutput],
@@ -1497,7 +1591,43 @@ private onInstrumentDisconnected(_wamNode: WamNode) {
         this.midiOutputConnectable.connections.forEach(wamNode => {
           this.wamInstance.audioNode.connectEvents(wamNode.instanceId);
       });
-  
+
+    // Create a wrapper WamNode to intercept incoming MIDI for recording
+    const pianoRollAudioNode = this.wamInstance.audioNode;
+    const originalScheduleEvents = pianoRollAudioNode.scheduleEvents.bind(pianoRollAudioNode);
+    
+    // Wrap scheduleEvents to intercept MIDI for recording
+    pianoRollAudioNode.scheduleEvents = (event: any) => {
+      // Debug: Log ALL incoming events to diagnose the issue
+      console.log('[PianoRoll] scheduleEvents called with event:', {
+        type: event.type,
+        time: event.time,
+        data: event.data,
+        isRecording: this.isRecording
+      });
+      
+      // Forward to original (for audio output)
+      originalScheduleEvents(event);
+      
+      // If recording and this is a MIDI event, capture it
+      if (this.isRecording && event.type === 'wam-midi') {
+        console.log('[PianoRoll] Intercepted MIDI event for recording');
+        this.onMidiEventForRecording(event.data.bytes, event.time);
+      }
+    };
+    
+    // Now create the MIDI input connectable
+    this.midiInputConnectable = new this.context.tools.MidiN3DConnectable.Input(
+      `midiinput_pianoRollInput`,
+      [this.gui.midiInput],
+      "Recording MIDI Input",
+      pianoRollAudioNode
+    );
+    this.context.createConnectable(this.midiInputConnectable);
+    
+    console.log('[PianoRoll] MIDI input connectable created with recording interception');
+
+
 
     // Join shared transport group
     this.transport.register(this.wamInstance.audioNode);
@@ -1551,6 +1681,143 @@ private onInstrumentDisconnected(_wamNode: WamNode) {
     this.highlightActiveButtons(currentCol);
   }
 
+  /**
+   * Process incoming MIDI event for recording (adapted from MIDINoteRecorder.onMIDI)
+   */
+  private onMidiEventForRecording(bytes: Uint8Array | number[], timestamp: number): void {
+    console.log('[PianoRoll] onMidiEventForRecording called', { bytes, timestamp });
+    
+    const event = Array.isArray(bytes) ? bytes : Array.from(bytes);
+    console.log('[PianoRoll] MIDI event array:', event);
+    
+    let isNoteOn = (event[0] & 0xF0) === 0x90;  // MIDI Note ON
+    let isNoteOff = (event[0] & 0xF0) === 0x80; // MIDI Note OFF
+    console.log('[PianoRoll] Note type:', { isNoteOn, isNoteOff, status: event[0].toString(16) });
+    
+    // Check channel filter
+    if ((isNoteOn || isNoteOff) && this.recordingChannel !== -1 && (event[0] & 0x0F) !== this.recordingChannel) {
+      console.log('[PianoRoll] Wrong channel, ignoring');
+      return; // Wrong channel, ignore
+    }
+    
+    // Treat note on with 0 velocity as note off
+    if (isNoteOn && event[2] === 0) {
+      isNoteOn = false;
+      isNoteOff = true;
+      console.log('[PianoRoll] Converted note on with 0 velocity to note off');
+    }
+    
+    const noteNumber = event[1];
+    const velocity = event[2];
+    const state = this.noteStates[noteNumber];
+    
+    console.log('[PianoRoll] Processing note:', { noteNumber, velocity, currentState: state });
+    
+    const currentTick = this.getCurrentTick(timestamp);
+    console.log('[PianoRoll] Current tick:', currentTick);
+    
+    if (isNoteOff && state.onTick !== undefined) {
+      console.log('[PianoRoll] Finalizing note off');
+      this.finalizeRecordedNote(noteNumber, currentTick);
+    }
+    
+    if (isNoteOn && state.onTick !== undefined) {
+      // Note already held, finalize old one first
+      console.log('[PianoRoll] Finalizing previous note on');
+      this.finalizeRecordedNote(noteNumber, currentTick);
+    }
+    
+    if (isNoteOn) {
+      console.log('[PianoRoll] Recording note on at tick', currentTick);
+      this.noteStates[noteNumber] = {
+        onTick: currentTick,
+        onVelocity: velocity
+      };
+    }
+  }
+  
+  /**
+   * Get current tick position based on transport time (adapted from MIDINoteRecorder.getTick)
+   */
+  private getCurrentTick(_timestamp: number): number {
+    const elapsed = this.transport.getElapsedSeconds();
+    const beatPosition = (elapsed / this.beatDuration);
+    const tickPosition = Math.floor(beatPosition * this.ticksPerColumn);
+    return tickPosition % this.pattern.length;
+  }
+  
+  /**
+   * Finalize a recorded note and add it to the pattern
+   */
+  private finalizeRecordedNote(noteNumber: number, endTick: number): void {
+    const state = this.noteStates[noteNumber];
+    if (!state.onTick || !state.onVelocity) return;
+    
+    const startTick = state.onTick;
+    let duration = endTick - startTick;
+    
+    // Handle wrap-around at pattern end
+    if (duration < 0) {
+      duration += this.pattern.length;
+    }
+    
+    // Ensure minimum duration of 1 tick for drum hits (they often have very short duration)
+    if (duration === 0) {
+      duration = 1;
+    }
+    
+    // Only add notes with positive duration
+    if (duration > 0) {
+      // Remove any existing note at this position
+      const existingIdx = this.pattern.notes.findIndex(
+        n => n.number === noteNumber && n.tick === startTick
+      );
+      if (existingIdx !== -1) {
+        this.pattern.notes.splice(existingIdx, 1);
+      }
+      
+      // Add the new note
+      this.pattern.notes.push({
+        tick: startTick,
+        number: noteNumber,
+        duration: duration,
+        velocity: state.onVelocity
+      });
+      
+      console.log(`[PianoRoll] Recorded note ${noteNumber} at tick ${startTick}, duration ${duration}`);
+      
+      // Update the 3D visualization
+      this._applyPattern(this.pattern);
+      
+      // Notify network sync
+      this.context.notifyStateChange("pattern");
+    }
+    
+    // Clear the state
+    this.noteStates[noteNumber] = {};
+  }
+  
+  /**
+   * Finalize all currently held notes (called when stopping recording)
+   */
+  private finalizeAllRecordingNotes(): void {
+    const currentTick = this.getCurrentTick(this.context.audioCtx.currentTime);
+    for (let i = 0; i < 128; i++) {
+      if (this.noteStates[i].onTick !== undefined) {
+        this.finalizeRecordedNote(i, currentTick);
+      }
+    }
+  }
+  
+  /**
+   * Clear all recording note states (called when starting new recording)
+   */
+  private clearRecordingNoteStates(): void {
+    for (let i = 0; i < 128; i++) {
+      this.noteStates[i] = {};
+    }
+  }
+
   private highlightActiveButtons(currentCol: number): void {
     for (let row = 0; row < this.gui.strategy.getRowCount(); row++) {
       if (this.isActive[row]?.[currentCol]) {
@@ -1578,6 +1845,49 @@ private onInstrumentDisconnected(_wamNode: WamNode) {
     );
   }
 
+  private setupRecordingButton(): void {
+    if (!this.gui.btnRecord.actionManager)
+      this.gui.btnRecord.actionManager = new B.ActionManager(this.gui.context.scene);
+
+    this.gui.btnRecord.actionManager.registerAction(
+      new B.ExecuteCodeAction(B.ActionManager.OnPickTrigger, () => {
+        this.isRecording = !this.isRecording;
+        
+        console.log(`[PianoRoll] Recording toggled - isRecording: ${this.isRecording}`);
+        
+        // Update button appearance
+        const mat = this.gui.btnRecord.material as B.StandardMaterial;
+        mat.diffuseColor = this.isRecording ? B.Color3.Red() : new B.Color3(0.5, 0.5, 0.5);
+        mat.emissiveColor = this.isRecording ? new B.Color3(0.5, 0, 0) : B.Color3.Black();
+        
+        if (this.isRecording) {
+          // Clear any held notes from previous recording
+          this.clearRecordingNoteStates();
+          
+          // Start transport if not already playing
+          if (!this.transport.getPlaying()) {
+            console.log('[PianoRoll] Auto-starting transport for recording');
+            this.transport.toggle();
+            const startStopMat = this.gui.btnStartStop.material as B.StandardMaterial;
+            startStopMat.diffuseColor = B.Color3.Green();
+          }
+          
+          console.log('[PianoRoll] Recording armed - listening for MIDI input');
+        } else {
+          // When stopping recording, finalize any held notes
+          this.finalizeAllRecordingNotes();
+          console.log('[PianoRoll] Recording disarmed');
+        }
+      })
+    );
+    
+    // Set initial color to gray (not recording)
+    const mat = this.gui.btnRecord.material as B.StandardMaterial;
+    mat.diffuseColor = new B.Color3(0.5, 0.5, 0.5);
+    
+    console.log('[PianoRoll] Recording button setup complete');
+  }
+
   // ───────────────────────────────────────────────────────────────────────────
   // Pattern delegate (safe / deferred)
 
@@ -1599,6 +1909,12 @@ private onInstrumentDisconnected(_wamNode: WamNode) {
   }
   private _safeSendPatternToPianoRoll(): void {
     try {
+      // Don't send pattern to WAM while recording (WAM is the source of truth during recording)
+      if (this.isRecording) {
+        console.log('[PianoRoll] Skipping pattern send to WAM - currently recording');
+        return;
+      }
+      
       if (!this.wamInstance?.audioNode) return;
       const instanceId = (this.wamInstance.audioNode as any).instanceId;
       if (!instanceId) return;
@@ -1705,6 +2021,35 @@ private onInstrumentDisconnected(_wamNode: WamNode) {
     const rows = this.gui.strategy.getRowCount();
     for (let r = 0; r < rows; r++) if (this.gui.strategy.getMidiForRow(r) === midi) return r;
     return -1;
+  }
+
+  /** Get the row index of the first playing note in the pattern, or -1 if no notes */
+  public getFirstPlayingNoteRow(strategy?: GridStrategy): number {
+    if (!this.pattern.notes || this.pattern.notes.length === 0) {
+      return -1;
+    }
+
+    // Use provided strategy or fall back to current GUI strategy
+    const strategyToUse = strategy || this.gui.strategy;
+
+    // Find the minimum row index from all notes in the pattern
+    let minRow = Infinity;
+    for (const note of this.pattern.notes) {
+      // Convert MIDI to row using the specified strategy
+      const rows = strategyToUse.getRowCount();
+      let row = -1;
+      for (let r = 0; r < rows; r++) {
+        if (strategyToUse.getMidiForRow(r) === note.number) {
+          row = r;
+          break;
+        }
+      }
+      if (row >= 0 && row < minRow) {
+        minRow = row;
+      }
+    }
+
+    return minRow === Infinity ? -1 : minRow;
   }
 
   private updatePattern(row: number, col: number, isActive: boolean): void {
@@ -1958,6 +2303,7 @@ private onInstrumentDisconnected(_wamNode: WamNode) {
     if (key === "pattern") return { pattern: this.pattern, timestamp: Date.now() };
   }
   async setState(key: string, state: any): Promise<void> {
+    console.log("PianoRollN3D setState:", key, state);
     if (key === "pattern") this.setPattern(state.pattern);
   }
   getStateKeys(): string[] { return ["pattern"]; }
@@ -1969,6 +2315,20 @@ private onInstrumentDisconnected(_wamNode: WamNode) {
     if (this.unsubscribeTransport) this.unsubscribeTransport();
     if (this.wamInstance?.audioNode) this.transport.unregister(this.wamInstance.audioNode);
   }
+
+  /** Stop all currently playing notes (MIDI all-notes-off if possible) */
+  public stopAllNotes(): void {
+    const audioNode: any = this.wamInstance?.audioNode;
+    if (audioNode && typeof audioNode.allNotesOff === "function") {
+      audioNode.allNotesOff();
+    } else if (audioNode && typeof audioNode.noteOff === "function") {
+      // Fallback: try sending noteOff for all unique notes in the current pattern
+      const allNotes = Array.from(new Set(this.pattern.notes.map(n => n.number)));
+      allNotes.forEach(number => {
+        try { audioNode.noteOff(number); } catch (_) {}
+      });
+    }
+  }
 }
 
 
@@ -1977,5 +2337,10 @@ export const PianoRollN3DFactory: Node3DFactory<PianoRollN3DGUI, PianoRollN3D> =
   description : "3D Piano Roll Sequencer, sources WAM from sequencer.party",
   tags: ["wam", "midi", "sequencer", "pianoroll", "generator"],
   async createGUI(context) { return new PianoRollN3DGUI(context) },
-  async create(context, gui) { return new PianoRollN3D(context, gui) },
+  async create(context, gui) {
+    const ret = new PianoRollN3D(context, gui)
+    await ret.ready
+    await new Promise(res => setTimeout(res, 1000)) // Wait till patterns are sent. TODO: Faire ça proprement avec des async await
+    return ret  
+  },
 }
