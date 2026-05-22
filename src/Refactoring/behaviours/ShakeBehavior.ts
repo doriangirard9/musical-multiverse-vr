@@ -1,4 +1,4 @@
-import {AbstractMesh, Behavior, Vector3} from "@babylonjs/core"
+import {AbstractMesh, Behavior, CreateSphere, Vector3} from "@babylonjs/core"
 import { InputGrabBehavior } from "../xr/inputs/tools/InputGrabBehavior"
 import { PointerInput } from "../xr/inputs/PointerInput"
 
@@ -86,32 +86,52 @@ export class ShakeBehavior implements Behavior<AbstractMesh> {
                 console.log("shake power", this.shake_power, "counter", this.shake_counter)
                 this.on_shake(this.shake_power, this.shake_counter)
             }
-        },400)
+        },150)
     }
 
     private last_position = Vector3.Zero()
     private position = Vector3.Zero()
-    private delta = Vector3.Zero()
-    private last_delta = Vector3.Zero()
-    private last_distance = 0
+
+    private speed = Vector3.Zero()
+    private last_speed = Vector3.Zero()
+    
+    private last_acceleration = Vector3.Zero()
+    private acceleration = Vector3.Zero()
+
+    private jerk = Vector3.Zero()
+
+    private last_time = 0
+    private time = 0
 
     onMove(pointer: PointerInput){
+        // Time
+        const now = Date.now()
+        if(now - this.time < 100) return
+
+        this.last_time = this.time
+        this.time = now
+
+        // Debug
+        const mesh = CreateSphere("debug", {diameter: 0.1}, this.target!.getScene())
+        mesh.position.copyFrom(this.target!.absolutePosition)
+        mesh.visibility = 0.5
+        setTimeout(() => mesh.dispose(), 500)
+
+        // Positions
         this.last_position.copyFrom(this.position)
-        this.position .copyFrom(pointer.forward) .scaleInPlace(5) .addInPlace(pointer.origin)
+        this.position.copyFrom(pointer.origin)
 
-        this.last_delta.copyFrom(this.delta)
-        this.delta.copyFrom(this.position).subtractInPlace(this.last_position)
+        // Speed
+        this.last_speed.copyFrom(this.speed)
+        this.speed.copyFrom(this.position).subtractInPlace(this.last_position).scaleInPlace(1/(this.time-this.last_time))
+        
+        // Redirection
+        const redirection = Vector3.Dot(this.last_speed.normalizeToNew(), this.speed.normalizeToNew())
 
-        if (this.delta.lengthSquared() > 0.001) {
-            const dot = Vector3.Dot(this.delta, this.last_delta);
-            if (dot < -.2){
-                if(this.last_distance>.1){
-                    this.setShakePower(this.shake_power+1)
-                }
-                this.last_distance = 0
-            }
-            else this.last_distance += this.delta.length()
-        }
+        //UIManager.getInstance().showMessage((""+this.acceleration.length()).substring(1,),0)
+
+        if(redirection<-0.5) this.setShakePower(this.shake_power+1)
+
         if(this.shake_power>=this.shake_threshold) this.on_shake(this.shake_power, this.shake_counter)
     }
 

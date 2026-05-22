@@ -260,7 +260,7 @@ export class Node3DInstance implements Synchronized {
         shake.on_start = () => MeshUtils.setColor(this.bounding_box?.boundingBox!!, Color3.Red().toColor4())
 
         shake.on_shake = (_, time: number) => {
-            if (time > 5) NetworkManager.getInstance().node3d.nodes.remove(this)
+            if (time > 10) NetworkManager.getInstance().node3d.nodes.remove(this)
         }
 
         shake.on_stop = () => MeshUtils.setColor(this.bounding_box?.boundingBox!!, Color3.White().toColor4())

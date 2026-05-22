@@ -39,7 +39,7 @@ export class N3DConnectionInstance{
         this.tube.addBehavior(this.shake)
         this.shake.on_shake = (power, counter) => {
             this.tube.visibility = Math.max(0, 1 - power / 10)
-            if(counter>5) connections.remove(this)
+            if(counter>10) connections.remove(this)
         }
         this.shake.on_stop = (_, __) => {
             this.tube.visibility = .8
