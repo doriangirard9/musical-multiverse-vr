@@ -83,7 +83,6 @@ export class ShakeBehavior implements Behavior<AbstractMesh> {
             if(this.shake_power<0.01) this.shake_counter = 0
             else{
                 this.shake_counter = this.shake_counter + 1
-                console.log("shake power", this.shake_power, "counter", this.shake_counter)
                 this.on_shake(this.shake_power, this.shake_counter)
             }
         },150)
@@ -94,11 +93,7 @@ export class ShakeBehavior implements Behavior<AbstractMesh> {
 
     private speed = Vector3.Zero()
     private last_speed = Vector3.Zero()
-    
-    private last_acceleration = Vector3.Zero()
-    private acceleration = Vector3.Zero()
 
-    private jerk = Vector3.Zero()
 
     private last_time = 0
     private time = 0
@@ -111,12 +106,6 @@ export class ShakeBehavior implements Behavior<AbstractMesh> {
         this.last_time = this.time
         this.time = now
 
-        // Debug
-        const mesh = CreateSphere("debug", {diameter: 0.1}, this.target!.getScene())
-        mesh.position.copyFrom(this.target!.absolutePosition)
-        mesh.visibility = 0.5
-        setTimeout(() => mesh.dispose(), 500)
-
         // Positions
         this.last_position.copyFrom(this.position)
         this.position.copyFrom(pointer.origin)
@@ -127,8 +116,6 @@ export class ShakeBehavior implements Behavior<AbstractMesh> {
         
         // Redirection
         const redirection = Vector3.Dot(this.last_speed.normalizeToNew(), this.speed.normalizeToNew())
-
-        //UIManager.getInstance().showMessage((""+this.acceleration.length()).substring(1,),0)
 
         if(redirection<-0.5) this.setShakePower(this.shake_power+1)
 
