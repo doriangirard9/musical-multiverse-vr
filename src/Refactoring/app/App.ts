@@ -17,24 +17,26 @@ import { AvatarManager } from "./AvatarManager.ts";
 import { NetworkEventBus } from "../eventBus/NetworkEventBus.ts";
 import { RandomUtils } from "../node3d/tools/utils/RandomUtils.ts";
 import { Doc } from "yjs";
-import { MenuPanel } from "../world/menu/MenuPanel.ts";
 
-export class NewApp {
+let _app: App
+
+export class App {
     private static readonly DEBUG_LOG = false;
     private controlsUI?: ControlsUI;
 
-    constructor() {}
+    constructor() {
+        _app = this
+    }
 
+    private static instance?: App
 
-    private static instance?: NewApp
-
-    public static get(): NewApp {
-        if (!NewApp.instance) throw new Error("NewApp not initialized. Create an instance first.")
-        return NewApp.instance;
+    public static get(): App {
+        if (!App.instance) throw new Error("NewApp not initialized. Create an instance first.")
+        return App.instance;
     }
 
     public async start(participantId: string, roomName: string, doc: Doc): Promise<void> {
-        NewApp.instance = this
+        App.instance = this
         
         const username = RandomUtils.randomName()
         const usercolor = RandomUtils.randomColor()
@@ -112,7 +114,7 @@ export class NewApp {
             }
         });
 
-        if (NewApp.DEBUG_LOG) console.log(node3dShared)
+        if (App.DEBUG_LOG) console.log(node3dShared)
 
         window.addEventListener("keydown",async(e)=>{
             if(e.key=="p"){

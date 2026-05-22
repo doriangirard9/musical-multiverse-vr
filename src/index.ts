@@ -1,5 +1,4 @@
-import { CreateAudioEngineAsync } from "@babylonjs/core";
-import { NewApp } from "./Refactoring/app/NewApp.ts";
+import { App } from "./Refactoring/app/App.ts";
 import { HashRouter } from "./Refactoring/router/HashRouter.ts";
 import { ROUTES } from "./Refactoring/router/routes.ts";
 import { ApiClient } from "./Refactoring/auth/ApiClient.ts";
@@ -154,7 +153,7 @@ let onload = async() => {
                         
                         loadingOverlay.updateText('Loading 3D Environment...');
 
-                        const newApp = new NewApp();
+                        const newApp = new App();
                         console.log("START")
                         await newApp.start(connectionInfo.participantId, sessionId, doc);
                         appStarted = true;
