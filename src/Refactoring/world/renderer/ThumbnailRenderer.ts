@@ -74,7 +74,6 @@ export class ThumbnailRenderer {
         this.renderTarget.renderList!.length = 0
         let i = 0
         for(const node of nodes){
-            if(this.scene.add)
             this.renderTarget.renderList!.push(...node.getChildMeshes())
             for(const mesh of node.getChildMeshes()){
                 mesh.lightSources.length = 0
