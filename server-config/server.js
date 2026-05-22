@@ -1,10 +1,11 @@
 const express = require('express');
 const path = require('path');
 const cors = require('cors');
+const fs = require('node:fs');
+const https = require('https');
 const cookieParser = require('cookie-parser');
 const { initDatabase } = require('./database');
 const { startHeartbeatService } = require('./heartbeat');
-
 const app = express();
 const port = process.env.PORT || 3000;
 
@@ -39,16 +40,16 @@ app.get('/wamsConfig/:name', (req, res) => {
     const filePath = path.join(__dirname, `/public/wamsConfig/${req.params.name}.json`);
     fs.readFile(filePath, 'utf8', (err, data) => {
         if (err) {
-            console.error('Error reading file:', err);
-            res.status(500).send('Error reading file').end();
-            return;
+          console.error("Error reading file:", err);
+          res.status(500).send("Error reading file").end();
+          return;
         }
         res.setHeader('Content-Type', 'application/json');
         res.status(200).json(data).end();
-    });
-});
+      });
+ })
 
-app.get('/wamsConfig/', (req, res) => {
+ app.get('/wamsConfig/', (req, res) => {
     const directoryPath = path.join(__dirname, '/public/wamsConfig/');
     fs.readdir(directoryPath, (err, files) => {
         if (err) {

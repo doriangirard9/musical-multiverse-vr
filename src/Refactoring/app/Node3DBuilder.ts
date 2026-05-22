@@ -37,7 +37,7 @@ import { SuperformulaN3DFactory } from "../node3d/subs/behaviours/SuperformulaN3
 import ParticleEmitterN3DFactory from "../node3d/subs/particle/ParticleEmitterN3D.ts";
 import { N3DThumbnailRenderer } from "../world/renderer/N3DThumbnailRenderer.ts";
 
-const WAM_CONFIGS_URL: string = `https://wamjamparty.i3s.univ-cotedazur.fr/config`;
+const WAM_CONFIGS_URL: string = "https://wamjamparty.i3s.univ-cotedazur.fr/config";//"http://localhost:3000";
 
 export type Node3DConfig = { name: string, wam3d: WAMGuiInitCode }
 const additionalConfig: Record<string, any> = await fetch(`${WAM_CONFIGS_URL}/wamsConfig/additionalConfigs.json`).then(r => r.json())
