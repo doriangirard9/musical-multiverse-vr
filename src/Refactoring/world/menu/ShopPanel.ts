@@ -13,7 +13,7 @@ export class ShopPanel {
 
     constructor(
         private scene: Scene,
-        private renderScene: Scene,
+        renderScene: Scene,
     ) {
         const that = this
         
@@ -23,7 +23,6 @@ export class ShopPanel {
         this.label = new N3DText("label", [this.plane], renderScene)
         this.label.plane.renderingGroupId = 1
         this.label.list.background = "rgb(0,0,0,0.5)"
-
 
         this.plane.addBehavior(new InputToPointerBehavior())
         
@@ -295,10 +294,25 @@ export class ShopPanel {
     makeFollow(distance = 2) {
         const o = this.scene.onAfterPhysicsObservable.add(() => {
             const ray = this.scene.activeCamera!.getForwardRay()
-            const position = ray.direction.scale(distance).addInPlace(ray.origin)
-            this.plane.position.addInPlace(position).scaleInPlace(0.5)
-            this.plane.rotationQuaternion = Quaternion.FromLookDirectionLH(ray.direction.scale(-1), Vector3.Up())
+            const d = ray.direction.multiplyByFloats(1,0,1).normalize()
+            const position = d.scale(distance).addInPlace(ray.origin)
+
+            // Get target position
+            const targetPosition = position
+            const targetRotation = Quaternion.FromLookDirectionLH(d.scale(-1), Vector3.Up())
                 .multiplyInPlace(Quaternion.FromEulerAngles(0.1, 0, 0))
+
+            // Check is sufficiently different
+            const positionDiff = Vector3.DistanceSquared(this.plane.position, targetPosition)
+
+            if (positionDiff > 0.4) {
+                this.plane.position.scaleInPlace(.95).addInPlace(targetPosition.scaleInPlace(.05))
+            }
+            this.plane.rotationQuaternion = targetRotation
+
+            //this.debug.position = targetPosition
+            //this.debug.rotationQuaternion = targetRotation
+            
         })
 
         this.plane.onDisposeObservable.addOnce(() => {
@@ -307,6 +321,7 @@ export class ShopPanel {
 
         return o
     }
+
 
     show() {
         this.plane.isVisible = true

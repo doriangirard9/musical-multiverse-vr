@@ -1,4 +1,4 @@
-import { CreateAudioEngineAsync, Vector3 } from "@babylonjs/core";
+import { CreateAudioEngineAsync, CreateBox, Vector3 } from "@babylonjs/core";
 import { NetworkManager } from "../network/NetworkManager.ts";
 import { ShopPanel } from "../world/menu/ShopPanel.ts";
 import { InputManager } from "../xr/inputs/InputManager.ts";
@@ -17,6 +17,8 @@ import { AvatarManager } from "./AvatarManager.ts";
 import { NetworkEventBus } from "../eventBus/NetworkEventBus.ts";
 import { RandomUtils } from "../node3d/tools/utils/RandomUtils.ts";
 import { Doc } from "yjs";
+import { MenuPanel } from "../world/menu/MenuPanel.ts";
+import { N3DText } from "../node3d/instance/utils/N3DText.ts";
 
 export class NewApp {
     private static readonly DEBUG_LOG = false;
@@ -177,9 +179,23 @@ export class NewApp {
             else shopPanel.toggle()
         })
 
+        // const menu = new MenuPanel(scene, SceneManager.getInstance().getUtilityLayer().utilityLayerScene, [
+        //     { label: "🞡 Add", color: "#66ff66", onClick: ()=>{} },
+        //     { label: "🗐 Copy", color: "#FFFF66", onClick: ()=>{} },
+        //     { label: "✎ Edit", color: "#6699FF", onClick: ()=>{} },
+        //     { label: "🔗 Connect", color: "#66FFFF", onClick: ()=>{} },
+        //     { label: "📁 Save", color: "#FF66FF", onClick: ()=>{} },
+        //     { label: "📂 Load", color: "#FF9966", onClick: ()=>{} },
+        //     { label: "❌ Remove", color: "#FF6666", onClick: ()=>{} }
+        // ])
+        // menu.makeFollow()
+        // menu.show()
+
         //// POINTERS ////
         InputVisualPointer.CreateSimple(scene, InputManager.getInstance().left.pointer)
         InputVisualPointer.CreateSimple(scene, InputManager.getInstance().right.pointer)
+
+        const box = CreateBox("box", {size: 0.3}, SceneManager.getInstance().getUtilityLayer().utilityLayerScene)
 
     }
 

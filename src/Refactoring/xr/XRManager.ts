@@ -162,7 +162,8 @@ export class XRManager {
             disableNearInteraction: true, // On gère ça nous même pour de meilleures performances
         });
         this.xrFeaturesManager = xrExperience.baseExperience.featuresManager;
-        
+        this.xrFeaturesManager.disableFeature(B.WebXRFeatureName.LAYERS)
+
         return xrExperience;
     }
 

@@ -53,7 +53,6 @@ export class InputToPointerBehavior implements Behavior<AbstractMesh> {
         target.addBehavior(this.press)
 
         const checkIfIsActualPointer = (input: PointerInput)=>{
-            console.log("Check if is actual pointer. Pressing stack:", this.pressingStack.length, "Hovering stack:", this.hoveringStack.length)
             // If some pointer is pressing take, the last pressing pointer
             if(this.pressingStack.length>0) if(this.pressingStack[this.pressingStack.length-1].pointer === input) return true
             // If no pointer is pressing, take the last hovering pointer

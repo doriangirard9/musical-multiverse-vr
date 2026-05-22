@@ -21,23 +21,27 @@ export class ThumbnailRenderer {
     private renderTarget!: B.RenderTargetTexture
     private camera!: B.UniversalCamera
     private light!: B.HemisphericLight
+    private renderingScene!: B.Scene
 
     constructor(
         readonly scene: B.Scene,
         readonly size: number,
         readonly parallelCount: number = 2,
-    ){}
+    ){
+    }
 
     async initialize(){
         this.log("Initializing Thumbnail Rendering...")
 
-        const rootNode = this.rootNode = new B.Node("N3D Rendering Root Node", this.scene)
+        this.renderingScene = new B.Scene(this.scene.getEngine(),{virtual:true})
+
+        const rootNode = this.rootNode = new B.Node("N3D Rendering Root Node", this.renderingScene)
 
         var renderTarget = this.renderTarget = new B.RenderTargetTexture('render to texture', {height:this.size,width:this.size*this.parallelCount*1.5}, this.scene, {doNotChangeAspectRatio:false})
         renderTarget.clearColor = new B.Color4(0,0,0,0)
         renderTarget.hasAlpha = true
 
-        const camera = this.camera = new B.UniversalCamera("camera", OFFSET.clone().addInPlaceFromFloats(0, 2, 0), this.scene)
+        const camera = this.camera = new B.UniversalCamera("camera", OFFSET.clone().addInPlaceFromFloats(0, 2, 0), this.renderingScene)
         camera.mode = B.Camera.ORTHOGRAPHIC_CAMERA
         camera.orthoLeft = -.5
         camera.orthoRight = (this.parallelCount)*1.5+-.5
@@ -49,16 +53,16 @@ export class ThumbnailRenderer {
         camera.parent = rootNode
         renderTarget.activeCamera = this.camera
 
-        const light = this.light = new B.HemisphericLight("light", new B.Vector3(3, 10, 3), this.scene)
+        const light = this.light = new B.HemisphericLight("light", new B.Vector3(3, 10, 3), this.renderingScene)
         light.intensity = 1
         light.parent = rootNode
         light.includeOnlyWithLayerMask = 0x0000200
         rootNode.setEnabled(false)
 
         
-        this.scene.customRenderTargets.push(renderTarget)
+        this.renderingScene.customRenderTargets.push(renderTarget)
 
-        await this.scene.whenReadyAsync(true)
+        await this.renderingScene.whenReadyAsync(true)
 
         return this
     }
@@ -70,6 +74,7 @@ export class ThumbnailRenderer {
         this.renderTarget.renderList!.length = 0
         let i = 0
         for(const node of nodes){
+            if(this.scene.add)
             this.renderTarget.renderList!.push(...node.getChildMeshes())
             for(const mesh of node.getChildMeshes()){
                 mesh.lightSources.length = 0
@@ -81,7 +86,7 @@ export class ThumbnailRenderer {
             i++
         }
 
-        await this.scene.whenReadyAsync(true)
+        await this.renderingScene.whenReadyAsync(true)
 
         await Promise.all(
             nodes.flatMap(n=>n.getChildMeshes())
@@ -90,9 +95,9 @@ export class ThumbnailRenderer {
                 })
         )
 
-        await this.scene.whenReadyAsync(true)
+        await this.renderingScene.whenReadyAsync(true)
         this.renderTarget.render()
-        await this.scene.whenReadyAsync(true)
+        await this.renderingScene.whenReadyAsync(true)
         this.renderTarget.render()
 
         this.rootNode.setEnabled(false)
@@ -105,6 +110,7 @@ export class ThumbnailRenderer {
         this.camera.dispose()
         this.light.dispose()
         this.rootNode.dispose()
+        this.renderingScene.dispose()
     }
 
     get texture(){
