@@ -454,7 +454,7 @@ export const OscillatorN3DFactory: Node3DFactory<OscillatorN3DGUI, OscillatorN3D
 
 ## Example 2: Complex Sequencer (With Grid & State)
 
-See [SequencerN3D.ts](../../src/Refactoring/node3d/subs/SequencerN3D.ts) for a full implementation with:
+See [SequencerN3D.ts](../../src/node3d/subs/SequencerN3D.ts) for a full implementation with:
 - 12×12 grid of note pads (using instances optimization)
 - MIDI output + Sync I/O
 - Multiple parameters (note on/off, pitch selection)

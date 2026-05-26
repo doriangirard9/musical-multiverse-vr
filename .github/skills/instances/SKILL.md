@@ -608,7 +608,7 @@ console.log(`Updated 1000 colors in ${elapsed}ms`); // Should be <5ms
 
 # Complete Working Example
 
-See [SequencerN3D.ts](../../src/Refactoring/node3d/subs/SequencerN3D.ts) in this repository:
+See [SequencerN3D.ts](../../src/node3d/subs/SequencerN3D.ts) in this repository:
 
 - 12×12 grid = 144 pads
 - Uses standard instances with color buffers

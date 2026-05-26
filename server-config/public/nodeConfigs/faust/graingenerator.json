@@ -1,0 +1,110 @@
+{
+    "aspect_ratio": 1,
+    "size": 0.8,
+    "bottom_color": "#ffffff",
+    "top_color": "#aaaaaa",
+    "face": "cubism",
+    "face_color": "#e7a3a3",
+    "outline_color": "#000000",
+    "outline_width": 0.09,
+    "shape": "circle",
+    "modifier": "noise",
+    "modifier_strength": 0.5,
+    "controls": [
+        {
+            "x": 0.3150787933796368,
+            "y": 0.6279070323215854,
+            "width": 0.14501124663030351,
+            "height": 0.14801200739747988,
+            "values": {
+                "Base Color": "#222222",
+                "Cursor Color": "#ff8888",
+                "Target": "/untitled/speed"
+            },
+            "control": "cursor_control"
+        },
+        {
+            "x": 0.5369092101868895,
+            "y": 0.6279070323215854,
+            "width": 0.14501124663030351,
+            "height": 0.14801200739747988,
+            "values": {
+                "Base Color": "#222222",
+                "Cursor Color": "#ff8888",
+                "Target": "/untitled/taille"
+            },
+            "control": "cursor_control"
+        },
+        {
+            "x": 0.23455311741181828,
+            "y": 0.4386345851521208,
+            "width": 0.14501124663030351,
+            "height": 0.14801200739747988,
+            "values": {
+                "Base Color": "#222222",
+                "Cursor Color": "#ff8888",
+                "Target": "/untitled/decal"
+            },
+            "control": "cursor_control"
+        },
+        {
+            "x": 0.42299379371112183,
+            "y": 0.4386345851521208,
+            "width": 0.14501124663030351,
+            "height": 0.14801200739747988,
+            "values": {
+                "Base Color": "#222222",
+                "Cursor Color": "#ff8888",
+                "Target": "/untitled/feedback"
+            },
+            "control": "cursor_control"
+        },
+        {
+            "x": 0.6204356359578782,
+            "y": 0.4386345851521208,
+            "width": 0.14501124663030351,
+            "height": 0.14801200739747988,
+            "values": {
+                "Base Color": "#222222",
+                "Cursor Color": "#ff8888",
+                "Target": "/untitled/population"
+            },
+            "control": "cursor_control"
+        },
+        {
+            "x": 0.43808605216098484,
+            "y": 0.22408096028093472,
+            "width": 0.12991898818044056,
+            "height": 0.17298643383265566,
+            "values": {
+                "Text": "GrainGen",
+                "Color": "#000000",
+                "Outline Color": "#ffa6a6",
+                "Outline Width": 0.034,
+                "Font": "avara"
+            },
+            "control": "text"
+        },
+        {
+            "x": 0.8144786118232389,
+            "y": 0.44732299825048777,
+            "width": 0.18552138817676112,
+            "height": 0.18058403407109763,
+            "values": {
+                "Color": "#FF0000"
+            },
+            "control": "output_control"
+        },
+        {
+            "x": 0,
+            "y": 0.4386345851521209,
+            "width": 0.18552138817676112,
+            "height": 0.1892724471694645,
+            "values": {
+                "Color": "#00FF00"
+            },
+            "control": "input_control"
+        }
+    ],
+    "wam_url": "https://jempasam.github.io/SamWAMS/simple/effect/graingenerator/index.js"
+}

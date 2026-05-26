@@ -405,12 +405,12 @@ Une main joue du clavier, l'autre balaye la plaque pour façonner le timbre.
 
 | Fichier | Rôle |
 |---------|------|
-| `src/Refactoring/node3d/subs/automation/AudioPlaqueN3D.ts` | Instrument plaque + variantes |
-| `src/Refactoring/node3d/subs/automation/SuperformulaN3D.ts` | Instrument superformule + variantes |
-| `src/Refactoring/behaviours/steering/Boid.ts` | Classes `Boid` + `BoidSwarm` partagées |
-| `src/Refactoring/app/Node3DBuilder.ts` | Enregistrement des 6 variantes (3 tailles × 2 instruments) |
-| `src/Refactoring/world/menu/ShopPanel.ts` | Correctif : le panneau passe dans la scène principale pour être pickable en VR |
-| `src/Refactoring/app/NewApp.ts` | Câblage du shop sur la bonne scène |
+| `src/node3d/subs/automation/AudioPlaqueN3D.ts` | Instrument plaque + variantes |
+| `src/node3d/subs/automation/SuperformulaN3D.ts` | Instrument superformule + variantes |
+| `src/behaviours/steering/Boid.ts` | Classes `Boid` + `BoidSwarm` partagées |
+| `src/app/Node3DBuilder.ts` | Enregistrement des 6 variantes (3 tailles × 2 instruments) |
+| `src/world/menu/ShopPanel.ts` | Correctif : le panneau passe dans la scène principale pour être pickable en VR |
+| `src/app/NewApp.ts` | Câblage du shop sur la bonne scène |
 | `Makefile` | Tue le port `:3000` dans `make all` + attend la disponibilité du backend |
 | `LISEZ-MOI.md` | Le présent document |
 

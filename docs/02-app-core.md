@@ -1,8 +1,8 @@
 # 02 — App core
 
 This chapter covers the bootstrapping skeleton: the entry point, the
-singleton managers under `src/Refactoring/app/`, the typed event-bus
-spine under `src/Refactoring/eventBus/`, and the `Serialization`
+singleton managers under `src/app/`, the typed event-bus
+spine under `src/eventBus/`, and the `Serialization`
 save/load system. Everything below this chapter (the Node3D plugin
 layer, networking, XR, menus) sits on top of these pieces.
 
@@ -11,10 +11,10 @@ layer, networking, XR, menus) sits on top of these pieces.
 | Folder | Files |
 |---|---|
 | `src/` | [`index.ts`](../src/index.ts) |
-| `src/Refactoring/app/` | [`NewApp.ts`](../src/Refactoring/app/NewApp.ts), [`AppOrchestrator.ts`](../src/Refactoring/app/AppOrchestrator.ts), [`SceneManager.ts`](../src/Refactoring/app/SceneManager.ts), [`UIManager.ts`](../src/Refactoring/app/UIManager.ts), [`MessageManager.ts`](../src/Refactoring/app/MessageManager.ts), [`ControlsUI.ts`](../src/Refactoring/app/ControlsUI.ts), [`Node3dManager.ts`](../src/Refactoring/app/Node3dManager.ts), [`Node3DBuilder.ts`](../src/Refactoring/app/Node3DBuilder.ts), [`PlayerManager.ts`](../src/Refactoring/app/PlayerManager.ts), [`Player.ts`](../src/Refactoring/app/Player.ts), [`WamInitializer.ts`](../src/Refactoring/app/WamInitializer.ts), [`Serialization.ts`](../src/Refactoring/app/Serialization.ts) |
-| `src/Refactoring/eventBus/` | [`BaseEventBus.ts`](../src/Refactoring/eventBus/BaseEventBus.ts), [`AudioEventBus.ts`](../src/Refactoring/eventBus/AudioEventBus.ts), [`IOEventBus.ts`](../src/Refactoring/eventBus/IOEventBus.ts), [`MenuEventBus.ts`](../src/Refactoring/eventBus/MenuEventBus.ts), [`UIEventBus.ts`](../src/Refactoring/eventBus/UIEventBus.ts), [`NetworkEventBus.ts`](../src/Refactoring/eventBus/NetworkEventBus.ts) |
-| `src/Refactoring/shared/` | [`SharedTypes.ts`](../src/Refactoring/shared/SharedTypes.ts) |
-| `src/Refactoring/utils/` | [`utils.ts`](../src/Refactoring/utils/utils.ts) |
+| `src/app/` | [`NewApp.ts`](../src/app/NewApp.ts), [`AppOrchestrator.ts`](../src/app/AppOrchestrator.ts), [`SceneManager.ts`](../src/app/SceneManager.ts), [`UIManager.ts`](../src/app/UIManager.ts), [`MessageManager.ts`](../src/app/MessageManager.ts), [`ControlsUI.ts`](../src/app/ControlsUI.ts), [`Node3dManager.ts`](../src/app/Node3dManager.ts), [`Node3DBuilder.ts`](../src/app/Node3DBuilder.ts), [`PlayerManager.ts`](../src/app/PlayerManager.ts), [`Player.ts`](../src/app/Player.ts), [`WamInitializer.ts`](../src/app/WamInitializer.ts), [`Serialization.ts`](../src/app/Serialization.ts) |
+| `src/eventBus/` | [`BaseEventBus.ts`](../src/eventBus/BaseEventBus.ts), [`AudioEventBus.ts`](../src/eventBus/AudioEventBus.ts), [`IOEventBus.ts`](../src/eventBus/IOEventBus.ts), [`MenuEventBus.ts`](../src/eventBus/MenuEventBus.ts), [`UIEventBus.ts`](../src/eventBus/UIEventBus.ts), [`NetworkEventBus.ts`](../src/eventBus/NetworkEventBus.ts) |
+| `src/shared/` | [`SharedTypes.ts`](../src/shared/SharedTypes.ts) |
+| `src/utils/` | [`utils.ts`](../src/utils/utils.ts) |
 
 ---
 
@@ -40,7 +40,7 @@ and **Synchronized / SyncManager** (network sync).
 
 ## Boot sequence
 
-[`NewApp`](../src/Refactoring/app/NewApp.ts) is the bootstrap class. It
+[`NewApp`](../src/app/NewApp.ts) is the bootstrap class. It
 is itself a singleton — `NewApp.get()` returns the running instance —
 but the construction is done in `index.ts` (`new NewApp()`).
 
@@ -49,7 +49,7 @@ but the construction is done in `index.ts` (`new NewApp()`).
 > `getInstance()` — only `NewApp` is shorter.
 
 The full `start()` sequence in
-[NewApp.ts:33–245](../src/Refactoring/app/NewApp.ts):
+[NewApp.ts:33–245](../src/app/NewApp.ts):
 
 ```
  1. NewApp.instance = this                              // (line 34)
@@ -87,7 +87,7 @@ ever see "Audio context is suspended" in console, this is why.
 The order is enforced by `await`s, but **also by the `getInstance()`
 discipline** — each manager throws on `getInstance()` if `initialize()`
 hasn't been called yet (see e.g.
-[Node3dManager.ts:27-30](../src/Refactoring/app/Node3dManager.ts)). This
+[Node3dManager.ts:27-30](../src/app/Node3dManager.ts)). This
 turns missed initialization into an immediate hard error rather than
 silent corruption.
 
@@ -131,7 +131,7 @@ the *first* call to `getInstance()` constructs the instance.
 
 ## Per-class reference
 
-### `NewApp` ([NewApp.ts](../src/Refactoring/app/NewApp.ts))
+### `NewApp` ([NewApp.ts](../src/app/NewApp.ts))
 
 The bootstrap class.
 
@@ -146,7 +146,7 @@ The bootstrap class.
 that needs *all* the singletons up before it can run lives here.
 
 The two big chunks of commented-out code at the bottom
-([NewApp.ts:152-244](../src/Refactoring/app/NewApp.ts)) are a previewer
+([NewApp.ts:152-244](../src/app/NewApp.ts)) are a previewer
 spawn loop and a two-shop test scene — useful as reference when you
 need to spawn a lot of instruments from JS, but kept out of the live
 code path.
@@ -166,7 +166,7 @@ A on the right controller toggles the [`ShopPanel`](07-menus-and-world.md#shoppa
 (NewApp.ts:139-145). X on the left toggles [`ControlsUI`](#controlsui-controlsuits)
 visibility (NewApp.ts:82-86).
 
-### `AppOrchestrator` ([AppOrchestrator.ts](../src/Refactoring/app/AppOrchestrator.ts))
+### `AppOrchestrator` ([AppOrchestrator.ts](../src/app/AppOrchestrator.ts))
 
 The **mediator** between event buses. It owns no state of its own — it
 just listens on one bus and calls into a manager (often emitting on
@@ -190,7 +190,7 @@ a "first-call" race.
 > [`ShopPanel`](07-menus-and-world.md#shoppanel) doesn't yet pass a
 > "spawn at this position" payload — it goes through this fixed path.
 
-### `SceneManager` ([SceneManager.ts](../src/Refactoring/app/SceneManager.ts))
+### `SceneManager` ([SceneManager.ts](../src/app/SceneManager.ts))
 
 Owns the Babylon `Engine`, `Scene`, `ShadowGenerator`, ground, walls,
 physics, and two world objects: `WaveGround` (an animated 30×30 grid
@@ -225,7 +225,7 @@ that global, an error is logged. Always pass the scene explicitly.
 - The ground itself is `isVisible = false`. The visible floor you see
   is the `WaveGround` mesh sitting just above it.
 
-### `UIManager` ([UIManager.ts](../src/Refactoring/app/UIManager.ts))
+### `UIManager` ([UIManager.ts](../src/app/UIManager.ts))
 
 A facade over Babylon's two GUI APIs:
 
@@ -240,7 +240,7 @@ should ultimately become a singleton too).
 > **Note**: the audio-event listeners (`AUDIO_NODE_CREATED`,
 > `AUDIO_NODE_LOADED`, `AUDIO_NODE_ERROR`) that previously surfaced
 > "Loading..." and error toasts are commented out
-> ([UIManager.ts:42-44](../src/Refactoring/app/UIManager.ts)) — there's
+> ([UIManager.ts:42-44](../src/app/UIManager.ts)) — there's
 > a comment "Plus de message sur l'écran" ("no more on-screen
 > messages"). If you re-enable them, also re-enable the corresponding
 > reaction in `Node3dManager` (currently it does emit them).
@@ -252,11 +252,11 @@ should ultimately become a singleton too).
 | `getGui()` / `getGui3DManager()` | 47 / 51 | Accessors |
 | `showMessage(msg, duration)` / `hideMessage()` | 55 / 59 | Forward to `MessageManager` |
 
-### `MessageManager` ([MessageManager.ts](../src/Refactoring/app/MessageManager.ts))
+### `MessageManager` ([MessageManager.ts](../src/app/MessageManager.ts))
 
 The transient HUD message system. **Not a singleton** — owned by
 `UIManager`. There's a `// CHANGER MESSAGE MANAGER EN SINGLETON` TODO
-in [UIManager.ts:24](../src/Refactoring/app/UIManager.ts).
+in [UIManager.ts:24](../src/app/UIManager.ts).
 
 | Method | Line | What |
 |---|---|---|
@@ -271,7 +271,7 @@ so it only works correctly once XR is initialized. The boot order
 guarantees that. The plane is set `isPickable = false` (line 25) so
 it doesn't intercept controller picks.
 
-### `ControlsUI` ([ControlsUI.ts](../src/Refactoring/app/ControlsUI.ts))
+### `ControlsUI` ([ControlsUI.ts](../src/app/ControlsUI.ts))
 
 Optional HUD: a small text label floats next to each physical
 controller button explaining what it does. It uses real-time mesh
@@ -279,7 +279,7 @@ introspection to find the actual button geometry inside the controller
 model and pin the label to it.
 
 The class lives in
-[`src/Refactoring/app/ControlsUI.ts`](../src/Refactoring/app/ControlsUI.ts).
+[`src/app/ControlsUI.ts`](../src/app/ControlsUI.ts).
 Highlights:
 
 - **Per-controller labels** for `Y` (WAM 3D Shop), `X` (Hide/Show),
@@ -295,14 +295,14 @@ Highlights:
   cube at each grip with labelled corners — useful when fine-tuning
   per-controller offsets.
 
-Wired up in [NewApp.ts:79-86](../src/Refactoring/app/NewApp.ts) so the
+Wired up in [NewApp.ts:79-86](../src/app/NewApp.ts) so the
 left-X button toggles label visibility.
 
 **Why it's worth knowing:** if you change which buttons trigger what,
 you'll want to update the strings in `_createLabels()` so the on-screen
 hints match the actual bindings.
 
-### `Node3dManager` ([Node3dManager.ts](../src/Refactoring/app/Node3dManager.ts))
+### `Node3dManager` ([Node3dManager.ts](../src/app/Node3dManager.ts))
 
 The factory-front-of-house for the Node3D plugin system. Holds the
 `AudioContext` + Babylon `AudioEngineV2`, owns a `Node3DBuilder`,
@@ -338,7 +338,7 @@ createImpostor() // small billboard mesh while spawn() runs
 `Promise.allSettled([createImpostor, spawn])` (line 63) lets the
 impostor be disposed cleanly whether spawn succeeds or fails.
 
-### `Node3DBuilder` ([Node3DBuilder.ts](../src/Refactoring/app/Node3DBuilder.ts))
+### `Node3DBuilder` ([Node3DBuilder.ts](../src/app/Node3DBuilder.ts))
 
 The actual factory. Resolves a *kind* string to a
 `Node3DFactory<Node3DGUI, Node3D>`, with a per-instance cache.
@@ -352,7 +352,7 @@ The actual factory. Resolves a *kind* string to a
 | `async create(kind)` | 157 | `getFactory(kind)`, then `instantiateNode3d(factory)`. Returns either a `Node3DInstance` or an error string |
 | `getThumbnail(kind)` | 179 | Renders a thumbnail for the kind, caches it, packs it into the shared `TextureAtlas`. Used by `ShopPanel` and the `N3DPreviewer` impostor |
 | `createImpostor(kind)` | 207 | Returns a small billboard plane sampling the atlas — used by `Node3dManager.createNode3d` while the real node spawns |
-| `getShared()` | 222 | Returns the [`N3DShared`](../src/Refactoring/node3d/instance/N3DShared.ts) bag of resources |
+| `getShared()` | 222 | Returns the [`N3DShared`](../src/node3d/instance/N3DShared.ts) bag of resources |
 | `async initialize()` | 229 | Builds `N3DShared`, then `GET ${WAM_CONFIGS_URL}/wamsConfig` and prepends the returned list to `FACTORY_KINDS` |
 | `private async instantiateNode3d(factory)` | 251 | `new Node3DInstance(shared, factory); await instance.instantiate(); return instance` |
 | `readonly atlas: TextureAtlas` | 171 | The shared 2048×2048 thumbnail atlas |
@@ -397,7 +397,7 @@ The full hardcoded-builtin list (lines 87–106):
 — so the WAM config server must be reachable on the current host. See
 chapter [05 §Server](05-networking-and-sync.md#the-config-server).
 
-### `PlayerManager` ([PlayerManager.ts](../src/Refactoring/app/PlayerManager.ts))
+### `PlayerManager` ([PlayerManager.ts](../src/app/PlayerManager.ts))
 
 Owns the local player's identity and broadcasts their head/hand state
 over the network — throttled and delta-compressed.
@@ -431,7 +431,7 @@ rightHandPosition = pointer.origin + (-0.05, 0, -0.20)
 
 If avatars look "wrong-handed", that's where to look.
 
-### `Player` ([Player.ts](../src/Refactoring/app/Player.ts))
+### `Player` ([Player.ts](../src/app/Player.ts))
 
 The remote player avatar — one instance per other player in the room.
 **Not** a singleton.
@@ -452,7 +452,7 @@ This is the only "non-manager" class in `app/`. It's owned by
 `setState` on Yjs updates and `interpolateMovement` from the per-frame
 loop in `SceneManager.start()`.
 
-### `WamInitializer` ([WamInitializer.ts](../src/Refactoring/app/WamInitializer.ts))
+### `WamInitializer` ([WamInitializer.ts](../src/app/WamInitializer.ts))
 
 The WAM host bootstrap. Different from the other singletons:
 
@@ -473,7 +473,7 @@ The WAM host bootstrap. Different from the other singletons:
 to resolve the URL at build time. WAM bundles live at runtime URLs
 (remote or `public/`-served), so static analysis can't see them.
 
-### `Serialization` ([Serialization.ts](../src/Refactoring/app/Serialization.ts))
+### `Serialization` ([Serialization.ts](../src/app/Serialization.ts))
 
 A small singleton for **save/load of Node3D graphs** — the export
 format behind the `L` and `M` debug keys.
@@ -485,7 +485,7 @@ format behind the `L` and `M` debug keys.
 | `async load(description): Promise<Node3DInstance[]>` | 107 | Recreate the nodes (in parallel) and then their connections (in parallel), restoring positions, rotations, and per-node state |
 
 The saved structure is `Node3DGraphDescription` (defined in
-[`Node3DNetwork.ts`](../src/Refactoring/network/Node3DNetwork.ts)):
+[`Node3DNetwork.ts`](../src/network/Node3DNetwork.ts)):
 
 ```typescript
 {
@@ -517,7 +517,7 @@ Important details:
   hydrates the per-node state, then `updatePosition()` finalizes the
   bounding box.
 - Connection wiring uses
-  [`ConnectionManager.connect(from, to)`](../src/Refactoring/iomanager/ConnectionManager.ts)
+  [`ConnectionManager.connect(from, to)`](../src/iomanager/ConnectionManager.ts)
   rather than directly poking the `N3DConnectionInstance` — so saved
   graphs go through the same validation as user-drawn cables.
 
@@ -530,7 +530,7 @@ or "load preset on join" feature.
 
 Six typed event buses, all extending the same generic base.
 
-### `BaseEventBus<T>` ([BaseEventBus.ts](../src/Refactoring/eventBus/BaseEventBus.ts))
+### `BaseEventBus<T>` ([BaseEventBus.ts](../src/eventBus/BaseEventBus.ts))
 
 A small typed pub/sub. The whole class is 38 lines.
 
@@ -548,7 +548,7 @@ including the payload shape. Adding a new event is a one-line edit to
 the payload type — TypeScript will then point you at every place that
 needs to handle it.
 
-### `AudioEventBus` ([AudioEventBus.ts](../src/Refactoring/eventBus/AudioEventBus.ts))
+### `AudioEventBus` ([AudioEventBus.ts](../src/eventBus/AudioEventBus.ts))
 
 | Event | Payload | Emitted by | Listened by |
 |---|---|---|---|
@@ -564,7 +564,7 @@ The latter four are reserved/forward-looking (the actual connect/
 disconnect happens via `IOEventBus` + `iomanager/ConnectionManager`,
 see chapter [07](07-menus-and-world.md)).
 
-### `IOEventBus` ([IOEventBus.ts](../src/Refactoring/eventBus/IOEventBus.ts))
+### `IOEventBus` ([IOEventBus.ts](../src/eventBus/IOEventBus.ts))
 
 | Event | Payload | Emitted by | Listened by |
 |---|---|---|---|
@@ -575,7 +575,7 @@ listens for `down`/`up`/`out` to start, end, or cancel a wire. Note the
 payload includes the `PointerInput` so the listener can attach the
 in-flight wire to the right hand.
 
-### `MenuEventBus` ([MenuEventBus.ts](../src/Refactoring/eventBus/MenuEventBus.ts))
+### `MenuEventBus` ([MenuEventBus.ts](../src/eventBus/MenuEventBus.ts))
 
 | Event | Payload | Emitted by | Listened by |
 |---|---|---|---|
@@ -586,14 +586,14 @@ in-flight wire to the right hand.
 | `MAIN_MENU_DISABLE` | `{ disable }` | (reserved) | — |
 | `MAIN_MENU_ENABLE` | `{ enable }` | (reserved) | — |
 
-### `UIEventBus` ([UIEventBus.ts](../src/Refactoring/eventBus/UIEventBus.ts))
+### `UIEventBus` ([UIEventBus.ts](../src/eventBus/UIEventBus.ts))
 
 Currently the payload is `{}` — i.e. **no events defined yet**. The
 bus is constructed and listeners can be registered, but in the current
 code nothing emits anything. It's a reserved namespace for future
 UI-cross-cutting events (e.g. modal open, toast, focus change).
 
-### `NetworkEventBus` ([NetworkEventBus.ts](../src/Refactoring/eventBus/NetworkEventBus.ts))
+### `NetworkEventBus` ([NetworkEventBus.ts](../src/eventBus/NetworkEventBus.ts))
 
 | Event | Payload | Emitted by | Listened by |
 |---|---|---|---|
@@ -609,7 +609,7 @@ payload type — they're reserved and not emittable today.
 
 ## Shared types and utilities
 
-### `SharedTypes.ts` ([SharedTypes.ts](../src/Refactoring/shared/SharedTypes.ts))
+### `SharedTypes.ts` ([SharedTypes.ts](../src/shared/SharedTypes.ts))
 
 Three small types:
 
@@ -624,10 +624,10 @@ export interface NodeTransform { position: Position3D; rotation: Position3D; }
 `Position3D` is the network-ready (plain JSON, no Babylon types)
 coordinate. `NodeTransform` is used in event payloads. `MenuConfig` is
 a legacy menu structure — the newer
-[`ShopPanel`](../src/Refactoring/world/menu/ShopPanel.ts) uses its own
+[`ShopPanel`](../src/world/menu/ShopPanel.ts) uses its own
 richer config.
 
-### `utils.ts` ([utils.ts](../src/Refactoring/utils/utils.ts))
+### `utils.ts` ([utils.ts](../src/utils/utils.ts))
 
 Three general-purpose helpers:
 

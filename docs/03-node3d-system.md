@@ -11,10 +11,10 @@ If you are going to build a new instrument, this chapter and chapter
 
 | Folder | Files |
 |---|---|
-| `node3d/` (declarations) | [`Node3D.d.ts`](../src/Refactoring/node3d/Node3D.d.ts), [`Node3DButton.d.ts`](../src/Refactoring/node3d/Node3DButton.d.ts), [`Node3DConnectable.d.ts`](../src/Refactoring/node3d/Node3DConnectable.d.ts), [`Node3DContext.d.ts`](../src/Refactoring/node3d/Node3DContext.d.ts), [`Node3DGUIContext.d.ts`](../src/Refactoring/node3d/Node3DGUIContext.d.ts), [`Node3DParameter.d.ts`](../src/Refactoring/node3d/Node3DParameter.d.ts) |
-| `node3d/instance/` | [`Node3DInstance.ts`](../src/Refactoring/node3d/instance/Node3DInstance.ts), [`N3DConnectableInstance.ts`](../src/Refactoring/node3d/instance/N3DConnectableInstance.ts), [`N3DConnectionInstance.ts`](../src/Refactoring/node3d/instance/N3DConnectionInstance.ts), [`N3DParameterInstance.ts`](../src/Refactoring/node3d/instance/N3DParameterInstance.ts), [`N3DButtonInstance.ts`](../src/Refactoring/node3d/instance/N3DButtonInstance.ts), [`N3DShared.ts`](../src/Refactoring/node3d/instance/N3DShared.ts) |
-| `node3d/instance/utils/` | [`N3DHighlighter.ts`](../src/Refactoring/node3d/instance/utils/N3DHighlighter.ts), [`N3DText.ts`](../src/Refactoring/node3d/instance/utils/N3DText.ts), [`N3DRendering.ts`](../src/Refactoring/node3d/instance/utils/N3DRendering.ts), [`N3DMenuManager.ts`](../src/Refactoring/node3d/instance/utils/N3DMenuManager.ts) |
-| `node3d/tools/` | [`index.ts`](../src/Refactoring/node3d/tools/index.ts), connectables (`AudioN3DConnectable`, `MidiN3DConnectable`, `AutomationN3DConnectable`, `SyncN3DConnectable`), utils (`MeshUtils`, `NodeCompUtils`, `RandomUtils`, `StateUtils`) |
+| `node3d/` (declarations) | [`Node3D.d.ts`](../src/node3d/Node3D.d.ts), [`Node3DButton.d.ts`](../src/node3d/Node3DButton.d.ts), [`Node3DConnectable.d.ts`](../src/node3d/Node3DConnectable.d.ts), [`Node3DContext.d.ts`](../src/node3d/Node3DContext.d.ts), [`Node3DGUIContext.d.ts`](../src/node3d/Node3DGUIContext.d.ts), [`Node3DParameter.d.ts`](../src/node3d/Node3DParameter.d.ts) |
+| `node3d/instance/` | [`Node3DInstance.ts`](../src/node3d/instance/Node3DInstance.ts), [`N3DConnectableInstance.ts`](../src/node3d/instance/N3DConnectableInstance.ts), [`N3DConnectionInstance.ts`](../src/node3d/instance/N3DConnectionInstance.ts), [`N3DParameterInstance.ts`](../src/node3d/instance/N3DParameterInstance.ts), [`N3DButtonInstance.ts`](../src/node3d/instance/N3DButtonInstance.ts), [`N3DShared.ts`](../src/node3d/instance/N3DShared.ts) |
+| `node3d/instance/utils/` | [`N3DHighlighter.ts`](../src/node3d/instance/utils/N3DHighlighter.ts), [`N3DText.ts`](../src/node3d/instance/utils/N3DText.ts), [`N3DRendering.ts`](../src/node3d/instance/utils/N3DRendering.ts), [`N3DMenuManager.ts`](../src/node3d/instance/utils/N3DMenuManager.ts) |
+| `node3d/tools/` | [`index.ts`](../src/node3d/tools/index.ts), connectables (`AudioN3DConnectable`, `MidiN3DConnectable`, `AutomationN3DConnectable`, `SyncN3DConnectable`), utils (`MeshUtils`, `NodeCompUtils`, `RandomUtils`, `StateUtils`) |
 
 The actual concrete instruments under `node3d/subs/` live in chapter
 [04](04-instruments-catalog.md).
@@ -34,7 +34,7 @@ A **Node3D** in this codebase is a triple:
   field scales it). Has a `dispose()` method but **no audio code**.
   This separation lets the host render thumbnails of instruments
   without booting an audio context — see
-  [`N3DRendering`](../src/Refactoring/node3d/instance/utils/N3DRendering.ts).
+  [`N3DRendering`](../src/node3d/instance/utils/N3DRendering.ts).
 - **`Node3D`** — the audio implementation. Owns Web Audio nodes / WAM
   instances. Exposes mutable state via `getState(key)` /
   `setState(key, value)` for network sync.
@@ -74,7 +74,7 @@ plugin contract.
 
 ## The plugin contract (declarations)
 
-### `Node3D.d.ts` ([source](../src/Refactoring/node3d/Node3D.d.ts))
+### `Node3D.d.ts` ([source](../src/node3d/Node3D.d.ts))
 
 Declares three interfaces and one type alias.
 
@@ -133,7 +133,7 @@ Three concepts to understand:
   contract.
 - `getStateKeys()` returns the canonical list. The host iterates this
   on first sync (see
-  [`Node3DInstance.askStates`](../src/Refactoring/node3d/instance/Node3DInstance.ts)
+  [`Node3DInstance.askStates`](../src/node3d/instance/Node3DInstance.ts)
   at line 280).
 
 #### `interface Node3DFactory<G extends Node3DGUI, T extends Node3D>` (lines 81–126)
@@ -150,7 +150,7 @@ interface Node3DFactory<G extends Node3DGUI, T extends Node3D> {
 
 The `tags` field has a **standard vocabulary** (singular, lowercase,
 underscores, no accents). From
-[Node3D.d.ts:97-110](../src/Refactoring/node3d/Node3D.d.ts):
+[Node3D.d.ts:97-110](../src/node3d/Node3D.d.ts):
 
 | Tag | Meaning |
 |---|---|
@@ -169,9 +169,9 @@ The `ShopPanel` categorizes plugins by these tags.
 The split between `createGUI` and `create` matters: `createGUI` runs
 without an audio context, so the host can render a plugin's thumbnail
 into a separate offscreen scene before it's ever instantiated for real
-(see [`N3DRendering.renderThumbnail`](../src/Refactoring/node3d/instance/utils/N3DRendering.ts)).
+(see [`N3DRendering.renderThumbnail`](../src/node3d/instance/utils/N3DRendering.ts)).
 
-### `Node3DGUIContext.d.ts` ([source](../src/Refactoring/node3d/Node3DGUIContext.d.ts))
+### `Node3DGUIContext.d.ts` ([source](../src/node3d/Node3DGUIContext.d.ts))
 
 The host-provided argument to `createGUI`. **No audio.**
 
@@ -191,7 +191,7 @@ The host-provided argument to `createGUI`. **No audio.**
 Sharing materials across all plugins keeps draw calls and texture state
 under control, and gives the world a consistent visual style.
 
-### `Node3DContext.d.ts` ([source](../src/Refactoring/node3d/Node3DContext.d.ts))
+### `Node3DContext.d.ts` ([source](../src/node3d/Node3DContext.d.ts))
 
 The host-provided argument to `create`. The full plugin-host API.
 
@@ -221,13 +221,13 @@ The host-provided argument to `create`. The full plugin-host API.
 | `observe(observable, observer)` | 182 | Register an observer that's automatically detached when the node disposes |
 
 The host fulfils all of this from inside
-[`Node3DInstance.instantiate()`](../src/Refactoring/node3d/instance/Node3DInstance.ts) —
+[`Node3DInstance.instantiate()`](../src/node3d/instance/Node3DInstance.ts) —
 see "Instance layer" below. `observe()` is the correct way to add
 per-frame logic from inside a plugin: don't manually attach to
 `scene.onBeforeRenderObservable`, because the host won't auto-detach
 your observer on dispose.
 
-### `Node3DConnectable.d.ts` ([source](../src/Refactoring/node3d/Node3DConnectable.d.ts))
+### `Node3DConnectable.d.ts` ([source](../src/node3d/Node3DConnectable.d.ts))
 
 The contract for an audio/MIDI/automation/sync port. You almost never
 implement this directly — you use one of the four protocol helpers in
@@ -254,7 +254,7 @@ The shape of that handle differs by type (e.g.
 `AutomationInputInfo`). See "Tools" below for each protocol's
 specifics.
 
-### `Node3DParameter.d.ts` ([source](../src/Refactoring/node3d/Node3DParameter.d.ts))
+### `Node3DParameter.d.ts` ([source](../src/node3d/Node3DParameter.d.ts))
 
 The contract for a draggable parameter knob.
 
@@ -277,9 +277,9 @@ That makes the UI generic.
 > **Big deal**: every parameter you register is **also** automatically
 > exposed as an `AutomationN3DConnectable.Input` connectable, so any
 > automation source can drive it. You get this for free; see
-> [Node3DInstance.ts:103-115](../src/Refactoring/node3d/instance/Node3DInstance.ts).
+> [Node3DInstance.ts:103-115](../src/node3d/instance/Node3DInstance.ts).
 
-### `Node3DButton.d.ts` ([source](../src/Refactoring/node3d/Node3DButton.d.ts))
+### `Node3DButton.d.ts` ([source](../src/node3d/Node3DButton.d.ts))
 
 ```typescript
 interface Node3DButton {
@@ -306,10 +306,10 @@ the trigger between every press.
 The instance layer is the host's implementation of the plugin contract
 — the runtime that turns a factory into a living object.
 
-### `Node3DInstance` ([source](../src/Refactoring/node3d/instance/Node3DInstance.ts))
+### `Node3DInstance` ([source](../src/node3d/instance/Node3DInstance.ts))
 
 The central runtime class. One per spawned plugin. Implements
-[`Synchronized`](../src/Refactoring/network/sync/Synchronized.ts) so it
+[`Synchronized`](../src/network/sync/Synchronized.ts) so it
 can be tracked by the network's `SyncManager`.
 
 | Member | Where | What |
@@ -375,7 +375,7 @@ sync) is host-side.
 
 When a plugin calls `context.addToBoundingBox(mesh)`, the host
 recomputes a single merged AABB
-([Node3DInstance.ts:209-260](../src/Refactoring/node3d/instance/Node3DInstance.ts))
+([Node3DInstance.ts:209-260](../src/node3d/instance/Node3DInstance.ts))
 and creates a `BoundingBox` (chapter [06 §Behaviors](06-xr-input-and-behaviors.md))
 attached to a low-visibility (0.1) mesh. Crucial side effects:
 
@@ -408,7 +408,7 @@ Three classes of keys are first-class:
 `askStates()` emits `"position"` plus everything the plugin reports
 from `getStateKeys()` plus every synced parameter.
 
-### `N3DShared` ([source](../src/Refactoring/node3d/instance/N3DShared.ts))
+### `N3DShared` ([source](../src/node3d/instance/N3DShared.ts))
 
 A bag of resources every Node3DInstance shares.
 
@@ -431,7 +431,7 @@ noise PNG (`./utils/noise.png`) used as an alpha mask, so anything
 using it gets a stippled transparent look. The `WaveGround` and a
 couple of effect visuals use it.
 
-Constructed once by [`Node3DBuilder.initialize()`](../src/Refactoring/app/Node3DBuilder.ts).
+Constructed once by [`Node3DBuilder.initialize()`](../src/app/Node3DBuilder.ts).
 
 ### `N3DConnectableInstance`
 
@@ -513,7 +513,7 @@ Key behaviors:
   `0.001` step. If `=== 2`, the value is toggled directly on grab. Else
   quantized to `1/(stepCount-1)`.
 - The visible label is a billboarded
-  [`N3DText`](../src/Refactoring/node3d/instance/utils/N3DText.ts) plane
+  [`N3DText`](../src/node3d/instance/utils/N3DText.ts) plane
   showing `getLabel() + "\n" + stringify(getValue())`.
 - Hover and drag highlight states stack via a small counter so
   multiple input sources can highlight the same parameter without
@@ -532,7 +532,7 @@ gets the swipe feel.
 
 ### Instance utilities
 
-#### `N3DHighlighter` ([source](../src/Refactoring/node3d/instance/utils/N3DHighlighter.ts))
+#### `N3DHighlighter` ([source](../src/node3d/instance/utils/N3DHighlighter.ts))
 
 A per-instance bookkeeper around Babylon's shared `HighlightLayer`. Why:
 the layer is global, but a Node3D needs to remove its own meshes from
@@ -566,7 +566,7 @@ Coordinated 3D menus across all Node3D instances.
   a menu open.
 - `N3DMenuInstance` is created **per Node3D**. When it opens a menu,
   it tells the manager to close the previous active one. The actual
-  menu is a [`SimpleMenu`](../src/Refactoring/menus/SimpleMenu.ts)
+  menu is a [`SimpleMenu`](../src/menus/SimpleMenu.ts)
   hosted by `UIManager`.
 
 This is the implementation of `context.openMenu()` and
@@ -578,7 +578,7 @@ This is the implementation of `context.openMenu()` and
 
 The `tools/` folder is exposed to plugins via `context.tools` (and the
 same on `Node3DGUIContext`). Re-exported by
-[`tools/index.ts`](../src/Refactoring/node3d/tools/index.ts):
+[`tools/index.ts`](../src/node3d/tools/index.ts):
 
 ```typescript
 export * from "./connectable/AudioN3DConnectable"
@@ -601,7 +601,7 @@ Output.connectAsOutput(conn) — subscribes to the Connection
 The Connection object is the contract between input and output. Each
 protocol uses a different shape.
 
-### Audio — `AudioN3DConnectable` ([source](../src/Refactoring/node3d/tools/connectable/AudioN3DConnectable.ts))
+### Audio — `AudioN3DConnectable` ([source](../src/node3d/tools/connectable/AudioN3DConnectable.ts))
 
 A namespace exporting five classes plus a shared `Color = #00FF00`.
 
@@ -637,7 +637,7 @@ private callback = (old, now) => {
 
 That's the entire audio routing dance.
 
-### MIDI — `MidiN3DConnectable` ([source](../src/Refactoring/node3d/tools/connectable/MidiN3DConnectable.ts))
+### MIDI — `MidiN3DConnectable` ([source](../src/node3d/tools/connectable/MidiN3DConnectable.ts))
 
 Same five classes, typed against `WamNode`. Color `#33BB88`.
 
@@ -653,7 +653,7 @@ notes extension so the receiving plugin can advertise note availability
 to the source (e.g. a MIDI sequencer can know which notes a synth
 supports).
 
-### Automation — `AutomationN3DConnectable` ([source](../src/Refactoring/node3d/tools/connectable/AutomationN3DConnectable.ts))
+### Automation — `AutomationN3DConnectable` ([source](../src/node3d/tools/connectable/AutomationN3DConnectable.ts))
 
 Three classes plus shared `Color = #515252`. Used for parameter
 automation (knob → knob, gaze → knob, voice volume → knob, etc.).
@@ -678,7 +678,7 @@ interface AutomationInputInfo {
 | `Output` | `output` | Stores a `value: number` and pushes it to all connected inputs via their `sender` |
 
 `Input` example (auto-built for every parameter you register, see
-[Node3DInstance.ts:103-115](../src/Refactoring/node3d/instance/Node3DInstance.ts)):
+[Node3DInstance.ts:103-115](../src/node3d/instance/Node3DInstance.ts)):
 
 ```typescript
 new T.AutomationN3DConnectable.Input(
@@ -702,7 +702,7 @@ const out = new AutomationN3DConnectable.Output("out", [mesh], "Out", 0.5)
 out.value = 0.7   // pushes 0.7 to every connected input automatically
 ```
 
-### Sync — `SyncN3DConnectable` ([source](../src/Refactoring/node3d/tools/connectable/SyncN3DConnectable.ts))
+### Sync — `SyncN3DConnectable` ([source](../src/node3d/tools/connectable/SyncN3DConnectable.ts))
 
 Yellow `#fff700`. Used to chain sequencers so their playheads align.
 The file's opening comment is *« Abandonne tout espoir toi qui entre
@@ -761,7 +761,7 @@ context.createConnectable(new T.SynxN3DConnectable.Output("syncOut", [meshOut], 
 
 ## Tool utilities
 
-### `MeshUtils` ([source](../src/Refactoring/node3d/tools/utils/MeshUtils.ts))
+### `MeshUtils` ([source](../src/node3d/tools/utils/MeshUtils.ts))
 
 Two static helpers:
 
@@ -774,7 +774,7 @@ Two static helpers:
 Used inside the host (e.g. shake-to-delete colors the bbox red) and
 inside plugins (to color connection tubes, knob bodies, etc.).
 
-### `StateUtils` ([source](../src/Refactoring/node3d/tools/utils/StateUtils.ts))
+### `StateUtils` ([source](../src/node3d/tools/utils/StateUtils.ts))
 
 Bulk get/set for plugins that prefer a single object:
 
@@ -805,7 +805,7 @@ default complexity, fine for in-session uniqueness.
 
 ## The canonical "Hello world" — `TemplateN3D.ts`
 
-[`src/Refactoring/node3d/subs/TemplateN3D.ts`](../src/Refactoring/node3d/subs/TemplateN3D.ts)
+[`src/node3d/subs/TemplateN3D.ts`](../src/node3d/subs/TemplateN3D.ts)
 is the skeleton meant to be copied. Pseudo-code:
 
 ```typescript

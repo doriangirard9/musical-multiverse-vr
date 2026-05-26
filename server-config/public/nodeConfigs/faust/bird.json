@@ -1,0 +1,94 @@
+{
+    "aspect_ratio": 0.6,
+    "size": 1,
+    "bottom_color": "#9a7c58",
+    "top_color": "#e1c673",
+    "outline_color": "#000000",
+    "outline_width": 0.02,
+    "shape": "rectangle",
+    "modifier": "normal",
+    "modifier_strength": 0.5,
+    "controls": [
+        {
+            "x": 0.3560034202689134,
+            "y": 0.019358471768745035,
+            "width": 0.277259191072017,
+            "height": 0.20426652013385327,
+            "values": {
+                "Text": "Bird",
+                "Color": "#000000",
+                "Outline Color": "#ffffff",
+                "Outline Width": 0,
+                "Font": "xolonium"
+            },
+            "control": "text"
+        },
+        {
+            "x": 0.3809493141351664,
+            "y": 0.23404928537464892,
+            "width": 0.21916584273749057,
+            "height": 0.2117179775663974,
+            "values": {
+                "Base Color": "#222222",
+                "Cursor Color": "#504927",
+                "Target": "/Birds/Birds/Speed__Granulator_"
+            },
+            "control": "cursor_control"
+        },
+        {
+            "x": 0.3809493141351664,
+            "y": 0.48352294558083553,
+            "width": 0.21916584273749057,
+            "height": 0.2117179775663974,
+            "values": {
+                "Base Color": "#222222",
+                "Cursor Color": "#504927",
+                "Target": "/Birds/Birds/Probability__Granulator_"
+            },
+            "control": "cursor_control"
+        },
+        {
+            "x": 0.3809493141351664,
+            "y": 0.7329966057870222,
+            "width": 0.21916584273749057,
+            "height": 0.2117179775663974,
+            "values": {
+                "Base Color": "#222222",
+                "Cursor Color": "#504927",
+                "Target": "/Birds/Birds/Proximity__InstrReverb_"
+            },
+            "control": "cursor_control"
+        },
+        {
+            "x": 0.7495531235439182,
+            "y": 0.3690096267166719,
+            "width": 0.25044687645608177,
+            "height": 0.24448858431920717,
+            "values": {
+                "Color": "#FF0000"
+            },
+            "control": "output_control"
+        },
+        {
+            "x": 0,
+            "y": 0.32561235865966714,
+            "width": 0.310944308876672,
+            "height": 0.3236388172250041,
+            "values": {
+                "Shape/Shape": "hexagon",
+                "Shape/Top Color": "#8e7139",
+                "Shape/Bottom Color": "#695c29",
+                "Shape/Outline Color": "#000000",
+                "Shape/Outline Width": 0,
+                "Shape/Front Face Image": "",
+                "Shape/Front Face Color": "#81763d",
+                "Shape/Modifier": "normal",
+                "Shape/Modifier Strength": 0.5,
+                "Shape/Height": 0.262,
+                "Shape/Rotation": 0
+            },
+            "control": "decoration"
+        }
+    ],
+    "wam_url": "https://jempasam.github.io/SamWAMS/module/generator/bird/index.js"
+}

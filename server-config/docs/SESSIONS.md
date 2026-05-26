@@ -236,7 +236,7 @@ server-config/
 
 src/
 ├── index.ts                          # App entry: router, auth, page orchestration
-└── Refactoring/
+└── 
     ├── auth/
     │   ├── ApiClient.ts              # Fetch wrapper with auto token refresh
     │   └── AuthService.ts            # Login/register/logout state management

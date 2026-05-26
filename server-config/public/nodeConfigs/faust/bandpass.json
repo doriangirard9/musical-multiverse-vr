@@ -1,0 +1,116 @@
+{
+    "aspect_ratio": 1.5,
+    "size": 0.7,
+    "bottom_color": "#b8a772",
+    "top_color": "#c4cc88",
+    "face": "horizontal_line",
+    "face_color": "#866f39",
+    "outline_color": "#564516",
+    "outline_width": 0.07,
+    "shape": "rectangle",
+    "modifier": "skew_right",
+    "modifier_strength": 0.09,
+    "controls": [
+        {
+            "x": 0.8024756099738689,
+            "y": 0.3735933417476096,
+            "width": 0.1975243900261311,
+            "height": 0.18852211837293004,
+            "values": {
+                "Color": "#FF0000"
+            },
+            "control": "output_control"
+        },
+        {
+            "x": 0,
+            "y": 0.3735933417476096,
+            "width": 0.19752439002613106,
+            "height": 0.18852211837293004,
+            "values": {
+                "Color": "#00FF00"
+            },
+            "control": "input_control"
+        },
+        {
+            "x": 0.19835080559856222,
+            "y": 0.5071267122188089,
+            "width": 0.6041248043753067,
+            "height": 0.0774943785861466,
+            "values": {
+                "Unfilled/Shape": "rectangle",
+                "Unfilled/Top Color": "#000000",
+                "Unfilled/Bottom Color": "#000000",
+                "Unfilled/Outline Color": "#000000",
+                "Unfilled/Outline Width": 0,
+                "Unfilled/Front Face Image": "",
+                "Unfilled/Front Face Color": "#FFFFFF",
+                "Unfilled/Modifier": "normal",
+                "Unfilled/Modifier Strength": 0.5,
+                "Unfilled/Height": 0.2,
+                "Unfilled/Rotation": 0,
+                "Filled/Shape": "rectangle",
+                "Filled/Top Color": "#cfc430",
+                "Filled/Bottom Color": "#d2ca28",
+                "Filled/Outline Color": "#000000",
+                "Filled/Outline Width": 0,
+                "Filled/Front Face Image": "",
+                "Filled/Front Face Color": "#FFFFFF",
+                "Filled/Modifier": "normal",
+                "Filled/Modifier Strength": 0.5,
+                "Filled/Height": 0.2,
+                "Filled/Rotation": 0,
+                "Direction": "+x",
+                "Target": "/thunder/High"
+            },
+            "control": "jauge"
+        },
+        {
+            "x": 0.19835080559856222,
+            "y": 0.6006450835187197,
+            "width": 0.6041248043753067,
+            "height": 0.0774943785861466,
+            "values": {
+                "Unfilled/Shape": "rectangle",
+                "Unfilled/Top Color": "#000000",
+                "Unfilled/Bottom Color": "#000000",
+                "Unfilled/Outline Color": "#000000",
+                "Unfilled/Outline Width": 0,
+                "Unfilled/Front Face Image": "",
+                "Unfilled/Front Face Color": "#FFFFFF",
+                "Unfilled/Modifier": "normal",
+                "Unfilled/Modifier Strength": 0.5,
+                "Unfilled/Height": 0.2,
+                "Unfilled/Rotation": 0,
+                "Filled/Shape": "rectangle",
+                "Filled/Top Color": "#cfc430",
+                "Filled/Bottom Color": "#d2ca28",
+                "Filled/Outline Color": "#000000",
+                "Filled/Outline Width": 0,
+                "Filled/Front Face Image": "",
+                "Filled/Front Face Color": "#FFFFFF",
+                "Filled/Modifier": "normal",
+                "Filled/Modifier Strength": 0.5,
+                "Filled/Height": 0.2,
+                "Filled/Rotation": 0,
+                "Direction": "+x",
+                "Target": "/thunder/Low"
+            },
+            "control": "jauge"
+        },
+        {
+            "x": 0.4141035727341205,
+            "y": 0.28285079271683566,
+            "width": 0.2065266170250516,
+            "height": 0.17051761972080884,
+            "values": {
+                "Text": "Bandpass",
+                "Color": "#fff209",
+                "Outline Color": "#000000",
+                "Outline Width": 0.025,
+                "Font": "futura_renner"
+            },
+            "control": "text"
+        }
+    ],
+    "wam_url": "https://jempasam.github.io/SamWAMS/module/filter/bandpass/index.js"
+}

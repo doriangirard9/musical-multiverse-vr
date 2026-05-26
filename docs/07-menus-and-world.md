@@ -11,14 +11,14 @@ shared graph."
 
 | Folder | Files |
 |---|---|
-| `menus/` | [`HandMenu.ts`](../src/Refactoring/menus/HandMenu.ts), [`SimpleMenu.ts`](../src/Refactoring/menus/SimpleMenu.ts) |
-| `world/` | [`N3DPreviewer.ts`](../src/Refactoring/world/N3DPreviewer.ts), [`Node3DStand.ts`](../src/Refactoring/world/Node3DStand.ts), [`ScrollWall.ts`](../src/Refactoring/world/ScrollWall.ts), [`AsyncLoading.ts`](../src/Refactoring/world/AsyncLoading.ts) |
-| `world/menu/` | [`ShopPanel.ts`](../src/Refactoring/world/menu/ShopPanel.ts) |
-| `world/shop/` | [`N3DShop.ts`](../src/Refactoring/world/shop/N3DShop.ts), [`N3DShopCamera.ts`](../src/Refactoring/world/shop/N3DShopCamera.ts), [`N3DShopPreviewer.ts`](../src/Refactoring/world/shop/N3DShopPreviewer.ts) |
-| `world/ground/` | [`WaveGround.ts`](../src/Refactoring/world/ground/WaveGround.ts), [`WaveSimulator.ts`](../src/Refactoring/world/ground/WaveSimulator.ts), [`ReactiveBlockGround.ts`](../src/Refactoring/world/ground/ReactiveBlockGround.ts) |
-| `world/soundwave/` | [`SoundwaveEmitter.ts`](../src/Refactoring/world/soundwave/SoundwaveEmitter.ts) |
-| `visual/` | [`VisualTube.ts`](../src/Refactoring/visual/VisualTube.ts), [`VisualRope.ts`](../src/Refactoring/visual/VisualRope.ts) |
-| `iomanager/` | [`ConnectionManager.ts`](../src/Refactoring/iomanager/ConnectionManager.ts) |
+| `menus/` | [`HandMenu.ts`](../src/menus/HandMenu.ts), [`SimpleMenu.ts`](../src/menus/SimpleMenu.ts) |
+| `world/` | [`N3DPreviewer.ts`](../src/world/N3DPreviewer.ts), [`Node3DStand.ts`](../src/world/Node3DStand.ts), [`ScrollWall.ts`](../src/world/ScrollWall.ts), [`AsyncLoading.ts`](../src/world/AsyncLoading.ts) |
+| `world/menu/` | [`ShopPanel.ts`](../src/world/menu/ShopPanel.ts) |
+| `world/shop/` | [`N3DShop.ts`](../src/world/shop/N3DShop.ts), [`N3DShopCamera.ts`](../src/world/shop/N3DShopCamera.ts), [`N3DShopPreviewer.ts`](../src/world/shop/N3DShopPreviewer.ts) |
+| `world/ground/` | [`WaveGround.ts`](../src/world/ground/WaveGround.ts), [`WaveSimulator.ts`](../src/world/ground/WaveSimulator.ts), [`ReactiveBlockGround.ts`](../src/world/ground/ReactiveBlockGround.ts) |
+| `world/soundwave/` | [`SoundwaveEmitter.ts`](../src/world/soundwave/SoundwaveEmitter.ts) |
+| `visual/` | [`VisualTube.ts`](../src/visual/VisualTube.ts), [`VisualRope.ts`](../src/visual/VisualRope.ts) |
+| `iomanager/` | [`ConnectionManager.ts`](../src/iomanager/ConnectionManager.ts) |
 
 > **What's gone**: older branches had `AbstractMenu`, `MainMenu`,
 > `Menu2`, `NodeMenu`. They've been replaced by `world/menu/ShopPanel`
@@ -35,7 +35,7 @@ generic 3D-menu primitive) and `HandMenu` (the always-attached
 left-controller transport menu). The big shop UI lives under
 `world/menu/`.
 
-### `SimpleMenu` ([SimpleMenu.ts](../src/Refactoring/menus/SimpleMenu.ts))
+### `SimpleMenu` ([SimpleMenu.ts](../src/menus/SimpleMenu.ts))
 
 A thin wrapper around Babylon's `NearMenu` + `TouchHolographicButton`.
 The whole class is 87 lines.
@@ -65,10 +65,10 @@ camera, no closer, no further.
 Used by:
 - `HandMenu`'s gaze-activated transport menu (see below)
 - Per-Node3D menus opened through
-  [`N3DMenuInstance.openMenu`](../src/Refactoring/node3d/instance/utils/N3DMenuManager.ts)
+  [`N3DMenuInstance.openMenu`](../src/node3d/instance/utils/N3DMenuManager.ts)
   (the implementation of `Node3DContext.openMenu`)
 
-### `HandMenu` ([HandMenu.ts](../src/Refactoring/menus/HandMenu.ts))
+### `HandMenu` ([HandMenu.ts](../src/menus/HandMenu.ts))
 
 A small cube parented to the **left controller** that spawns a
 gaze-activated `SimpleMenu` with Start/Stop transport buttons.
@@ -83,13 +83,13 @@ The full lifecycle:
 | `onGazeActivated` | 69+ | Builds a `SimpleMenu("gaze-menu", ...)` with two buttons: **Start** → `WamTransportManager.start()`, **Stop** → `WamTransportManager.stop()` |
 
 `WamTransportManager` is a separate singleton in
-[`subs/PianoRoll/`](../src/Refactoring/node3d/subs/PianoRoll/WamTransportManager.ts)
+[`subs/PianoRoll/`](../src/node3d/subs/PianoRoll/WamTransportManager.ts)
 that all WAM nodes register against to receive `wam-transport`
 messages — start/stop of the global transport state. The HandMenu is
 the front-end for it.
 
 `HandMenu` is constructed by
-[`XRManager._createHandMenu()`](../src/Refactoring/xr/XRManager.ts)
+[`XRManager._createHandMenu()`](../src/xr/XRManager.ts)
 once the left controller is detected. On `EXITING_XR` /
 `NOT_IN_XR`, `XRManager` disposes it and the cleanup detaches every
 observer.
@@ -114,7 +114,7 @@ Two separate "shop" implementations co-exist:
    instantiation in `NewApp.start` is wrapped in a comment block.
    Kept as future work / reference.
 
-### `ShopPanel` ([ShopPanel.ts](../src/Refactoring/world/menu/ShopPanel.ts))
+### `ShopPanel` ([ShopPanel.ts](../src/world/menu/ShopPanel.ts))
 
 A 2×1m plane in 3D space, with a 1024×512 `AdvancedDynamicTexture` on
 it. The texture renders a flat 2D UI: top bar with category +
@@ -160,7 +160,7 @@ When the user clicks an item button, the panel emits
 [02 §AppOrchestrator](02-app-core.md#apporchestrator-apporchestratorts).
 
 The panel is toggled by the **right controller A button** at
-[NewApp.ts:139-145](../src/Refactoring/app/NewApp.ts):
+[NewApp.ts:139-145](../src/app/NewApp.ts):
 
 ```typescript
 InputManager.getInstance().a_button.onDown.add(()=>{
@@ -176,7 +176,7 @@ It renders into the `utilityLayer.utilityLayerScene` (a separate
 overlay scene managed by `N3DShared`) so it doesn't z-fight with
 world meshes.
 
-### `N3DShop` (dormant) ([N3DShop.ts](../src/Refactoring/world/shop/N3DShop.ts))
+### `N3DShop` (dormant) ([N3DShop.ts](../src/world/shop/N3DShop.ts))
 
 The "physical building" shop. Loads a `.glb` model (a music shop
 building) and arranges `N3DShopPreviewer` instances on its shelves.
@@ -196,10 +196,10 @@ Three classes work together:
   similar to `N3DPreviewer` but with shop-specific positioning.
 
 Reactivate by uncommenting the parallel block at
-[NewApp.ts:179-244](../src/Refactoring/app/NewApp.ts) — the assets
+[NewApp.ts:179-244](../src/app/NewApp.ts) — the assets
 (`.glb` files) are still in `world/shop/`.
 
-### `N3DPreviewer` ([N3DPreviewer.ts](../src/Refactoring/world/N3DPreviewer.ts))
+### `N3DPreviewer` ([N3DPreviewer.ts](../src/world/N3DPreviewer.ts))
 
 A non-persisted, non-synced node3D preview that, when dragged far
 enough, **becomes** a real `Node3DInstance`.
@@ -226,7 +226,7 @@ Useful callbacks for callers:
 - `on_drop(node3d)` — successful spawn
 - `on_no_drop()` — released too close
 
-### `Node3DStand` ([Node3DStand.ts](../src/Refactoring/world/Node3DStand.ts))
+### `Node3DStand` ([Node3DStand.ts](../src/world/Node3DStand.ts))
 
 A wooden stand `.glb` with a `N3DPreviewer` on top. Combines
 `stand.glb` + a previewer placed at the model's `placement` mesh.
@@ -247,13 +247,13 @@ along the X axis. Used as a quick "tutorial / starter island" for new
 players. Currently not wired into `NewApp` (see the commented-out
 block).
 
-### `ScrollWall` ([ScrollWall.ts](../src/Refactoring/world/ScrollWall.ts))
+### `ScrollWall` ([ScrollWall.ts](../src/world/ScrollWall.ts))
 
 A scrollable wall of stands. Not currently wired into the app on this
 branch but kept as a reference. If you want a "wall of every
 instrument" UI, this is the file to revive.
 
-### `AsyncLoading` ([AsyncLoading.ts](../src/Refactoring/world/AsyncLoading.ts))
+### `AsyncLoading` ([AsyncLoading.ts](../src/world/AsyncLoading.ts))
 
 The little spinner that shows up when a Node3D is being created.
 
@@ -273,13 +273,13 @@ the spinner is essentially free.
 `Node3dManager.createNode3d` wraps the spawn promise in
 `AsyncLoading.create` so you see the spinner at the spawn position
 while the factory is fetched and the node initializes — see
-[Node3dManager.ts:69](../src/Refactoring/app/Node3dManager.ts).
+[Node3dManager.ts:69](../src/app/Node3dManager.ts).
 
 ---
 
 ## Visual ground & soundwaves
 
-### `WaveGround` ([WaveGround.ts](../src/Refactoring/world/ground/WaveGround.ts))
+### `WaveGround` ([WaveGround.ts](../src/world/ground/WaveGround.ts))
 
 The animated floor. A 30×30 grid of cells where each cell stores
 amplitude/RGB; when an instrument plays, it can "punch" the grid at a
@@ -294,23 +294,23 @@ creates one of these and runs it:
 
 Instruments inject ripples through
 `Node3DContext.sendSignal(position, r, g, b)`
-([Node3DInstance.ts:166-169](../src/Refactoring/node3d/instance/Node3DInstance.ts)),
+([Node3DInstance.ts:166-169](../src/node3d/instance/Node3DInstance.ts)),
 which calls `waveGround.putWorldSpace(...)`. `SpeakerN3D` does this
 on every audible "bounce" of the analyser (see chapter
 [04 §SpeakerN3D](04-instruments-catalog.md#speakern3d)).
 
-### `WaveSimulator` ([WaveSimulator.ts](../src/Refactoring/world/ground/WaveSimulator.ts))
+### `WaveSimulator` ([WaveSimulator.ts](../src/world/ground/WaveSimulator.ts))
 
 The pure simulation logic for `WaveGround` — keeps amplitudes and
 RGB on a 2D grid, runs the propagation step. No Babylon meshes.
 Separated out so the simulation can be unit-tested without a scene.
 
-### `ReactiveBlockGround` ([ReactiveBlockGround.ts](../src/Refactoring/world/ground/ReactiveBlockGround.ts))
+### `ReactiveBlockGround` ([ReactiveBlockGround.ts](../src/world/ground/ReactiveBlockGround.ts))
 
 An alternative ground style — blocks that pop up reactively to
 audio. Not currently used by `SceneManager` but kept as an option.
 
-### `SoundwaveEmitter` ([SoundwaveEmitter.ts](../src/Refactoring/world/soundwave/SoundwaveEmitter.ts))
+### `SoundwaveEmitter` ([SoundwaveEmitter.ts](../src/world/soundwave/SoundwaveEmitter.ts))
 
 The other half of the visual feedback: when a node calls
 `sendSignal(position, r, g, b)`, the emitter spawns a circular ripple
@@ -327,7 +327,7 @@ this.soundwaveEmitter = new SoundwaveEmitter(this.scene, -2 + 0.5 + 0.1, 80)
 
 ## Connection visuals
 
-### `VisualTube` ([VisualTube.ts](../src/Refactoring/visual/VisualTube.ts))
+### `VisualTube` ([VisualTube.ts](../src/visual/VisualTube.ts))
 
 The visual cable mesh. `N3DConnectionInstance` builds its own tube
 internally for the actual audio/MIDI wires (see chapter
@@ -359,7 +359,7 @@ to lazily configure the meshes — `iomanager/ConnectionManager` uses it
 to set the preview tube's `isPickable = false` so the user can't
 accidentally click their own preview line.
 
-### `VisualRope` ([VisualRope.ts](../src/Refactoring/visual/VisualRope.ts))
+### `VisualRope` ([VisualRope.ts](../src/visual/VisualRope.ts))
 
 A rope variant with multiple segments — used for visualising chains
 or curved cables. Currently unused on this branch but kept for future
@@ -370,7 +370,7 @@ work.
 ## `iomanager/ConnectionManager` — the wire-drawing logic
 
 Despite the name, this is **not** the same `ConnectionManager` as the
-one in [`network/`](../src/Refactoring/network/) on older branches.
+one in [`network/`](../src/network/) on older branches.
 That older one no longer exists. This one is a different class
 entirely: it listens for `IOEventBus.IO_CONNECT` events and
 implements the "click an output, drag to an input, release to connect"
@@ -418,7 +418,7 @@ state: dragging
 ```
 
 The neat bit: the preview tube goes through `NetworkManager.visual.tubes`
-([line 65](../src/Refactoring/iomanager/ConnectionManager.ts)), so
+([line 65](../src/iomanager/ConnectionManager.ts)), so
 **other players see your preview line too** while you drag. When you
 release without connecting, the `disposePreview()` removes it from the
 shared map, which propagates to peers.

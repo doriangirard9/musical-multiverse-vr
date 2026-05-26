@@ -11,6 +11,7 @@ const {
     BCRYPT_SALT_ROUNDS,
 } = require('../auth');
 const bcrypt = require('bcrypt');
+const options = require('../options');
 
 const router = express.Router();
 
@@ -70,7 +71,7 @@ router.post('/register', async (req, res) => {
         // Set refresh token as httpOnly cookie
         res.cookie('refreshToken', refreshToken, {
             httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
+            secure: options.ENV === 'production',
             sameSite: 'lax',
             maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
             path: '/api/auth',
@@ -123,7 +124,7 @@ router.post('/login', async (req, res) => {
         // Set refresh token as httpOnly cookie
         res.cookie('refreshToken', refreshToken, {
             httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
+            secure: options.ENV === 'production',
             sameSite: 'lax',
             maxAge: 7 * 24 * 60 * 60 * 1000,
             path: '/api/auth',

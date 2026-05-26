@@ -1,0 +1,58 @@
+{
+    "aspect_ratio": 1.8,
+    "size": 0.6,
+    "bottom_color": "#37b5b5",
+    "top_color": "#69e4eb",
+    "outline_color": "#000df4",
+    "outline_width": 0.08,
+    "shape": "rectangle",
+    "modifier": "normal",
+    "modifier_strength": 0.5,
+    "controls": [
+        {
+            "x": 0.3694128596811784,
+            "y": 0.3813135422653201,
+            "width": 0.2638504028734607,
+            "height": 0.2340615730796769,
+            "values": {
+                "Text": "Rain",
+                "Color": "#1500a6",
+                "Outline Color": "#ffffff",
+                "Outline Width": 0,
+                "Font": "xolonium"
+            },
+            "control": "text"
+        },
+        {
+            "x": 0.7808361724307775,
+            "y": 0.4051416549784407,
+            "width": 0.21618437147489789,
+            "height": 0.21023346036655632,
+            "values": {
+                "Color": "#FF0000"
+            },
+            "control": "output_control"
+        },
+        {
+            "x": 0,
+            "y": 0.39803104196297084,
+            "width": 0.22363456184014638,
+            "height": 0.22065541577170905,
+            "values": {
+                "Shape/Shape": "octagon",
+                "Shape/Top Color": "#0024f0",
+                "Shape/Bottom Color": "#4b00fb",
+                "Shape/Outline Color": "#000000",
+                "Shape/Outline Width": 0,
+                "Shape/Front Face Image": "",
+                "Shape/Front Face Color": "#FFFFFF",
+                "Shape/Modifier": "normal",
+                "Shape/Modifier Strength": 0.5,
+                "Shape/Height": 0.226,
+                "Shape/Rotation": 0
+            },
+            "control": "decoration"
+        }
+    ],
+    "wam_url": "https://jempasam.github.io/SamWAMS/module/generator/rain/index.js"
+}

@@ -1,0 +1,95 @@
+{
+    "aspect_ratio": 0.6,
+    "size": 1,
+    "bottom_color": "#551e54",
+    "top_color": "#a5a5a5",
+    "face": "fiber",
+    "face_color": "#5a3d70",
+    "outline_color": "#391c38",
+    "outline_width": 0.1,
+    "shape": "octagon",
+    "modifier": "normal",
+    "modifier_strength": 0,
+    "controls": [
+        {
+            "x": 0.4126121740246076,
+            "y": 0.4050500223584324,
+            "width": 0.1640597031647993,
+            "height": 0.12680254483800196,
+            "values": {
+                "Text": "Vibrato",
+                "Color": "#bfa0d1",
+                "Outline Color": "#4a3256",
+                "Outline Width": 0.05,
+                "Font": "xolonium"
+            },
+            "control": "text"
+        },
+        {
+            "x": 0.39772198501754386,
+            "y": 0.15342596192117267,
+            "width": 0.2161866966690532,
+            "height": 0.21320755060061602,
+            "values": {
+                "Base Color": "#362141",
+                "Cursor Color": "#b080b0",
+                "Target": "/bandpass/Frequency"
+            },
+            "control": "cursor_control"
+        },
+        {
+            "x": 0.4424116974023783,
+            "y": 0.5541945198051109,
+            "width": 0.13426017978702853,
+            "height": 0.34719395262979735,
+            "values": {
+                "Unfilled/Shape": "rectangle",
+                "Unfilled/Top Color": "#422641",
+                "Unfilled/Bottom Color": "#703d81",
+                "Unfilled/Outline Color": "#583d72",
+                "Unfilled/Outline Width": 0,
+                "Unfilled/Front Face Image": "",
+                "Unfilled/Front Face Color": "#FFFFFF",
+                "Unfilled/Modifier": "normal",
+                "Unfilled/Modifier Strength": 0.5,
+                "Unfilled/Height": 0.2,
+                "Unfilled/Rotation": 0,
+                "Filled/Shape": "rectangle",
+                "Filled/Top Color": "#ff0000",
+                "Filled/Bottom Color": "#ff8888",
+                "Filled/Outline Color": "#000000",
+                "Filled/Outline Width": 0,
+                "Filled/Front Face Image": "",
+                "Filled/Front Face Color": "#FFFFFF",
+                "Filled/Modifier": "normal",
+                "Filled/Modifier Strength": 0.5,
+                "Filled/Height": 0.2,
+                "Filled/Rotation": 0,
+                "Direction": "+y",
+                "Target": "/bandpass/Attenuation"
+            },
+            "control": "jauge"
+        },
+        {
+            "x": 0.7850049890332186,
+            "y": 0.36663351252178866,
+            "width": 0.21499501096678142,
+            "height": 0.2130088954783006,
+            "values": {
+                "Color": "#FF0000"
+            },
+            "control": "output_control"
+        },
+        {
+            "x": 0,
+            "y": 0.36663351252178866,
+            "width": 0.21499501096678142,
+            "height": 0.21300889547830054,
+            "values": {
+                "Color": "#00FF00"
+            },
+            "control": "input_control"
+        }
+    ],
+    "wam_url": "https://jempasam.github.io/SamWAMS/module/filter/vibrato/index.js"
+}

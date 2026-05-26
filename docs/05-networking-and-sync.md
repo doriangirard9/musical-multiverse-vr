@@ -9,8 +9,8 @@ Express server that ships WAM configs.
 
 | Folder | Files |
 |---|---|
-| `network/` | [`NetworkManager.ts`](../src/Refactoring/network/NetworkManager.ts), [`PeerToPeerManager.ts`](../src/Refactoring/network/PeerToPeerManager.ts), [`PlayerNetwork.ts`](../src/Refactoring/network/PlayerNetwork.ts), [`Node3DNetwork.ts`](../src/Refactoring/network/Node3DNetwork.ts), [`VisualNetwork.ts`](../src/Refactoring/network/VisualNetwork.ts), [`types.ts`](../src/Refactoring/network/types.ts) |
-| `network/sync/` | [`SyncManager.ts`](../src/Refactoring/network/sync/SyncManager.ts), [`Synchronized.ts`](../src/Refactoring/network/sync/Synchronized.ts), [`SyncSerializable.ts`](../src/Refactoring/network/sync/SyncSerializable.ts) |
+| `network/` | [`NetworkManager.ts`](../src/network/NetworkManager.ts), [`PeerToPeerManager.ts`](../src/network/PeerToPeerManager.ts), [`PlayerNetwork.ts`](../src/network/PlayerNetwork.ts), [`Node3DNetwork.ts`](../src/network/Node3DNetwork.ts), [`VisualNetwork.ts`](../src/network/VisualNetwork.ts), [`types.ts`](../src/network/types.ts) |
+| `network/sync/` | [`SyncManager.ts`](../src/network/sync/SyncManager.ts), [`Synchronized.ts`](../src/network/sync/Synchronized.ts), [`SyncSerializable.ts`](../src/network/sync/SyncSerializable.ts) |
 | `server-config/` | [`server.js`](../server-config/server.js) |
 
 ---
@@ -68,16 +68,16 @@ Everything multiplayer lives in **one shared `Y.Doc`** owned by
 
 | Slot | Owner | What it holds |
 |---|---|---|
-| `'players'` (Y.Map) | [`PlayerNetwork`](../src/Refactoring/network/PlayerNetwork.ts) | `playerId → PlayerState` |
-| `'node3d_instances'` (Y.Map via SyncManager) | [`Node3DNetwork.nodes`](../src/Refactoring/network/Node3DNetwork.ts) | `nodeId → kind` (data) plus state map per node |
-| `'node3d_connections'` (Y.Map via SyncManager) | [`Node3DNetwork.connections`](../src/Refactoring/network/Node3DNetwork.ts) | wire id → wire state |
-| `'visual_tubes'` (Y.Map via SyncManager) | [`VisualNetwork.tubes`](../src/Refactoring/network/VisualNetwork.ts) | floating visual tube id → state |
-| Awareness | [`PeerToPeerManager`](../src/Refactoring/network/PeerToPeerManager.ts) | per-peer `{playerId, lastActive}` (transient — not saved in the doc) |
+| `'players'` (Y.Map) | [`PlayerNetwork`](../src/network/PlayerNetwork.ts) | `playerId → PlayerState` |
+| `'node3d_instances'` (Y.Map via SyncManager) | [`Node3DNetwork.nodes`](../src/network/Node3DNetwork.ts) | `nodeId → kind` (data) plus state map per node |
+| `'node3d_connections'` (Y.Map via SyncManager) | [`Node3DNetwork.connections`](../src/network/Node3DNetwork.ts) | wire id → wire state |
+| `'visual_tubes'` (Y.Map via SyncManager) | [`VisualNetwork.tubes`](../src/network/VisualNetwork.ts) | floating visual tube id → state |
+| Awareness | [`PeerToPeerManager`](../src/network/PeerToPeerManager.ts) | per-peer `{playerId, lastActive}` (transient — not saved in the doc) |
 
 Yjs is a CRDT, so concurrent edits don't conflict — every peer
 converges on the same state regardless of message order. The
 **room name** is `"WamJamParty" + document.location.hash`
-([NetworkManager.ts:26](../src/Refactoring/network/NetworkManager.ts)) — so
+([NetworkManager.ts:26](../src/network/NetworkManager.ts)) — so
 loading the same URL hash (`?#room1`) lands you in the same room.
 Different hashes = different rooms.
 
@@ -85,7 +85,7 @@ Different hashes = different rooms.
 
 ## Per-class reference
 
-### `NetworkManager` ([NetworkManager.ts](../src/Refactoring/network/NetworkManager.ts))
+### `NetworkManager` ([NetworkManager.ts](../src/network/NetworkManager.ts))
 
 The singleton facade. Owns the `Y.Doc` and the four sub-managers.
 
@@ -116,7 +116,7 @@ this.visual    = new VisualNetwork(this.doc)
 That's it — the whole networking init is six lines. Everything else
 flows from event-bus messages.
 
-### `PeerToPeerManager` ([PeerToPeerManager.ts](../src/Refactoring/network/PeerToPeerManager.ts))
+### `PeerToPeerManager` ([PeerToPeerManager.ts](../src/network/PeerToPeerManager.ts))
 
 WebRTC connection + Yjs awareness.
 
@@ -135,7 +135,7 @@ WebRTC connection + Yjs awareness.
 
 #### Signaling endpoint
 
-[Line 8](../src/Refactoring/network/PeerToPeerManager.ts):
+[Line 8](../src/network/PeerToPeerManager.ts):
 
 ```typescript
 const SIGNALING_SERVER = `https://wamjamparty.i3s.univ-cotedazur.fr/rtc`
@@ -163,7 +163,7 @@ on the same host" approach.
 Updates that *don't* change `playerId` (e.g. just the heartbeat
 `lastActive`) are ignored.
 
-### `PlayerNetwork` ([PlayerNetwork.ts](../src/Refactoring/network/PlayerNetwork.ts))
+### `PlayerNetwork` ([PlayerNetwork.ts](../src/network/PlayerNetwork.ts))
 
 Syncs avatar state via the `'players'` Y.Map. Each player writes
 their own `PlayerState` into the map; remote peers observe it.
@@ -202,7 +202,7 @@ And **two readers**:
 So every 50ms, when you move, you write your own state to a CRDT map
 that's automatically replicated. No explicit "send" call.
 
-### `Node3DNetwork` ([Node3DNetwork.ts](../src/Refactoring/network/Node3DNetwork.ts))
+### `Node3DNetwork` ([Node3DNetwork.ts](../src/network/Node3DNetwork.ts))
 
 A thin holder for two `SyncManager`s built by other classes.
 
@@ -215,7 +215,7 @@ Also exports `Node3DGraphDescription` (lines 51–64) — the format
 [`Serialization`](02-app-core.md#serialization-serializationts) uses
 to save/load graphs.
 
-### `VisualNetwork` ([VisualNetwork.ts](../src/Refactoring/network/VisualNetwork.ts))
+### `VisualNetwork` ([VisualNetwork.ts](../src/network/VisualNetwork.ts))
 
 Owns one more `SyncManager`:
 
@@ -223,7 +223,7 @@ Owns one more `SyncManager`:
 |---|---|---|
 | `tubes: SyncManager<VisualTube, ...>` | 23 | Built by `VisualTube.getSyncManager(scene, doc)`. See chapter [07 §VisualTube](07-menus-and-world.md#visualtube) |
 
-### `types.ts` ([types.ts](../src/Refactoring/network/types.ts))
+### `types.ts` ([types.ts](../src/network/types.ts))
 
 The wire format for player state:
 
@@ -246,7 +246,7 @@ serialize at the boundary. (Yjs would happily JSON.stringify a
 
 ## The generic `SyncManager<T, D>`
 
-[`SyncManager.ts`](../src/Refactoring/network/sync/SyncManager.ts) is
+[`SyncManager.ts`](../src/network/sync/SyncManager.ts) is
 the single most reused class in the networking layer. It's a generic
 "registry of synchronized objects" — give it a Yjs doc and a factory
 function, and it handles add/remove/state-sync over the network.
@@ -263,7 +263,7 @@ class SyncManager<
 ```
 
 - `T` — the synchronized object type. Must implement
-  [`Synchronized`](../src/Refactoring/network/sync/Synchronized.ts).
+  [`Synchronized`](../src/network/sync/Synchronized.ts).
 - `D` — optional **per-instance "data"** that travels alongside the
   state but is set once at `add()` time. For Node3D nodes, this is
   the `kind` string ("oscillator", "harp", etc.) — it's how a
@@ -272,7 +272,7 @@ class SyncManager<
 
 ### Constructor options
 
-[Lines 27–43](../src/Refactoring/network/sync/SyncManager.ts):
+[Lines 27–43](../src/network/sync/SyncManager.ts):
 
 | Option | Required | What |
 |---|---|---|
@@ -340,7 +340,7 @@ fires `add_from_network`:
 2. `await this.create(id, state, data)` — the factory builds the
    right kind of instance (e.g. for Node3D, calls
    `audioManager.builder.create(kind)` from
-   [Node3DInstance.ts:354](../src/Refactoring/node3d/instance/Node3DInstance.ts)).
+   [Node3DInstance.ts:354](../src/node3d/instance/Node3DInstance.ts)).
 3. Register, then `initialize()` — same as above, except instead of
    asking the instance for its state, we **replay every entry from
    the shared map into `instance.setState(key, value)`** (line 267).
@@ -379,7 +379,7 @@ the network sees one merged `transact` every 100ms.
 
 #### The `get(id)` async pattern
 
-[`N3DConnectionInstance`](../src/Refactoring/node3d/instance/N3DConnectionInstance.ts)
+[`N3DConnectionInstance`](../src/node3d/instance/N3DConnectionInstance.ts)
 needs to look up its two endpoints by id, but the endpoints might not
 have synced yet (the connection's "this is the wire payload" arrives
 through a different transaction than the wire's "I exist" payload).
@@ -394,7 +394,7 @@ through a different transaction than the wire's "I exist" payload).
 
 ### `Synchronized` interface
 
-[`Synchronized.ts`](../src/Refactoring/network/sync/Synchronized.ts):
+[`Synchronized.ts`](../src/network/sync/Synchronized.ts):
 
 ```typescript
 interface Synchronized {
@@ -414,14 +414,14 @@ interface Synchronized {
 
 Three classes implement this:
 
-- [`Node3DInstance`](../src/Refactoring/node3d/instance/Node3DInstance.ts)
+- [`Node3DInstance`](../src/node3d/instance/Node3DInstance.ts)
   — handles the `"position"` and `"node3d_parameter_*"` keys directly,
   delegates everything else to the underlying plugin's
   `getState/setState`.
-- [`N3DConnectionInstance`](../src/Refactoring/node3d/instance/N3DConnectionInstance.ts)
+- [`N3DConnectionInstance`](../src/node3d/instance/N3DConnectionInstance.ts)
   — handles the `"connectables"` key with a `{fromId, fromPortId,
   toId, toPortId}` payload.
-- [`VisualTube`](../src/Refactoring/visual/VisualTube.ts) — handles
+- [`VisualTube`](../src/visual/VisualTube.ts) — handles
   `"position"` and `"color"`.
 
 > **Quirk**: `Node3DInstance.initSync` only takes `(id, set_state)`
@@ -531,7 +531,7 @@ remaining canonical examples of `Synchronized` are
 `Node3DInstance`, `N3DConnectionInstance`, and `VisualTube`. If you
 need a stripped-down example to copy from, the **tube** is the
 smallest:
-[`src/Refactoring/visual/VisualTube.ts`](../src/Refactoring/visual/VisualTube.ts)
+[`src/visual/VisualTube.ts`](../src/visual/VisualTube.ts)
 (see chapter [07 §Visuals](07-menus-and-world.md#visualtube)).
 
 ---
