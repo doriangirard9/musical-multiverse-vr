@@ -1,5 +1,10 @@
 export { InputDropBehavior } from "../../../xr/inputs/tools/InputDropBehavior";
 export { InputGrabBehavior } from "../../../xr/inputs/tools/InputGrabBehavior";
+export { InputMultiGrabBehavior } from "../../../xr/inputs/tools/InputMultiGrabBehavior";
 export { InputHoverBehavior } from "../../../xr/inputs/tools/InputHoverBehavior";
+export { InputMoveOverBehavior } from "../../../xr/inputs/tools/InputMoveOverBehavior";
+export { InputMultiHoverBehavior } from "../../../xr/inputs/tools/InputMultiHoverBehavior";
 export { InputMultiPressBehavior as InputPressBehavior } from "../../../xr/inputs/tools/InputMultiPressBehavior";
 export { InputPressBehavior as InputMultiPressBehavior } from "../../../xr/inputs/tools/InputPressBehavior";
+export { InputToPointerBehavior } from "../../../xr/inputs/tools/InputToPointer";
+export { InputVisualPointer } from "../../../xr/inputs/tools/InputVisualPointer";

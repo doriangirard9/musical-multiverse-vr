@@ -1,5 +1,4 @@
 import { Behavior, TransformNode } from "@babylonjs/core";
-import { InputManager } from "../../xr/inputs/InputManager";
 import { MoveHoldBehaviour } from "./MoveHoldBehaviour";
 import { RotateHoldBehaviour } from "./RotateHoldBehaviour";
 import { PointerInput } from "../../xr/inputs/PointerInput";

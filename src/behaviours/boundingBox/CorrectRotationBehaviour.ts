@@ -21,10 +21,16 @@ export class RotationCorrectionBehaviour implements Behavior<AbstractMesh> {
     attach(target: AbstractMesh): void {
         this.detach()
         this.target = target
+        this.target.rotationQuaternion ??= Quaternion.FromEulerVector(this.target.rotation)
         this.observer = this.target.getScene().onAfterPhysicsObservable.add(()=>{
             const rotation = QuaternionUtils.getAbsolute(this.target)
             const left = Vector3.Left().rotateByQuaternionToRef(rotation, new Vector3())
             const target_left = new Vector3(left.x, 0, left.z).normalize()
+                        console.log("correcting rotation")
+
+            if(target_left.lengthSquared()<0.000001)return
+                        console.log("correcting rotation2")
+
             const rotation_to_apply = Quaternion.FromUnitVectorsToRef(left, target_left, new Quaternion())
             const softened_rotation = Quaternion.Slerp(Quaternion.Identity(), rotation_to_apply, 0.1)
 

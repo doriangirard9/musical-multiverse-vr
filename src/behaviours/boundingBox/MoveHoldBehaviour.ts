@@ -1,6 +1,7 @@
-import { Behavior, Matrix, Quaternion, TransformNode } from "@babylonjs/core";
+import { Behavior, Quaternion, TransformNode } from "@babylonjs/core";
 import { InputManager } from "../../xr/inputs/InputManager";
 import { PointerInput } from "../../xr/inputs/PointerInput";
+import { QuaternionUtils } from "../../utils/quaternion";
 
 /**
  * An object attached to this behavior will be moved around by the user with his controller.
@@ -10,7 +11,8 @@ import { PointerInput } from "../../xr/inputs/PointerInput";
  */
 export class MoveHoldBehaviour implements Behavior<TransformNode> {
   
-  name = MoveHoldBehaviour.name
+  get name (){ return this.constructor.name }
+  
   distance = -100
   right_distance = 0
   top_distance = 0
@@ -83,32 +85,10 @@ export class MoveHoldBehaviour implements Behavior<TransformNode> {
     const newRotation = Quaternion.FromLookDirectionRH(forward, up)
     if(this.oldRotation){
       const delta = newRotation.multiply(this.oldRotation.conjugate())
-      setAbsoluteRotation(this.target, delta.multiply(getAbsoluteRotation(this.target)))
+      QuaternionUtils.setAbsolute(this.target, delta.multiply(QuaternionUtils.getAbsolute(this.target)))
     }
     this.oldRotation = newRotation
     this.on_move()
   }
 
-}
-
-function getAbsoluteRotation(transform: TransformNode): Quaternion {
-  transform.computeWorldMatrix(true);
-  const worldMatrix = transform.getWorldMatrix();
-  const rotMatrix = new Matrix();
-  worldMatrix.getRotationMatrixToRef(rotMatrix);
-  return Quaternion.FromRotationMatrix(rotMatrix);
-}
-
-function setAbsoluteRotation(transform: TransformNode, worldQuat: Quaternion): void {
-  let parentQuat = Quaternion.Identity();
-  if (transform.parent) {
-    const parentMatrix = transform.parent.getWorldMatrix();
-    const parentRotMatrix = new Matrix();
-    parentMatrix.decompose()
-    parentMatrix.getRotationMatrixToRef(parentRotMatrix);
-    parentQuat = Quaternion.FromRotationMatrix(parentRotMatrix);
-  }
-
-  const localQuat = parentQuat.invert().multiply(worldQuat);
-  transform.rotationQuaternion = localQuat; // utiliser rotationQuaternion pour stabilité
 }

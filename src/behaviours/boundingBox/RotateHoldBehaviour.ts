@@ -10,7 +10,7 @@ import { PointerInput } from "../../xr/inputs/PointerInput";
  */
 export class RotateHoldBehaviour implements Behavior<TransformNode> {
   
-  name = RotateHoldBehaviour.name
+  get name (){ return this.constructor.name }
 
   target!: TransformNode
   oldRotation?: Quaternion

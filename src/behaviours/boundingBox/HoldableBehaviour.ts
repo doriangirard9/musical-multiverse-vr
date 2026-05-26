@@ -1,8 +1,9 @@
-import { AbstractMesh, ActionManager, Behavior, ExecuteCodeAction, Observable, PointerEventTypes, TransformNode } from "@babylonjs/core"
+import { AbstractMesh, Behavior, Observable, TransformNode } from "@babylonjs/core"
 import { FullHoldBehaviour } from "./FullHoldBehaviour"
-import { InputGrabBehavior } from "../../xr/inputs/tools/InputGrabBehavior"
 import { PointerInput } from "../../xr/inputs/PointerInput"
 import { RotationCorrectionBehaviour } from "./CorrectRotationBehaviour"
+import { TwoPointerHoldBehaviour } from "./TwoPointerHoldBehaviour"
+import { InputMultiGrabBehavior } from "../../node3d/tools"
 
 
 
@@ -13,7 +14,7 @@ import { RotationCorrectionBehaviour } from "./CorrectRotationBehaviour"
  */
 export class HoldableBehaviour implements Behavior<AbstractMesh> {
   
-    name = HoldableBehaviour.name
+    get name (){ return this.constructor.name }
 
     onMoveObservable = new Observable<void>()
     onRotateObservable = new Observable<void>()
@@ -27,6 +28,7 @@ export class HoldableBehaviour implements Behavior<AbstractMesh> {
     private target!: AbstractMesh
     private _isDragging = false
     private holdBehaviour?: FullHoldBehaviour
+    private twoPointerHoldBehaviour?: TwoPointerHoldBehaviour
 
     init(): void {}
 
@@ -36,12 +38,12 @@ export class HoldableBehaviour implements Behavior<AbstractMesh> {
         this.target = target
 
         this.target.isPickable = true
-        const grab = new InputGrabBehavior(
-            pointer=>{
-                this.grab(pointer)
+        const grab = new InputMultiGrabBehavior(
+            _=>{
+                this.grab(grab.grabbers)
             },
             _=>{
-                this.release()
+                this.grab(grab.grabbers)
             },
         )
 
@@ -57,25 +59,51 @@ export class HoldableBehaviour implements Behavior<AbstractMesh> {
         }
     }
 
-    grab(pointer: PointerInput){
+    grab(pointers: PointerInput[]){
         this._isDragging = true
-        if(!this.holdBehaviour){
-            const target = this.moved ?? this.target
-            this.onGrabObservable.notifyObservers()
-            this.holdBehaviour = new FullHoldBehaviour(pointer)
-            this.holdBehaviour.on_move = ()=>this.onMoveObservable.notifyObservers()
-            this.holdBehaviour.on_rotate = ()=>this.onRotateObservable.notifyObservers()
-            target.addBehavior(this.holdBehaviour)
-        }
-    }
 
-    release(){
-        this._isDragging = false
-        if(this.holdBehaviour){
+        // No pointer
+        if(pointers.length===0){
+            if(this._isDragging) this.onReleaseObservable.notifyObservers()
+            this._isDragging = false
+        }
+        else{
+            if(!this._isDragging) this.onGrabObservable.notifyObservers()
+            this._isDragging = true
+        }
+
+        // Simple hold behaviour
+        if(pointers.length===1){
+            const pointer = pointers[0]
+            if(!this.holdBehaviour){
+                const target = this.moved ?? this.target
+                this.holdBehaviour = new FullHoldBehaviour(pointer)
+                this.holdBehaviour.on_move = ()=>this.onMoveObservable.notifyObservers()
+                this.holdBehaviour.on_rotate = ()=>this.onRotateObservable.notifyObservers()
+                target.addBehavior(this.holdBehaviour)
+            }
+        }
+        else{
             const target = this.moved ?? this.target
-            this.onReleaseObservable.notifyObservers()
-            target.removeBehavior(this.holdBehaviour)
+            if(this.holdBehaviour) target.removeBehavior(this.holdBehaviour)
             this.holdBehaviour = undefined
+        }
+        
+        // Two pointer hold behaviour
+        if(pointers.length>=2){
+            const pointer1 = pointers[0]
+            const pointer2 = pointers[1]
+            if(!this.twoPointerHoldBehaviour){
+                const target = this.moved ?? this.target
+                this.twoPointerHoldBehaviour = new TwoPointerHoldBehaviour(pointer1, pointer2)
+                this.twoPointerHoldBehaviour.on_move = ()=>this.onMoveObservable.notifyObservers()
+                target.addBehavior(this.twoPointerHoldBehaviour)
+            }
+        }
+        else{
+            const target = this.moved ?? this.target
+            if(this.twoPointerHoldBehaviour) target.removeBehavior(this.twoPointerHoldBehaviour)
+            this.twoPointerHoldBehaviour = undefined
         }
     }
 

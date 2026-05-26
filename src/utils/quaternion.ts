@@ -21,11 +21,11 @@ export const QuaternionUtils = {
      * @returns 
      */
     getAbsolute(transform: TransformNode): Quaternion {
-      transform.computeWorldMatrix(true);
-      const worldMatrix = transform.getWorldMatrix();
-      const rotMatrix = new Matrix();
-      worldMatrix.getRotationMatrixToRef(rotMatrix);
-      return Quaternion.FromRotationMatrix(rotMatrix);
+        transform.computeWorldMatrix(true);
+        const worldMatrix = transform.getWorldMatrix();
+        const rotMatrix = new Matrix();
+        worldMatrix.getRotationMatrixToRef(rotMatrix);
+        return Quaternion.FromRotationMatrix(rotMatrix);
     },
     
     /**
@@ -34,16 +34,17 @@ export const QuaternionUtils = {
      * @param worldQuat 
      */
     setAbsolute(transform: TransformNode, worldQuat: Quaternion): void {
-      let parentQuat = Quaternion.Identity();
-      if (transform.parent) {
-        const parentMatrix = transform.parent.getWorldMatrix();
-        const parentRotMatrix = new Matrix();
-        parentMatrix.decompose()
-        parentMatrix.getRotationMatrixToRef(parentRotMatrix);
-        parentQuat = Quaternion.FromRotationMatrix(parentRotMatrix);
-      }
-    
-      const localQuat = parentQuat.invert().multiply(worldQuat);
-      transform.rotationQuaternion = localQuat; // utiliser rotationQuaternion pour stabilité
+        transform.computeWorldMatrix(true);
+        let parentQuat = Quaternion.Identity();
+        if (transform.parent) {
+            const parentMatrix = transform.parent.getWorldMatrix();
+            const parentRotMatrix = new Matrix();
+            parentMatrix.decompose()
+            parentMatrix.getRotationMatrixToRef(parentRotMatrix);
+            parentQuat = Quaternion.FromRotationMatrix(parentRotMatrix);
+        }
+        
+        const localQuat = parentQuat.invert().multiply(worldQuat);
+        transform.rotationQuaternion = localQuat; // utiliser rotationQuaternion pour stabilité
     },
 }
