@@ -1,6 +1,5 @@
 import { Behavior, Matrix, Quaternion, TransformNode, Vector3 } from "@babylonjs/core";
-import { InputManager, PointerMovementEvent } from "../../xr/inputs/InputManager";
-import { XRManager } from "../../xr/XRManager";
+import { InputManager } from "../../xr/inputs/InputManager";
 import { PointerInput } from "../../xr/inputs/PointerInput";
 
 /**

@@ -193,6 +193,6 @@ export class SessionConnector {
             } catch (e) {
                 console.error('[SessionConnector] Auto-save failed:', e);
             }
-        }, 30000);
+        }, 10000);
     }
 }

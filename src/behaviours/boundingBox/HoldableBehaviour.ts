@@ -2,6 +2,7 @@ import { AbstractMesh, ActionManager, Behavior, ExecuteCodeAction, Observable, P
 import { FullHoldBehaviour } from "./FullHoldBehaviour"
 import { InputGrabBehavior } from "../../xr/inputs/tools/InputGrabBehavior"
 import { PointerInput } from "../../xr/inputs/PointerInput"
+import { RotationCorrectionBehaviour } from "./CorrectRotationBehaviour"
 
 
 
@@ -30,6 +31,8 @@ export class HoldableBehaviour implements Behavior<AbstractMesh> {
     init(): void {}
 
     attach(target: AbstractMesh): void {
+        this.detach()
+
         this.target = target
 
         this.target.isPickable = true
@@ -44,8 +47,13 @@ export class HoldableBehaviour implements Behavior<AbstractMesh> {
 
         target.addBehavior(grab)
 
+        const correction = new RotationCorrectionBehaviour()
+        target.addBehavior(correction)
+
         this.detach = ()=>{
             target.removeBehavior(grab)
+            target.removeBehavior(correction)
+            this.detach = ()=>{}
         }
     }
 
@@ -71,5 +79,5 @@ export class HoldableBehaviour implements Behavior<AbstractMesh> {
         }
     }
 
-    detach!: ()=>void
+    detach: ()=>void = ()=>{}
 }
