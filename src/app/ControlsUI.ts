@@ -56,6 +56,7 @@ export class ControlsUI {
         // RIGHT CONTROLLER LABELS
         //this._createLabel("right-B", "Close", "right", "b-button", new B.Vector3(-0.005, 0.025, 0.005), "#F44336");
         this._createLabel("right-A", "Add Node3D", "right", "a-button", new B.Vector3(0.005, 0.015, 0), "#4CAF50");
+        this._createLabel("right-B", "Draw", "right", "b-button", new B.Vector3(-0.005, 0.015, 0), "#24e2ff");
         this._createLabel("right-Grip", "[Rotate selection]", "right", "xr-standard-squeeze", new B.Vector3(-0.025, 0, 0), "#4CAF50");
         this._createLabel("right-Trigger", "Select (Hold)", "right", "xr-standard-trigger", new B.Vector3(0, -0.015, 0.03), "#2196F3");
         this._createLabel("right-Stick", "Camera/[Proximity]", "right", "xr-standard-thumbstick", new B.Vector3(0, 0.025, 0.015), "#2196F3");
