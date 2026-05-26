@@ -9,6 +9,7 @@ import { Node3DInstance } from "../node3d/instance/Node3DInstance"
 import { Serialization } from "./Serialization"
 import { Matrix, Quaternion, Vector3 } from "@babylonjs/core"
 import { QuaternionUtils } from "../utils/quaternion"
+import { N3DConnectionInstance } from "../node3d/instance/N3DConnectionInstance"
 
 
 /**
@@ -31,27 +32,58 @@ export class HandMenuManager {
     // Target
     private _targetNodeInstance?: {key:string, node:Node3DInstance}
 
+    private _targetConnectionInstance?: {key:string, connection:N3DConnectionInstance}
+
     private registerTargetSelection(){
         this.pointer.onNewTarget.add(()=>{
-
-            // Find the targeted
             const pointed = this.pointer.targetMesh
 
-            let found: {key:string, node:Node3DInstance}|undefined
-            for(const [key,node] of this.nodeManager.getRegistry().nodes.entries()){
-                if(node.boundingBoxMesh==pointed){
-                    found = {key, node}
-                    break
+            // Target nodes 
+            {
+                let found: {key:string, node:Node3DInstance}|undefined
+                for(const [key,node] of this.nodeManager.getRegistry().nodes.entries()){
+                    if(node.boundingBoxMesh==pointed){
+                        found = {key, node}
+                        break
+                    }
+                }
+
+                if(found!=null){
+                    const doUpdate = this._targetNodeInstance==null
+                    this._targetNodeInstance = found
+                    if(doUpdate)this.updateMenu()
+                    return
+                }
+                else{
+                    const doUpdate = this._targetNodeInstance!=null
+                    this._targetNodeInstance = undefined
+                    if(doUpdate)this.updateMenu()
                 }
             }
 
-            // Update target
-            if(!!found != !!this._targetNodeInstance){
-                console.log("Target changed :", found?.node?.boundingBoxMesh?.name, " (", found?.key, ")")
-                this._targetNodeInstance = found
-                this.updateMenu()
+            // Target connections
+            {
+                let found: {key:string, connection:N3DConnectionInstance}|undefined
+                for(const [key,connection] of this.nodeManager.getRegistry().connections.entries()){
+                    if(connection.tube==pointed){
+                        found = {key, connection}
+                        break
+                    }
+                }
+
+                if(found!=null){
+                    const doUpdate = this._targetConnectionInstance==null
+                    this._targetConnectionInstance = found
+                    if(doUpdate)this.updateMenu()
+                    return
+                }
+                else{
+                    const doUpdate = this._targetConnectionInstance!=null
+                    this._targetConnectionInstance = undefined
+                    if(doUpdate)this.updateMenu()
+                }
             }
-            else this._targetNodeInstance = found
+
         })
     }
 
@@ -101,17 +133,6 @@ export class HandMenuManager {
             this.updateMenu()
         }})
 
-        // Draw
-        buttons.push({ label: "✏️ Draw from clipboard", color: "#66ccff", onClick: async()=>{
-            const path = await navigator.clipboard.readText()
-            DrawingManager.getInstance().drawFromSvg(
-                path,
-                20,
-                this.pointer.origin,
-                this.pointer.up,
-                this.pointer.right,
-            ) 
-        }})
 
         // Open shop menu
         buttons.push({ label: "🛒 Open/Close shop menu", color: "#ffcc66", onClick: async()=>{
@@ -121,8 +142,9 @@ export class HandMenuManager {
         if(this._targetNodeInstance){
 
             // Delete pointed object
-            buttons.push({ label: "🗑 Delete pointed node", color: "#ff6666", onClick: async()=>{
-                this._targetNodeInstance?.node.dispose()
+            buttons.push({ label: "🗑 Delete node", color: "#ff6666", onClick: async()=>{
+                if(this._targetNodeInstance==null) return
+                this._targetNodeInstance.node.dispose()
             }})
 
             // Clone
@@ -146,6 +168,14 @@ export class HandMenuManager {
             
         }
 
+        if(this._targetConnectionInstance){
+            // Delete pointed object
+            buttons.push({ label: "🗑 Delete connection", color: "#ff6666", onClick: async()=>{
+                if(this._targetConnectionInstance==null) return
+                this._targetConnectionInstance.connection.dispose()
+            }})
+        }
+
         // Paste
         buttons.push({ label: "📋 Paste Structure", color: "#6691ff", onClick: async()=>{
             const text = await navigator.clipboard.readText()
@@ -165,6 +195,18 @@ export class HandMenuManager {
                 node.updatePosition()
             }
 
+        }})
+
+        // Draw
+        buttons.push({ label: "✏️ Draw from clipboard path", color: "#66ccff", onClick: async()=>{
+            const path = await navigator.clipboard.readText()
+            DrawingManager.getInstance().drawFromSvg(
+                path,
+                20,
+                this.pointer.origin,
+                this.pointer.up,
+                this.pointer.right,
+            ) 
         }})
 
         this.menu.set(buttons)
