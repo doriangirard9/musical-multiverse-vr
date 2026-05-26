@@ -5,7 +5,7 @@ import type { Node3D, Node3DFactory, Node3DGUI } from "../Node3D";
 import { Node3DContext } from "../Node3DContext";
 import type { Node3DGUIContext } from "../Node3DGUIContext";
 import { MidiN3DConnectable } from "../tools";
-import { WamTransportManager } from "./PianoRoll/WamTransportManager";
+import { WamTransportManager } from "../../app/WamTransportManager";
 
 /**
  * Minimal 3D WAM Sampler block (e.g., Burns Audio DrumSampler)

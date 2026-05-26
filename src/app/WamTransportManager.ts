@@ -1,6 +1,10 @@
 // WamTransportManager.ts
 type WamLikeNode = { scheduleEvents: (evt: any) => void };
 
+/**
+ * A manager than handle the wam transport events.
+ * The start/stop/tempo/time signature states of the app.
+ */
 export class WamTransportManager {
   private static _instance: WamTransportManager | null = null;
 
@@ -67,6 +71,8 @@ export class WamTransportManager {
     this._broadcast(false);
     this._emit();
   }
+
+  get isPlaying() { return this.playing; }
 
   toggle() { this.playing ? this.stop() : this.start(); }
 

@@ -9,7 +9,7 @@ import { InputMultiGrabBehavior } from "../../node3d/tools"
 
 
 /**
- * FullHoldBehaviour allows the user to hold and manipulate an object in VR.
+ * HoldableBehaviour allows the user to hold and manipulate an object in VR.
  * When the target is grabbed it can then be dragged around using FullHoldBehaviour.
  */
 export class HoldableBehaviour implements Behavior<AbstractMesh> {

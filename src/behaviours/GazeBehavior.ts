@@ -3,7 +3,6 @@ import {
     Behavior,
     Nullable,
     Observer,
-    Ray,
     Scene,
 
 } from "@babylonjs/core"

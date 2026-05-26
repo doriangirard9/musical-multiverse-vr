@@ -45,6 +45,7 @@ export class MenuPanel extends PanelBase {
     }
 
     set(buttonsInfo: MenuButton[]){
+        this.buttons.clearControls()
         for(const buttonInfo of buttonsInfo){
             const button = Button.CreateSimpleButton(buttonInfo.label, buttonInfo.label)
             button.color = buttonInfo.color
@@ -68,6 +69,7 @@ export class MenuPanel extends PanelBase {
                 }catch(e){
                     console.error("Error in button click handler:", e)
                 }
+                console.log("Button up:", buttonInfo.label)
             }
             button.pointerDownAnimation = ()=>{
                 button.scaleX = 0.95
