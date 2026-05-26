@@ -54,7 +54,7 @@ Jump to [10](10-file-reference.md) and ⌘-F your way through.
 
 - File references use Markdown links to the path relative to the repo
   root, often with a `:line` suffix, e.g.
-  [src/Refactoring/app/NewApp.ts](../src/Refactoring/app/NewApp.ts).
+  [src/app/NewApp.ts](../src/app/NewApp.ts).
 - "Public API" tables list `methodName(args) → return — what it does`
   with the **declaration line** in the source.
 - Diagrams are ASCII so they render anywhere.
@@ -72,7 +72,7 @@ hold/move/rotate family) are reactive, not goal-seeking. See
 
 ## Caveats
 
-- The whole runtime lives under `src/Refactoring/`. The `Refactoring/`
+- The whole runtime lives under `src/`. The ``
   prefix is a transitional namespace (see
   [01](01-architecture-overview.md#the-refactoring-namespace)) — don't
   mistake it for "this is unfinished and unsafe to touch". It is the

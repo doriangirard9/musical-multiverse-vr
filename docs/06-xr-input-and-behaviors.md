@@ -8,11 +8,11 @@ inputs into interactions on meshes.
 
 | Folder | Files |
 |---|---|
-| `xr/` | [`XRManager.ts`](../src/Refactoring/xr/XRManager.ts), [`XRInputManager.ts`](../src/Refactoring/xr/XRInputManager.ts), [`XRControllerManager.ts`](../src/Refactoring/xr/XRControllerManager.ts), [`types.ts`](../src/Refactoring/xr/types.ts) |
-| `xr/inputs/` | [`InputManager.ts`](../src/Refactoring/xr/inputs/InputManager.ts), [`ControllerInput.ts`](../src/Refactoring/xr/inputs/ControllerInput.ts), [`AbstractPointerInput.ts`](../src/Refactoring/xr/inputs/AbstractPointerInput.ts), [`PointerInput.ts`](../src/Refactoring/xr/inputs/PointerInput.ts), [`ButtonInput.ts`](../src/Refactoring/xr/inputs/ButtonInput.ts), [`PressableInput.ts`](../src/Refactoring/xr/inputs/PressableInput.ts), [`AxisInput.ts`](../src/Refactoring/xr/inputs/AxisInput.ts), [`KeyboardInputs.ts`](../src/Refactoring/xr/inputs/KeyboardInputs.ts), [`InputCapability.ts`](../src/Refactoring/xr/inputs/InputCapability.ts) |
-| `xr/inputs/tools/` | [`InputGrabBehavior.ts`](../src/Refactoring/xr/inputs/tools/InputGrabBehavior.ts), [`InputDropBehavior.ts`](../src/Refactoring/xr/inputs/tools/InputDropBehavior.ts), [`InputHoverBehavior.ts`](../src/Refactoring/xr/inputs/tools/InputHoverBehavior.ts), [`InputPressBehavior.ts`](../src/Refactoring/xr/inputs/tools/InputPressBehavior.ts), [`InputMultiPressBehavior.ts`](../src/Refactoring/xr/inputs/tools/InputMultiPressBehavior.ts), [`InputVisualPointer.ts`](../src/Refactoring/xr/inputs/tools/InputVisualPointer.ts) |
-| `behaviours/` | [`ShakeBehavior.ts`](../src/Refactoring/behaviours/ShakeBehavior.ts), [`GazeBehavior.ts`](../src/Refactoring/behaviours/GazeBehavior.ts) |
-| `behaviours/boundingBox/` | [`BoundingBox.ts`](../src/Refactoring/behaviours/boundingBox/BoundingBox.ts), [`HoldableBehaviour.ts`](../src/Refactoring/behaviours/boundingBox/HoldableBehaviour.ts), [`FullHoldBehaviour.ts`](../src/Refactoring/behaviours/boundingBox/FullHoldBehaviour.ts), [`MoveHoldBehaviour.ts`](../src/Refactoring/behaviours/boundingBox/MoveHoldBehaviour.ts), [`RotateHoldBehaviour.ts`](../src/Refactoring/behaviours/boundingBox/RotateHoldBehaviour.ts) |
+| `xr/` | [`XRManager.ts`](../src/xr/XRManager.ts), [`XRInputManager.ts`](../src/xr/XRInputManager.ts), [`XRControllerManager.ts`](../src/xr/XRControllerManager.ts), [`types.ts`](../src/xr/types.ts) |
+| `xr/inputs/` | [`InputManager.ts`](../src/xr/inputs/InputManager.ts), [`ControllerInput.ts`](../src/xr/inputs/ControllerInput.ts), [`AbstractPointerInput.ts`](../src/xr/inputs/AbstractPointerInput.ts), [`PointerInput.ts`](../src/xr/inputs/PointerInput.ts), [`ButtonInput.ts`](../src/xr/inputs/ButtonInput.ts), [`PressableInput.ts`](../src/xr/inputs/PressableInput.ts), [`AxisInput.ts`](../src/xr/inputs/AxisInput.ts), [`KeyboardInputs.ts`](../src/xr/inputs/KeyboardInputs.ts), [`InputCapability.ts`](../src/xr/inputs/InputCapability.ts) |
+| `xr/inputs/tools/` | [`InputGrabBehavior.ts`](../src/xr/inputs/tools/InputGrabBehavior.ts), [`InputDropBehavior.ts`](../src/xr/inputs/tools/InputDropBehavior.ts), [`InputHoverBehavior.ts`](../src/xr/inputs/tools/InputHoverBehavior.ts), [`InputPressBehavior.ts`](../src/xr/inputs/tools/InputPressBehavior.ts), [`InputMultiPressBehavior.ts`](../src/xr/inputs/tools/InputMultiPressBehavior.ts), [`InputVisualPointer.ts`](../src/xr/inputs/tools/InputVisualPointer.ts) |
+| `behaviours/` | [`ShakeBehavior.ts`](../src/behaviours/ShakeBehavior.ts), [`GazeBehavior.ts`](../src/behaviours/GazeBehavior.ts) |
+| `behaviours/boundingBox/` | [`BoundingBox.ts`](../src/behaviours/boundingBox/BoundingBox.ts), [`HoldableBehaviour.ts`](../src/behaviours/boundingBox/HoldableBehaviour.ts), [`FullHoldBehaviour.ts`](../src/behaviours/boundingBox/FullHoldBehaviour.ts), [`MoveHoldBehaviour.ts`](../src/behaviours/boundingBox/MoveHoldBehaviour.ts), [`RotateHoldBehaviour.ts`](../src/behaviours/boundingBox/RotateHoldBehaviour.ts) |
 
 ---
 
@@ -66,7 +66,7 @@ is a pure consumer of the `Observable`s it exposes.
 
 ## XR session lifecycle
 
-### `XRManager` ([XRManager.ts](../src/Refactoring/xr/XRManager.ts))
+### `XRManager` ([XRManager.ts](../src/xr/XRManager.ts))
 
 Singleton wrapper around `WebXRDefaultExperience`.
 
@@ -104,7 +104,7 @@ gravity onto whatever has `checkCollisions`.
 #### Stick mapping
 
 Worth noting because it's non-default. From
-[XRManager.ts:179-209](../src/Refactoring/xr/XRManager.ts):
+[XRManager.ts:179-209](../src/xr/XRManager.ts):
 
 ```
 left stick  → translation (move world-relative)
@@ -115,7 +115,7 @@ right stick → rotation (yaw + pitch)
 moves you in the direction your *head* is facing," not the
 controller's. Movement speed is `0.2`, rotation speed `0.3`.
 
-### `XRInputManager` ([XRInputManager.ts](../src/Refactoring/xr/XRInputManager.ts))
+### `XRInputManager` ([XRInputManager.ts](../src/xr/XRInputManager.ts))
 
 Detects controller add/remove and forwards to `XRControllerManager`.
 
@@ -131,7 +131,7 @@ The polling in `initControllers` is awkward but necessary — Quest, in
 particular, can take a couple of seconds after `IN_XR` before the
 motion controllers report any components.
 
-### `XRControllerManager` ([XRControllerManager.ts](../src/Refactoring/xr/XRControllerManager.ts))
+### `XRControllerManager` ([XRControllerManager.ts](../src/xr/XRControllerManager.ts))
 
 A separate singleton (`Instance`) holding controller state and
 "button listener" subscriptions, plus haptic feedback helpers. The
@@ -146,7 +146,7 @@ manual button-listener subscription rather than going through
 
 ## The `InputManager` — the single source of input truth
 
-[`InputManager.ts`](../src/Refactoring/xr/inputs/InputManager.ts) is
+[`InputManager.ts`](../src/xr/inputs/InputManager.ts) is
 the most-used class in the codebase outside Babylon itself. Every
 behavior, every menu, every instrument that needs input goes through
 it.
@@ -194,7 +194,7 @@ Each `ControllerInput` exposes `trigger`, `squeeze`, `thumbstick`, and
 
 ### Per-frame "pointed mesh" reference counting
 
-[`InputManager.ts:119-140`](../src/Refactoring/xr/inputs/InputManager.ts):
+[`InputManager.ts:119-140`](../src/xr/inputs/InputManager.ts):
 when a controller's pointer changes target, the manager increments a
 counter on the new target and decrements on the old. `onEnterTarget`
 fires when the counter goes from 0 to 1, `onExitTarget` fires when it
@@ -205,7 +205,7 @@ hovering" without keeping their own per-controller state.
 
 ## Input primitives
 
-### `ButtonInput` ([ButtonInput.ts](../src/Refactoring/xr/inputs/ButtonInput.ts))
+### `ButtonInput` ([ButtonInput.ts](../src/xr/inputs/ButtonInput.ts))
 
 A discrete button (X, Y, A, B).
 
@@ -274,7 +274,7 @@ of `InputManager`. They are not domain-specific — they don't know
 anything about Node3D or audio. They translate raw inputs into
 gestures on a single mesh.
 
-### `InputGrabBehavior` ([InputGrabBehavior.ts](../src/Refactoring/xr/inputs/tools/InputGrabBehavior.ts))
+### `InputGrabBehavior` ([InputGrabBehavior.ts](../src/xr/inputs/tools/InputGrabBehavior.ts))
 
 The fundamental "trigger pressed while pointing at this mesh"
 gesture. Constructor:
@@ -327,7 +327,7 @@ that was holding *something else* releases the trigger while
 pointing at the target. Used for "drag from shop, release over a
 slot" interactions.
 
-### `InputVisualPointer` ([InputVisualPointer.ts](../src/Refactoring/xr/inputs/tools/InputVisualPointer.ts))
+### `InputVisualPointer` ([InputVisualPointer.ts](../src/xr/inputs/tools/InputVisualPointer.ts))
 
 Not a `Behavior` — a free-standing visual companion to a
 `PointerInput`. Renders a thin cylinder (the laser line) and a small
@@ -344,7 +344,7 @@ squeeze (lines 47–53). `press_count` accumulates 1 for each press
 event, scales `line.scaling.{x,z}` by `1 + press_count*0.5`. So holding
 both buttons makes the line twice as thick.
 
-[`NewApp.ts:148-149`](../src/Refactoring/app/NewApp.ts) creates one
+[`NewApp.ts:148-149`](../src/app/NewApp.ts) creates one
 of these for each hand at app start.
 
 ---
@@ -354,7 +354,7 @@ of these for each hand at app start.
 Composed on top of the `xr/inputs/tools/` primitives. These do know
 about scene-level concepts (player position, camera, etc.).
 
-### `BoundingBox` ([BoundingBox.ts](../src/Refactoring/behaviours/boundingBox/BoundingBox.ts))
+### `BoundingBox` ([BoundingBox.ts](../src/behaviours/boundingBox/BoundingBox.ts))
 
 The draggable box that wraps every Node3D. **Not a `Behavior`** — it's
 a class that *uses* `HoldableBehaviour` and `InputHoverBehavior`.
@@ -373,7 +373,7 @@ it when you're hovering or holding. When `Node3DInstance` attaches a
 `ShakeBehavior` on top, the same box also doubles as the
 shake-to-delete trigger (chapter [03 §Bounding box](03-node3d-system.md#the-bounding-box-and-shake-to-delete)).
 
-### `HoldableBehaviour` ([HoldableBehaviour.ts](../src/Refactoring/behaviours/boundingBox/HoldableBehaviour.ts))
+### `HoldableBehaviour` ([HoldableBehaviour.ts](../src/behaviours/boundingBox/HoldableBehaviour.ts))
 
 The wrapper that says "this mesh is grabbable". Layered on top of
 `InputGrabBehavior`.
@@ -391,7 +391,7 @@ the hold behavior is attached to *that* instead of the target. This
 lets you grab one mesh but move another (e.g. grab a handle, move a
 group).
 
-### `FullHoldBehaviour` ([FullHoldBehaviour.ts](../src/Refactoring/behaviours/boundingBox/FullHoldBehaviour.ts))
+### `FullHoldBehaviour` ([FullHoldBehaviour.ts](../src/behaviours/boundingBox/FullHoldBehaviour.ts))
 
 A meta-behavior that switches between `MoveHoldBehaviour` and
 `RotateHoldBehaviour` based on whether the squeeze button is held.
@@ -423,7 +423,7 @@ Both lock `InputManager.movement` while active (so the user's stick
 doesn't move them through the world while they're rotating an
 instrument).
 
-### `ShakeBehavior` ([ShakeBehavior.ts](../src/Refactoring/behaviours/ShakeBehavior.ts))
+### `ShakeBehavior` ([ShakeBehavior.ts](../src/behaviours/ShakeBehavior.ts))
 
 Detects a shaking gesture by counting direction reversals in the
 held mesh's pointer-derived position.
@@ -438,10 +438,10 @@ held mesh's pointer-derived position.
 | `onUp()` | 118 | Reset shake power, clear interval |
 
 This is what backs the "shake-to-delete" gesture
-([Node3DInstance.ts:241-249](../src/Refactoring/node3d/instance/Node3DInstance.ts) and
-[N3DConnectionInstance.ts:38-53](../src/Refactoring/node3d/instance/N3DConnectionInstance.ts)).
+([Node3DInstance.ts:241-249](../src/node3d/instance/Node3DInstance.ts) and
+[N3DConnectionInstance.ts:38-53](../src/node3d/instance/N3DConnectionInstance.ts)).
 
-### `GazeBehavior` ([GazeBehavior.ts](../src/Refactoring/behaviours/GazeBehavior.ts))
+### `GazeBehavior` ([GazeBehavior.ts](../src/behaviours/GazeBehavior.ts))
 
 Fire callbacks when the user *looks at* a mesh for a configurable
 amount of time. State machine `IDLE → GAZING → ACTIVATED`:

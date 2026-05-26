@@ -129,18 +129,18 @@ NetworkManager  ConnectionManager (iomanager)        AppOrchestrator
 
 Read this top-to-bottom: nothing below depends on anything above being
 *absent*. Everything below depends on its parents being initialized.
-The order is enforced in [`NewApp.start()`](../src/Refactoring/app/NewApp.ts) and
+The order is enforced in [`NewApp.start()`](../src/app/NewApp.ts) and
 described in detail in [02 §Boot order](02-app-core.md#boot-sequence).
 
 ## The "Refactoring" namespace
 
-Every runtime file lives under `src/Refactoring/`. The name is
+Every runtime file lives under `src/`. The name is
 historical: this directory was the new, cleaned-up rewrite that replaced
-older code, and the rewrite stuck. **Treat `Refactoring/` as "the
+older code, and the rewrite stuck. **Treat `` as "the
 codebase".** It is the current code, type-safe, modular, and the only
 one wired into [`src/index.ts`](../src/index.ts).
 
-When you add new files, add them under `src/Refactoring/` and follow
+When you add new files, add them under `src/` and follow
 the existing folder taxonomy:
 
 - `app/` — top-level singletons and bootstrap, plus `Serialization`
@@ -174,7 +174,7 @@ the existing folder taxonomy:
 ├── index.html                  # mounts <canvas id="renderCanvas">
 ├── src/
 │   ├── index.ts                # entry point (filters logs, bootstraps NewApp)
-│   └── Refactoring/            # all runtime code (see above)
+│   └──             # all runtime code (see above)
 ├── public/                     # static assets (drum kit .glb, etc.)
 ├── server-config/
 │   ├── server.js               # Express server: WAM config endpoints
@@ -209,7 +209,7 @@ first time.
 
 The client also expects the config server to be reachable. The default
 URL it hits is `http://${window.location.hostname}:3000/wamsConfig/...` — see
-[`Node3DBuilder.ts`](../src/Refactoring/app/Node3DBuilder.ts).
+[`Node3DBuilder.ts`](../src/app/Node3DBuilder.ts).
 
 ### Docker
 
@@ -241,7 +241,7 @@ Two important elements:
 ## Debug shortcuts
 
 While running on a desktop, `NewApp` registers these keys (see
-[NewApp.ts](../src/Refactoring/app/NewApp.ts)):
+[NewApp.ts](../src/app/NewApp.ts)):
 
 | Key | Action |
 |---|---|

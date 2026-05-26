@@ -36,11 +36,11 @@ import { AudioPlaqueN3DFactory } from "../node3d/subs/behaviours/AudioPlaqueN3D.
 import { SuperformulaN3DFactory } from "../node3d/subs/behaviours/SuperformulaN3D.ts";
 import ParticleEmitterN3DFactory from "../node3d/subs/particle/ParticleEmitterN3D.ts";
 import { N3DThumbnailRenderer } from "../world/renderer/N3DThumbnailRenderer.ts";
-
-const WAM_CONFIGS_URL: string = "https://wamjamparty.i3s.univ-cotedazur.fr/config";//"http://localhost:3000";
+import { SERVER_NAME } from "../options.ts";
 
 export type Node3DConfig = { name: string, wam3d: WAMGuiInitCode }
-const additionalConfig: Record<string, any> = await fetch(`${WAM_CONFIGS_URL}/wamsConfig/additionalConfigs.json`).then(r => r.json())
+
+const SERVER_KINDS: string[] = await fetch(`${SERVER_NAME}/api/configs/`).then(r => r.json())
 
 /**
  * The Node3DBuilder is responsible for creating Node3D instances from their kind name.
@@ -67,17 +67,15 @@ export class Node3DBuilder {
         "audiooutput", "oscillator", "maracas", "livepiano", "notesbox", "pianoroll", "drumkit", "pro54michel", "butterchurn", "screen", "box_screen", "sphere_screen", "cylinder_screen", "isf_shader",
         "hyperkeyboard", "drumplatekit", "automation_controller", "the_cube", "harp", "large_harp", "voice", "gaze", "sequencer", "audio_plaque", "superformula",
         ...Object.keys(examples).map(k => `wam3d-${k}`),
-        ...Object.keys(additionalConfig).map(k => `add-` + k)
+        ...SERVER_KINDS.map(k => `server-${k}`),
     ]
 
+    /** Parse a imported code into a node3DFactory */
     private async parseFactory(code: string): Promise<Node3DFactory<Node3DGUI, Node3D> | null> {
         const json = JSON.parse(code) as Node3DConfig
 
-        if ("wam3d" in json) {
-            return await Wam3DGeneratorN3DFactory.create(json.wam3d)
-        }
-        else if ("bottom_color" in json) {
-            return await Wam3DGeneratorN3DFactory.create(json)
+        if ("controls" in json && "wam_url" in json) {
+            return await Wam3DGeneratorN3DFactory.create(json as any)
         }
 
         return null
@@ -85,13 +83,14 @@ export class Node3DBuilder {
 
     private async createFactories(kind: string): Promise<Node3DFactory<Node3DGUI, Node3D> | null> {
         if (!kind || kind.trim() === "") return null;
-        // Dynamic 
+
+        // Dynamic with the code as kind
         if (kind.startsWith("desc:")) {
             const description = kind.substring(5)
             return await this.parseFactory(description)
         }
 
-        // Dynamic from url
+        // Dynamic from an url
         if (kind.startsWith("external:")) {
             const url = new URL(kind.substring("external:".length))
             const anchor = url.hash.length > 1 ? url.hash.substring(1) : null
@@ -103,6 +102,20 @@ export class Node3DBuilder {
 
             if (!("create" in factory && "createGUI" in factory && "label" in factory)) return null
             return factory
+        }
+
+        // From server
+        if (kind.startsWith("server-")) {
+            const config_id = kind.substring("server-".length)
+            if (!config_id || config_id.trim() === "") return null
+            try {
+                const response = await fetch(`${SERVER_NAME}/api/configs/${config_id}`)
+                if (!response.ok) return null
+                return await this.parseFactory(await response.text())
+            } catch (e) {
+                console.error(`Error fetching Node3D config from server for kind ${kind}:`, e)
+                return null
+            }
         }
 
         // Builtin
@@ -133,8 +146,6 @@ export class Node3DBuilder {
         if (kind == "voice") return VoiceVolumeControllerN3DFactory
         if (kind == "particle") return ParticleEmitterN3DFactory
 
-        //if(kind=="function_sequencer") return FunctionSequencerN3DFactory.DEFAULT
-
         // Debug
         if (kind == "sync_debug") return SyncDebugN3DFactory
 
@@ -145,23 +156,10 @@ export class Node3DBuilder {
             return await Wam3DGeneratorN3DFactory.create(config)
         }
 
-        // Additional configs from server
-        if (kind.startsWith("add-")) {
-            const config = additionalConfig[kind.substring(4)]
-            if (!config) return null
-            return await Wam3DGeneratorN3DFactory.create(config)
-        }
-
         // Direct URL
         if (kind.startsWith("url:")) {
             const url = kind.substring(4)
             return await Wam3DGeneratorN3DFactory.create({ wam_url: url } as any)
-        }
-
-        // Configs
-        {
-            const response = await fetch(`${WAM_CONFIGS_URL}/wamsConfig/${kind}.json`, { method: "get", headers: { "Content-Type": "application/json" } })
-            if (response.ok) return await this.parseFactory(await response.text())
         }
 
         return null
@@ -278,18 +276,6 @@ export class Node3DBuilder {
             (await WamInitializer.getInstance(Node3dManager.getInstance().getAudioContext()).getHostGroupId())[0]
         )
 
-        // Get WAMs configs from server
-        try {
-            const config_ids = await fetch(`${WAM_CONFIGS_URL}/wamsConfig`, { method: "get", headers: { "Content-Type": "application/json" } })
-            if (config_ids.ok) {
-                const ids: string[] = await config_ids.json()
-                for (const id of ids) {
-                    if (id && id.trim() !== "") {
-                        this.FACTORY_KINDS = [id, ...this.FACTORY_KINDS]
-                    }
-                }
-            }
-        } catch (_) { }
     }
 
     private async instantiateNode3d(factory: Node3DFactory<any, any>): Promise<Node3DInstance> {

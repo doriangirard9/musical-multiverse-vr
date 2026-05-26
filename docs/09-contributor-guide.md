@@ -25,8 +25,8 @@ Goal: create a new playable thing that appears in the
 ### Step 1 — Copy the template
 
 ```bash
-cp src/Refactoring/node3d/subs/TemplateN3D.ts \
-   src/Refactoring/node3d/subs/MyInstrumentN3D.ts
+cp src/node3d/subs/TemplateN3D.ts \
+   src/node3d/subs/MyInstrumentN3D.ts
 ```
 
 The template (chapter [03 §The canonical Hello world](03-node3d-system.md#the-canonical-hello-world--templaten3dts))
@@ -158,7 +158,7 @@ export const MyInstrumentN3DFactory: Node3DFactory<MyInstrumentN3DGUI, MyInstrum
 
 ### Step 5 — Register in `Node3DBuilder`
 
-[`src/Refactoring/app/Node3DBuilder.ts`](../src/Refactoring/app/Node3DBuilder.ts)
+[`src/app/Node3DBuilder.ts`](../src/app/Node3DBuilder.ts)
 
 ```typescript
 // at the top, with the other instrument imports:
@@ -235,10 +235,10 @@ tags: ["automation", "controller", "my_thing"]
 Existing examples to copy from
 ([04 §Automation controllers](04-instruments-catalog.md#automation-controllers)):
 
-- **Knob-driven**: [`AutomationControllerN3D`](../src/Refactoring/node3d/subs/automation/AutomationControllerN3D.ts)
-- **3D position**: [`PositionCubeN3D`](../src/Refactoring/node3d/subs/automation/PositionCubeN3D.ts)
-- **Gaze-driven**: [`GazeControllerN3D`](../src/Refactoring/node3d/subs/automation/GazeControllerN3D.ts)
-- **Microphone**: [`VoiceVolumeControllerN3D`](../src/Refactoring/node3d/subs/automation/VoiceVolumeControllerN3D.ts)
+- **Knob-driven**: [`AutomationControllerN3D`](../src/node3d/subs/automation/AutomationControllerN3D.ts)
+- **3D position**: [`PositionCubeN3D`](../src/node3d/subs/automation/PositionCubeN3D.ts)
+- **Gaze-driven**: [`GazeControllerN3D`](../src/node3d/subs/automation/GazeControllerN3D.ts)
+- **Microphone**: [`VoiceVolumeControllerN3D`](../src/node3d/subs/automation/VoiceVolumeControllerN3D.ts)
 
 ### MultiInput case
 
@@ -340,7 +340,7 @@ behavior to its `boundingBoxMesh`, and exercise it.
 ## 4. Add a menu
 
 If you need a menu of buttons, you almost always want
-[`SimpleMenu`](../src/Refactoring/menus/SimpleMenu.ts) — it's the
+[`SimpleMenu`](../src/menus/SimpleMenu.ts) — it's the
 generic 3D menu in this codebase.
 
 ```typescript
@@ -360,17 +360,17 @@ menu.setConfig({
 ```
 
 For **per-Node3D menus**, use the
-[`Node3DContext.openMenu(choices)`](../src/Refactoring/node3d/Node3DContext.d.ts)
+[`Node3DContext.openMenu(choices)`](../src/node3d/Node3DContext.d.ts)
 method from inside your instrument's audio class. The host handles
 disposal automatically when the node is removed.
 
 For **toggleable HUD-like UI**, look at
-[`ControlsUI`](../src/Refactoring/app/ControlsUI.ts) (a HUD bound to
+[`ControlsUI`](../src/app/ControlsUI.ts) (a HUD bound to
 controllers) or
-[`ShopPanel`](../src/Refactoring/world/menu/ShopPanel.ts) (a flat 2D
+[`ShopPanel`](../src/world/menu/ShopPanel.ts) (a flat 2D
 panel on a plane). Both demonstrate the "create on first toggle,
 toggle visibility on subsequent presses" pattern that
-[NewApp.ts:139-145](../src/Refactoring/app/NewApp.ts) uses.
+[NewApp.ts:139-145](../src/app/NewApp.ts) uses.
 
 ---
 
@@ -435,7 +435,7 @@ export class MyThing implements Synchronized {
 ### Step 2 — Provide a `static getSyncManager(...)` factory
 
 Codebase convention: every `Synchronized` class exposes one. Mimic
-[`VisualTube.getSyncManager`](../src/Refactoring/visual/VisualTube.ts)
+[`VisualTube.getSyncManager`](../src/visual/VisualTube.ts)
 (the simplest example):
 
 ```typescript
@@ -462,7 +462,7 @@ export class MyThing implements Synchronized {
 
 Add a field to one of the `*Network` classes (or build a new one).
 For example, if it's a visual thing, extend
-[`VisualNetwork`](../src/Refactoring/network/VisualNetwork.ts):
+[`VisualNetwork`](../src/network/VisualNetwork.ts):
 
 ```typescript
 export class VisualNetwork {
@@ -522,10 +522,10 @@ AudioEventBus.getInstance().on("MY_NEW_EVENT", payload => {
 ### Adding a whole new bus
 
 Copy
-[`UIEventBus.ts`](../src/Refactoring/eventBus/UIEventBus.ts) — it's
+[`UIEventBus.ts`](../src/eventBus/UIEventBus.ts) — it's
 the smallest, with an empty payload — rename it, fill in the payload,
 and `getInstance()` it from
-[`AppOrchestrator.initialize`](../src/Refactoring/app/AppOrchestrator.ts)
+[`AppOrchestrator.initialize`](../src/app/AppOrchestrator.ts)
 so listeners can be wired during boot.
 
 If your bus needs cross-system handling, register listeners in
@@ -631,7 +631,7 @@ To trace **all** event bus traffic at once, call
 `AppOrchestrator.getInstance()` and then (manually, in DevTools) use
 `(AppOrchestrator.getInstance() as any).debugLogEvents()` — the
 private method exists for this purpose
-([AppOrchestrator.ts:61](../src/Refactoring/app/AppOrchestrator.ts)).
+([AppOrchestrator.ts:61](../src/app/AppOrchestrator.ts)).
 
 ### Spawn debug
 
@@ -653,7 +653,7 @@ private method exists for this purpose
 - Check `NetworkManager.getInstance().connection.getConnectedPlayers()`
   in DevTools to confirm peers are visible.
 - The signaling endpoint is hardcoded in
-  [`PeerToPeerManager.ts:8`](../src/Refactoring/network/PeerToPeerManager.ts).
+  [`PeerToPeerManager.ts:8`](../src/network/PeerToPeerManager.ts).
   If it's down, peers can never find each other; spin up your own
   with `npx y-webrtc-signaling-server` and edit the constant.
 

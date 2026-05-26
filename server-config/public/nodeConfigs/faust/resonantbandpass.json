@@ -1,0 +1,74 @@
+{
+    "aspect_ratio": 1,
+    "size": 0.7,
+    "bottom_color": "#000000",
+    "top_color": "#000000",
+    "face": "water",
+    "face_color": "#ffef2d",
+    "outline_color": "#686a00",
+    "outline_width": 0.05,
+    "shape": "circle",
+    "modifier": "normal",
+    "modifier_strength": 0.5,
+    "controls": [
+        {
+            "x": 0.8114778613608964,
+            "y": 0.39309821448482535,
+            "width": 0.1885221386391036,
+            "height": 0.19752436769899095,
+            "values": {
+                "Color": "#FF0000"
+            },
+            "control": "output_control"
+        },
+        {
+            "x": 0,
+            "y": 0.3930982144848254,
+            "width": 0.1885221386391036,
+            "height": 0.1975243676989909,
+            "values": {
+                "Color": "#00FF00"
+            },
+            "control": "input_control"
+        },
+        {
+            "x": 0.3960947121607517,
+            "y": 0.3958795850053038,
+            "width": 0.21853479234784773,
+            "height": 0.2110222005098708,
+            "values": {
+                "Base Color": "#222222",
+                "Cursor Color": "#ffff00",
+                "Target": "/bandpass/Freq"
+            },
+            "control": "cursor_control"
+        },
+        {
+            "x": 0.43060769340711497,
+            "y": 0.6444146209434765,
+            "width": 0.14951237129333383,
+            "height": 0.15776082648925838,
+            "values": {
+                "Low Color": "#222222",
+                "High Color": "#e6ff00",
+                "Target": "/bandpass/Resonance"
+            },
+            "control": "color_control"
+        },
+        {
+            "x": 0.45911480905959007,
+            "y": 0.2340584824775783,
+            "width": 0.1,
+            "height": 0.1,
+            "values": {
+                "Text": "Resonant",
+                "Color": "#ffdf02",
+                "Outline Color": "#000000",
+                "Outline Width": 0.053,
+                "Font": "minecraftia"
+            },
+            "control": "text"
+        }
+    ],
+    "wam_url": "https://jempasam.github.io/SamWAMS/module/filter/bandpass_resonant/index.js"
+}

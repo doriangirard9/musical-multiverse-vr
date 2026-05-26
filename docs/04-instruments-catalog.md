@@ -2,7 +2,7 @@
 
 This chapter is the tour through every concrete instrument, effect,
 controller and tool under
-[`src/Refactoring/node3d/subs/`](../src/Refactoring/node3d/subs/).
+[`src/node3d/subs/`](../src/node3d/subs/).
 For the underlying contract, read [03 — Node3D system](03-node3d-system.md)
 first.
 
@@ -50,7 +50,7 @@ Each entry has the same fields:
 
 | Field | What |
 |---|---|
-| **Kind** | The `kind` string accepted by [`Node3DBuilder.createFactories`](../src/Refactoring/app/Node3DBuilder.ts) |
+| **Kind** | The `kind` string accepted by [`Node3DBuilder.createFactories`](../src/app/Node3DBuilder.ts) |
 | **Tags** | What `factory.tags` advertises |
 | **File** | The implementation source |
 | **GUI** | What you see in the world |
@@ -74,7 +74,7 @@ implementation but not currently spawnable from the UI.
 |---|---|
 | **Kind** | `oscillator` |
 | **Tags** | `oscillator`, `audio`, `generator`, `sinus` |
-| **File** | [`subs/OscillatorN3D.ts`](../src/Refactoring/node3d/subs/OscillatorN3D.ts) |
+| **File** | [`subs/OscillatorN3D.ts`](../src/node3d/subs/OscillatorN3D.ts) |
 
 The smallest non-trivial Node3D — a great template for "I want to
 build an audio source from a Web Audio node".
@@ -108,7 +108,7 @@ build an audio source from a Web Audio node".
 |---|---|
 | **Kind** | (unregistered — `audiooutput` maps to `SpeakerN3DFactory` instead) |
 | **Tags** | `audio`, `consumer`, `audio_output` |
-| **File** | [`subs/AudioOutputN3D.ts`](../src/Refactoring/node3d/subs/AudioOutputN3D.ts) |
+| **File** | [`subs/AudioOutputN3D.ts`](../src/node3d/subs/AudioOutputN3D.ts) |
 
 A simple HRTF-spatialized audio sink. Kept around as a reference; the
 default `audiooutput` is the prettier `SpeakerN3D` instead.
@@ -133,7 +133,7 @@ default `audiooutput` is the prettier `SpeakerN3D` instead.
 |---|---|
 | **Kind** | `audiooutput` |
 | **Tags** | `speaker`, `audio`, `consumer`, `audio_output` |
-| **File** | [`subs/speaker/SpeakerN3D.ts`](../src/Refactoring/node3d/subs/speaker/SpeakerN3D.ts) |
+| **File** | [`subs/speaker/SpeakerN3D.ts`](../src/node3d/subs/speaker/SpeakerN3D.ts) |
 
 The default speaker — a 3D model of a speaker plus a translucent
 red "falloff sphere" of diameter 50 around it.
@@ -149,8 +149,8 @@ The panner version (lines 107–218) also runs a **frequency analyser
 visualizer**: an 32-bin FFT extracts low/mid/high band energies and,
 on each "bounce" of the volume signal, fires
 `context.sendSignal(position, R, G, B)` — which makes the
-[`WaveGround`](../src/Refactoring/world/ground/WaveGround.ts) and
-[`SoundwaveEmitter`](../src/Refactoring/world/soundwave/SoundwaveEmitter.ts)
+[`WaveGround`](../src/world/ground/WaveGround.ts) and
+[`SoundwaveEmitter`](../src/world/soundwave/SoundwaveEmitter.ts)
 ripple in time with the music.
 
 - **Connectables**: `audioInput` (Audio input to the gain/panner).
@@ -168,7 +168,7 @@ ripple in time with the music.
 |---|---|
 | **Kind** | `livepiano` |
 | **Tags** | (factory is exported but the `Node3DBuilder` mapping uses the file's defaults — see file) |
-| **File** | [`subs/note_generator/LivePianoN3D.ts`](../src/Refactoring/node3d/subs/note_generator/LivePianoN3D.ts) |
+| **File** | [`subs/note_generator/LivePianoN3D.ts`](../src/node3d/subs/note_generator/LivePianoN3D.ts) |
 
 A 49-key keyboard, MIDI 36–84 (C2 to C6).
 
@@ -190,7 +190,7 @@ A 49-key keyboard, MIDI 36–84 (C2 to C6).
 |---|---|
 | **Kind** | `harp` (default 10 strings) / `large_harp` (20 strings) |
 | **Tags** | (varies — the file has multiple variants) |
-| **File** | [`subs/note_generator/HarpN3D.ts`](../src/Refactoring/node3d/subs/note_generator/HarpN3D.ts) |
+| **File** | [`subs/note_generator/HarpN3D.ts`](../src/node3d/subs/note_generator/HarpN3D.ts) |
 
 A configurable-string harp. The factory is a class with two static
 presets:
@@ -217,7 +217,7 @@ HarpN3DFactory.LARGE    // 20 strings
 | | |
 |---|---|
 | **Kind** | `hyperkeyboard` |
-| **File** | [`subs/note_generator/HyperKeyboardN3D.ts`](../src/Refactoring/node3d/subs/note_generator/HyperKeyboardN3D.ts) |
+| **File** | [`subs/note_generator/HyperKeyboardN3D.ts`](../src/node3d/subs/note_generator/HyperKeyboardN3D.ts) |
 
 A **3D grid of keys**, with configurable `(x, y, z)` dimensions. A
 `HyperKeyboardN3DFactory.SMALL` static preset is mapped to the
@@ -239,7 +239,7 @@ A **3D grid of keys**, with configurable `(x, y, z)` dimensions. A
 | | |
 |---|---|
 | **Kind** | `drumplatekit` |
-| **File** | [`subs/note_generator/DrumPlateKitN3D.ts`](../src/Refactoring/node3d/subs/note_generator/DrumPlateKitN3D.ts) |
+| **File** | [`subs/note_generator/DrumPlateKitN3D.ts`](../src/node3d/subs/note_generator/DrumPlateKitN3D.ts) |
 
 A simulated drum kit built from independently-aimed disc plates.
 Each "plate" is a cylinder mesh on a tube/handle that can be
@@ -261,7 +261,7 @@ oriented and animated when struck.
 |---|---|
 | **Kind** | `maracas` |
 | **Tags** | `maracas`, `midi`, `generator`, `live_instrument`, `shake` |
-| **File** | [`subs/maracas/MaracasN3D.ts`](../src/Refactoring/node3d/subs/maracas/MaracasN3D.ts) |
+| **File** | [`subs/maracas/MaracasN3D.ts`](../src/node3d/subs/maracas/MaracasN3D.ts) |
 
 The "shake to play" instrument. A `maracas.glb` model on a base.
 
@@ -283,7 +283,7 @@ The "shake to play" instrument. A `maracas.glb` model on a base.
 |---|---|
 | **Kind** | `notesbox` |
 | **Tags** | `notebox`, `midi`, `generator`, `live_instrument`, `recorder`, `player` |
-| **File** | [`subs/NoteBoxN3D.ts`](../src/Refactoring/node3d/subs/NoteBoxN3D.ts) |
+| **File** | [`subs/NoteBoxN3D.ts`](../src/node3d/subs/NoteBoxN3D.ts) |
 
 A MIDI loop recorder/replayer. **Both** a MIDI input (it acts like a
 WAM node) and a MIDI output (broadcasts what it received and what
@@ -320,7 +320,7 @@ it replays).
 |---|---|
 | **Kind** | `sequencer` |
 | **Tags** | `sequencer`, `midi`, `generator`, `pattern` |
-| **File** | [`subs/SequencerN3D.ts`](../src/Refactoring/node3d/subs/SequencerN3D.ts) |
+| **File** | [`subs/SequencerN3D.ts`](../src/node3d/subs/SequencerN3D.ts) |
 
 A 12-step × 12-note grid sequencer using the Sync protocol so
 multiple sequencers can chain.
@@ -353,8 +353,8 @@ multiple sequencers can chain.
 | | |
 |---|---|
 | **Kind** | `pianoroll` |
-| **File** | [`subs/PianoRoll/PianoRoll3d.ts`](../src/Refactoring/node3d/subs/PianoRoll/PianoRoll3d.ts) (~2400 lines!) |
-| Plus | [`PianoRollSettingsMenu.ts`](../src/Refactoring/node3d/subs/PianoRoll/PianoRollSettingsMenu.ts), [`WamTransportManager.ts`](../src/Refactoring/node3d/subs/PianoRoll/WamTransportManager.ts), [`grid/{GridStrategy,Piano88Strategy,DrumPadsStrategy}.ts`](../src/Refactoring/node3d/subs/PianoRoll/grid/) |
+| **File** | [`subs/PianoRoll/PianoRoll3d.ts`](../src/node3d/subs/PianoRoll/PianoRoll3d.ts) (~2400 lines!) |
+| Plus | [`PianoRollSettingsMenu.ts`](../src/node3d/subs/PianoRoll/PianoRollSettingsMenu.ts), [`WamTransportManager.ts`](../src/node3d/subs/PianoRoll/WamTransportManager.ts), [`grid/{GridStrategy,Piano88Strategy,DrumPadsStrategy}.ts`](../src/node3d/subs/PianoRoll/grid/) |
 
 A grid-based MIDI editor. The big one in the codebase. Splits across
 several files to stay manageable.
@@ -362,7 +362,7 @@ several files to stay manageable.
 #### The Strategy pattern for grid layouts
 
 The grid has a `GridStrategy` interface
-([grid/GridStrategy.ts](../src/Refactoring/node3d/subs/PianoRoll/grid/GridStrategy.ts)):
+([grid/GridStrategy.ts](../src/node3d/subs/PianoRoll/grid/GridStrategy.ts)):
 
 ```typescript
 interface GridStrategy {
@@ -389,9 +389,9 @@ it in the settings menu. No editor code changes needed.
 
 #### Other PianoRoll pieces
 
-- **`PianoRollSettingsMenu`** ([file](../src/Refactoring/node3d/subs/PianoRoll/PianoRollSettingsMenu.ts)) —
+- **`PianoRollSettingsMenu`** ([file](../src/node3d/subs/PianoRoll/PianoRollSettingsMenu.ts)) —
   in-world settings panel for switching the grid strategy and other options.
-- **`WamTransportManager`** ([file](../src/Refactoring/node3d/subs/PianoRoll/WamTransportManager.ts)) —
+- **`WamTransportManager`** ([file](../src/node3d/subs/PianoRoll/WamTransportManager.ts)) —
   shared singleton that tracks tempo / play state and registers all WAM
   nodes that need transport messages. Also used by the (separate)
   WAM sampler bridge in `drumSampler.ts`.
@@ -415,9 +415,9 @@ it in the settings menu. No editor code changes needed.
 
 | | |
 |---|---|
-| **Kind** | `function_sequencer` (commented out at [Node3DBuilder.ts:103](../src/Refactoring/app/Node3DBuilder.ts) — currently unregistered) |
+| **Kind** | `function_sequencer` (commented out at [Node3DBuilder.ts:103](../src/app/Node3DBuilder.ts) — currently unregistered) |
 | **Tags** | `midi`, `sequencer`, `live_coding`, `generator`, `effect` |
-| **File** | [`subs/functionsequencer/FunctionSequencerN3D.ts`](../src/Refactoring/node3d/subs/functionsequencer/FunctionSequencerN3D.ts) plus subfolder |
+| **File** | [`subs/functionsequencer/FunctionSequencerN3D.ts`](../src/node3d/subs/functionsequencer/FunctionSequencerN3D.ts) plus subfolder |
 
 A **JavaScript sandbox** for live-coding sequencers. Write a class
 with `init() / onTick() / onMidi() / ...` callbacks; the host runs
@@ -433,7 +433,7 @@ script emits MIDI events.
 #### The user-facing API
 
 A user script returns a `FunctionSequencer` instance — see
-[`api/FunctionAPI.ts:12-58`](../src/Refactoring/node3d/subs/functionsequencer/api/FunctionAPI.ts):
+[`api/FunctionAPI.ts:12-58`](../src/node3d/subs/functionsequencer/api/FunctionAPI.ts):
 
 ```typescript
 class MySequencer {
@@ -462,15 +462,15 @@ The script is given two globals:
 
 | File | What |
 |---|---|
-| [`FunctionSequencerN3D.ts`](../src/Refactoring/node3d/subs/functionsequencer/FunctionSequencerN3D.ts) | The Node3D wrapper. Includes a `DEFAULT_SCRIPT` example showing the API |
-| [`ScriptExecutor.ts`](../src/Refactoring/node3d/subs/functionsequencer/ScriptExecutor.ts) | Compiles the user script via `new Function('api', 'ui', 'tonal', code)`. **Not a real sandbox** — the script can still see `globalThis`, `import`, etc. Don't run untrusted code |
-| [`MidiEventManager.ts`](../src/Refactoring/node3d/subs/functionsequencer/MidiEventManager.ts) | Buffers + dispatches MIDI events to downstream WAM nodes |
-| [`UIRenderer3D.ts`](../src/Refactoring/node3d/subs/functionsequencer/UIRenderer3D.ts) | Renders the `RemoteUI` tree as Babylon meshes (Knob = cylinder, Slider = bar, Toggle = box, etc.) |
-| [`api/FunctionAPI.ts`](../src/Refactoring/node3d/subs/functionsequencer/api/FunctionAPI.ts) | Defines `FunctionSequencer`, `FunctionAPI`, `ParameterDefinition`, `NoteDefinition`. PPQN constant `= 96` |
-| [`api/FunctionKernel.ts`](../src/Refactoring/node3d/subs/functionsequencer/api/FunctionKernel.ts) | Interface for the kernel that the API talks to. Implementation is in `FunctionKernelImpl.ts` |
-| [`api/RemoteUI.ts`](../src/Refactoring/node3d/subs/functionsequencer/api/RemoteUI.ts) | The `RemoteUI` element types and `RemoteUIBuilder` |
-| [`wam/FunctionSequencerNode.ts`](../src/Refactoring/node3d/subs/functionsequencer/wam/FunctionSequencerNode.ts) | 4-line stub. The real WAM node is meant to live here |
-| [`wam/FunctionSequencerProcessor.ts`](../src/Refactoring/node3d/subs/functionsequencer/wam/FunctionSequencerProcessor.ts) | The AudioWorkletProcessor that runs `onTick` from the audio thread |
+| [`FunctionSequencerN3D.ts`](../src/node3d/subs/functionsequencer/FunctionSequencerN3D.ts) | The Node3D wrapper. Includes a `DEFAULT_SCRIPT` example showing the API |
+| [`ScriptExecutor.ts`](../src/node3d/subs/functionsequencer/ScriptExecutor.ts) | Compiles the user script via `new Function('api', 'ui', 'tonal', code)`. **Not a real sandbox** — the script can still see `globalThis`, `import`, etc. Don't run untrusted code |
+| [`MidiEventManager.ts`](../src/node3d/subs/functionsequencer/MidiEventManager.ts) | Buffers + dispatches MIDI events to downstream WAM nodes |
+| [`UIRenderer3D.ts`](../src/node3d/subs/functionsequencer/UIRenderer3D.ts) | Renders the `RemoteUI` tree as Babylon meshes (Knob = cylinder, Slider = bar, Toggle = box, etc.) |
+| [`api/FunctionAPI.ts`](../src/node3d/subs/functionsequencer/api/FunctionAPI.ts) | Defines `FunctionSequencer`, `FunctionAPI`, `ParameterDefinition`, `NoteDefinition`. PPQN constant `= 96` |
+| [`api/FunctionKernel.ts`](../src/node3d/subs/functionsequencer/api/FunctionKernel.ts) | Interface for the kernel that the API talks to. Implementation is in `FunctionKernelImpl.ts` |
+| [`api/RemoteUI.ts`](../src/node3d/subs/functionsequencer/api/RemoteUI.ts) | The `RemoteUI` element types and `RemoteUIBuilder` |
+| [`wam/FunctionSequencerNode.ts`](../src/node3d/subs/functionsequencer/wam/FunctionSequencerNode.ts) | 4-line stub. The real WAM node is meant to live here |
+| [`wam/FunctionSequencerProcessor.ts`](../src/node3d/subs/functionsequencer/wam/FunctionSequencerProcessor.ts) | The AudioWorkletProcessor that runs `onTick` from the audio thread |
 
 If you want to ship this: finish `FunctionSequencerN3D.ts`'s GUI
 class, hook the `FunctionKernelImpl` to the processor, and uncomment
@@ -490,7 +490,7 @@ Burns Audio drum sampler WAM.
 | | |
 |---|---|
 | **Kind** | `drumkit` |
-| **File** | [`subs/drumkit/DrumKitN3D.ts`](../src/Refactoring/node3d/subs/drumkit/DrumKitN3D.ts) |
+| **File** | [`subs/drumkit/DrumKitN3D.ts`](../src/node3d/subs/drumkit/DrumKitN3D.ts) |
 
 The Node3D wrapper. Loads the drum kit GLB model, gates on
 `SceneManager.isPhysicsReady()` (waits up to 5 seconds), instantiates
@@ -508,37 +508,37 @@ that broadcasts every drum hit as a MIDI event.
 ### `XRDrumKit` subsystem
 
 The folder
-[`subs/drumkit/XRDrumKit/`](../src/Refactoring/node3d/subs/drumkit/XRDrumKit/)
+[`subs/drumkit/XRDrumKit/`](../src/node3d/subs/drumkit/XRDrumKit/)
 holds the physics-driven drum logic. ~10 files.
 
 | File | What |
 |---|---|
-| [`XRDrumKit.ts`](../src/Refactoring/node3d/subs/drumkit/XRDrumKit/XRDrumKit.ts) | The orchestrator. Loads the .glb, instantiates one `XRDrum` per drum head + `XRCymbal` per cymbal + one `XRHiHat`, two `XRDrumstick` (one per hand), `ThroneController` for sit/stand. Holds the `wamInstance` that plays the actual sounds |
-| [`XRDrumKitConfig.ts`](../src/Refactoring/node3d/subs/drumkit/XRDrumKit/XRDrumKitConfig.ts) | The big config: `DRUMKIT_CONFIG.{model, midi.{keys,durations}, physics.{minVelocity,maxVelocity,velocityCurve,debounceMs}, velocity.{angularWeight}, haptics.{minIntensity,maxIntensity,duration}}` |
-| [`XRDrumstick.ts`](../src/Refactoring/node3d/subs/drumkit/XRDrumKit/XRDrumstick.ts) | One per hand. Owns a physics aggregate that follows the controller, exposes `getVelocity() → {linear, angular}` |
-| [`CollisionGroups.ts`](../src/Refactoring/node3d/subs/drumkit/XRDrumKit/CollisionGroups.ts) | Bitmasks: `NONE=0`, `DRUMSTICK=1`, `DRUM=2`, `CYMBAL=4`. Used to filter physics events |
-| [`CollisionUtils.ts`](../src/Refactoring/node3d/subs/drumkit/XRDrumKit/CollisionUtils.ts) | `calculateHitVelocity`, `checkDebounce`, `triggerHapticFeedback`, `scheduleSound`, `isDownwardHit`, `findDrumstickIndex`, `isCollisionWithTrigger` — see below |
-| [`AnimationUtils.ts`](../src/Refactoring/node3d/subs/drumkit/XRDrumKit/AnimationUtils.ts) | Helpers for the on-hit visual animations |
-| [`ThroneController.ts`](../src/Refactoring/node3d/subs/drumkit/XRDrumKit/ThroneController.ts) | Detects when the user "sits" on the drum stool; locks/unlocks position |
-| [`ThroneUI.ts`](../src/Refactoring/node3d/subs/drumkit/XRDrumKit/ThroneUI.ts) | The "Sit / Stand" prompt floating near the throne |
-| [`XRLogger.ts`](../src/Refactoring/node3d/subs/drumkit/XRDrumKit/XRLogger.ts) | A custom logger that draws debug text in the world |
-| [`RandomDrumPlayer.ts`](../src/Refactoring/node3d/subs/drumkit/RandomDrumPlayer.ts) | Test utility — picks a random drum and hits it, used during development |
+| [`XRDrumKit.ts`](../src/node3d/subs/drumkit/XRDrumKit/XRDrumKit.ts) | The orchestrator. Loads the .glb, instantiates one `XRDrum` per drum head + `XRCymbal` per cymbal + one `XRHiHat`, two `XRDrumstick` (one per hand), `ThroneController` for sit/stand. Holds the `wamInstance` that plays the actual sounds |
+| [`XRDrumKitConfig.ts`](../src/node3d/subs/drumkit/XRDrumKit/XRDrumKitConfig.ts) | The big config: `DRUMKIT_CONFIG.{model, midi.{keys,durations}, physics.{minVelocity,maxVelocity,velocityCurve,debounceMs}, velocity.{angularWeight}, haptics.{minIntensity,maxIntensity,duration}}` |
+| [`XRDrumstick.ts`](../src/node3d/subs/drumkit/XRDrumKit/XRDrumstick.ts) | One per hand. Owns a physics aggregate that follows the controller, exposes `getVelocity() → {linear, angular}` |
+| [`CollisionGroups.ts`](../src/node3d/subs/drumkit/XRDrumKit/CollisionGroups.ts) | Bitmasks: `NONE=0`, `DRUMSTICK=1`, `DRUM=2`, `CYMBAL=4`. Used to filter physics events |
+| [`CollisionUtils.ts`](../src/node3d/subs/drumkit/XRDrumKit/CollisionUtils.ts) | `calculateHitVelocity`, `checkDebounce`, `triggerHapticFeedback`, `scheduleSound`, `isDownwardHit`, `findDrumstickIndex`, `isCollisionWithTrigger` — see below |
+| [`AnimationUtils.ts`](../src/node3d/subs/drumkit/XRDrumKit/AnimationUtils.ts) | Helpers for the on-hit visual animations |
+| [`ThroneController.ts`](../src/node3d/subs/drumkit/XRDrumKit/ThroneController.ts) | Detects when the user "sits" on the drum stool; locks/unlocks position |
+| [`ThroneUI.ts`](../src/node3d/subs/drumkit/XRDrumKit/ThroneUI.ts) | The "Sit / Stand" prompt floating near the throne |
+| [`XRLogger.ts`](../src/node3d/subs/drumkit/XRDrumKit/XRLogger.ts) | A custom logger that draws debug text in the world |
+| [`RandomDrumPlayer.ts`](../src/node3d/subs/drumkit/RandomDrumPlayer.ts) | Test utility — picks a random drum and hits it, used during development |
 
 Per-component implementations live in
-[`XRDrumComponent/`](../src/Refactoring/node3d/subs/drumkit/XRDrumKit/XRDrumComponent/):
+[`XRDrumComponent/`](../src/node3d/subs/drumkit/XRDrumKit/XRDrumComponent/):
 
 | File | What |
 |---|---|
-| [`XRDrumComponent.ts`](../src/Refactoring/node3d/subs/drumkit/XRDrumKit/XRDrumComponent/XRDrumComponent.ts) | 15-line abstract base interface |
-| [`XRDrum.ts`](../src/Refactoring/node3d/subs/drumkit/XRDrumKit/XRDrumComponent/XRDrum.ts) | A drum head (kick/snare/toms). Single trigger volume. Snare additionally has a separate `rimshot` MIDI key |
-| [`XRCymbal.ts`](../src/Refactoring/node3d/subs/drumkit/XRDrumKit/XRDrumComponent/XRCymbal.ts) | A cymbal disc. Larger trigger volume, decays with a different `durations.cymbals` envelope |
-| [`XRHiHat.ts`](../src/Refactoring/node3d/subs/drumkit/XRDrumKit/XRDrumComponent/XRHiHat.ts) | Hi-hat — has open/closed states, two MIDI keys (`closedHiHatKey=42`, `openHiHatKey=46`) |
-| [`XRDrumComponentLogger.ts`](../src/Refactoring/node3d/subs/drumkit/XRDrumKit/XRDrumComponent/XRDrumComponentLogger.ts) | Per-component logger |
+| [`XRDrumComponent.ts`](../src/node3d/subs/drumkit/XRDrumKit/XRDrumComponent/XRDrumComponent.ts) | 15-line abstract base interface |
+| [`XRDrum.ts`](../src/node3d/subs/drumkit/XRDrumKit/XRDrumComponent/XRDrum.ts) | A drum head (kick/snare/toms). Single trigger volume. Snare additionally has a separate `rimshot` MIDI key |
+| [`XRCymbal.ts`](../src/node3d/subs/drumkit/XRDrumKit/XRDrumComponent/XRCymbal.ts) | A cymbal disc. Larger trigger volume, decays with a different `durations.cymbals` envelope |
+| [`XRHiHat.ts`](../src/node3d/subs/drumkit/XRDrumKit/XRDrumComponent/XRHiHat.ts) | Hi-hat — has open/closed states, two MIDI keys (`closedHiHatKey=42`, `openHiHatKey=46`) |
+| [`XRDrumComponentLogger.ts`](../src/node3d/subs/drumkit/XRDrumKit/XRDrumComponent/XRDrumComponentLogger.ts) | Per-component logger |
 
 #### How a hit becomes sound
 
 The hot path through `CollisionUtils`
-([source](../src/Refactoring/node3d/subs/drumkit/XRDrumKit/CollisionUtils.ts)):
+([source](../src/node3d/subs/drumkit/XRDrumKit/CollisionUtils.ts)):
 
 1. **Havok fires** a collision event between a drumstick body and a
    drum trigger volume.
@@ -566,7 +566,7 @@ kick=35-ish, snare=38, rimshot=37, hi-hat=42/46, etc.
 
 #### TODOs left in the file
 
-[`XRDrumKit.ts:19-30`](../src/Refactoring/node3d/subs/drumkit/XRDrumKit/XRDrumKit.ts)
+[`XRDrumKit.ts:19-30`](../src/node3d/subs/drumkit/XRDrumKit/XRDrumKit.ts)
 lists open work items: piano-roll-style recording output, per-zone
 velocity scaling, rim/center separation, MIDI pedal support, internal
 trigger grip option for sticks, distance constraints to "snap"
@@ -577,7 +577,7 @@ drumsticks to hands.
 ## Automation controllers
 
 Five controllers, all under
-[`subs/automation/`](../src/Refactoring/node3d/subs/automation/).
+[`subs/automation/`](../src/node3d/subs/automation/).
 Their job is to produce one or more **automation outputs** that drive
 parameters on other Node3Ds. Tags include `controller` and `automation`.
 
@@ -587,7 +587,7 @@ parameters on other Node3Ds. Tags include `controller` and `automation`.
 |---|---|
 | **Kind** | `automation_controller` |
 | **Tags** | `automationcontroller`, `automation`, `drag` |
-| **File** | [`subs/automation/AutomationControllerN3D.ts`](../src/Refactoring/node3d/subs/automation/AutomationControllerN3D.ts) |
+| **File** | [`subs/automation/AutomationControllerN3D.ts`](../src/node3d/subs/automation/AutomationControllerN3D.ts) |
 
 The simplest of the bunch: a base plate with a knob (cylinder + line
 to indicate orientation) and an automation output sphere.
@@ -609,7 +609,7 @@ to indicate orientation) and an automation output sphere.
 |---|---|
 | **Kind** | `the_cube` |
 | **Tags** | `automation`, `controller`, `3d_position`, `interactive` |
-| **File** | [`subs/automation/PositionCubeN3D.ts`](../src/Refactoring/node3d/subs/automation/PositionCubeN3D.ts) |
+| **File** | [`subs/automation/PositionCubeN3D.ts`](../src/node3d/subs/automation/PositionCubeN3D.ts) |
 
 A transparent cube with three coloured cross-axis lines that follow a
 "cursor point". Pinch the trigger inside the cube to move the cursor;
@@ -634,7 +634,7 @@ its `(x, y, z)` are emitted on three automation outputs.
 |---|---|
 | **Kind** | `gaze` |
 | **Tags** | `automationcontroller`, `automation`, `gaze` |
-| **File** | [`subs/automation/GazeControllerN3D.ts`](../src/Refactoring/node3d/subs/automation/GazeControllerN3D.ts) |
+| **File** | [`subs/automation/GazeControllerN3D.ts`](../src/node3d/subs/automation/GazeControllerN3D.ts) |
 
 An "eye" sphere that switches between two values depending on whether
 the user is looking at it.
@@ -649,7 +649,7 @@ the user is looking at it.
   `InputManager.getInstance().head.onNewTarget` and switches state
   when `e.targetMesh === gui.eye`.
 - The observer is wrapped in
-  [`usingWith`](../src/Refactoring/utils/utils.ts) so it auto-detaches
+  [`usingWith`](../src/utils/utils.ts) so it auto-detaches
   when the GUI base mesh is disposed.
 
 ### `VoiceVolumeControllerN3D`
@@ -658,7 +658,7 @@ the user is looking at it.
 |---|---|
 | **Kind** | `voice` |
 | **Tags** | `automationcontroller`, `automation`, `voice` |
-| **File** | [`subs/automation/VoiceVolumeControllerN3D.ts`](../src/Refactoring/node3d/subs/automation/VoiceVolumeControllerN3D.ts) |
+| **File** | [`subs/automation/VoiceVolumeControllerN3D.ts`](../src/node3d/subs/automation/VoiceVolumeControllerN3D.ts) |
 
 A microphone + LED, and **two** automation outputs: voice volume and
 voice pitch.
@@ -686,7 +686,7 @@ voice pitch.
 |---|---|
 | **Kind** | (unregistered — no entry in `Node3DBuilder.FACTORY_KINDS`) |
 | **Tags** | `automation`, `controller`, `3d_position`, `interactive` |
-| **File** | [`subs/automation/ElectroballsN3D.ts`](../src/Refactoring/node3d/subs/automation/ElectroballsN3D.ts) |
+| **File** | [`subs/automation/ElectroballsN3D.ts`](../src/node3d/subs/automation/ElectroballsN3D.ts) |
 
 A planned 4-balls (A red, B green, C blue, D white) physics-based
 controller. The GUI is built (lines 26–73) but the `Node3D` class
@@ -702,7 +702,7 @@ electroball physics are not implemented yet. Stub.
 | | |
 |---|---|
 | **Kind** | `wam3d-<name>`, `add-<name>`, `desc:<json>`, `external:<url>`, or any unprefixed kind that the config server resolves |
-| **File** | [`subs/Wam3DGeneratorN3D.ts`](../src/Refactoring/node3d/subs/Wam3DGeneratorN3D.ts) |
+| **File** | [`subs/Wam3DGeneratorN3D.ts`](../src/node3d/subs/Wam3DGeneratorN3D.ts) |
 
 The generic bridge to **any** WebAudioModule with a 3D-GUI
 description. This is what makes "load any WAM" possible.
@@ -711,7 +711,7 @@ description. This is what makes "load any WAM" possible.
   class with a static `create(code: WAMGuiInitCode)` that takes a
   WAM init code, fetches the WAM's `descriptor.json` to derive
   appropriate tags
-  ([lines 144–193](../src/Refactoring/node3d/subs/Wam3DGeneratorN3D.ts)):
+  ([lines 144–193](../src/node3d/subs/Wam3DGeneratorN3D.ts)):
   - `audioIn + audioOut` → `audio + effect`
   - `audioOut only` → `audio + generator`
   - `audioIn only` → `audio + consumer`
@@ -741,7 +741,7 @@ description. This is what makes "load any WAM" possible.
 | | |
 |---|---|
 | **Kind** | (unregistered — exported but `Node3DBuilder` doesn't map any string to it) |
-| **File** | [`subs/drumSampler.ts`](../src/Refactoring/node3d/subs/drumSampler.ts) |
+| **File** | [`subs/drumSampler.ts`](../src/node3d/subs/drumSampler.ts) |
 
 A hardcoded bridge to the
 [Burns Audio DrumSampler](https://www.webaudiomodules.com/community/plugins/burns-audio/drumsampler/index.js)
@@ -764,13 +764,13 @@ class for the drum kit, not exposed as a separate spawnable.
 | | |
 |---|---|
 | **Kind** | (unregistered — file naming is misleading) |
-| **File** | [`subs/AutomationToolN3D.ts`](../src/Refactoring/node3d/subs/AutomationToolN3D.ts) |
+| **File** | [`subs/AutomationToolN3D.ts`](../src/node3d/subs/AutomationToolN3D.ts) |
 
 Despite the file name, this exports `AutomationToolN3DFactory.DEFAULT`
 labelled "Simple Harp" (10 strings) and `LARGE` labelled "Large Harp"
 (20 strings) — but the registered `harp` and `large_harp` kinds in
 `Node3DBuilder` actually point at
-[`note_generator/HarpN3D.ts`](../src/Refactoring/node3d/subs/note_generator/HarpN3D.ts),
+[`note_generator/HarpN3D.ts`](../src/node3d/subs/note_generator/HarpN3D.ts),
 not this file.
 
 The class itself defines a useful **mixer tool**: a base with three
@@ -786,7 +786,7 @@ unfinished.
 |---|---|
 | **Kind** | `sync_debug` |
 | **Tags** | `sync`, `debug`, `audio` |
-| **File** | [`subs/debug/SyncDebugN3D.ts`](../src/Refactoring/node3d/subs/debug/SyncDebugN3D.ts) |
+| **File** | [`subs/debug/SyncDebugN3D.ts`](../src/node3d/subs/debug/SyncDebugN3D.ts) |
 
 A diagnostic node for the [Sync protocol](03-node3d-system.md#sync--syncn3dconnectable).
 
@@ -804,7 +804,7 @@ A diagnostic node for the [Sync protocol](03-node3d-system.md#sync--syncn3dconne
 | | |
 |---|---|
 | **Kind** | (unregistered) |
-| **File** | [`subs/TemplateN3D.ts`](../src/Refactoring/node3d/subs/TemplateN3D.ts) |
+| **File** | [`subs/TemplateN3D.ts`](../src/node3d/subs/TemplateN3D.ts) |
 
 The boilerplate to copy when starting a new instrument. See chapter
 [03 §The canonical Hello world](03-node3d-system.md#the-canonical-hello-world--templaten3dts)

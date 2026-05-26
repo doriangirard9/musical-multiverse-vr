@@ -10,17 +10,17 @@ should be able to recognise an idiomatic addition vs a foreign one.
 | Pattern | Where it shows up |
 |---|---|
 | Singleton | All app-wide managers (chapter [02 §Singleton discipline](02-app-core.md#singleton-discipline)) |
-| Factory | [`Node3DBuilder`](../src/Refactoring/app/Node3DBuilder.ts), `Node3DFactory<G, T>` for plugins |
-| Strategy | [`GridStrategy`](../src/Refactoring/node3d/subs/PianoRoll/grid/GridStrategy.ts) (PianoRoll layouts), the four connection protocols (Audio / MIDI / Automation / Sync) |
+| Factory | [`Node3DBuilder`](../src/app/Node3DBuilder.ts), `Node3DFactory<G, T>` for plugins |
+| Strategy | [`GridStrategy`](../src/node3d/subs/PianoRoll/grid/GridStrategy.ts) (PianoRoll layouts), the four connection protocols (Audio / MIDI / Automation / Sync) |
 | Builder / Composite | `Node3DInstance` constructing parameter, button, connectable instances; the `BoundingBox` + `HoldableBehaviour` + `FullHoldBehaviour` stack |
-| Observer / typed Event Bus | [`BaseEventBus<T>`](../src/Refactoring/eventBus/BaseEventBus.ts), Babylon `Observable<T>` everywhere |
-| Mediator | [`AppOrchestrator`](../src/Refactoring/app/AppOrchestrator.ts), [`iomanager/ConnectionManager`](../src/Refactoring/iomanager/ConnectionManager.ts) |
+| Observer / typed Event Bus | [`BaseEventBus<T>`](../src/eventBus/BaseEventBus.ts), Babylon `Observable<T>` everywhere |
+| Mediator | [`AppOrchestrator`](../src/app/AppOrchestrator.ts), [`iomanager/ConnectionManager`](../src/iomanager/ConnectionManager.ts) |
 | Template Method | The `Synchronized` contract (`initSync` / `askStates` / `setState`) |
-| Adapter | [`ButtonInput`](../src/Refactoring/xr/inputs/ButtonInput.ts) bridging XR + keyboard, [`ControllerInput`](../src/Refactoring/xr/inputs/ControllerInput.ts) bridging XR + mouse + keyboard |
+| Adapter | [`ButtonInput`](../src/xr/inputs/ButtonInput.ts) bridging XR + keyboard, [`ControllerInput`](../src/xr/inputs/ControllerInput.ts) bridging XR + mouse + keyboard |
 | Behavior composition | Babylon `Behavior<T>` chained via constructor injection (`HoldableBehaviour` → `FullHoldBehaviour` → `MoveHoldBehaviour`/`RotateHoldBehaviour`) |
-| Registry | [`SyncManager<T, D>`](../src/Refactoring/network/sync/SyncManager.ts) — generic id→instance store with CRDT mirroring |
+| Registry | [`SyncManager<T, D>`](../src/network/sync/SyncManager.ts) — generic id→instance store with CRDT mirroring |
 | Decorator-by-callback | Mesh action triggers register inline closures rather than separate handler classes — see `N3DConnectableInstance`, `N3DButtonInstance` |
-| LOD / Impostor | [`N3DPreviewer`](../src/Refactoring/world/N3DPreviewer.ts) swaps a billboard for the real GUI based on camera distance |
+| LOD / Impostor | [`N3DPreviewer`](../src/world/N3DPreviewer.ts) swaps a billboard for the real GUI based on camera distance |
 
 The rest of the chapter unpacks the most distinctive ones.
 
@@ -90,7 +90,7 @@ contributor adding a new instrument touches only these and the two
 classes they instantiate (`Node3DGUI`, `Node3D`).
 
 The host's
-[`Node3DBuilder`](../src/Refactoring/app/Node3DBuilder.ts) is itself a
+[`Node3DBuilder`](../src/app/Node3DBuilder.ts) is itself a
 factory of factories, dispatching by `kind` string. It's the only
 place that "knows" the registered builtins.
 
@@ -110,8 +110,8 @@ Two clear examples:
 The 16-column note grid in `PianoRoll3d.ts` doesn't know whether
 it's a piano or a drum machine. It asks a `GridStrategy` for the row
 count, row labels, MIDI numbers, and colours. Two strategies ship
-([Piano88Strategy.ts](../src/Refactoring/node3d/subs/PianoRoll/grid/Piano88Strategy.ts),
-[DrumPadsStrategy.ts](../src/Refactoring/node3d/subs/PianoRoll/grid/DrumPadsStrategy.ts)).
+([Piano88Strategy.ts](../src/node3d/subs/PianoRoll/grid/Piano88Strategy.ts),
+[DrumPadsStrategy.ts](../src/node3d/subs/PianoRoll/grid/DrumPadsStrategy.ts)).
 Adding a new layout (e.g. "guitar", "modal scale") = implement
 `GridStrategy`, no editor changes.
 
@@ -124,7 +124,7 @@ sequence (`connectAsInput` → `connectAsOutput`) regardless. Adding a
 new protocol (e.g. a "video stream" connectable, or a "string of
 text" connectable) = define a new namespace in `tools/connectable/`
 that implements `Node3DConnectable`, and re-export it from
-[`tools/index.ts`](../src/Refactoring/node3d/tools/index.ts).
+[`tools/index.ts`](../src/node3d/tools/index.ts).
 
 ---
 
@@ -135,9 +135,9 @@ Two flavours of observer in this codebase:
 ### Babylon `Observable<T>`
 
 The hot path. Used everywhere:
-[`InputManager.onTriggerChange`](../src/Refactoring/xr/inputs/InputManager.ts),
-[`HoldableBehaviour.onMoveObservable`](../src/Refactoring/behaviours/boundingBox/HoldableBehaviour.ts),
-[`PointerInput.onMove`](../src/Refactoring/xr/inputs/PointerInput.ts), etc.
+[`InputManager.onTriggerChange`](../src/xr/inputs/InputManager.ts),
+[`HoldableBehaviour.onMoveObservable`](../src/behaviours/boundingBox/HoldableBehaviour.ts),
+[`PointerInput.onMove`](../src/xr/inputs/PointerInput.ts), etc.
 
 Idioms:
 - Public field `readonly someObs = new Observable<EventType>()`
@@ -148,7 +148,7 @@ Idioms:
 ### The typed event bus (`BaseEventBus<T>`)
 
 The cool path. A small typed pub/sub
-([source](../src/Refactoring/eventBus/BaseEventBus.ts)):
+([source](../src/eventBus/BaseEventBus.ts)):
 
 ```typescript
 export class BaseEventBus<T extends object> {
@@ -187,13 +187,13 @@ When to use which:
 
 ## Mediator
 
-[`AppOrchestrator`](../src/Refactoring/app/AppOrchestrator.ts) is the
+[`AppOrchestrator`](../src/app/AppOrchestrator.ts) is the
 canonical example: it holds no state, just listens to the menu bus
 and dispatches into managers. If a new "the user did X, the system
 should respond by Y" wiring crosses subsystems, this is the file to
 add it to.
 
-[`iomanager/ConnectionManager`](../src/Refactoring/iomanager/ConnectionManager.ts)
+[`iomanager/ConnectionManager`](../src/iomanager/ConnectionManager.ts)
 is a domain-specific mediator for one specific gesture (the
 "drag-from-port-to-port" wire-up). State machine of three states (idle
 / dragging / connected) on top of three event types (`down` / `up` /
@@ -204,7 +204,7 @@ is a domain-specific mediator for one specific gesture (the
 ## Template Method (`Synchronized`)
 
 The `Synchronized` interface
-([source](../src/Refactoring/network/sync/Synchronized.ts)) is a
+([source](../src/network/sync/Synchronized.ts)) is a
 classic template method:
 
 - The host calls `initSync(id, set_state, remove_state)` to give you
@@ -218,9 +218,9 @@ classic template method:
 - The host calls `disposeSync()` to teach you to detach.
 
 Three classes implement it:
-[`Node3DInstance`](../src/Refactoring/node3d/instance/Node3DInstance.ts),
-[`N3DConnectionInstance`](../src/Refactoring/node3d/instance/N3DConnectionInstance.ts),
-[`VisualTube`](../src/Refactoring/visual/VisualTube.ts).
+[`Node3DInstance`](../src/node3d/instance/Node3DInstance.ts),
+[`N3DConnectionInstance`](../src/node3d/instance/N3DConnectionInstance.ts),
+[`VisualTube`](../src/visual/VisualTube.ts).
 
 If you write a new Synchronized class, follow the same template — and
 expose a `static getSyncManager(scene, doc, ...)` factory (the
@@ -230,13 +230,13 @@ codebase's convention) to build the registry.
 
 ## Adapter (input unification)
 
-[`ButtonInput`](../src/Refactoring/xr/inputs/ButtonInput.ts) is an
+[`ButtonInput`](../src/xr/inputs/ButtonInput.ts) is an
 adapter that gives keyboard and XR-button events the same observable
 surface (`onChange / onDown / onUp / onTouch / onUntouch`). The
 keyboard side has no `touch` concept, but the abstract event always
 has a `touched` boolean — for keyboard it just mirrors `pressed`.
 
-[`ControllerInput`](../src/Refactoring/xr/inputs/ControllerInput.ts)
+[`ControllerInput`](../src/xr/inputs/ControllerInput.ts)
 goes further: same interface for XR controllers, mouse-driven
 "screen controller", and per-hand keyboard fallback (left = QDZS,
 right = arrows). Behaviors written against `ControllerInput` work in
@@ -308,7 +308,7 @@ instance, data)`; the remote path goes through `add_from_network`
 the API user doesn't have to know which side they're on.
 
 That symmetry is also what lets `Serialization.load`
-([Serialization.ts](../src/Refactoring/app/Serialization.ts)) work:
+([Serialization.ts](../src/app/Serialization.ts)) work:
 it just calls `Node3dManager.createNode3d` for each saved node, the
 spawn flows through the local `add` path, and remote peers see the
 same nodes via their `add_from_network` path. No custom
@@ -320,7 +320,7 @@ same nodes via their `add_from_network` path. No custom
 
 ### Generic event payloads
 
-[`BaseEventBus<T extends object>`](../src/Refactoring/eventBus/BaseEventBus.ts):
+[`BaseEventBus<T extends object>`](../src/eventBus/BaseEventBus.ts):
 
 ```typescript
 emit<K extends keyof T>(event: K, payload: T[K]): void
@@ -338,8 +338,8 @@ Same trick on `SyncManager<T, D>`:
 
 ### Declaration files (`.d.ts`) for plugin contracts
 
-[`Node3D.d.ts`](../src/Refactoring/node3d/Node3D.d.ts),
-[`Node3DContext.d.ts`](../src/Refactoring/node3d/Node3DContext.d.ts),
+[`Node3D.d.ts`](../src/node3d/Node3D.d.ts),
+[`Node3DContext.d.ts`](../src/node3d/Node3DContext.d.ts),
 etc. are pure TypeScript declaration files — no runtime code, just
 interfaces. The actual implementations live in `instance/`. This
 split is what makes the plugin contract a *contract*: a plugin
@@ -348,7 +348,7 @@ depend on host implementation details.
 
 ### Dynamic `import(/* @vite-ignore */ url)`
 
-[`WamInitializer.initWamInstance`](../src/Refactoring/app/WamInitializer.ts)
+[`WamInitializer.initWamInstance`](../src/app/WamInitializer.ts)
 and `Node3DBuilder` use `import(/* @vite-ignore */ wamUrl)` to load
 WAM bundles at runtime from URLs Vite can't see at build time. The
 `@vite-ignore` comment tells Vite "don't try to resolve this URL —
@@ -364,7 +364,7 @@ needed.
 
 ### `Promise.race` for timeouts
 
-[`utils.ts:withTimeout`](../src/Refactoring/utils/utils.ts) — race
+[`utils.ts:withTimeout`](../src/utils/utils.ts) — race
 the actual work against a `setTimeout`-driven promise. If `fallback`
 is provided, resolve to it on timeout; otherwise reject. Used in
 `XRManager` to avoid hanging on a missing controller and in
@@ -372,19 +372,19 @@ is provided, resolve to it on timeout; otherwise reject. Used in
 
 ### Observable lifetime tied to `Node`
 
-[`utils.ts:usingWith(node, observer)`](../src/Refactoring/utils/utils.ts)
+[`utils.ts:usingWith(node, observer)`](../src/utils/utils.ts)
 attaches an observer's lifetime to a Babylon `Node`'s
 `onDisposeObservable` — when the node disposes, the observer's
 `.remove()` runs automatically. Used by
-[`GazeControllerN3D`](../src/Refactoring/node3d/subs/automation/GazeControllerN3D.ts)
+[`GazeControllerN3D`](../src/node3d/subs/automation/GazeControllerN3D.ts)
 to detach its gaze listener cleanly.
 
 For the more general case, the
-[`Node3DContext.observe(observable, observer)`](../src/Refactoring/node3d/Node3DContext.d.ts)
+[`Node3DContext.observe(observable, observer)`](../src/node3d/Node3DContext.d.ts)
 method does the same thing for plugins — every observer registered
 through `context.observe(...)` is automatically removed when the
 Node3D disposes (see
-[Node3DInstance.ts:192-196](../src/Refactoring/node3d/instance/Node3DInstance.ts)).
+[Node3DInstance.ts:192-196](../src/node3d/instance/Node3DInstance.ts)).
 
 ### `@ts-ignore` and `@ts-nocheck`
 
@@ -393,7 +393,7 @@ Used sparingly and only at necessary boundaries:
 - `@ts-ignore` over WebXR controller type assertions (the WebXR API
   in TypeScript has a few `null`-might-be-defined edge cases).
 - `@ts-nocheck` at the top of
-  [`TemplateN3D.ts`](../src/Refactoring/node3d/subs/TemplateN3D.ts) so
+  [`TemplateN3D.ts`](../src/node3d/subs/TemplateN3D.ts) so
   the (intentionally empty) skeleton compiles. The comment above it
   says to remove the directive when you copy the file.
 
@@ -407,7 +407,7 @@ otherwise compiles cleanly.
 ### Folders
 
 ```
-src/Refactoring/
+src/
     app/           singletons, bootstrap
     eventBus/      typed pub/sub
     node3d/        plugin contract + runtime + instruments
@@ -483,11 +483,11 @@ src/Refactoring/
   the surrounding language.
 - `TODO:` markers are kept around as known issues. Two specific ones
   to know about:
-  - [AudioOutputN3D.ts:55](../src/Refactoring/node3d/subs/AudioOutputN3D.ts) and
-    [SpeakerN3D.ts:145](../src/Refactoring/node3d/subs/speaker/SpeakerN3D.ts)
+  - [AudioOutputN3D.ts:55](../src/node3d/subs/AudioOutputN3D.ts) and
+    [SpeakerN3D.ts:145](../src/node3d/subs/speaker/SpeakerN3D.ts)
     note that `audioCtx.listener` is global and shouldn't be
     written from a Node3D.
-  - [PlayerNetwork.ts:11](../src/Refactoring/network/PlayerNetwork.ts)
+  - [PlayerNetwork.ts:11](../src/network/PlayerNetwork.ts)
     notes that `PlayerNetwork` should be ported to use `SyncManager`.
 
 ### `console.log` policy
@@ -504,7 +504,7 @@ you need to log a number, wrap it in an object: `console.log({n})`.
 ### "Scene-bound singleton resource"
 
 Lazy-create a mesh template and stash it on the scene to avoid
-recomputation. See [`AsyncLoading.store`](../src/Refactoring/world/AsyncLoading.ts):
+recomputation. See [`AsyncLoading.store`](../src/world/AsyncLoading.ts):
 
 ```typescript
 store<T>(obj: any, name: string, factory: () => T): T {
@@ -520,8 +520,8 @@ Used to lazy-build the spinner and cross meshes once per scene.
 ### "Debounced rebuild"
 
 Multiple events arrive; coalesce into one rebuild. See
-[`Node3DInstance.updateBoundingBox`](../src/Refactoring/node3d/instance/Node3DInstance.ts)
-or [`VisualTube.set`](../src/Refactoring/visual/VisualTube.ts) — if
+[`Node3DInstance.updateBoundingBox`](../src/node3d/instance/Node3DInstance.ts)
+or [`VisualTube.set`](../src/visual/VisualTube.ts) — if
 already pending, skip; otherwise schedule a `setTimeout(..., 0|10|20)`
 and clear the flag in the callback.
 
@@ -529,9 +529,9 @@ and clear the flag in the callback.
 
 Subscribe-style functions return an object with `.remove()` rather
 than a bare cleanup function. See `ButtonInput.setPressInterval`
-([line 51](../src/Refactoring/xr/inputs/ButtonInput.ts)),
+([line 51](../src/xr/inputs/ButtonInput.ts)),
 `InputVisualPointer.CreateSimple`
-([line 72](../src/Refactoring/xr/inputs/tools/InputVisualPointer.ts)),
+([line 72](../src/xr/inputs/tools/InputVisualPointer.ts)),
 etc. The shape is uniform across the codebase, which lets utilities
 like `usingWith` work universally.
 

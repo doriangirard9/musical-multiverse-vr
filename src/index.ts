@@ -1,17 +1,16 @@
-import { CreateAudioEngineAsync } from "@babylonjs/core";
-import { NewApp } from "./Refactoring/app/NewApp.ts";
-import { HashRouter } from "./Refactoring/router/HashRouter.ts";
-import { ROUTES } from "./Refactoring/router/routes.ts";
-import { ApiClient } from "./Refactoring/auth/ApiClient.ts";
-import { AuthService } from "./Refactoring/auth/AuthService.ts";
-import { LoginPage } from "./Refactoring/ui/pages/LoginPage.ts";
-import { RegisterPage } from "./Refactoring/ui/pages/RegisterPage.ts";
-import { SessionBrowserPage } from "./Refactoring/ui/pages/SessionBrowserPage.ts";
-import { ProjectsPage } from "./Refactoring/ui/pages/ProjectsPage.ts";
-import { LoadingOverlay } from "./Refactoring/ui/pages/LoadingOverlay.ts";
-import { SessionHUD } from "./Refactoring/ui/pages/SessionHUD.ts";
-import { SessionConnector } from "./Refactoring/network/SessionConnector.ts";
-import { SessionAPIClient } from "./Refactoring/network/SessionAPIClient.ts";
+import { App } from "./app/App.ts";
+import { HashRouter } from "./router/HashRouter.ts";
+import { ROUTES } from "./router/routes.ts";
+import { ApiClient } from "./auth/ApiClient.ts";
+import { AuthService } from "./auth/AuthService.ts";
+import { LoginPage } from "./ui/pages/LoginPage.ts";
+import { RegisterPage } from "./ui/pages/RegisterPage.ts";
+import { SessionBrowserPage } from "./ui/pages/SessionBrowserPage.ts";
+import { ProjectsPage } from "./ui/pages/ProjectsPage.ts";
+import { LoadingOverlay } from "./ui/pages/LoadingOverlay.ts";
+import { SessionHUD } from "./ui/pages/SessionHUD.ts";
+import { SessionConnector } from "./network/SessionConnector.ts";
+import { SessionAPIClient } from "./network/SessionAPIClient.ts";
 import * as Y from 'yjs';
 
 // Filter out spammy wam3dgenerator console logs (memory allocation logs)
@@ -154,7 +153,7 @@ let onload = async() => {
                         
                         loadingOverlay.updateText('Loading 3D Environment...');
 
-                        const newApp = new NewApp();
+                        const newApp = new App();
                         console.log("START")
                         await newApp.start(connectionInfo.participantId, sessionId, doc);
                         appStarted = true;
