@@ -66,6 +66,8 @@ export class TwoPointerHoldBehaviour implements Behavior<TransformNode> {
 
             const offset = new_center.subtract(this.last_center)
             this.target.setAbsolutePosition(this.target.absolutePosition.add(offset))
+
+            this.on_move()
         }
 
         this.last_center = new_center
