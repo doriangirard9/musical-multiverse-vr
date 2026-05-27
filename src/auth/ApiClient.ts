@@ -3,7 +3,9 @@
  * All API calls go through this client which handles auth headers and token expiry.
  */
 
-const API_BASE_URL = '/api';
+import { SERVER_NAME } from "../options";
+
+const API_BASE_URL = SERVER_NAME+'/api';
 
 export class ApiClient {
     private accessToken: string | null = null;
