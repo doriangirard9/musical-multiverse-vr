@@ -5,7 +5,7 @@
 
 import { SERVER_NAME } from "../options";
 
-const API_BASE_URL = SERVER_NAME+'/api';
+const API_BASE_URL = SERVER_NAME + '/api';
 
 export class ApiClient {
     private accessToken: string | null = null;
