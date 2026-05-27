@@ -141,6 +141,8 @@ export class HandMenuManager {
 
         if(this._targetNodeInstance){
 
+            buttons.push({ label: `On ${this.pointer.controller.side} pointed :`, color: "#ffffff"})
+
             // Delete pointed object
             buttons.push({ label: "🗑 Delete node", color: "#ff6666", onClick: async()=>{
                 if(this._targetNodeInstance==null) return
@@ -161,7 +163,7 @@ export class HandMenuManager {
             // Copy
             buttons.push({ label: "📋 Copy Structure", color: "#66ccff", onClick: async()=>{
                 if(!this._targetNodeInstance) return
-                const serialized = Serialization.getInstance().save([this._targetNodeInstance.node], false)
+                const serialized = Serialization.getInstance().save([this._targetNodeInstance.node], true)
                 const head = this.inputs.head.matrix.asArray()
                 await navigator.clipboard.writeText(JSON.stringify({serialized,head}))
             }})
@@ -169,12 +171,17 @@ export class HandMenuManager {
         }
 
         if(this._targetConnectionInstance){
+
+            buttons.push({ label: `On ${this.pointer.controller.side} pointed :`, color: "#ffffff"})
+
             // Delete pointed object
             buttons.push({ label: "🗑 Delete connection", color: "#ff6666", onClick: async()=>{
                 if(this._targetConnectionInstance==null) return
                 this._targetConnectionInstance.connection.dispose()
             }})
         }
+
+        buttons.push({ label: `---`, color: "#ffffff"})
 
         // Paste
         buttons.push({ label: "📋 Paste Structure", color: "#6691ff", onClick: async()=>{

@@ -29,9 +29,9 @@
  * @module Node 3D API
  */
 
-export * from "./Node3D";
-export * from "./Node3DContext";
-export * from "./Node3DGUIContext";
-export * from "./Node3DButton";
-export * from "./Node3DConnectable";
-export * from "./Node3DParameter";
+export type * from "./Node3D";
+export type * from "./Node3DContext";
+export type * from "./Node3DGUIContext";
+export type * from "./Node3DButton";
+export type * from "./Node3DConnectable";
+export type * from "./Node3DParameter";
