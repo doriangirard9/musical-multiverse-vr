@@ -1,8 +1,8 @@
-import { AbstractMesh, Behavior, Ray } from "@babylonjs/core";
-import { InputMultiPressBehavior } from "./InputMultiPressBehavior";
+import { AbstractMesh, Behavior, Observer, Ray } from "@babylonjs/core";
 import { PointerInput } from "../PointerInput";
 import { InputMoveOverBehavior } from "./InputMoveOverBehavior";
-import { ControllerInput } from "../ControllerInput";
+import { InputMultiGrabBehavior } from "./InputMultiGrabBehavior";
+import { InputManager } from "../InputManager";
 
 
 const PT: PointerEventInit = { pointerId: 432521 }
@@ -20,11 +20,12 @@ export class InputToPointerBehavior implements Behavior<AbstractMesh> {
     name = "InputToPointerBehavior"
 
     private target!: AbstractMesh
-    private press!: InputMultiPressBehavior
+    private pointer_up!: Observer<any>
+    private grab!: InputMultiGrabBehavior
     private move!: InputMoveOverBehavior
 
     private hoveringStack =  [] as PointerInput[]
-    private pressingStack =  [] as ControllerInput[]
+    private grabbingStack =  [] as PointerInput[]
 
     init(): void { }
 
@@ -34,62 +35,81 @@ export class InputToPointerBehavior implements Behavior<AbstractMesh> {
 
         const scene = target.getScene()
 
-        this.press = new InputMultiPressBehavior(
-            input=>{
-                this.pressingStack.push(input)
-                if(this.pressingStack.length === 1){
-                    const info = scene.pickWithRay(new Ray(input.pointer.origin, input.pointer.forward))
+        this.grab = new InputMultiGrabBehavior(
+            pointer=>{
+                this.grabbingStack.push(pointer)
+                this.updateCurrentMovingPointer()
+                if(this.grabbingStack.length === 1){
+                    const info = scene.pickWithRay(new Ray(pointer.origin, pointer.forward))
                     if(info) scene._inputManager.simulatePointerDown(info, PT)
                 }
             },
-            input=>{
-                this.pressingStack = this.pressingStack.filter(it=> it !== input)
-                if(this.pressingStack.length === 0){
-                    const info = scene.pickWithRay(new Ray(input.pointer.origin, input.pointer.forward))
+            pointer=>{
+                this.grabbingStack = this.grabbingStack.filter(it=> it !== pointer)
+                this.updateCurrentMovingPointer()
+                if(this.grabbingStack.length === 0){
+                    const info = scene.pickWithRay(new Ray(pointer.origin, pointer.forward))
                     if(info) scene._inputManager.simulatePointerUp(info, PT)
                 }
-            },
+            }
         )
 
+        target.addBehavior(this.grab)
         
-        target.addBehavior(this.press)
-
-        const checkIfIsActualPointer = (input: PointerInput)=>{
-            // If some pointer is pressing take, the last pressing pointer
-            if(this.pressingStack.length>0) if(this.pressingStack[this.pressingStack.length-1].pointer === input) return true
-            // If no pointer is pressing, take the last hovering pointer
-            if(this.hoveringStack.length>0) if(this.hoveringStack[this.hoveringStack.length-1] === input) return true
-            return false
-        }
+        this.pointer_up = InputManager.getInstance().onTriggerUp.add(e=>{
+            
+        })
 
         this.move = new InputMoveOverBehavior(
             pointer=>{
                 this.hoveringStack.push(pointer)
-                if(checkIfIsActualPointer(pointer)){
-                    const info = scene.pickWithRay(new Ray(pointer.origin, pointer.forward))
-                    if(info) scene._inputManager.simulatePointerMove(info, PT)
-                }
+                this.updateCurrentMovingPointer()
             },
+            _=>{},
             pointer=>{
-                if(checkIfIsActualPointer(pointer)){
-                    const info = scene.pickWithRay(new Ray(pointer.origin, pointer.forward))
-                    if(info) scene._inputManager.simulatePointerMove(info, PT)
-                }
-            },
-            pointer=>{
-                if(checkIfIsActualPointer(pointer)){
-                    const info = scene.pickWithRay(new Ray(pointer.origin, pointer.forward))
-                    if(info) scene._inputManager.simulatePointerMove(info, PT)
-                }
                 this.hoveringStack = this.hoveringStack.filter(it=> it !== pointer)
+                this.updateCurrentMovingPointer()
             },
         )
         target.addBehavior(this.move)
     }
 
+    // POINTER MOVE LOGIC //
+    private current_moving_pointer: PointerInput | null = null
+
+    private updateCurrentMovingPointer(){
+        const scene = this.target.getScene()
+
+        this.disposeCurrentMovingPointer()
+
+        // If some pointer is grabbing, take the last grabbing pointer
+        if(this.grabbingStack.length>0) this.current_moving_pointer = this.grabbingStack[this.grabbingStack.length-1]
+        // If no pointer is pressing, take the last hovering pointer
+        else if(this.hoveringStack.length>0) this.current_moving_pointer = this.hoveringStack[this.hoveringStack.length-1]
+        else this.current_moving_pointer = null
+
+        // Add observers
+        if(this.current_moving_pointer!=null){
+            const o = this.current_moving_pointer.onMove.add(pointer=>{
+                const info = scene.pickWithRay(new Ray(pointer.origin, pointer.forward))
+                if(info) scene._inputManager.simulatePointerMove(info, PT)
+            })
+
+            this.disposeCurrentMovingPointer = ()=>{
+                o.remove()
+                this.disposeCurrentMovingPointer = ()=>{}
+            }
+        }
+    }
+
+    private disposeCurrentMovingPointer = ()=>{}
+
+
     detach(): void {
-        if(this.press) this.target.removeBehavior(this.press)
+        if(this.grab) this.target.removeBehavior(this.grab)
         if(this.move) this.target.removeBehavior(this.move)
+        if(this.pointer_up) this.pointer_up.remove()
+        this.disposeCurrentMovingPointer()
     }
 
     // React to state changes

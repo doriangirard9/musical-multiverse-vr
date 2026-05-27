@@ -60,8 +60,6 @@ export class HoldableBehaviour implements Behavior<AbstractMesh> {
     }
 
     grab(pointers: PointerInput[]){
-        this._isDragging = true
-
         // No pointer
         if(pointers.length===0){
             if(this._isDragging) this.onReleaseObservable.notifyObservers()
