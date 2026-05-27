@@ -17,6 +17,10 @@ import { AvatarManager } from "./AvatarManager.ts";
 import { NetworkEventBus } from "../eventBus/NetworkEventBus.ts";
 import { RandomUtils } from "../node3d/tools/utils/RandomUtils.ts";
 import { Doc } from "yjs";
+import { HandMenu } from "@babylonjs/gui";
+import { HandMenuManager } from "./HandMenuManager.ts";
+import { WamTransportManager } from "./WamTransportManager.ts";
+import { ShopMenuManager } from "./ShopMenuManager.ts";
 
 let _app: App
 
@@ -96,6 +100,20 @@ export class App {
             usercolor,
         )
 
+        await ShopMenuManager.initialize(
+            SceneManager.getInstance(),
+            InputManager.getInstance(),
+            Node3dManager.getInstance(),
+        )
+
+        await HandMenuManager.initialize(
+            SceneManager.getInstance(),
+            InputManager.getInstance(),
+            WamTransportManager.getInstance(audioContext),
+            Node3dManager.getInstance(),
+            ShopMenuManager.getInstance(),
+        )
+
         
 
         // Get things
@@ -169,15 +187,6 @@ export class App {
             else if(e.key=="v"){
                 InputManager.getInstance().movement.stackDisable()
             }
-        })
-
-        let shopPanel: ShopPanel
-        InputManager.getInstance().a_button.onDown.add(()=>{
-            if(!shopPanel){
-                shopPanel = new ShopPanel(scene, SceneManager.getInstance().getUtilityLayer().utilityLayerScene)
-                shopPanel.followHead()
-            }
-            else shopPanel.toggle()
         })
 
         /*const menu = new MenuPanel(scene, SceneManager.getInstance().getUtilityLayer().utilityLayerScene, [

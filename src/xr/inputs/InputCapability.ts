@@ -1,4 +1,5 @@
 
+
 /**
  * A capability than can be enabled or disabled.
  * Multiple ways to disable the capability are supported, including stacking, named disabling, and global disabling.

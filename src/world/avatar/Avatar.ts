@@ -457,13 +457,13 @@ export class AvatarLabel{
 
     constructor(label: string, scene: Scene){
 
-        const plane = this.plane = CreatePlane(`${label} text plane`, { size: 1*TEXT_SCALE, width: 7*TEXT_SCALE }, scene)
+        const plane = this.plane = CreatePlane(`${label} text plane`, { size: 1*TEXT_SCALE, width: 8*TEXT_SCALE }, scene)
         plane.scaling.setAll(.4)
         plane.billboardMode = AbstractMesh.BILLBOARDMODE_ALL
         plane.isPickable = false
         plane.alphaIndex = -1
 
-        const texture = this.texture = AdvancedDynamicTexture.CreateForMesh(plane, 1024, Math.floor(1024/7))
+        const texture = this.texture = AdvancedDynamicTexture.CreateForMesh(plane, 1024, Math.floor(1024/8))
         texture.background = "rgba(0,0,0,0.5)"
 
         const text = this.text_block = new TextBlock()

@@ -95,4 +95,8 @@ export class Node3dManager {
         return this.audioEngine
     }
 
+    public getRegistry(){
+        return NetworkManager.getInstance().node3d
+    }
+
 }

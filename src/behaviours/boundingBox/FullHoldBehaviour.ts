@@ -1,5 +1,4 @@
 import { Behavior, TransformNode } from "@babylonjs/core";
-import { InputManager } from "../../xr/inputs/InputManager";
 import { MoveHoldBehaviour } from "./MoveHoldBehaviour";
 import { RotateHoldBehaviour } from "./RotateHoldBehaviour";
 import { PointerInput } from "../../xr/inputs/PointerInput";
@@ -24,13 +23,13 @@ export class FullHoldBehaviour implements Behavior<TransformNode> {
 
     constructor(readonly pointer: PointerInput){}
 
-    private target!: TransformNode
+    attachedNode!: TransformNode
     private disposables: {remove():void}[] = []
 
     init(): void {}
 
     attach(target: TransformNode): void {
-        this.target = target
+        this.attachedNode = target
 
         // Switch mode
         this.rotate = this.pointer.controller.squeeze.isPressed()
@@ -53,7 +52,7 @@ export class FullHoldBehaviour implements Behavior<TransformNode> {
     detach(){
         this.disposables.forEach(it=> it.remove())
         this.disposables.length = 0
-        if(this.holdBehavior) this.target.removeBehavior(this.holdBehavior)
+        if(this.holdBehavior) this.attachedNode.removeBehavior(this.holdBehavior)
         this.holdBehavior = undefined
         this.rotate = false
     }
@@ -66,19 +65,19 @@ export class FullHoldBehaviour implements Behavior<TransformNode> {
         // RotateBehavior : rotate
         if(this.rotate){
             if(!this.holdBehavior || !(this.holdBehavior instanceof RotateHoldBehaviour)){
-                if(this.holdBehavior) this.target.removeBehavior(this.holdBehavior)
+                if(this.holdBehavior) this.attachedNode.removeBehavior(this.holdBehavior)
                 this.holdBehavior = new RotateHoldBehaviour(this.pointer)
                 this.holdBehavior.on_rotate = ()=> this.on_rotate()
-                this.target.addBehavior(this.holdBehavior)
+                this.attachedNode.addBehavior(this.holdBehavior)
             }
         }
         // HoldBehavior : move
         else {
             if(!this.holdBehavior || !(this.holdBehavior instanceof MoveHoldBehaviour)){
-                if(this.holdBehavior) this.target.removeBehavior(this.holdBehavior)
+                if(this.holdBehavior) this.attachedNode.removeBehavior(this.holdBehavior)
                 this.holdBehavior = new MoveHoldBehaviour(this.pointer)
                 this.holdBehavior.on_move = ()=> this.on_move()
-                this.target.addBehavior(this.holdBehavior)
+                this.attachedNode.addBehavior(this.holdBehavior)
             }
         }
     }

@@ -4,6 +4,7 @@ import { PointerInput } from "../PointerInput";
 
 
 /**
+ * Drop on target detection behavior.
  * A behaviour that calls a callback when the trigger is released while the associated pointer is pointing at the target.
  * Useful to handle "dropping" an object on a target, or to handle connections between nodes by "dropping" a connection on a connectable.
  * Note that this behaviour only handles the "drop" part, and not the "grab" part. So it can be used independently of any grab behavior, to handle cases where the user doesn't need to grab an object to connect it to a node for example.
@@ -25,8 +26,11 @@ export class InputDropBehavior implements Behavior<AbstractMesh> {
 
     init(): void {}
 
+    attachedNode: AbstractMesh
+
     attach(target: AbstractMesh): void {
         this.detach()
+        this.attachedNode = target
         const inputs = InputManager.getInstance()
         this.observable = inputs.onTriggerUp.add(e=>{
             const pointer = e.pressable.controller?.pointer

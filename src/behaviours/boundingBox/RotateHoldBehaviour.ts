@@ -1,6 +1,5 @@
 import { Behavior, Matrix, Quaternion, TransformNode, Vector3 } from "@babylonjs/core";
-import { InputManager, PointerMovementEvent } from "../../xr/inputs/InputManager";
-import { XRManager } from "../../xr/XRManager";
+import { InputManager } from "../../xr/inputs/InputManager";
 import { PointerInput } from "../../xr/inputs/PointerInput";
 
 /**
@@ -11,9 +10,9 @@ import { PointerInput } from "../../xr/inputs/PointerInput";
  */
 export class RotateHoldBehaviour implements Behavior<TransformNode> {
   
-  name = RotateHoldBehaviour.name
+  get name (){ return this.constructor.name }
 
-  target!: TransformNode
+  attachedNode!: TransformNode
   oldRotation?: Quaternion
 
   on_rotate: () => void = () => {}
@@ -25,7 +24,7 @@ export class RotateHoldBehaviour implements Behavior<TransformNode> {
   init(): void {}
 
   attach(target: TransformNode): void {
-    this.target = target
+    this.attachedNode = target
 
     const inputs = InputManager.getInstance()
 
@@ -48,7 +47,7 @@ export class RotateHoldBehaviour implements Behavior<TransformNode> {
       if(this.oldRotation){
         let delta = newRotation.multiply(this.oldRotation.conjugate())
         delta = delta.multiply(delta)
-        setAbsoluteRotation(this.target, delta.multiply(getAbsoluteRotation(this.target)))
+        setAbsoluteRotation(this.attachedNode, delta.multiply(getAbsoluteRotation(this.attachedNode)))
       }
       this.oldRotation = newRotation
       this.on_rotate()
@@ -84,7 +83,7 @@ export class RotateHoldBehaviour implements Behavior<TransformNode> {
     const rotate_y = Quaternion.RotationAxis(pointer.right, y/50)
     const rotation = rotate_y.multiplyInPlace(rotate_x)
 
-    setAbsoluteRotation(this.target, rotation.multiply(getAbsoluteRotation(this.target)))
+    setAbsoluteRotation(this.attachedNode, rotation.multiply(getAbsoluteRotation(this.attachedNode)))
     this.on_rotate()
   }
 

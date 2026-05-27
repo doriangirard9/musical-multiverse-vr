@@ -1,3 +1,7 @@
+/**
+ * @module
+ * @mergeModuleWith node3d-api
+ */
 import * as BABYLON from "@babylonjs/core";
 import { Node3DParameter } from "./Node3DParameter";
 import { Node3DConnectable } from "./Node3DConnectable";

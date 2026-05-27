@@ -10,7 +10,7 @@ export class SyncLink implements Synchronized{
 
     constructor(
         private scene: Scene, 
-        private blocks: SyncManager<any, SyncBlock>,
+        private blocks: SyncManager<SyncBlock,any>,
     ){
     }
 
@@ -99,8 +99,8 @@ export class SyncLink implements Synchronized{
 
 
 
-    static getSyncManager(scene: Scene, doc: Doc, blocks: SyncManager<any, SyncBlock>){
-        const syncmanager: SyncManager<SyncSerializable,SyncLink> = new SyncManager({
+    static getSyncManager(scene: Scene, doc: Doc, blocks: SyncManager<SyncBlock,any>){
+        const syncmanager: SyncManager<SyncLink,SyncSerializable> = new SyncManager({
             name: "synctest_synclink",
             doc,
             async create() { return new SyncLink(scene, blocks) },

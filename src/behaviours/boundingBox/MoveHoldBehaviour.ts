@@ -1,6 +1,7 @@
-import { Behavior, Matrix, Quaternion, TransformNode } from "@babylonjs/core";
+import { Behavior, Quaternion, TransformNode } from "@babylonjs/core";
 import { InputManager } from "../../xr/inputs/InputManager";
 import { PointerInput } from "../../xr/inputs/PointerInput";
+import { QuaternionUtils } from "../../utils/quaternion";
 
 /**
  * An object attached to this behavior will be moved around by the user with his controller.
@@ -10,11 +11,12 @@ import { PointerInput } from "../../xr/inputs/PointerInput";
  */
 export class MoveHoldBehaviour implements Behavior<TransformNode> {
   
-  name = MoveHoldBehaviour.name
+  get name (){ return this.constructor.name }
+  
   distance = -100
   right_distance = 0
   top_distance = 0
-  target!: TransformNode
+  attachedNode!: TransformNode
   oldRotation?: Quaternion
 
   on_move: () => void = () => {}
@@ -26,7 +28,7 @@ export class MoveHoldBehaviour implements Behavior<TransformNode> {
   attach(target: TransformNode): void {
     this.detach()
 
-    this.target = target
+    this.attachedNode = target
 
     const inputs = InputManager.getInstance()
 
@@ -66,49 +68,27 @@ export class MoveHoldBehaviour implements Behavior<TransformNode> {
     // Set initial distance
     if(this.distance<0){
       // Start with the distance the target already have with the pointer
-      this.distance = pointer.origin.subtract(this.target.absolutePosition).length()
+      this.distance = pointer.origin.subtract(this.attachedNode.absolutePosition).length()
       const next_position = forward.clone().scaleInPlace(this.distance).addInPlace(origin)
       // Dont teleport the target instantly so it is centered on the pointer but keep the same offset
-      this.right_distance = -next_position.subtract(this.target.absolutePosition).dot(right)
-      this.top_distance = -next_position.subtract(this.target.absolutePosition).dot(up)
+      this.right_distance = -next_position.subtract(this.attachedNode.absolutePosition).dot(right)
+      this.top_distance = -next_position.subtract(this.attachedNode.absolutePosition).dot(up)
     }
 
     // Move
     const position = forward.clone() .scaleInPlace(this.distance) .addInPlace(origin)
       .addInPlace(right.scale(this.right_distance))
       .addInPlace(up.scale(this.top_distance))
-    this.target.setAbsolutePosition(position)
+    this.attachedNode.setAbsolutePosition(position)
 
     // Rotate
     const newRotation = Quaternion.FromLookDirectionRH(forward, up)
     if(this.oldRotation){
       const delta = newRotation.multiply(this.oldRotation.conjugate())
-      setAbsoluteRotation(this.target, delta.multiply(getAbsoluteRotation(this.target)))
+      QuaternionUtils.setAbsolute(this.attachedNode, delta.multiply(QuaternionUtils.getAbsolute(this.attachedNode)))
     }
     this.oldRotation = newRotation
     this.on_move()
   }
 
-}
-
-function getAbsoluteRotation(transform: TransformNode): Quaternion {
-  transform.computeWorldMatrix(true);
-  const worldMatrix = transform.getWorldMatrix();
-  const rotMatrix = new Matrix();
-  worldMatrix.getRotationMatrixToRef(rotMatrix);
-  return Quaternion.FromRotationMatrix(rotMatrix);
-}
-
-function setAbsoluteRotation(transform: TransformNode, worldQuat: Quaternion): void {
-  let parentQuat = Quaternion.Identity();
-  if (transform.parent) {
-    const parentMatrix = transform.parent.getWorldMatrix();
-    const parentRotMatrix = new Matrix();
-    parentMatrix.decompose()
-    parentMatrix.getRotationMatrixToRef(parentRotMatrix);
-    parentQuat = Quaternion.FromRotationMatrix(parentRotMatrix);
-  }
-
-  const localQuat = parentQuat.invert().multiply(worldQuat);
-  transform.rotationQuaternion = localQuat; // utiliser rotationQuaternion pour stabilité
 }

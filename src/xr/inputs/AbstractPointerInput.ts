@@ -1,3 +1,5 @@
+
+
 import { AbstractMesh, Matrix, Observable, Ray, Scene, Vector3, WebXRInputSource } from "@babylonjs/core";
 
 /**
@@ -49,13 +51,12 @@ export class AbstractPointerInput {
     /** The observable that is notified when the pointer is initialized. */
     readonly onInit = new Observable<this>()
 
-
     _raytrace(
         origin: Vector3,
         forward: Vector3,
         right: Vector3,
         up: Vector3,
-        scene: Scene,
+        scenes: Scene[]
     ) {
         // Matrix        
         this.right.copyFrom(right)
@@ -67,27 +68,31 @@ export class AbstractPointerInput {
         this.matrix.setRowFromFloats(1, this.up.x, this.up.y, this.up.z, 0)
         this.matrix.setRowFromFloats(2, this.forward.x, this.forward.y, this.forward.z, 0)
         this.matrix.setRowFromFloats(3, this.origin.x, this.origin.y, this.origin.z, 1)
-
+        
         // Ray casting
-        const ray = new Ray(this.origin, this.forward)
+        for(let i=scenes.length-1; i>=0; i--){
+            const ray = new Ray(this.origin, this.forward)
 
-        const pickInfo = scene.pickWithRay(ray)
-        if (pickInfo) {
-            this.hit = pickInfo.hit
-            if (pickInfo.pickedPoint) this.target.copyFrom(pickInfo.pickedPoint!)
-            this.targetMesh = pickInfo.pickedMesh
+            const pickInfo = scenes[i].pickWithRay(ray)
+            if (pickInfo) {
+                this.hit = pickInfo.hit
+                if (pickInfo.pickedPoint) this.target.copyFrom(pickInfo.pickedPoint!)
+                this.targetMesh = pickInfo.pickedMesh
+            }
+            else {
+                this.hit = false
+                this.targetMesh = null
+            }
+            if(this.targetMesh!=null)break
         }
-        else {
-            this.hit = false
-            this.targetMesh = null
-        }
 
-        this.onMove.notifyObservers(this)
-
+        // Send events
         if (this.targetMesh != this.previousMesh) {
             this.onNewTarget.notifyObservers(this)
             this.previousMesh = this.targetMesh
         }
+
+        this.onMove.notifyObservers(this)
     }
 
     /**
@@ -101,33 +106,26 @@ export class AbstractPointerInput {
 
         const o = controller.onDisposeObservable.addOnce(() => disposed = true)
 
-        console.log("components",controller.motionController?.components)
 
         scenes[0].onAfterPhysicsObservable.add(function tick() {
 
-            for(let i=scenes.length-1; i>=0; i--){
-                const scene = scenes[i]
-
-                that.onInit.notifyObservers(that)
-                if (disposed) {
-                    if(that.targetMesh!=null){
-                        that.hit = false
-                        that.targetMesh = null
-                        that.onNewTarget.notifyObservers(that)
-                    }
-                    that.onRemove.notifyObservers(that)
-                    scenes[0].onAfterPhysicsObservable.removeCallback(tick)
-                    return
+            if (disposed) {
+                if(that.targetMesh!=null){
+                    that.hit = false
+                    that.targetMesh = null
+                    that.onNewTarget.notifyObservers(that)
                 }
-
-                // Copy position
-                const root = controller.pointer
-                if (root){
-                    that._raytrace(root.position, root.forward, root.right, root.up, scene)
-                    if(that.targetMesh!=null)break
-                }
+                that.onRemove.notifyObservers(that)
+                scenes[0].onAfterPhysicsObservable.removeCallback(tick)
+                return
             }
 
+            that.onInit.notifyObservers(that)
+
+            const root = controller.pointer
+            if (root){
+                that._raytrace(root.position, root.forward, root.right, root.up, scenes)
+            }
         })
 
         return {
@@ -152,29 +150,26 @@ export class AbstractPointerInput {
         that.onInit.notifyObservers(that)
 
         scenes[0].onAfterPhysicsObservable.add(function tick() {
-            for(let i=scenes.length-1; i>=0; i--){
-                const scene = scenes[i]
-                
-                if (disposed) {
-                    if(that.targetMesh!=null){
-                        that.hit = false
-                        that.targetMesh = null
-                        that.onNewTarget.notifyObservers(that)
-                    }
-                    that.onRemove.notifyObservers(that)
-                    scene.onAfterPhysicsObservable.removeCallback(tick)
-                    return
+            if (disposed) {
+                if(that.targetMesh!=null){
+                    that.hit = false
+                    that.targetMesh = null
+                    that.onNewTarget.notifyObservers(that)
                 }
+                that.onRemove.notifyObservers(that)
+                scenes[0].onAfterPhysicsObservable.removeCallback(tick)
+                return
+            }
 
-                // Copy position
-                const camera = scene.activeCamera!
-                if (camera){
-                    const forward = camera.getForwardRay().direction
-                    const up = camera.upVector.normalizeToNew()
-                    const right = forward.cross(up).negateInPlace().normalize()
-                    that._raytrace(camera.position, forward, right, up, scene)
-                    if(that.targetMesh!=null)break
-                }
+            that.onInit.notifyObservers(that)
+
+            const camera = scenes[0].activeCamera!
+            if (camera){
+                const forward = camera.getForwardRay().direction
+                const up = camera.upVector.normalizeToNew()
+                const right = forward.cross(up).negateInPlace().normalize()
+
+                that._raytrace(camera.position, forward, right, up, scenes)
             }
         })
 
@@ -202,22 +197,17 @@ export class AbstractPointerInput {
         const mousemove = (e: MouseEvent) => {
             const canvas_x = e.clientX - canvas!.getBoundingClientRect().left
             const canvas_y = e.clientY - canvas!.getBoundingClientRect().top
-            
-            for(let i=scenes.length-1; i>=0; i--){
-                const scene = scenes[i]
-            
-                const pickInfo = scene.pick(canvas_x, canvas_y)
-                const ray = pickInfo?.ray!!
 
-                that._raytrace(
-                    ray.origin,
-                    ray.direction,
-                    ray.direction.cross(Vector3.Up()).negateInPlace().normalize(),
-                    ray.direction.cross(ray.direction.cross(Vector3.Up()).negateInPlace().normalize()).negateInPlace().normalize(),
-                    scene
-                )
-                if(that.targetMesh!=null)break
-            }
+            const pickInfo = scenes[0].pick(canvas_x, canvas_y)
+            const ray = pickInfo?.ray!!
+
+            that._raytrace(
+                ray.origin,
+                ray.direction,
+                ray.direction.cross(Vector3.Up()).negateInPlace().normalize(),
+                ray.direction.cross(ray.direction.cross(Vector3.Up()).negateInPlace().normalize()).negateInPlace().normalize(),
+                scenes
+            )
         }
 
         window.addEventListener("pointermove", mousemove)

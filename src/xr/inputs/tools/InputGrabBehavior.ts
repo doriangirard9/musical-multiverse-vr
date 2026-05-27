@@ -4,6 +4,7 @@ import { PointerInput } from "../PointerInput";
 
 
 /**
+ * Grab/move/release detection behavior. Only supports one grab at a time.
  * A behaviours that call two callback when the target is grabbed and stop being grabbed.
  * Can also call a callback when the target is moved while being grabbed.
  * 
@@ -33,8 +34,11 @@ export class InputGrabBehavior implements Behavior<AbstractMesh> {
 
     init(): void {}
 
+    attachedNode: AbstractMesh
+
     attach(target: AbstractMesh): void {
         this.detach()
+        this.attachedNode = target
         const inputs = InputManager.getInstance()
         this.observables.push(
             inputs.onTriggerDown.add(e=>{

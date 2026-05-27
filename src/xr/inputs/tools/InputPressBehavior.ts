@@ -4,6 +4,7 @@ import { ControllerInput } from "../ControllerInput";
 
 
 /**
+ * Pressing detection behavior. Different from drag detection because it don't require that the trigger is pressed while pointing at the target to start, and it can also end if the pointer is moved out of the target while the trigger is still pressed.
  * A behaviours that call two callback when the state (pointer is on target && trigger is pressed) becomes true or become false.
  * Ideal for piano keys.
  * The difference with InputGrabBehavior is that the onDown callback is called even if the trigger is pressed before the pointer is on the target,
@@ -46,8 +47,11 @@ export class InputPressBehavior implements Behavior<AbstractMesh> {
 
     init(): void {}
 
+    attachedNode: AbstractMesh
+
     attach(target: AbstractMesh): void {
         this.detach()
+        this.attachedNode = target
         const inputs = InputManager.getInstance()
         this.observables.push(
             inputs.onNewtarget.add(e => {

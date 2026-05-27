@@ -3,7 +3,7 @@
 // Commentaire au-dessus uniquement pour le template, à retirer
 
 import {Node3D, Node3DFactory, Node3DGUI, Serializable} from "../Node3D";
-import {TransformNode} from "@babylonjs/core";
+import {AbstractMesh, TransformNode} from "@babylonjs/core";
 import {Node3DGUIContext} from "../Node3DGUIContext";
 import {Node3DContext} from "../Node3DContext";
 
@@ -16,8 +16,6 @@ export class TemplateN3DGUI implements Node3DGUI {
         const {babylon: B, tools: T} = context;
 
         this.root = new B.TransformNode("TemplateN3D Root", context.scene);
-
-
     }
 
     dispose(): Promise<void> {
@@ -28,6 +26,8 @@ export class TemplateN3DGUI implements Node3DGUI {
 export class TemplateN3D implements Node3D {
     constructor(context: Node3DContext, private gui: TemplateN3DGUI) {
         const {tools : T,audioCtx} = context;
+
+        context.addToBoundingBox(/** The draggable base of the object */)
     }
     dispose(): Promise<void> {
         return Promise.resolve(undefined);

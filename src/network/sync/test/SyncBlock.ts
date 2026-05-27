@@ -1,16 +1,16 @@
 import { ActionManager, Color3, CreateBox, ExecuteCodeAction, Quaternion, Scene, SixDofDragBehavior, Vector3 } from "@babylonjs/core";
-import { MeshUtils } from "../../../ConnecterWAM/node3d/tools";
 import { Synchronized } from "../Synchronized";
 import { SyncSerializable } from "../SyncSerializable";
 import { SyncManager } from "../SyncManager";
 import { Doc } from "yjs";
+import { MeshUtils } from "../../../node3d/tools";
 
 
 export class SyncBlock implements Synchronized{
 
     mesh
 
-    constructor(scene: Scene, manager: SyncManager<SyncSerializable,SyncBlock>){
+    constructor(scene: Scene, manager: SyncManager<SyncBlock,SyncSerializable>){
         this.mesh = CreateBox("syncedBlock", {size: 1}, scene)
 
         const dragBehavior = new SixDofDragBehavior()
@@ -20,7 +20,7 @@ export class SyncBlock implements Synchronized{
         this.mesh.rotationQuaternion = Quaternion.Identity()
         this.mesh.addBehavior(dragBehavior)
 
-        const actionManager ??= this.mesh.actionManager ??= new ActionManager(scene)
+        const actionManager = this.mesh.actionManager ??= new ActionManager(scene)
         actionManager.registerAction(new ExecuteCodeAction(ActionManager.OnRightPickTrigger, ()=>{
             this.color = Color3.Random()
             this.set_states("color")
@@ -86,7 +86,7 @@ export class SyncBlock implements Synchronized{
     }
 
     static getSyncManager(scene: Scene, doc: Doc){
-        const syncmanager: SyncManager<SyncSerializable,SyncBlock> = new SyncManager({
+        const syncmanager: SyncManager<SyncBlock,SyncSerializable> = new SyncManager({
             name: "synctest_syncblock",
             doc,
             async create() { return new SyncBlock(scene, syncmanager) },

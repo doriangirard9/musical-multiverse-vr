@@ -39,7 +39,7 @@ export class ShakeBehavior implements Behavior<AbstractMesh> {
 
     name = "shakeBehavior";
 
-    private target : AbstractMesh | null = null
+    attachedNode : AbstractMesh | null = null
 
     private shake_power = 0
     private shake_counter = 0
@@ -71,7 +71,7 @@ export class ShakeBehavior implements Behavior<AbstractMesh> {
     }
 
     attach(target: AbstractMesh): void {
-        this.target = target
+        this.attachedNode = target
         target.addBehavior(this.grab)
     }
 
@@ -129,7 +129,7 @@ export class ShakeBehavior implements Behavior<AbstractMesh> {
     }
 
     detach(): void {
-        this.target?.removeBehavior(this.grab);
+        this.attachedNode?.removeBehavior(this.grab);
     }
 
     init(): void { }

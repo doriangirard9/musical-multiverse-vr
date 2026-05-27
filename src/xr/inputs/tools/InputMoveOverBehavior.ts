@@ -3,6 +3,7 @@ import { PointerInput } from "../PointerInput";
 import { InputMultiHoverBehavior } from "./InputMultiHoverBehavior";
 
 /**
+ * Start hovering/move over/stop hovering detection behavior. Called for each pointer individually.
  * A behavior that calls three callbacks when the target is hovered, moved over and stop being hovered.
  * Called for each pointer indvidually.
  */
@@ -28,14 +29,14 @@ export class InputMoveOverBehavior implements Behavior<AbstractMesh> {
 
     hover!: InputMultiHoverBehavior
     observables: {remove():void}[] = []
-    target!: AbstractMesh
+    attachedNode!: AbstractMesh
 
     init(): void {}
 
     attach(target: AbstractMesh): void {
         this.detach()
 
-        this.target = target
+        this.attachedNode = target
 
         this.hover = new InputMultiHoverBehavior(
             pointer=>{
@@ -78,7 +79,7 @@ export class InputMoveOverBehavior implements Behavior<AbstractMesh> {
             this.removeMoveObserver(pointer)
         }
 
-        if(this.hover) this.target.removeBehavior(this.hover)
+        if(this.hover) this.attachedNode.removeBehavior(this.hover)
         this.hover = undefined!
     }
 

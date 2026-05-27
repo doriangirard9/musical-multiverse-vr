@@ -1,3 +1,7 @@
+/**
+ * @module
+ * @mergeModuleWith node3d-api
+ */
 import * as BABYLON from "@babylonjs/core";
 
 /**

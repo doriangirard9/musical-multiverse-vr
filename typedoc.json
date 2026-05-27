@@ -1,0 +1,10 @@
+{
+    "name": "WamJamParty",
+    "skipErrorChecking": true,
+    "excludeNotDocumented": true,
+    "entryPoints": [
+        "src/index.ts"
+    ],
+    "entryPointStrategy": "resolve",
+    "useFirstParagraphOfCommentAsSummary": true
+}

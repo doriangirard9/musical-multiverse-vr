@@ -16,7 +16,7 @@ import { SceneManager } from "../../app/SceneManager"
 export class N3DConnectionInstance{
     private static readonly DEBUG_LOG = false;
 
-    private tube
+    private _tube
     private shake
     private arrow?: AbstractMesh
     public on_dispose = ()=>{}
@@ -27,28 +27,28 @@ export class N3DConnectionInstance{
         private connections: SyncManager<N3DConnectionInstance,any>,
         private messages: UIManager,
     ){
-        this.tube = CreateCylinder("connection tube",{
+        this._tube = CreateCylinder("connection tube",{
             height: 1,
             diameter: .25*Node3DInstance.CONNECTION_SIZE_MULTIPLIER,
             tessellation: 6
         },this.scene)
 
-        SceneManager.getInstance().getShadowGenerator().addShadowCaster(this.tube, false)
+        SceneManager.getInstance().getShadowGenerator().addShadowCaster(this._tube, false)
 
         this.shake = new ShakeBehavior()
-        this.tube.addBehavior(this.shake)
+        this._tube.addBehavior(this.shake)
         this.shake.on_shake = (power, counter) => {
-            this.tube.visibility = Math.max(0, 1 - power / 10)
+            this._tube.visibility = Math.max(0, 1 - power / 10)
             if(counter>10) connections.remove(this)
         }
         this.shake.on_stop = (_, __) => {
-            this.tube.visibility = .8
+            this._tube.visibility = .8
         }
         this.shake.on_pick = () => {
-            this.tube.visibility = .8
+            this._tube.visibility = .8
         }
         this.shake.on_drop = () => {
-            this.tube.visibility = 1
+            this._tube.visibility = 1
         }
 
     }
@@ -72,6 +72,8 @@ export class N3DConnectionInstance{
     get outputConnectable(){ return this.cOutput }
 
     get isConnecting(){ return this.cOutput!=null && this.cInput!=null }
+
+    get tube(){ return this._tube }
 
 
 
@@ -168,7 +170,7 @@ export class N3DConnectionInstance{
             SceneManager.getInstance().getShadowGenerator().addShadowCaster(this.arrow, false)
             MeshUtils.setColor(this.arrow, this.color)
         }
-        MeshUtils.setColor(this.tube, this.color)
+        MeshUtils.setColor(this._tube, this.color)
 
         const connection = this
         function movetube(){
@@ -180,16 +182,16 @@ export class N3DConnectionInstance{
                 offset.normalize()
 
                 const pointA = outputMesh.absolutePosition
-                const pointB = connection.tube ? offset.scale(tubeLength).addInPlace(pointA) : inputMesh.absolutePosition
+                const pointB = connection._tube ? offset.scale(tubeLength).addInPlace(pointA) : inputMesh.absolutePosition
                 const pointC = inputMesh.absolutePosition
 
                 const orientation = Quaternion.FromUnitVectorsToRef(Vector3.Up(), offset.normalizeToNew(), new Quaternion())
                 
                 // Move the tube
                 const tubeCenter = pointA.add(pointB).scaleInPlace(.5)
-                connection.tube.setAbsolutePosition(tubeCenter)
-                connection.tube.rotationQuaternion = orientation
-                connection.tube.scaling.set(1,tubeLength,1)
+                connection._tube.setAbsolutePosition(tubeCenter)
+                connection._tube.rotationQuaternion = orientation
+                connection._tube.scaling.set(1,tubeLength,1)
 
                 // Move the arrow
                 if(connection.arrow){
@@ -232,10 +234,10 @@ export class N3DConnectionInstance{
         if(this.pulseTimeout) clearTimeout(this.pulseTimeout)
 
         const color = Color3.FromHSV(tone*360, 1-strength, 1).toColor4(1).multiplyInPlace(this.color)
-        MeshUtils.setColor(this.tube, color)
+        MeshUtils.setColor(this._tube, color)
 
         this.pulseTimeout = setTimeout(()=>{
-            MeshUtils.setColor(this.tube, this.color)
+            MeshUtils.setColor(this._tube, this.color)
         }, 100)
     }
 
@@ -289,7 +291,7 @@ export class N3DConnectionInstance{
     dispose(){
         this.on_dispose()
         this.disconnect()
-        this.tube.dispose()
+        this._tube.dispose()
     }
 
     remove(){

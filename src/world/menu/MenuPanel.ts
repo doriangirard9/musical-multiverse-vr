@@ -1,11 +1,11 @@
 import { Scene } from "@babylonjs/core"
-import { Button, Control, ScrollViewer, StackPanel } from "@babylonjs/gui"
+import { Button, Control, ScrollViewer, StackPanel, TextBlock } from "@babylonjs/gui"
 import { PanelBase } from "./PanelBase"
 
 export interface MenuButton{
     label: string
     color: string
-    onClick: () => void
+    onClick?: () => void
 }
 
 /**
@@ -45,36 +45,55 @@ export class MenuPanel extends PanelBase {
     }
 
     set(buttonsInfo: MenuButton[]){
+
+        function styleTextBlock(text: TextBlock, info: MenuButton){
+            text.color = info.color
+            text.text = info.label
+            text.fontSize = 25
+            text.outlineColor = "black"
+            text.outlineWidth = 4
+        }
+
+        this.buttons.clearControls()
         for(const buttonInfo of buttonsInfo){
-            const button = Button.CreateSimpleButton(buttonInfo.label, buttonInfo.label)
-            button.color = buttonInfo.color
-            button.textBlock!.fontSize = 25
-            button.textBlock!.outlineColor = "black"
-            button.textBlock!.outlineWidth = 4
-            button.width = "230px"
-            button.height= "80px"
-            button.setPaddingInPixels(5,5,5,5)
-            button.pointerEnterAnimation = () => {
-                button.background = "rgb(255,255,255,0.2)"
-            }
-            button.pointerOutAnimation = () => {
-                button.background = "rgb(0,0,0,0)"
-            }
-            button.pointerUpAnimation = ()=>{
-                button.scaleX = 1
-                button.scaleY = 1
-                try{
-                    buttonInfo.onClick()
-                }catch(e){
-                    console.error("Error in button click handler:", e)
+            if(buttonInfo.onClick){
+                const button = Button.CreateSimpleButton(buttonInfo.label, buttonInfo.label)
+                button.color = buttonInfo.color
+                styleTextBlock(button.textBlock!, buttonInfo)
+                button.width = "230px"
+                button.height= "80px"
+                button.setPaddingInPixels(5,5,5,5)
+                button.pointerEnterAnimation = () => {
+                    button.background = "rgb(255,255,255,0.2)"
                 }
+                button.pointerOutAnimation = () => {
+                    button.background = "rgb(0,0,0,0)"
+                }
+                button.pointerUpAnimation = ()=>{
+                    button.scaleX = 1
+                    button.scaleY = 1
+                    try{
+                        buttonInfo.onClick?.()
+                    }catch(e){
+                        console.error("Error in button click handler:", e)
+                    }
+                    console.log("Button up:", buttonInfo.label)
+                }
+                button.pointerDownAnimation = ()=>{
+                    button.scaleX = 0.95
+                    button.scaleY = 0.95
+                    console.log("Button down:", buttonInfo.label)
+                }
+                this.buttons.addControl(button)
             }
-            button.pointerDownAnimation = ()=>{
-                button.scaleX = 0.95
-                button.scaleY = 0.95
-                console.log("Button down:", buttonInfo.label)
+            else{
+                const text = new TextBlock()
+                styleTextBlock(text!, buttonInfo)
+                text.width = "230px"
+                text.height= "40px"
+                text.setPaddingInPixels(5,5,5,5)
+                this.buttons.addControl(text)
             }
-            this.buttons.addControl(button)
         }
     }
 

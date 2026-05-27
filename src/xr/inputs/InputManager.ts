@@ -1,3 +1,9 @@
+/**
+ * The differents classes revolving around {@link InputManager}, which is responsible for managing user inputs, whether in VR or on screen.
+ * It allows retrieving the position and orientation of controllers, pressed buttons, etc.
+ * @module inputs
+ */
+
 import { AbstractMesh, Immutable, Observable, Scene, Vector3, WebXRDefaultExperience, WebXRInputSource } from "@babylonjs/core";
 import { ButtonInput, ButtonInputEvent } from "./ButtonInput";
 import { PressableInputEvent } from "./PressableInput";
@@ -16,6 +22,12 @@ export interface PointerMovementEvent {
     target: Immutable<Vector3>,
 }
 
+/**
+ * Responsible for managing user inputs.
+ * Allows retrieving the position and orientation of controllers, pressed buttons, etc.
+ * 
+ * This abstraction also enables unified input management, whether in VR or on screen, and creates a link between the two (for example by simulating a controller input based on the mouse pointer position).
+ */
 export class InputManager {
 
 

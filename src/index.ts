@@ -1,3 +1,12 @@
+/**
+ * @module WamJamParty
+ */
+
+export * as inputs from "./xr/inputs"
+
+export * as node3dapi from "./node3d/node3dapi.ts"
+
+
 import { App } from "./app/App.ts";
 import { HashRouter } from "./router/HashRouter.ts";
 import { ROUTES } from "./router/routes.ts";

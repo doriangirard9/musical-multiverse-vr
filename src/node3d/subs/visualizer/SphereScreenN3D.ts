@@ -43,7 +43,7 @@ export class SphereScreenN3D implements Node3D {
             type: "video",
             direction: "input",
             color: videoColor,
-            connectAsInput: (source: any) => {
+            connectAsInput: () => {
                 return this;
             },
             connectAsOutput: () => { },

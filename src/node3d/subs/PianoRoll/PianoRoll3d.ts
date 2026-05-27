@@ -7,7 +7,7 @@ import * as B from "@babylonjs/core";
 import { WamNode, WebAudioModule } from "@webaudiomodules/api";
 import { WamInitializer } from "../../../app/WamInitializer";
 import { PianoRollSettingsMenu } from "./PianoRollSettingsMenu";
-import { WamTransportManager } from "./WamTransportManager"; // <-- shared transport
+import { WamTransportManager } from "../../../app/WamTransportManager"; // <-- shared transport
 // strategies
 import { GridStrategy } from "./grid/GridStrategy";
 import { Piano88Strategy } from "./grid/Piano88Strategy";
@@ -160,7 +160,7 @@ class PianoRollN3DGUI implements Node3DGUI {
     this._calculateAndApplyScaling();
 
     // Build
-    void this.instantiate();
+    void this.instantiate(context);
   }
 
   /**
@@ -247,7 +247,9 @@ class PianoRollN3DGUI implements Node3DGUI {
   }
 
   // ───────────────────────────────────────────────────────────────────────────
-  public async instantiate(): Promise<void> {
+  public async instantiate(context: Node3DGUIContext): Promise<void> {
+    const {tools:T} = context;
+
     this.recalculateGridBoundaries();
     this.createGrid();
     this._createBaseMesh();

@@ -1,5 +1,4 @@
 import {
-    Scene,
     TransformNode,
     AbstractMesh,
     Mesh,
@@ -13,7 +12,6 @@ import { Node3DConnectable } from "../Node3DConnectable";
 import { Node3DParameter } from "../Node3DParameter";
 import { Node3D, Node3DFactory, Node3DGUI } from "../Node3D";
 import { BoundingBox } from "../../behaviours/boundingBox/BoundingBox";
-import { UIManager } from "../../app/UIManager";
 import { N3DParameterInstance } from "./N3DParameterInstance";
 import { N3DConnectableInstance } from "./N3DConnectableInstance";
 import { IOEventBus } from "../../eventBus/IOEventBus";
@@ -302,6 +300,7 @@ export class Node3DInstance implements Synchronized {
         if (key == "position") return {
             position: this.bounding_box?.boundingBox.position.asArray(),
             rotation: this.bounding_box?.boundingBox.rotationQuaternion?.asArray() ?? [],
+            scale: this.bounding_box?.boundingBox.scaling.x ?? 1,
         }
         else if (key.startsWith("node3d_parameter_")) {
             const id = key.substring("node3d_parameter_".length)
@@ -315,6 +314,7 @@ export class Node3DInstance implements Synchronized {
         if (key == "position") {
             this.bounding_box?.boundingBox.position.fromArray(value.position)
             this.bounding_box?.boundingBox.rotationQuaternion?.fromArray(value.rotation)
+            this.bounding_box?.boundingBox.scaling.setAll(value.scale)
         } else if (key === "delete") {
             if (this.disposed) return
             await this.dispose()

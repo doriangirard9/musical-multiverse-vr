@@ -1,4 +1,4 @@
-import { ApiClient } from '../../auth/ApiClient.ts';
+import { ApiClient, ApiError } from '../../auth/ApiClient.ts';
 import { HashRouter } from '../../router/HashRouter.ts';
 import { ROUTES } from '../../router/routes.ts';
 

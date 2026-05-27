@@ -13,6 +13,7 @@ type Serializable = { [key: string]: Serializable } | Serializable[] | string | 
  * - Y corresponds à l'axe arrière-avant
  * - Z corresponds à l'axe bas-haut 
  * - Le point 0,0,0 correspond au centre de la GUI
+ * @document node3d.md
  */
 export interface Node3DGUI{
 

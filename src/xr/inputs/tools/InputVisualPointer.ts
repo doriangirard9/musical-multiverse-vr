@@ -3,7 +3,12 @@ import { PointerInput } from "../PointerInput";
 import { MeshUtils } from "../../../node3d/tools";
 
 
-
+/**
+ * A visual representation of an input pointer, with a line and a point at the end.
+ * The line is scaled based on the distance between the pointer origin and the pointer target,
+ * and oriented in the pointing direction.
+ * The point is placed at the pointer target, and is only visible when the pointer is hitting something.
+ */
 export class InputVisualPointer {
 
     private observers: {remove(): void}[] = []

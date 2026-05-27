@@ -425,12 +425,12 @@ export class SuperformulaN3DGUI implements Node3DGUI {
 
 export class SuperformulaN3D implements Node3D {
     // Knob values — kept in their natural ranges.  Mirrors the source p5 sketch.
-    private m     = RANGES.m.default;
-    private n1    = RANGES.n1.default;
-    private n2    = RANGES.n2.default;
-    private n3    = RANGES.n3.default;
-    private scale = RANGES.scale.default;
-    private speed = RANGES.speed.default;
+    private m     = RANGES.m.default as number
+    private n1    = RANGES.n1.default as number
+    private n2    = RANGES.n2.default as number
+    private n3    = RANGES.n3.default as number
+    private scale = RANGES.scale.default as number
+    private speed = RANGES.speed.default as number
 
     // The playhead angle along the curve, advanced each frame by `speed * dt`.
     private theta = 0;

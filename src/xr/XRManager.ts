@@ -1,7 +1,6 @@
 import {XRInputManager} from "./XRInputManager.ts";
 import * as B from "@babylonjs/core";
 import {withTimeout} from "../utils/utils.ts";
-import {HandMenu} from "../menus/HandMenu.ts";
 import {Nullable} from "@babylonjs/core";
 
 
@@ -120,31 +119,11 @@ export class XRManager {
                 undefined,
                 "Controller initialization timed out after XR entry"
             );
-            // Create hand menu only when left controller is available
-            if (this.xrInputManager.leftController && this.xrInputManager.leftController.motionController) {
-                this._createHandMenu();
-            } else {
-                // Wait for left controller to be added
-                this._leftControllerObserver = this.xrHelper.input.onControllerAddedObservable.add((controller) => {
-                    if (controller.inputSource.handedness === 'left' && controller.motionController) {
-                        this._createHandMenu();
-                        if (this._leftControllerObserver) {
-                            this.xrHelper.input.onControllerAddedObservable.remove(this._leftControllerObserver);
-                            this._leftControllerObserver = undefined;
-                        }
-                    }
-                });
-            }
             this._controllersInitialized = true;
         } catch (err) {
             console.warn("Controller initialization error after XR entry, running in degraded mode:", err);
             this._controllersInitialized = true; // évite de loop
         }
-    }
-
-    private _createHandMenu(): void {
-        try { this.handmenu?.dispose(); } catch {}
-        this.handmenu = new HandMenu();
     }
 
     /**

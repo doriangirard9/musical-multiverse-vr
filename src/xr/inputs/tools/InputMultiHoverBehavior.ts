@@ -4,6 +4,7 @@ import { PointerInput } from "../PointerInput";
 
 
 /**
+ * Start hovering/move over/stop hovering detection behavior. Called for each pointer individually.
  * A behaviours that call two callback when the target is hovered and stop being hovered.
  * Called for each pointer indvidually.
  * The difference with InputHoverBehavior is that the onEnter and onExit callbacks are called for each pointer, so if two pointers are hovering the target,
@@ -27,14 +28,14 @@ export class InputMultiHoverBehavior implements Behavior<AbstractMesh> {
     get name(){ return this.constructor.name }
 
     observables: {remove():void}[] = []
-    target!: AbstractMesh
+    attachedNode!: AbstractMesh
 
     init(): void {}
 
     attach(target: AbstractMesh): void {
         this.detach()
         const inputs = InputManager.getInstance()
-        this.target = target
+        this.attachedNode = target
 
         // Initial
         for(const controller of inputs.controllers){
@@ -57,7 +58,7 @@ export class InputMultiHoverBehavior implements Behavior<AbstractMesh> {
         this.observables.forEach(obs=>obs.remove())
         this.observables.length = 0
         for(const controller of inputs.controllers){
-            if(controller.pointer.targetMesh===this.target){
+            if(controller.pointer.targetMesh===this.attachedNode){
                 this.onExit(controller.pointer)
             }
         }

@@ -47,7 +47,7 @@ export class ControlsUI {
     /** Create individual labels for each button */
     private _createLabels(){
         // LEFT CONTROLLER LABELS
-        this._createLabel("left-Y", "WAM 3D Shop", "left", "y-button", new B.Vector3(0.005, 0.025, 0.005), "#FFC107");
+        //this._createLabel("left-Y", "WAM 3D Shop", "left", "y-button", new B.Vector3(0.005, 0.025, 0.005), "#FFC107");
         this._createLabel("left-X", "Hide/Show", "left", "x-button", new B.Vector3(-0.005, 0.015, 0), "#9C27B0");
         this._createLabel("left-Grip", "[Rotate selection]", "left", "xr-standard-squeeze", new B.Vector3(0.025, 0, 0), "#4CAF50");
         this._createLabel("left-Trigger", "Select (Hold)", "left", "xr-standard-trigger", new B.Vector3(0, -0.015, 0.03), "#2196F3");
@@ -55,7 +55,8 @@ export class ControlsUI {
         
         // RIGHT CONTROLLER LABELS
         //this._createLabel("right-B", "Close", "right", "b-button", new B.Vector3(-0.005, 0.025, 0.005), "#F44336");
-        this._createLabel("right-A", "Menu/OK", "right", "a-button", new B.Vector3(0.005, 0.015, 0), "#4CAF50");
+        this._createLabel("right-A", "Add Node3D", "right", "a-button", new B.Vector3(0.005, 0.015, 0), "#4CAF50");
+        this._createLabel("right-B", "Draw", "right", "b-button", new B.Vector3(-0.005, 0.015, 0), "#24e2ff");
         this._createLabel("right-Grip", "[Rotate selection]", "right", "xr-standard-squeeze", new B.Vector3(-0.025, 0, 0), "#4CAF50");
         this._createLabel("right-Trigger", "Select (Hold)", "right", "xr-standard-trigger", new B.Vector3(0, -0.015, 0.03), "#2196F3");
         this._createLabel("right-Stick", "Camera/[Proximity]", "right", "xr-standard-thumbstick", new B.Vector3(0, 0.025, 0.015), "#2196F3");
