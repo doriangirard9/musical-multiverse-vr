@@ -8,7 +8,7 @@ import { InputManager } from "../InputManager";
 const PT: PointerEventInit = { pointerId: 432521 }
 
 /**
- * A behavior that simulates pointer events on the target mesh based on the pointing direction of the input pointers.
+ * A behavior that simulates babylonjs pointer events on the target mesh based on the pointing direction of the input pointers.
  * This way:
  * - If the target is pressed on for the first time, it will simulate a pointer down event on the target.
  * - If the target is released by all pointers, it will simulate a pointer up event on the target.
@@ -19,7 +19,7 @@ export class InputToPointerBehavior implements Behavior<AbstractMesh> {
 
     name = "InputToPointerBehavior"
 
-    private target!: AbstractMesh
+    attachedNode!: AbstractMesh
     private pointer_up!: Observer<any>
     private grab!: InputMultiGrabBehavior
     private move!: InputMoveOverBehavior
@@ -31,7 +31,7 @@ export class InputToPointerBehavior implements Behavior<AbstractMesh> {
 
     attach(target: AbstractMesh): void {
 
-        this.target = target
+        this.attachedNode = target
 
         const scene = target.getScene()
 
@@ -78,7 +78,7 @@ export class InputToPointerBehavior implements Behavior<AbstractMesh> {
     private current_moving_pointer: PointerInput | null = null
 
     private updateCurrentMovingPointer(){
-        const scene = this.target.getScene()
+        const scene = this.attachedNode.getScene()
 
         this.disposeCurrentMovingPointer()
 
@@ -106,8 +106,8 @@ export class InputToPointerBehavior implements Behavior<AbstractMesh> {
 
 
     detach(): void {
-        if(this.grab) this.target.removeBehavior(this.grab)
-        if(this.move) this.target.removeBehavior(this.move)
+        if(this.grab) this.attachedNode.removeBehavior(this.grab)
+        if(this.move) this.attachedNode.removeBehavior(this.move)
         if(this.pointer_up) this.pointer_up.remove()
         this.disposeCurrentMovingPointer()
     }

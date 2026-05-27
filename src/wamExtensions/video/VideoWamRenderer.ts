@@ -39,6 +39,7 @@ export class VideoWamRenderer {
 
         this.texture = new HtmlElementTexture(`wam-video-texture-${pluginId}`, this.canvas, {
             engine: scene.getEngine(),
+            scene: null,
             generateMipMaps: false,
             samplingMode: 2 // BILINEAR
         });

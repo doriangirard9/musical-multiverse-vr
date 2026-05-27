@@ -16,7 +16,7 @@ export class MoveHoldBehaviour implements Behavior<TransformNode> {
   distance = -100
   right_distance = 0
   top_distance = 0
-  target!: TransformNode
+  attachedNode!: TransformNode
   oldRotation?: Quaternion
 
   on_move: () => void = () => {}
@@ -28,7 +28,7 @@ export class MoveHoldBehaviour implements Behavior<TransformNode> {
   attach(target: TransformNode): void {
     this.detach()
 
-    this.target = target
+    this.attachedNode = target
 
     const inputs = InputManager.getInstance()
 
@@ -68,24 +68,24 @@ export class MoveHoldBehaviour implements Behavior<TransformNode> {
     // Set initial distance
     if(this.distance<0){
       // Start with the distance the target already have with the pointer
-      this.distance = pointer.origin.subtract(this.target.absolutePosition).length()
+      this.distance = pointer.origin.subtract(this.attachedNode.absolutePosition).length()
       const next_position = forward.clone().scaleInPlace(this.distance).addInPlace(origin)
       // Dont teleport the target instantly so it is centered on the pointer but keep the same offset
-      this.right_distance = -next_position.subtract(this.target.absolutePosition).dot(right)
-      this.top_distance = -next_position.subtract(this.target.absolutePosition).dot(up)
+      this.right_distance = -next_position.subtract(this.attachedNode.absolutePosition).dot(right)
+      this.top_distance = -next_position.subtract(this.attachedNode.absolutePosition).dot(up)
     }
 
     // Move
     const position = forward.clone() .scaleInPlace(this.distance) .addInPlace(origin)
       .addInPlace(right.scale(this.right_distance))
       .addInPlace(up.scale(this.top_distance))
-    this.target.setAbsolutePosition(position)
+    this.attachedNode.setAbsolutePosition(position)
 
     // Rotate
     const newRotation = Quaternion.FromLookDirectionRH(forward, up)
     if(this.oldRotation){
       const delta = newRotation.multiply(this.oldRotation.conjugate())
-      QuaternionUtils.setAbsolute(this.target, delta.multiply(QuaternionUtils.getAbsolute(this.target)))
+      QuaternionUtils.setAbsolute(this.attachedNode, delta.multiply(QuaternionUtils.getAbsolute(this.attachedNode)))
     }
     this.oldRotation = newRotation
     this.on_move()

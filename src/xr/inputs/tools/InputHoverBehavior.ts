@@ -3,6 +3,7 @@ import { InputManager } from "../InputManager";
 
 
 /**
+ * Hove enter/exit detection behavior. Don't differentiate pointers, so if two pointers are hovering the target.
  * A behaviours that call two callback when the target is hovered and stop being hovered.
  */
 export class InputHoverBehavior implements Behavior<AbstractMesh> {
@@ -27,8 +28,11 @@ export class InputHoverBehavior implements Behavior<AbstractMesh> {
 
     init(): void {}
 
+    attachedNode: AbstractMesh
+
     attach(target: AbstractMesh): void {
         this.detach()
+        this.attachedNode = target
         const inputs = InputManager.getInstance()
 
         if(inputs.pointedMeshes.includes(target)){

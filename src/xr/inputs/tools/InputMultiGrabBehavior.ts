@@ -4,6 +4,7 @@ import { PointerInput } from "../PointerInput";
 
 
 /**
+ * Start grab/move/release detection behavior. Called for each pointer individually.
  * A behaviour that calls callbacks when the target is grabbed and released per pointer.
  * Unlike press behaviors, it only starts when the trigger is pressed while pointing at the target.
  *
@@ -50,8 +51,13 @@ export class InputMultiGrabBehavior implements Behavior<AbstractMesh> {
         this.moveObservers.delete(pointer);
     }
 
+    attachedNode: AbstractMesh
+
     attach(target: AbstractMesh): void {
-        this.detach();
+        this.detach()
+
+        this.attachedNode = target
+        
         const inputs = InputManager.getInstance();
         this.observables.push(
             inputs.onTriggerDown.add(e => {

@@ -25,7 +25,7 @@ export class HoldableBehaviour implements Behavior<AbstractMesh> {
 
     get isDragging(): boolean { return this._isDragging }
 
-    private target!: AbstractMesh
+    attachedNode!: AbstractMesh
     private _isDragging = false
     private holdBehaviour?: FullHoldBehaviour
     private twoPointerHoldBehaviour?: TwoPointerHoldBehaviour
@@ -35,9 +35,9 @@ export class HoldableBehaviour implements Behavior<AbstractMesh> {
     attach(target: AbstractMesh): void {
         this.detach()
 
-        this.target = target
+        this.attachedNode = target
 
-        this.target.isPickable = true
+        this.attachedNode.isPickable = true
         const grab = new InputMultiGrabBehavior(
             _=>{
                 this.grab(grab.grabbers)
@@ -74,7 +74,7 @@ export class HoldableBehaviour implements Behavior<AbstractMesh> {
         if(pointers.length===1){
             const pointer = pointers[0]
             if(!this.holdBehaviour){
-                const target = this.moved ?? this.target
+                const target = this.moved ?? this.attachedNode
                 this.holdBehaviour = new FullHoldBehaviour(pointer)
                 this.holdBehaviour.on_move = ()=>this.onMoveObservable.notifyObservers()
                 this.holdBehaviour.on_rotate = ()=>this.onRotateObservable.notifyObservers()
@@ -82,7 +82,7 @@ export class HoldableBehaviour implements Behavior<AbstractMesh> {
             }
         }
         else{
-            const target = this.moved ?? this.target
+            const target = this.moved ?? this.attachedNode
             if(this.holdBehaviour) target.removeBehavior(this.holdBehaviour)
             this.holdBehaviour = undefined
         }
@@ -92,14 +92,14 @@ export class HoldableBehaviour implements Behavior<AbstractMesh> {
             const pointer1 = pointers[0]
             const pointer2 = pointers[1]
             if(!this.twoPointerHoldBehaviour){
-                const target = this.moved ?? this.target
+                const target = this.moved ?? this.attachedNode
                 this.twoPointerHoldBehaviour = new TwoPointerHoldBehaviour(pointer1, pointer2)
                 this.twoPointerHoldBehaviour.on_move = ()=>this.onMoveObservable.notifyObservers()
                 target.addBehavior(this.twoPointerHoldBehaviour)
             }
         }
         else{
-            const target = this.moved ?? this.target
+            const target = this.moved ?? this.attachedNode
             if(this.twoPointerHoldBehaviour) target.removeBehavior(this.twoPointerHoldBehaviour)
             this.twoPointerHoldBehaviour = undefined
         }

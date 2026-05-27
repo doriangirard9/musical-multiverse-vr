@@ -15,15 +15,15 @@ export class RotationCorrectionBehaviour implements Behavior<AbstractMesh> {
 
     init(): void {}
 
-    target!: AbstractMesh
+    attachedNode!: AbstractMesh
     observer!: Observer<any>
 
     attach(target: AbstractMesh): void {
         this.detach()
-        this.target = target
-        this.target.rotationQuaternion ??= Quaternion.FromEulerVector(this.target.rotation)
-        this.observer = this.target.getScene().onAfterPhysicsObservable.add(()=>{
-            const rotation = QuaternionUtils.getAbsolute(this.target)
+        this.attachedNode = target
+        this.attachedNode.rotationQuaternion ??= Quaternion.FromEulerVector(this.attachedNode.rotation)
+        this.observer = this.attachedNode.getScene().onAfterPhysicsObservable.add(()=>{
+            const rotation = QuaternionUtils.getAbsolute(this.attachedNode)
             const left = Vector3.Left().rotateByQuaternionToRef(rotation, new Vector3())
             const target_left = new Vector3(left.x, 0, left.z).normalize()
 
@@ -32,11 +32,11 @@ export class RotationCorrectionBehaviour implements Behavior<AbstractMesh> {
             const rotation_to_apply = Quaternion.FromUnitVectorsToRef(left, target_left, new Quaternion())
             const softened_rotation = Quaternion.Slerp(Quaternion.Identity(), rotation_to_apply, 0.1)
 
-            this.target.rotationQuaternion = softened_rotation.multiply(this.target.rotationQuaternion!)
+            this.attachedNode.rotationQuaternion = softened_rotation.multiply(this.attachedNode.rotationQuaternion!)
         })
     }
 
     detach(){
-        if(this.observer) this.target.getScene().onAfterPhysicsObservable.remove(this.observer)
+        if(this.observer) this.attachedNode.getScene().onAfterPhysicsObservable.remove(this.observer)
     }
 }

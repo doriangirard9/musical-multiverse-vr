@@ -160,7 +160,7 @@ class PianoRollN3DGUI implements Node3DGUI {
     this._calculateAndApplyScaling();
 
     // Build
-    void this.instantiate();
+    void this.instantiate(context);
   }
 
   /**
@@ -247,7 +247,9 @@ class PianoRollN3DGUI implements Node3DGUI {
   }
 
   // ───────────────────────────────────────────────────────────────────────────
-  public async instantiate(): Promise<void> {
+  public async instantiate(context: Node3DGUIContext): Promise<void> {
+    const {tools:T} = context;
+
     this.recalculateGridBoundaries();
     this.createGrid();
     this._createBaseMesh();

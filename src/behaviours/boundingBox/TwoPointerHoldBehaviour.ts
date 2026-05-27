@@ -17,15 +17,15 @@ export class TwoPointerHoldBehaviour implements Behavior<TransformNode> {
 
     init(): void {}
 
-    private target!: TransformNode
+    attachedNode!: TransformNode
 
     attach(target: TransformNode): void {
         this.detach()
 
-        this.target = target
+        this.attachedNode = target
 
         this.distance = Vector3.Distance(
-            this.target.absolutePosition,
+            this.attachedNode.absolutePosition,
             this.pointer1.origin.add(this.pointer2.origin).scaleInPlace(0.5)
         )
 
@@ -59,13 +59,13 @@ export class TwoPointerHoldBehaviour implements Behavior<TransformNode> {
 
         if(this.last_segment && this.last_center){
             const rotation = Quaternion.FromUnitVectorsToRef(this.last_segment.normalizeToNew(), segment.normalizeToNew(), new Quaternion())
-            QuaternionUtils.setAbsolute(this.target, rotation.multiply(QuaternionUtils.getAbsolute(this.target)))
+            QuaternionUtils.setAbsolute(this.attachedNode, rotation.multiply(QuaternionUtils.getAbsolute(this.attachedNode)))
 
             const scale = segment.length()/this.last_segment.length()
-            this.target.scaling.scaleInPlace(scale)
+            this.attachedNode.scaling.scaleInPlace(scale)
 
             const offset = new_center.subtract(this.last_center)
-            this.target.setAbsolutePosition(this.target.absolutePosition.add(offset))
+            this.attachedNode.setAbsolutePosition(this.attachedNode.absolutePosition.add(offset))
 
             this.on_move()
         }

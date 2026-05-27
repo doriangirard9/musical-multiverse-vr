@@ -1,3 +1,7 @@
+/**
+ * @module
+ * @mergeModuleWith node3d-api
+ */
 import { AbstractMesh, Vector3 } from "@babylonjs/core"
 
 /**
