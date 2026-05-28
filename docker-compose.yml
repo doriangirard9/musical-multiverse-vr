@@ -31,6 +31,9 @@ services:
     build:
       context: ./
       dockerfile: Dockerfile
+      args:
+        - VITE_SERVER_NAME=https://wamjamparty.i3s.univ-cotedazur.fr/config
+        - VITE_SIGNALING_SERVER=https://wamjamparty.i3s.univ-cotedazur.fr/rtc
     ports:
       - "5173:5173"
     environment:
