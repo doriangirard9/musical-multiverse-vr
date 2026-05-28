@@ -168,19 +168,22 @@ export class PanelBase {
                 
             this.plane.scaling.setAll(.15*sizeMultiplier)
 
-            // Place
-            const targetPosition = pointer.forward.scale(-.1).addInPlace(pointer.origin)
-            this.plane.position.scaleInPlace(.2).addInPlace(targetPosition.scaleInPlace(.8))
-
             // Rotate
             const d = head.direction.multiplyByFloats(1, 0, 1).normalize()
             this.plane.rotationQuaternion = Quaternion.FromLookDirectionLH(d.scale(-1), Vector3.Up())
+        })
+
+        const o2 = pointer.onMove.add(() => {
+            // Place
+            const targetPosition = pointer.forward.scale(-.1).addInPlace(pointer.origin)
+            this.plane.position.scaleInPlace(.2).addInPlace(targetPosition.scaleInPlace(.8))
         })
 
         return {
             remove(){
                 if(shown) options.onHide?.()
                 o.remove()
+                o2.remove()
             }
         }
     }

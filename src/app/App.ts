@@ -47,7 +47,7 @@ export class App {
         const usercolor = RandomUtils.randomColor()
 
         // Intialization of scene
-        SceneManager.initialize()
+        await SceneManager.initialize()
 
 
         // Initialization of Audio Context

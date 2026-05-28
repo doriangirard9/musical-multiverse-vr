@@ -67,9 +67,10 @@ export class SceneManager {
         })
     }
 
-    public static initialize() {
+    public static async initialize() {
         const canvas = document.getElementById('renderCanvas') as HTMLCanvasElement
         this._instance = new SceneManager(canvas)
+        await this._instance.scene.whenReadyAsync()
     }
 
     public static getInstance(): SceneManager {
