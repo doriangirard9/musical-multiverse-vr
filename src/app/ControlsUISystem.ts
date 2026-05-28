@@ -12,9 +12,10 @@ interface ButtonLabel {
 }
 
 /**
+ * The UI that show controls hint on the virtual controllers buttons.
  * ControlsUI — Individual 3D labels positioned near each physical button on controllers
 */
-export class ControlsUI {
+export class ControlsUISystem {
     private static readonly DEBUG_LOG = false; // Set to true to enable debug logging
     
     private labels: Map<string, ButtonLabel> = new Map();
@@ -33,7 +34,7 @@ export class ControlsUI {
         this._createLabels();
         this._createDebugGrids();
         
-        if (ControlsUI.DEBUG_LOG) console.log(`[ControlsUI] Created ${this.labels.size} labels`);
+        if (ControlsUISystem.DEBUG_LOG) console.log(`[ControlsUI] Created ${this.labels.size} labels`);
         
         // Update positions each frame when in XR
         this.updateObserver = this.scene.onBeforeRenderObservable.add(() => {
@@ -147,7 +148,7 @@ export class ControlsUI {
                 const componentMesh = this._findComponentMesh(controller.grip, label.componentId);
                 
                 // Debug log when we find (or don't find) a mesh
-                if (ControlsUI.DEBUG_LOG) {
+                if (ControlsUISystem.DEBUG_LOG) {
                     const logKey = `${label.handedness}-${label.componentId}`;
                     if (!this.loggedMeshFinds.has(logKey)) {
                         if (componentMesh) {
@@ -173,7 +174,7 @@ export class ControlsUI {
                     label.mesh.position = finalPos;
                     
                     // Log final label position once
-                    if (ControlsUI.DEBUG_LOG) {
+                    if (ControlsUISystem.DEBUG_LOG) {
                         const posLogKey = `pos-${label.handedness}-${label.componentId}`;
                         if (!this.loggedMeshFinds.has(posLogKey)) {
                             console.log(`[ControlsUI] ${label.componentId} bounding center: (${boundingCenter.x.toFixed(3)}, ${boundingCenter.y.toFixed(3)}, ${boundingCenter.z.toFixed(3)})`);
@@ -190,7 +191,7 @@ export class ControlsUI {
             }
             
             // Debug log once when we first start updating positions
-            if (ControlsUI.DEBUG_LOG && updatedCount > 0 && !this.hasLoggedUpdate) {
+            if (ControlsUISystem.DEBUG_LOG && updatedCount > 0 && !this.hasLoggedUpdate) {
                 console.log(`[ControlsUI] Updating ${updatedCount} label positions`);
                 this.hasLoggedUpdate = true;
             }
@@ -209,7 +210,7 @@ export class ControlsUI {
         const meshPatterns = this._getComponentMeshPatterns(componentId);
         
         // Debug: List all nodes in hierarchy once (only after model loads)
-        if (ControlsUI.DEBUG_LOG) {
+        if (ControlsUISystem.DEBUG_LOG) {
             const logKey = `hierarchy-${gripNode.name}`;
             if (!this.loggedMeshFinds.has(logKey)) {
                 const children = gripNode.getChildren();
@@ -237,7 +238,7 @@ export class ControlsUI {
                     }
                     
                     // Found a potential mesh - log it once with position
-                    if (ControlsUI.DEBUG_LOG) {
+                    if (ControlsUISystem.DEBUG_LOG) {
                         const meshLogKey = `found-${componentId}-${node.name}`;
                         if (!this.loggedMeshFinds.has(meshLogKey)) {
                             if (node instanceof B.AbstractMesh) {
@@ -467,4 +468,4 @@ export class ControlsUI {
     }
 }
 
-export default ControlsUI;
+export default ControlsUISystem;

@@ -144,7 +144,6 @@ export class ButterchurnN3D implements Node3D {
             this.context.showMessage("Presets not ready...");
             return;
         }
-        this.context.closeMenu();
         const start = this.currentPage * this.itemsPerPage;
         const end = start + this.itemsPerPage;
         const pageItems = this.presets.slice(start, end);

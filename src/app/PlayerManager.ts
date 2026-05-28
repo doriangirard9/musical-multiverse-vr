@@ -1,5 +1,4 @@
 import * as B from "@babylonjs/core";
-import {v4} from "uuid";
 import {PlayerState} from "../network/types.ts";
 import {NetworkEventBus} from "../eventBus/NetworkEventBus.ts";
 import {SceneManager} from "./SceneManager.ts";

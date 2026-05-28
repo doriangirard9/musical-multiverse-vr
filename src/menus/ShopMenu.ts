@@ -1,10 +1,9 @@
 import { Scene } from "@babylonjs/core"
 import { Button, Container, Image, Rectangle, ScrollViewer, StackPanel, TextBlock } from "@babylonjs/gui"
-import { Node3dManager } from "../../app/Node3dManager"
-import { N3DText } from "../../node3d/instance/utils/N3DText"
-import { PanelBase } from "./PanelBase"
+import { Node3dManager } from "../app/Node3dManager"
+import { AbstractMenu } from "./AbstractMenu"
 
-export class ShopPanel extends PanelBase {
+export class ShopMenu extends AbstractMenu {
 
     constructor(
         scene: Scene,
@@ -12,8 +11,8 @@ export class ShopPanel extends PanelBase {
     ) {
         super(scene, renderScene)
 
-        this.initPanel("shopPanel", 2, 1, 1024)
-        this.initLabel("label", N3DText)
+        this.initPanel("shop_menu", 2, 1, 1024)
+        this.initLabel("label")
         
         // Use arrow functions to capture 'this'
         
@@ -250,18 +249,18 @@ export class ShopPanel extends PanelBase {
         const container = new Button("container")
         container.pointerEnterAnimation = () => {
             container.background = "rgb(255,255,255,0.2)"
-            this.label.set([
+            this.label!.set([
                 { content: factory.label },
                 { content: factory.description, size: .5 },
                 { content: factory.tags.join(", "), size: .4, color: "#ffffff9d" },
             ])
-            this.label.show()
-            this.label.updatePosition()
+            this.label!.show()
+            this.label!.updatePosition()
         }
         container.pointerOutAnimation = () => {
             container.background = "rgb(0,0,0,0)"
-            this.label.hide()
-            this.label.updatePosition()
+            this.label!.hide()
+            this.label!.updatePosition()
         }
         container.pointerUpAnimation = () => {
             this.hide()
@@ -286,5 +285,6 @@ export class ShopPanel extends PanelBase {
         super.show()
         this.updateClipboard()
     }
+
 }
 

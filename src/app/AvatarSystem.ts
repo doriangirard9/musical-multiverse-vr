@@ -1,4 +1,4 @@
-import { Color3, Color4 } from "@babylonjs/core";
+import { Color3 } from "@babylonjs/core";
 import { NetworkManager } from "../network/NetworkManager";
 import { RandomUtils } from "../node3d/tools/utils/RandomUtils";
 import { Avatar, AvaterShared } from "../world/avatar/Avatar";
@@ -7,8 +7,12 @@ import { SceneManager } from "./SceneManager";
 import { NetworkEventBus } from "../eventBus/NetworkEventBus";
 import { SyncManager } from "../network/sync/SyncManager";
 
-
-export class AvatarManager {
+/**
+ * Show animated avatars representing the players in the world.
+ * Each avatar is linked to a player through the NetworkManager, and is synchronized across
+ * the network using the SyncManager.
+ */
+export class AvatarSystem {
 
     manager
     shared
@@ -55,7 +59,7 @@ export class AvatarManager {
         this.manager.add(id, avatar, this.network.connection.getAwareness().getLocalState()!["playerId"] as string)
 
         this.events.on("PLAYER_DELETED",({playerId})=>{
-            for(const [id, avatar] of this.manager.entries()){
+            for(const [id, _] of this.manager.entries()){
                 if(this.manager.getData(id)! === playerId){
                     this.manager.remove(id)
                     break
@@ -64,14 +68,14 @@ export class AvatarManager {
         })
     }
 
-    private static _instance?: AvatarManager
+    private static _instance?: AvatarSystem
 
-    static async initialize(...network: ConstructorParameters<typeof AvatarManager>){
-        this._instance = new AvatarManager(...network)
+    static async initialize(...network: ConstructorParameters<typeof AvatarSystem>){
+        this._instance = new AvatarSystem(...network)
         this._instance.initialize()
     }
 
-    static getInstance(): AvatarManager {
+    static getInstance(): AvatarSystem {
         if(!this._instance) throw new Error("AvatarManager not initialized. Call initialize() first.")
         return this._instance
     }

@@ -4,7 +4,7 @@ import path from 'path'
 
 export default defineConfig(({ mode }) => ({
   server: {
-    ...(mode === 'development' && {
+    ...(process.env.HTTPS && {
       https: {
         key: fs.readFileSync(path.resolve(__dirname, 'localhost.key')),
         cert: fs.readFileSync(path.resolve(__dirname, 'localhost.crt')),
@@ -22,7 +22,7 @@ export default defineConfig(({ mode }) => ({
   preview: {
     host: '0.0.0.0',
     port: 5173,
-    allowedHosts: ['wamjamparty.i3s.univ-cotedazur.fr']
+    allowedHosts: ['wamjamparty.i3s.univ-cotedazur.fr'],
   },
   build: {
     target: "es2022"

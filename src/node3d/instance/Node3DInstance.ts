@@ -22,7 +22,6 @@ import { Doc } from "yjs";
 import { Synchronized } from "../../network/sync/Synchronized";
 import { N3DHighlighter } from "./utils/N3DHighlighter";
 import { N3DShared } from "./N3DShared";
-import { N3DMenuInstance } from "./utils/N3DMenuManager";
 import { AutomationN3DConnectable, MeshUtils } from "../tools";
 import { ShakeBehavior } from "../../behaviours/ShakeBehavior.ts";
 import { NetworkManager } from "../../network/NetworkManager.ts";
@@ -30,6 +29,9 @@ import { N3DButtonInstance } from "./N3DButtonInstance.ts";
 import { SceneManager } from "../../app/SceneManager.ts";
 import { InputManager } from "../../xr/inputs/InputManager.ts";
 import { BoxWave } from "../../world/BoxWave.ts";
+import { MenuSystem } from "../../app/MenuSystem.ts";
+import { AbstractMenu } from "../../menus/AbstractMenu.ts";
+import { ChoiceMenu } from "../../menus/ChoiceMenu.ts";
 
 export class Node3DInstance implements Synchronized {
 
@@ -47,7 +49,6 @@ export class Node3DInstance implements Synchronized {
     readonly buttons = new Map<string, N3DButtonInstance>()
     readonly connectables = new Map<string, N3DConnectableInstance>()
     private declare root_transform: TransformNode
-    private menu!: N3DMenuInstance
     private highlighter!: N3DHighlighter
     private observers = new Set<Observer<any>>()
     public on_dispose = () => { }
@@ -56,10 +57,10 @@ export class Node3DInstance implements Synchronized {
         const { scene, highlightLayer, utilityLayer, babylon, tools } = this.shared
 
         const instance = this
-        const label = this.node_factory.label
 
         const highlighter = this.highlighter = new N3DHighlighter(highlightLayer)
-        const menu = this.menu = this.shared.menuManager.createInstance()
+        const menus = MenuSystem.getInstance()
+        let lastMenu: AbstractMenu|null = null
 
         // GUI related things
         const root_transform = this.root_transform = new TransformNode("node3d root", scene)
@@ -162,14 +163,22 @@ export class Node3DInstance implements Synchronized {
             },
 
             // Afficher un menu ou un message
-            openMenu(choices: { label: string; icon?: TransformNode; action: () => void; }[]) {
-                menu.openMenu(label, choices)
+            openMenu(choices: { label: string; color?: string, action?: () => void; }[]) {
+                if(lastMenu && lastMenu instanceof ChoiceMenu && lastMenu===menus.current_menu){
+                    lastMenu.set(choices)
+                }
+                else{
+                    const new_menu = new ChoiceMenu(scene, utilityLayer.utilityLayerScene, choices)
+                    lastMenu = new_menu
+                    lastMenu.onHide.addOnce(() => lastMenu = null)
+                    menus.open(new_menu, true)
+                }
             },
             closeMenu() {
-                menu.closeMenu()
+                if(menus.current_menu==lastMenu) menus.close()
             },
             showMessage(message: string) {
-                menu.print(message)
+                menus.showMessage(message)
             },
             sendSignal(position, red, green, blue) {
                 SceneManager.getInstance().getWaveGround().putWorldSpace(position, red, green, blue)
@@ -349,7 +358,6 @@ export class Node3DInstance implements Synchronized {
         this.parameters.forEach(it => it.dispose())
         this.buttons.forEach(it => it.dispose())
         this.connectables.forEach(it => it.dispose())
-        this.menu?.dispose()
         this.observers.forEach(observable => observable.remove())
         this.observers.clear()
         await this.node.dispose()

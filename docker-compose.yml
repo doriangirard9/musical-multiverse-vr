@@ -9,21 +9,29 @@ services:
       - NODE_ENV=production
       - PORT=443
     restart: always
+  
+  # The config server
   config:
     build:
       context: ./server-config
       dockerfile: Dockerfile
     ports:
       - "3000:3000"
-    restart: always
-  app:
-    build:
-      context: ./
-      dockerfile: Dockerfile-app
-    ports:
-      - "5173:5173"
     volumes:
-      - ./server-config/data:/usr/src/app/data
+      - ./server-config/data:/app/data
     environment:
       - NODE_ENV=production
       - JWT_SECRET=c76d5fc8-8d7e-4750-9cde-26d97e117c24
+      - PORT=3000
+      - AUTHORIZED_ORIGINS=https://wamjamparty.i3s.univ-cotedazur.fr
+    restart: always
+
+  # The main client app
+  app:
+    build:
+      context: ./
+      dockerfile: Dockerfile
+    ports:
+      - "5173:5173"
+    environment:
+      - NODE_ENV=production

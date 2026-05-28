@@ -7,6 +7,12 @@ import { AsyncLoading } from "../world/AsyncLoading.ts";
 import { SceneManager } from "./SceneManager.ts";
 import { HoldableBehaviour } from "../behaviours/boundingBox/HoldableBehaviour.ts";
 
+/**
+ * Handle the addition and management of the 3D nodes in the world.
+ * The creation of Node3D is the responsibility of the {@link Node3DBuilder},
+ * but the Node3DManager is responsible for adding them to the world and to
+ * the network, and for keeping track of them.
+ */
 export class Node3dManager {
 
     readonly builder: Node3DBuilder

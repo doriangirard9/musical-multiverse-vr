@@ -6,8 +6,12 @@ import { N3DConnectionInstance } from "../node3d/instance/N3DConnectionInstance.
 import { SceneManager } from "./SceneManager.ts";
 import { UIManager } from "./UIManager.ts";
 import { VisualTube } from "../visual/VisualTube.ts";
-import { Observable } from "@babylonjs/core";
 
+/**
+ * Manager responsible of connecting two connectable nodes together.
+ * It listen to IO events, show a preview of the connection while the user is selecting the target,
+ * and create the connection on the network when the user release the pointer.
+ */
 export class ConnectionManager {
     private static readonly DEBUG_LOG = false;
     private currentPort: N3DConnectableInstance|null = null;

@@ -1,16 +1,20 @@
-import { CreatePlane, Mesh, Scene, Quaternion, Vector3 } from "@babylonjs/core"
+import { CreatePlane, Mesh, Scene, Quaternion, Vector3, Observable } from "@babylonjs/core"
 import { AdvancedDynamicTexture, Control, Rectangle } from "@babylonjs/gui"
-import { InputToPointerBehavior } from "../../xr/inputs/tools/InputToPointer"
-import { PointerInput } from "../../xr/inputs/PointerInput"
+import { InputToPointerBehavior } from "../xr/inputs/tools/InputToPointer"
+import { PointerInput } from "../xr/inputs/PointerInput"
+import { N3DText } from "../node3d/instance/utils/N3DText"
 
-export class PanelBase {
+export class AbstractMenu {
     protected plane!: Mesh
     protected texture!: AdvancedDynamicTexture
-    protected label?: any // N3DText or similar label object
+    protected label?: N3DText
 
     constructor(
         protected scene: Scene,
         protected renderScene: Scene,
+        protected options: {
+            interactable?: boolean, // Whether the menu should be interactable (default: true)
+        } = {}
     ) {}
 
     /**
@@ -22,7 +26,13 @@ export class PanelBase {
      */
     protected initPanel(name: string, width: number, height: number, textureResolution: number = 512) {
         this.plane = CreatePlane(name, { width, height }, this.renderScene)
-        this.plane.addBehavior(new InputToPointerBehavior())
+
+        if(this.options.interactable ?? true){
+            this.plane.addBehavior(new InputToPointerBehavior())
+        }
+        else{
+            this.plane.isPickable = false
+        }
 
         // Calculate texture height based on plane aspect ratio
         const textureHeight = Math.round(textureResolution * (height / width))
@@ -39,26 +49,35 @@ export class PanelBase {
      * @param name Label name
      * @param labelClass The N3DText class (passed to avoid circular imports)
      */
-    protected initLabel(name: string, labelClass: any = null) {
-        if (!labelClass) return
-        
-        this.label = new labelClass(name, [this.plane], this.renderScene)
-        this.label.plane.renderingGroupId = 1
-        this.label.list.background = "rgb(0,0,0,0.5)"
+    protected initLabel(name: string) {        
+        this.label = new N3DText(name, [this.plane], this.renderScene)
+        this.label!.plane.renderingGroupId = 1
+        this.label!.list.background = "rgb(0,0,0,0.5)"
     }
+
+
+    readonly onShow = new Observable<void>()
+    readonly onHide = new Observable<void>()
 
     /**
      * Show the panel
      */
     show() {
+        if(this.plane.isVisible) return
+
         this.plane.isVisible = true
+        this.onShow.notifyObservers()
     }
 
     /**
      * Hide the panel
      */
     hide() {
+        if(!this.plane.isVisible) return
+
         this.plane.isVisible = false
+        this.label?.hide()
+        this.onHide.notifyObservers()
     }
 
     /**
@@ -147,11 +166,17 @@ export class PanelBase {
             const handDir = pointer.origin.subtract(head.origin).normalize()
             const lookAmount = Vector3.Dot(lookDir, handDir)
 
-            if(lookAmount>.8){
-                if(!shown) options.onShow?.()
+            if(lookAmount>.9){
+                if(!shown){
+                    options.onShow?.()
+                    shown = true
+                }
             }
             else{
-                if(shown) options.onHide?.()
+                if(shown){
+                    options.onHide?.()
+                    shown = false
+                }
             }
 
             // Scale
@@ -162,16 +187,24 @@ export class PanelBase {
                 
             this.plane.scaling.setAll(.15*sizeMultiplier)
 
-            // Place
-            const targetPosition = pointer.forward.scale(-.1).addInPlace(pointer.origin)
-            this.plane.position.scaleInPlace(.2).addInPlace(targetPosition.scaleInPlace(.8))
-
             // Rotate
             const d = head.direction.multiplyByFloats(1, 0, 1).normalize()
             this.plane.rotationQuaternion = Quaternion.FromLookDirectionLH(d.scale(-1), Vector3.Up())
         })
 
-        return o
+        const o2 = pointer.onMove.add(() => {
+            // Place
+            const targetPosition = pointer.forward.scale(-.1).addInPlace(pointer.origin)
+            this.plane.position.scaleInPlace(.2).addInPlace(targetPosition.scaleInPlace(.8))
+        })
+
+        return {
+            remove(){
+                if(shown) options.onHide?.()
+                o.remove()
+                o2.remove()
+            }
+        }
     }
 
     /**
@@ -179,7 +212,7 @@ export class PanelBase {
      */
     dispose() {
         if (this.label) {
-            this.label.dispose?.()
+            this.label?.dispose?.()
         }
         this.texture.dispose()
         this.plane.dispose()
