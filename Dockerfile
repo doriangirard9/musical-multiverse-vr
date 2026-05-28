@@ -4,6 +4,13 @@ RUN apk add --no-cache git
 COPY package*.json ./
 RUN npm install
 COPY . .
+
+ARG VITE_SERVER_NAME
+ENV VITE_SERVER_NAME=$VITE_SERVER_NAME
+
+ARG VITE_SIGNALING_SERVER
+ENV VITE_SIGNALING_SERVER=$VITE_SIGNALING_SERVER
+
 RUN npm run build:prod
 
 FROM node:lts-alpine

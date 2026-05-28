@@ -29,10 +29,11 @@ services:
     build:
       context: ./
       dockerfile: Dockerfile
+      args:
+        - VITE_SERVER_NAME=http://localhost:3000
+        - VITE_SIGNALING_SERVER=https://wamjamparty.i3s.univ-cotedazur.fr/rtc
     ports:
       - "5173:5173"
     environment:
       - NODE_ENV=production
-      - VITE_SERVER_NAME=http://localhost:3000
-      - VITE_SIGNALING_SERVER=https://wamjamparty.i3s.univ-cotedazur.fr/rtc
       - HTTPS=true
