@@ -3,7 +3,7 @@ module.exports = {
     PORT: process.env.PORT || 3000,
 
     // The environment: "production" or "development"
-    ENV: process.env.ENV || 'development',
+    NODE_ENV: process.env.NODE_ENV || 'development',
 
     // CORS: which origins are allowed to access the API
     AUTHORIZED_ORIGINS: process.env.AUTHORIZED_ORIGINS || "https://localhost:5173",

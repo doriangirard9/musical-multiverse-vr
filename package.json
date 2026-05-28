@@ -8,6 +8,7 @@
     "server": "cd server-config; node server.js",
     "all": "concurrently --handleInput --prefixColors red,green \"npm run server\" \"npm run dev\"",
     "build": "tsc && vite build",
+    "build:prod": "vite build --mode production --no-emptyOutDir",
     "preview": "vite preview",
     "docs": "typedoc",
     "update_package_locks": "npm i --package-lock-only; pnpm import"
