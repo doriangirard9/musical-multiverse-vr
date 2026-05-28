@@ -3,8 +3,8 @@
  */
 
 export * as inputs from "./xr/inputs"
-
 export * as node3dapi from "./node3d/node3dapi.ts"
+export * as app from "./app"
 
 
 import { App } from "./app/App.ts";

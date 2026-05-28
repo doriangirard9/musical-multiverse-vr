@@ -5,10 +5,12 @@ import { HavokPlugin } from "@babylonjs/core/Physics/v2/Plugins/havokPlugin";
 // // Enable GLTF/GLB loader for loading controller models from WebXR Input registry
 import '@babylonjs/loaders/glTF';
 import '@babylonjs/core/Materials/Node/Blocks';
-import {NetworkManager} from "../network/NetworkManager.ts";
 import { WaveGround } from "../world/ground/WaveGround.ts";
 import { SoundwaveEmitter } from "../world/soundwave/SoundwaveEmitter.ts";
 
+/**
+ * Manager responsible of the BabylonJS scenes and the renderer.
+ */
 export class SceneManager {
     private static _instance: SceneManager | null = null
 
@@ -83,7 +85,7 @@ export class SceneManager {
 
         this.scene.onBeforeRenderObservable.add(() => {
             const currentTime = performance.now();
-            const deltaTime = (currentTime - lastTime) / 1000; // Convertir en secondes
+            // const deltaTime = (currentTime - lastTime) / 1000; // Convertir en secondes
             lastTime = currentTime;
         });
     }

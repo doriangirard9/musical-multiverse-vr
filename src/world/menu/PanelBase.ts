@@ -2,11 +2,12 @@ import { CreatePlane, Mesh, Scene, Quaternion, Vector3 } from "@babylonjs/core"
 import { AdvancedDynamicTexture, Control, Rectangle } from "@babylonjs/gui"
 import { InputToPointerBehavior } from "../../xr/inputs/tools/InputToPointer"
 import { PointerInput } from "../../xr/inputs/PointerInput"
+import { N3DText } from "../../node3d/instance/utils/N3DText"
 
 export class PanelBase {
     protected plane!: Mesh
     protected texture!: AdvancedDynamicTexture
-    protected label?: any // N3DText or similar label object
+    protected label?: N3DText
 
     constructor(
         protected scene: Scene,
@@ -39,12 +40,10 @@ export class PanelBase {
      * @param name Label name
      * @param labelClass The N3DText class (passed to avoid circular imports)
      */
-    protected initLabel(name: string, labelClass: any = null) {
-        if (!labelClass) return
-        
-        this.label = new labelClass(name, [this.plane], this.renderScene)
-        this.label.plane.renderingGroupId = 1
-        this.label.list.background = "rgb(0,0,0,0.5)"
+    protected initLabel(name: string) {        
+        this.label = new N3DText(name, [this.plane], this.renderScene)
+        this.label!.plane.renderingGroupId = 1
+        this.label!.list.background = "rgb(0,0,0,0.5)"
     }
 
     /**
@@ -59,6 +58,7 @@ export class PanelBase {
      */
     hide() {
         this.plane.isVisible = false
+        this.label?.hide()
     }
 
     /**
@@ -147,11 +147,17 @@ export class PanelBase {
             const handDir = pointer.origin.subtract(head.origin).normalize()
             const lookAmount = Vector3.Dot(lookDir, handDir)
 
-            if(lookAmount>.8){
-                if(!shown) options.onShow?.()
+            if(lookAmount>.9){
+                if(!shown){
+                    options.onShow?.()
+                    shown = true
+                }
             }
             else{
-                if(shown) options.onHide?.()
+                if(shown){
+                    options.onHide?.()
+                    shown = false
+                }
             }
 
             // Scale
@@ -179,7 +185,7 @@ export class PanelBase {
      */
     dispose() {
         if (this.label) {
-            this.label.dispose?.()
+            this.label?.dispose?.()
         }
         this.texture.dispose()
         this.plane.dispose()

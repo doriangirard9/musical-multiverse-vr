@@ -7,7 +7,13 @@ import { HoldableBehaviour } from "./HoldableBehaviour.ts";
 import { InputHoverBehavior } from "../../xr/inputs/tools/InputHoverBehavior.ts";
 
 
-
+/**
+ * A bounding box that can be used to move and rotate an object in the scene.
+ * The bounding box is a transparent box that surrounds the object and can be grabbed and moved by the user.
+ * It is used to move and rotate the object in the scene.
+ * The bounding box is also highlighted when hovered and when grabbed.
+ * The bounding box is automatically positioned in front of the player when created.
+ */
 export class BoundingBox {
     private scene : Scene = SceneManager.getInstance().getScene();
     readonly holdable: HoldableBehaviour

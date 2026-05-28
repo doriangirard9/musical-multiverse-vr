@@ -1,12 +1,14 @@
 import { Quaternion, Vector3 } from "@babylonjs/core";
 import { ConnectionManager } from "./ConnectionManager";
 import { NetworkManager } from "../network/NetworkManager";
-import { Node3DGraphDescription, Node3DNetwork } from "../network/Node3DNetwork";
+import { Node3DGraphDescription } from "../network/Node3DNetwork";
 import { N3DConnectionInstance } from "../node3d/instance/N3DConnectionInstance";
 import { Node3DInstance } from "../node3d/instance/Node3DInstance";
 import { Node3dManager } from "./Node3dManager";
 
-
+/**
+ * Serialization of the game objets (Node3D, connections, etc...)
+ */
 export class Serialization {
 
     private mNode = Node3dManager.getInstance()

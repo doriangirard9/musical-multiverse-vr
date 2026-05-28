@@ -11,6 +11,7 @@ import { InputMultiGrabBehavior } from "../../node3d/tools"
 /**
  * HoldableBehaviour allows the user to hold and manipulate an object in VR.
  * When the target is grabbed it can then be dragged around using FullHoldBehaviour.
+ * TODO: Les FullHoldBehaviours s'accumulent à chaque clique à l'infinie.
  */
 export class HoldableBehaviour implements Behavior<AbstractMesh> {
   
@@ -53,13 +54,15 @@ export class HoldableBehaviour implements Behavior<AbstractMesh> {
         target.addBehavior(correction)
 
         this.detach = ()=>{
-            target.removeBehavior(grab)
-            target.removeBehavior(correction)
+            if(grab) target.removeBehavior(grab)
+            if(correction) target.removeBehavior(correction)
             this.detach = ()=>{}
         }
     }
 
     grab(pointers: PointerInput[]){
+        const target = this.moved ?? this.attachedNode
+
         // No pointer
         if(pointers.length===0){
             if(this._isDragging) this.onReleaseObservable.notifyObservers()
@@ -74,7 +77,6 @@ export class HoldableBehaviour implements Behavior<AbstractMesh> {
         if(pointers.length===1){
             const pointer = pointers[0]
             if(!this.holdBehaviour){
-                const target = this.moved ?? this.attachedNode
                 this.holdBehaviour = new FullHoldBehaviour(pointer)
                 this.holdBehaviour.on_move = ()=>this.onMoveObservable.notifyObservers()
                 this.holdBehaviour.on_rotate = ()=>this.onRotateObservable.notifyObservers()
@@ -82,8 +84,9 @@ export class HoldableBehaviour implements Behavior<AbstractMesh> {
             }
         }
         else{
-            const target = this.moved ?? this.attachedNode
-            if(this.holdBehaviour) target.removeBehavior(this.holdBehaviour)
+            if(this.holdBehaviour){
+                this.holdBehaviour.attachedNode.removeBehavior(this.holdBehaviour)
+            }
             this.holdBehaviour = undefined
         }
         
@@ -92,15 +95,13 @@ export class HoldableBehaviour implements Behavior<AbstractMesh> {
             const pointer1 = pointers[0]
             const pointer2 = pointers[1]
             if(!this.twoPointerHoldBehaviour){
-                const target = this.moved ?? this.attachedNode
                 this.twoPointerHoldBehaviour = new TwoPointerHoldBehaviour(pointer1, pointer2)
                 this.twoPointerHoldBehaviour.on_move = ()=>this.onMoveObservable.notifyObservers()
                 target.addBehavior(this.twoPointerHoldBehaviour)
             }
         }
         else{
-            const target = this.moved ?? this.attachedNode
-            if(this.twoPointerHoldBehaviour) target.removeBehavior(this.twoPointerHoldBehaviour)
+            if(this.twoPointerHoldBehaviour) this.twoPointerHoldBehaviour.attachedNode.removeBehavior(this.twoPointerHoldBehaviour)
             this.twoPointerHoldBehaviour = undefined
         }
     }

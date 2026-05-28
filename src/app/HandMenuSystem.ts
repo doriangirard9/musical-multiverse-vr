@@ -2,125 +2,82 @@ import { InputManager } from "../xr/inputs/InputManager"
 import { SceneManager } from "./SceneManager"
 import { MenuButton, MenuPanel } from "../world/menu/MenuPanel"
 import { WamTransportManager } from "./WamTransportManager"
-import { DrawingManager } from "./DrawingManager"
+import { DrawingSystem } from "./DrawingSystem"
 import { Node3dManager } from "./Node3dManager"
-import { ShopMenuManager } from "./ShopMenuManager"
-import { Node3DInstance } from "../node3d/instance/Node3DInstance"
+import { ShopMenuSystem } from "./ShopMenuSystem"
 import { Serialization } from "./Serialization"
-import { Matrix, Quaternion, Vector3 } from "@babylonjs/core"
+import { AbstractMesh, Color3, Matrix, Quaternion, Vector3 } from "@babylonjs/core"
 import { QuaternionUtils } from "../utils/quaternion"
-import { N3DConnectionInstance } from "../node3d/instance/N3DConnectionInstance"
+import { TargetManager } from "./TargetManager"
+import { BoxHighlight } from "../world/BoxHighlight"
 
 
 /**
- * Manager responsible of the left hand menu.
+ * A menu attached to the left hand. 
+ * Allowing the user to interact with the pointed object
+ * and with the application in general (play/stop, open shop menu, etc.).
  */
-export class HandMenuManager {
+export class HandMenuSystem {
 
     // Instance
-    static _instance?: HandMenuManager
+    static _instance?: HandMenuSystem
 
-    static async initialize(...network: ConstructorParameters<typeof HandMenuManager>){
-        this._instance = await new HandMenuManager(...network).initialize()
+    static async initialize(...network: ConstructorParameters<typeof HandMenuSystem>){
+        this._instance = await new HandMenuSystem(...network)
     }
 
-    static getInstance(): HandMenuManager {
+    static getInstance(): HandMenuSystem {
         if(!this._instance) throw new Error("HandMenuManager not initialized. Call initialize() first.")
         return this._instance
-    }
-
-    // Target
-    private _targetNodeInstance?: {key:string, node:Node3DInstance}
-
-    private _targetConnectionInstance?: {key:string, connection:N3DConnectionInstance}
-
-    private registerTargetSelection(){
-        this.pointer.onNewTarget.add(()=>{
-            const pointed = this.pointer.targetMesh
-
-            // Target nodes 
-            {
-                let found: {key:string, node:Node3DInstance}|undefined
-                for(const [key,node] of this.nodeManager.getRegistry().nodes.entries()){
-                    if(node.boundingBoxMesh==pointed){
-                        found = {key, node}
-                        break
-                    }
-                }
-
-                if(found!=null){
-                    const doUpdate = this._targetNodeInstance==null
-                    this._targetNodeInstance = found
-                    if(doUpdate)this.updateMenu()
-                    return
-                }
-                else{
-                    const doUpdate = this._targetNodeInstance!=null
-                    this._targetNodeInstance = undefined
-                    if(doUpdate)this.updateMenu()
-                }
-            }
-
-            // Target connections
-            {
-                let found: {key:string, connection:N3DConnectionInstance}|undefined
-                for(const [key,connection] of this.nodeManager.getRegistry().connections.entries()){
-                    if(connection.tube==pointed){
-                        found = {key, connection}
-                        break
-                    }
-                }
-
-                if(found!=null){
-                    const doUpdate = this._targetConnectionInstance==null
-                    this._targetConnectionInstance = found
-                    if(doUpdate)this.updateMenu()
-                    return
-                }
-                else{
-                    const doUpdate = this._targetConnectionInstance!=null
-                    this._targetConnectionInstance = undefined
-                    if(doUpdate)this.updateMenu()
-                }
-            }
-
-        })
     }
 
     // Menu
     public menu!: MenuPanel
 
     public pointer
+    public selector
 
     constructor(
         readonly scene: SceneManager,
         readonly inputs: InputManager,
         readonly wamTransport: WamTransportManager,
         readonly nodeManager: Node3dManager,
-        readonly shopMenu: ShopMenuManager
+        readonly shopMenu: ShopMenuSystem,
+        readonly targets: TargetManager,
     ){
+        // Pointer and selector
         this.pointer = inputs.left.pointer
-    }
+        this.selector = targets.controller_to_target.get(this.pointer.controller)!
+        this.selector.onNewTarget.add(()=>{
+            this.updateMenu()
+            this.highlightTarget = this.selector.target.node?.boundingBoxMesh
+                ?? this.selector.target.connection?.tube
+                ?? null
+            this.updateHighlight()
+        })
 
-    async initialize(){
-
+        // Hand Menu
         this.menu = new MenuPanel(
             this.scene.getScene(),
             SceneManager.getInstance().getUtilityLayer().utilityLayerScene,
             []
         )
-
-        this.menu.followPointer(this.pointer)
+        
+        this.menu.followPointer(this.pointer,{
+            onShow: this.onShow.bind(this),
+            onHide: this.onHide.bind(this),
+        })
         this.menu.show()
+
+        // Highlight
+        this.initHighlight()
         
         this.updateMenu()
-
-        this.registerTargetSelection()
-
-        return this
     }
 
     updateMenu(){
+        const target = this.selector.target
+
         const buttons = [] as MenuButton[]
 
         // Play/Stop
@@ -139,20 +96,20 @@ export class HandMenuManager {
             this.shopMenu.toggle()
         }})
 
-        if(this._targetNodeInstance){
+        if(target.node){
 
             buttons.push({ label: `On ${this.pointer.controller.side} pointed :`, color: "#ffffff"})
 
             // Delete pointed object
             buttons.push({ label: "🗑 Delete node", color: "#ff6666", onClick: async()=>{
-                if(this._targetNodeInstance==null) return
-                this._targetNodeInstance.node.dispose()
+                if(target.node==null) return
+                target.node.dispose()
             }})
 
             // Clone
             buttons.push({ label: "📄 Clone pointed node", color: "#66ff66", onClick: async()=>{
-                if(!this._targetNodeInstance) return
-                const serialized = Serialization.getInstance().save([this._targetNodeInstance.node], false)
+                if(!target.node) return
+                const serialized = Serialization.getInstance().save([target.node], false)
                 const clone = await Serialization.getInstance().load(serialized)
                 for(const node of clone){
                     node.boundingBoxMesh.position.addInPlaceFromFloats(Math.random()-0.5, Math.random()-0.5, Math.random()-0.5)
@@ -162,22 +119,22 @@ export class HandMenuManager {
 
             // Copy
             buttons.push({ label: "📋 Copy Structure", color: "#66ccff", onClick: async()=>{
-                if(!this._targetNodeInstance) return
-                const serialized = Serialization.getInstance().save([this._targetNodeInstance.node], true)
+                if(!target.node) return
+                const serialized = Serialization.getInstance().save([target.node], true)
                 const head = this.inputs.head.matrix.asArray()
                 await navigator.clipboard.writeText(JSON.stringify({serialized,head}))
             }})
             
         }
 
-        if(this._targetConnectionInstance){
+        if(target.connection){
 
             buttons.push({ label: `On ${this.pointer.controller.side} pointed :`, color: "#ffffff"})
 
             // Delete pointed object
             buttons.push({ label: "🗑 Delete connection", color: "#ff6666", onClick: async()=>{
-                if(this._targetConnectionInstance==null) return
-                this._targetConnectionInstance.connection.dispose()
+                if(target.connection==null) return
+                target.connection.dispose()
             }})
         }
 
@@ -207,7 +164,7 @@ export class HandMenuManager {
         // Draw
         buttons.push({ label: "✏️ Draw from clipboard path", color: "#66ccff", onClick: async()=>{
             const path = await navigator.clipboard.readText()
-            DrawingManager.getInstance().drawFromSvg(
+            DrawingSystem.getInstance().drawFromSvg(
                 path,
                 20,
                 this.pointer.origin,
@@ -217,6 +174,36 @@ export class HandMenuManager {
         }})
 
         this.menu.set(buttons)
+    }
+
+    onShow(){
+        this.isHighlightVisible = true
+        this.updateHighlight()
+    }
+
+    onHide(){
+        this.isHighlightVisible = false
+        this.updateHighlight()
+    }
+
+    // Highlight
+    private highlight!: BoxHighlight
+    
+    private initHighlight(){
+        this.highlight = new BoxHighlight(this.scene.getScene(), Color3.Green())
+    }
+
+    private highlightTarget: AbstractMesh|null = null
+    private isHighlightVisible = false
+
+    private updateHighlight(){
+        const toHighlight = this.isHighlightVisible ? this.highlightTarget : null
+        if(toHighlight!=this.highlight.attachedNode){
+            if(this.highlight.attachedNode!=null){
+                this.highlight.attachedNode.removeBehavior(this.highlight)
+            }
+            if(toHighlight) toHighlight.addBehavior(this.highlight)
+        }
     }
 
 

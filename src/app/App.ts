@@ -1,32 +1,32 @@
 import { CreateAudioEngineAsync, Vector3 } from "@babylonjs/core";
 import { NetworkManager } from "../network/NetworkManager.ts";
-import { ShopPanel } from "../world/menu/ShopPanel.ts";
 import { InputManager } from "../xr/inputs/InputManager.ts";
 import { InputVisualPointer } from "../xr/inputs/tools/InputVisualPointer.ts";
 import { XRManager } from "../xr/XRManager.ts";
 import { AppOrchestrator } from "./AppOrchestrator.ts";
 import { ConnectionManager } from "./ConnectionManager.ts";
-import ControlsUI from "./ControlsUI.ts";
+import ControlsUISystem from "./ControlsUISystem.ts";
 import { Node3dManager } from "./Node3dManager.ts";
 import { PlayerManager } from "./PlayerManager.ts";
 import { SceneManager } from "./SceneManager.ts";
 import { Serialization } from "./Serialization.ts";
 import { UIManager } from "./UIManager.ts";
-import { DrawingManager } from "./DrawingManager.ts";
-import { AvatarManager } from "./AvatarManager.ts";
+import { DrawingSystem } from "./DrawingSystem.ts";
+import { AvatarSystem } from "./AvatarSystem.ts";
 import { NetworkEventBus } from "../eventBus/NetworkEventBus.ts";
 import { RandomUtils } from "../node3d/tools/utils/RandomUtils.ts";
 import { Doc } from "yjs";
-import { HandMenu } from "@babylonjs/gui";
-import { HandMenuManager } from "./HandMenuManager.ts";
+import { HandMenuSystem } from "./HandMenuSystem.ts";
 import { WamTransportManager } from "./WamTransportManager.ts";
-import { ShopMenuManager } from "./ShopMenuManager.ts";
+import { ShopMenuSystem } from "./ShopMenuSystem.ts";
+import { TargetManager } from "./TargetManager.ts";
+import { BabylonsJSFix } from "./BabylonsJSFix.ts";
 
 let _app: App
 
 export class App {
     private static readonly DEBUG_LOG = false;
-    private controlsUI?: ControlsUI;
+    private controlsUI?: ControlsUISystem;
 
     constructor() {
         _app = this
@@ -66,6 +66,9 @@ export class App {
 
 
         // Initialization of App Parts
+
+        BabylonsJSFix.fix()
+
         UIManager.initialize()
         await XRManager.getInstance()!!.init(SceneManager.getInstance().getScene(), audioEngine);
 
@@ -84,14 +87,14 @@ export class App {
 
         SceneManager.getInstance().start()
 
-        await DrawingManager.initialize(
+        await DrawingSystem.initialize(
             NetworkManager.getInstance(),
             InputManager.getInstance(),
             SceneManager.getInstance(),
             usercolor,
         )
 
-        await AvatarManager.initialize(
+        await AvatarSystem.initialize(
             NetworkManager.getInstance(),
             InputManager.getInstance(),
             SceneManager.getInstance(),
@@ -100,18 +103,25 @@ export class App {
             usercolor,
         )
 
-        await ShopMenuManager.initialize(
+        await ShopMenuSystem.initialize(
             SceneManager.getInstance(),
             InputManager.getInstance(),
             Node3dManager.getInstance(),
         )
 
-        await HandMenuManager.initialize(
+        await TargetManager.initialize(
+            SceneManager.getInstance(),
+            InputManager.getInstance(),
+            Node3dManager.getInstance(),
+        )
+
+        await HandMenuSystem.initialize(
             SceneManager.getInstance(),
             InputManager.getInstance(),
             WamTransportManager.getInstance(audioContext),
             Node3dManager.getInstance(),
-            ShopMenuManager.getInstance(),
+            ShopMenuSystem.getInstance(),
+            TargetManager.getInstance(),
         )
 
         
@@ -123,7 +133,7 @@ export class App {
         const node3dShared = node3dBuilder.getShared()
         
         // create 3D controller button labels
-        this.controlsUI = new ControlsUI();
+        this.controlsUI = new ControlsUISystem();
         
         // Setup X button to toggle controls UI
         InputManager.getInstance().x_button.onChange.add((event) => {

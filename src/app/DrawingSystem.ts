@@ -7,11 +7,13 @@ import { SceneManager } from "./SceneManager"
 
 
 /**
- * Manager for drawing in the 3D world. It allows users to create and manipulate 3D curves that are synchronized across the network.
+ * The 3D drawing functionnality. It allows to draw with the controllers in the scene.
+ * Manager for drawing in the 3D world.
+ * It allows users to create and manipulate 3D curves that are synchronized across the network.
  * It uses the Curve3D class to represent individual curves and manages their synchronization using the NetworkManager.
  * It also handles user inputs related to drawing, allowing users to create and modify curves in real-time.
  */
-export class DrawingManager {
+export class DrawingSystem {
 
     // Public API //
 
@@ -63,13 +65,13 @@ export class DrawingManager {
     }
 
     // Instance
-    static _instance?: DrawingManager
+    static _instance?: DrawingSystem
 
-    static async initialize(...network: ConstructorParameters<typeof DrawingManager>){
-        this._instance = new DrawingManager(...network)
+    static async initialize(...network: ConstructorParameters<typeof DrawingSystem>){
+        this._instance = new DrawingSystem(...network)
     }
 
-    static getInstance(): DrawingManager {
+    static getInstance(): DrawingSystem {
         if(!this._instance) throw new Error("DrawingManager not initialized. Call initialize() first.")
         return this._instance
     }
