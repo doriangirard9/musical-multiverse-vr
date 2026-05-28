@@ -7,6 +7,7 @@
  */
 
 export * from "./DrawingSystem"
+export * from "./PointerVisualSystem"
 export * from "./ControlsUISystem"
 export * from "./ShopMenuSystem"
 export * from "./SceneManager"

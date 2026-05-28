@@ -10,6 +10,7 @@ import { AbstractMesh, Color3, Matrix, Quaternion, Vector3 } from "@babylonjs/co
 import { QuaternionUtils } from "../utils/quaternion"
 import { TargetManager } from "./TargetManager"
 import { BoxHighlight } from "../world/BoxHighlight"
+import { PointerVisualSystem } from "./PointerVisualSystem"
 
 
 /**
@@ -36,6 +37,8 @@ export class HandMenuSystem {
 
     public pointer
     public selector
+    public pointerVisual
+    private selectionColor
 
     constructor(
         readonly scene: SceneManager,
@@ -44,10 +47,15 @@ export class HandMenuSystem {
         readonly nodeManager: Node3dManager,
         readonly shopMenu: ShopMenuSystem,
         readonly targets: TargetManager,
+        pointerVisualSystem: PointerVisualSystem,
     ){
+        // Settings
+        this.selectionColor = Color3.Green()
+            
         // Pointer and selector
         this.pointer = inputs.left.pointer
-        this.selector = targets.controller_to_target.get(this.pointer.controller)!
+        this.pointerVisual = pointerVisualSystem.pointerToVisual.get(this.pointer)!
+        this.selector = targets.controllerToTarget.get(this.pointer.controller)!
         this.selector.onNewTarget.add(()=>{
             this.updateMenu()
             this.highlightTarget = this.selector.target.node?.boundingBoxMesh
@@ -179,18 +187,20 @@ export class HandMenuSystem {
     onShow(){
         this.isHighlightVisible = true
         this.updateHighlight()
+        this.pointerVisual.addColor(this.selectionColor)
     }
 
     onHide(){
         this.isHighlightVisible = false
         this.updateHighlight()
+        this.pointerVisual.removeColor(this.selectionColor)
     }
 
     // Highlight
     private highlight!: BoxHighlight
     
     private initHighlight(){
-        this.highlight = new BoxHighlight(this.scene.getScene(), Color3.Green())
+        this.highlight = new BoxHighlight(this.scene.getScene(), this.selectionColor)
     }
 
     private highlightTarget: AbstractMesh|null = null

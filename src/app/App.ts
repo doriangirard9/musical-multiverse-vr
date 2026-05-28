@@ -21,6 +21,7 @@ import { WamTransportManager } from "./WamTransportManager.ts";
 import { ShopMenuSystem } from "./ShopMenuSystem.ts";
 import { TargetManager } from "./TargetManager.ts";
 import { BabylonsJSFix } from "./BabylonsJSFix.ts";
+import { PointerVisualSystem } from "./PointerVisualSystem.ts";
 
 let _app: App
 
@@ -115,6 +116,11 @@ export class App {
             Node3dManager.getInstance(),
         )
 
+        await PointerVisualSystem.initialize(
+            SceneManager.getInstance(),
+            InputManager.getInstance(),
+        )
+
         await HandMenuSystem.initialize(
             SceneManager.getInstance(),
             InputManager.getInstance(),
@@ -122,6 +128,7 @@ export class App {
             Node3dManager.getInstance(),
             ShopMenuSystem.getInstance(),
             TargetManager.getInstance(),
+            PointerVisualSystem.getInstance(),
         )
 
         
@@ -211,9 +218,6 @@ export class App {
         menu.followPointer(InputManager.getInstance().left.pointer)
         menu.show()*/
 
-        //// POINTERS ////
-        InputVisualPointer.CreateSimple(scene, InputManager.getInstance().left.pointer)
-        InputVisualPointer.CreateSimple(scene, InputManager.getInstance().right.pointer)
 
     }
 

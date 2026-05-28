@@ -177,7 +177,12 @@ export class PanelBase {
             this.plane.rotationQuaternion = Quaternion.FromLookDirectionLH(d.scale(-1), Vector3.Up())
         })
 
-        return o
+        return {
+            remove(){
+                if(shown) options.onHide?.()
+                o.remove()
+            }
+        }
     }
 
     /**

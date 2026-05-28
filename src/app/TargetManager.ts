@@ -27,7 +27,7 @@ export class TargetManager {
     left
     right
     screen
-    controller_to_target
+    controllerToTarget
 
     constructor(
         readonly scene: SceneManager,
@@ -40,7 +40,7 @@ export class TargetManager {
 
         this.screen = new TargetManagerController(inputs.screen, this)
 
-        this.controller_to_target = new Map([
+        this.controllerToTarget = new Map([
             [inputs.left, this.left],
             [inputs.right, this.right],
             [inputs.screen, this.screen],
