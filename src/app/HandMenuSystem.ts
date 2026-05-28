@@ -1,6 +1,5 @@
 import { InputManager } from "../xr/inputs/InputManager"
 import { SceneManager } from "./SceneManager"
-import { MenuButton, MenuPanel } from "../world/menu/MenuPanel"
 import { WamTransportManager } from "./WamTransportManager"
 import { DrawingSystem } from "./DrawingSystem"
 import { Node3dManager } from "./Node3dManager"
@@ -11,6 +10,7 @@ import { QuaternionUtils } from "../utils/quaternion"
 import { TargetManager } from "./TargetManager"
 import { BoxHighlight } from "../world/BoxHighlight"
 import { PointerVisualSystem } from "./PointerVisualSystem"
+import { ChoiceMenu, MenuButton as ChoiceMenuButton } from "../menus/ChoiceMenu"
 
 
 /**
@@ -33,7 +33,7 @@ export class HandMenuSystem {
     }
 
     // Menu
-    public menu!: MenuPanel
+    public menu!: ChoiceMenu
 
     public pointer
     public selector
@@ -65,7 +65,7 @@ export class HandMenuSystem {
         })
 
         // Hand Menu
-        this.menu = new MenuPanel(
+        this.menu = new ChoiceMenu(
             this.scene.getScene(),
             SceneManager.getInstance().getUtilityLayer().utilityLayerScene,
             []
@@ -86,21 +86,21 @@ export class HandMenuSystem {
     updateMenu(){
         const target = this.selector.target
 
-        const buttons = [] as MenuButton[]
+        const buttons = [] as ChoiceMenuButton[]
 
         // Play/Stop
-        if(this.wamTransport.isPlaying) buttons.push({ label: "⏸ Stop", color: "#FF6666", onClick: ()=>{
+        if(this.wamTransport.isPlaying) buttons.push({ label: "⏸ Stop", color: "#FF6666", action: ()=>{
             this.wamTransport.stop()
             this.updateMenu()
         }})
-        else buttons.push({ label: "▶ Play", color: "#66ff66", onClick: ()=>{
+        else buttons.push({ label: "▶ Play", color: "#66ff66", action: ()=>{
             this.wamTransport.start()
             this.updateMenu()
         }})
 
 
         // Open shop menu
-        buttons.push({ label: "🛒 Open/Close shop menu", color: "#ffcc66", onClick: async()=>{
+        buttons.push({ label: "🛒 Open/Close shop menu", color: "#ffcc66", action: async()=>{
             this.shopMenu.toggle()
         }})
 
@@ -109,13 +109,13 @@ export class HandMenuSystem {
             buttons.push({ label: `On ${this.pointer.controller.side} pointed :`, color: "#ffffff"})
 
             // Delete pointed object
-            buttons.push({ label: "🗑 Delete node", color: "#ff6666", onClick: async()=>{
+            buttons.push({ label: "🗑 Delete node", color: "#ff6666", action: async()=>{
                 if(target.node==null) return
                 target.node.dispose()
             }})
 
             // Clone
-            buttons.push({ label: "📄 Clone pointed node", color: "#66ff66", onClick: async()=>{
+            buttons.push({ label: "📄 Clone pointed node", color: "#66ff66", action: async()=>{
                 if(!target.node) return
                 const serialized = Serialization.getInstance().save([target.node], false)
                 const clone = await Serialization.getInstance().load(serialized)
@@ -126,7 +126,7 @@ export class HandMenuSystem {
             }})
 
             // Copy
-            buttons.push({ label: "📋 Copy Structure", color: "#66ccff", onClick: async()=>{
+            buttons.push({ label: "📋 Copy Structure", color: "#66ccff", action: async()=>{
                 if(!target.node) return
                 const serialized = Serialization.getInstance().save([target.node], true)
                 const head = this.inputs.head.matrix.asArray()
@@ -140,7 +140,7 @@ export class HandMenuSystem {
             buttons.push({ label: `On ${this.pointer.controller.side} pointed :`, color: "#ffffff"})
 
             // Delete pointed object
-            buttons.push({ label: "🗑 Delete connection", color: "#ff6666", onClick: async()=>{
+            buttons.push({ label: "🗑 Delete connection", color: "#ff6666", action: async()=>{
                 if(target.connection==null) return
                 target.connection.dispose()
             }})
@@ -149,7 +149,7 @@ export class HandMenuSystem {
         buttons.push({ label: `---`, color: "#ffffff"})
 
         // Paste
-        buttons.push({ label: "📋 Paste Structure", color: "#6691ff", onClick: async()=>{
+        buttons.push({ label: "📋 Paste Structure", color: "#6691ff", action: async()=>{
             const text = await navigator.clipboard.readText()
             let parsed: {serialized: any, head: number[]}|undefined = JSON.parse(text)
             console.log(parsed)
@@ -170,7 +170,7 @@ export class HandMenuSystem {
         }})
 
         // Draw
-        buttons.push({ label: "✏️ Draw from clipboard path", color: "#66ccff", onClick: async()=>{
+        buttons.push({ label: "✏️ Draw from clipboard path", color: "#66ccff", action: async()=>{
             const path = await navigator.clipboard.readText()
             DrawingSystem.getInstance().drawFromSvg(
                 path,

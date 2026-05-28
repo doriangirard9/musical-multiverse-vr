@@ -1,17 +1,17 @@
 import { Scene } from "@babylonjs/core"
 import { Button, Control, ScrollViewer, StackPanel, TextBlock } from "@babylonjs/gui"
-import { PanelBase } from "./PanelBase"
+import { AbstractMenu } from "./AbstractMenu"
 
 export interface MenuButton{
     label: string
-    color: string
-    onClick?: () => void
+    color?: string
+    action?: () => void
 }
 
 /**
  * A simple menu panel that show text buttons in front of the users.
  */
-export class MenuPanel extends PanelBase {
+export class ChoiceMenu extends AbstractMenu {
 
     buttons: StackPanel
 
@@ -22,7 +22,7 @@ export class MenuPanel extends PanelBase {
     ) {
         super(scene, renderScene)
         
-        this.initPanel("MenuPanel", .75, 1.5, 256)
+        this.initPanel("choice_menu", .75, 1.5, 256)
 
 
         const that = this
@@ -47,7 +47,7 @@ export class MenuPanel extends PanelBase {
     set(buttonsInfo: MenuButton[]){
 
         function styleTextBlock(text: TextBlock, info: MenuButton){
-            text.color = info.color
+            text.color = info.color ?? "white"
             text.text = info.label
             text.fontSize = 25
             text.outlineColor = "black"
@@ -56,9 +56,9 @@ export class MenuPanel extends PanelBase {
 
         this.buttons.clearControls()
         for(const buttonInfo of buttonsInfo){
-            if(buttonInfo.onClick){
+            if(buttonInfo.action){
                 const button = Button.CreateSimpleButton(buttonInfo.label, buttonInfo.label)
-                button.color = buttonInfo.color
+                button.color = buttonInfo.color?? "white"
                 styleTextBlock(button.textBlock!, buttonInfo)
                 button.width = "230px"
                 button.height= "80px"
@@ -73,7 +73,7 @@ export class MenuPanel extends PanelBase {
                     button.scaleX = 1
                     button.scaleY = 1
                     try{
-                        buttonInfo.onClick?.()
+                        buttonInfo.action?.()
                     }catch(e){
                         console.error("Error in button click handler:", e)
                     }

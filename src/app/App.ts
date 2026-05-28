@@ -1,7 +1,6 @@
 import { CreateAudioEngineAsync, Vector3 } from "@babylonjs/core";
 import { NetworkManager } from "../network/NetworkManager.ts";
 import { InputManager } from "../xr/inputs/InputManager.ts";
-import { InputVisualPointer } from "../xr/inputs/tools/InputVisualPointer.ts";
 import { XRManager } from "../xr/XRManager.ts";
 import { AppOrchestrator } from "./AppOrchestrator.ts";
 import { ConnectionManager } from "./ConnectionManager.ts";
@@ -22,6 +21,8 @@ import { ShopMenuSystem } from "./ShopMenuSystem.ts";
 import { TargetManager } from "./TargetManager.ts";
 import { BabylonsJSFix } from "./BabylonsJSFix.ts";
 import { PointerVisualSystem } from "./PointerVisualSystem.ts";
+import { MenuSystem } from "./MenuSystem.ts";
+import { MessageMenu } from "../menus/MessageMenu.ts";
 
 let _app: App
 
@@ -78,6 +79,10 @@ export class App {
             SceneManager.getInstance().getUtilityLayer().utilityLayerScene
         ])
 
+        await MenuSystem.initialize(
+            SceneManager.getInstance(),
+        )
+
         await Node3dManager.initialize(audioContext, audioEngine)
         
         PlayerManager.initialize(participantId)
@@ -108,6 +113,7 @@ export class App {
             SceneManager.getInstance(),
             InputManager.getInstance(),
             Node3dManager.getInstance(),
+            MenuSystem.getInstance(),
         )
 
         await TargetManager.initialize(
@@ -206,18 +212,7 @@ export class App {
             }
         })
 
-        /*const menu = new MenuPanel(scene, SceneManager.getInstance().getUtilityLayer().utilityLayerScene, [
-            { label: "🞡 Add", color: "#66ff66", onClick: ()=>{} },
-            { label: "🗐 Copy", color: "#FFFF66", onClick: ()=>{} },
-            { label: "✎ Edit", color: "#6699FF", onClick: ()=>{} },
-            { label: "🔗 Connect", color: "#66FFFF", onClick: ()=>{} },
-            { label: "📁 Save", color: "#FF66FF", onClick: ()=>{} },
-            { label: "📂 Load", color: "#FF9966", onClick: ()=>{} },
-            { label: "❌ Remove", color: "#FF6666", onClick: ()=>{} }
-        ])
-        menu.followPointer(InputManager.getInstance().left.pointer)
-        menu.show()*/
-
+        MenuSystem.getInstance().showMessage("Welcome to the Musical Multiverse VR!", "white")
 
     }
 

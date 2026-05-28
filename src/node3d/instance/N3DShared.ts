@@ -1,8 +1,6 @@
 import { Color3, HighlightLayer, Scene, StandardMaterial } from "@babylonjs/core";
 import * as tools from "../tools"
 import * as babylonjs from "@babylonjs/core"
-import { UIManager } from "../../app/UIManager";
-import { N3DMenuManager } from "./utils/N3DMenuManager";
 import noiseTexture from "./utils/noise.png?url"
 
 export class N3DShared{
@@ -59,5 +57,4 @@ export class N3DShared{
     readonly tools = tools
     readonly babylon = babylonjs
 
-    readonly menuManager = new N3DMenuManager(UIManager.getInstance())
 }

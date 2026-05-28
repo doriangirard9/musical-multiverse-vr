@@ -1,7 +1,8 @@
 import { InputManager } from "../xr/inputs/InputManager"
 import { SceneManager } from "./SceneManager"
 import { Node3dManager } from "./Node3dManager"
-import { ShopPanel } from "../world/menu/ShopPanel"
+import { ShopMenu } from "../menus/ShopMenu"
+import { MenuSystem } from "./MenuSystem"
 
 
 /**
@@ -23,12 +24,13 @@ export class ShopMenuSystem {
 
 
     // Menu
-    public menu?: ShopPanel
+    public menu?: ShopMenu
 
     constructor(
         readonly scene: SceneManager,
         readonly inputs: InputManager,
         readonly nodeManager: Node3dManager,
+        readonly menus: MenuSystem,
     ){
         InputManager.getInstance().a_button.onDown.add(()=>{
             this.toggle()
@@ -37,11 +39,11 @@ export class ShopMenuSystem {
 
     toggle(){
         if(!this.menu){
-            this.menu = new ShopPanel(this.scene.getScene(), SceneManager.getInstance().getUtilityLayer().utilityLayerScene)
-            this.menu.followHead()
-            this.menu.show()
+            this.menu = new ShopMenu(this.scene.getScene(), SceneManager.getInstance().getUtilityLayer().utilityLayerScene)
         }
-        else this.menu.toggle()
+
+        if(this.menus.current_menu===this.menu) this.menus.close()
+        else this.menus.open(this.menu, false)
     }
 
     isOpened(){

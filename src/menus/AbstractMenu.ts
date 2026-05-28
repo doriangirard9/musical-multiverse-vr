@@ -1,10 +1,10 @@
-import { CreatePlane, Mesh, Scene, Quaternion, Vector3 } from "@babylonjs/core"
+import { CreatePlane, Mesh, Scene, Quaternion, Vector3, Observable } from "@babylonjs/core"
 import { AdvancedDynamicTexture, Control, Rectangle } from "@babylonjs/gui"
-import { InputToPointerBehavior } from "../../xr/inputs/tools/InputToPointer"
-import { PointerInput } from "../../xr/inputs/PointerInput"
-import { N3DText } from "../../node3d/instance/utils/N3DText"
+import { InputToPointerBehavior } from "../xr/inputs/tools/InputToPointer"
+import { PointerInput } from "../xr/inputs/PointerInput"
+import { N3DText } from "../node3d/instance/utils/N3DText"
 
-export class PanelBase {
+export class AbstractMenu {
     protected plane!: Mesh
     protected texture!: AdvancedDynamicTexture
     protected label?: N3DText
@@ -12,6 +12,9 @@ export class PanelBase {
     constructor(
         protected scene: Scene,
         protected renderScene: Scene,
+        protected options: {
+            interactable?: boolean, // Whether the menu should be interactable (default: true)
+        } = {}
     ) {}
 
     /**
@@ -23,7 +26,13 @@ export class PanelBase {
      */
     protected initPanel(name: string, width: number, height: number, textureResolution: number = 512) {
         this.plane = CreatePlane(name, { width, height }, this.renderScene)
-        this.plane.addBehavior(new InputToPointerBehavior())
+
+        if(this.options.interactable ?? true){
+            this.plane.addBehavior(new InputToPointerBehavior())
+        }
+        else{
+            this.plane.isPickable = false
+        }
 
         // Calculate texture height based on plane aspect ratio
         const textureHeight = Math.round(textureResolution * (height / width))
@@ -46,19 +55,29 @@ export class PanelBase {
         this.label!.list.background = "rgb(0,0,0,0.5)"
     }
 
+
+    readonly onShow = new Observable<void>()
+    readonly onHide = new Observable<void>()
+
     /**
      * Show the panel
      */
     show() {
+        if(this.plane.isVisible) return
+
         this.plane.isVisible = true
+        this.onShow.notifyObservers()
     }
 
     /**
      * Hide the panel
      */
     hide() {
+        if(!this.plane.isVisible) return
+
         this.plane.isVisible = false
         this.label?.hide()
+        this.onHide.notifyObservers()
     }
 
     /**

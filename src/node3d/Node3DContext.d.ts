@@ -127,7 +127,7 @@ export interface Node3DContext{
      * La fonction action est appelée après que le menu soit fermé.
      * @param choices Les choix du menu.
      */
-    openMenu(choices: {label:string, icon?:BABYLON.TransformNode, action:()=>void}[]): void
+    openMenu(choices: {label:string, color?:string, action?:()=>void}[]): void
 
     /**
      * Ferme le menu ouvert actuellement. Si celui-ci a été ouvert par cette Node3D.

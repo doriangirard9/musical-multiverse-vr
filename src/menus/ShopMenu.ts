@@ -1,9 +1,9 @@
 import { Scene } from "@babylonjs/core"
 import { Button, Container, Image, Rectangle, ScrollViewer, StackPanel, TextBlock } from "@babylonjs/gui"
-import { Node3dManager } from "../../app/Node3dManager"
-import { PanelBase } from "./PanelBase"
+import { Node3dManager } from "../app/Node3dManager"
+import { AbstractMenu } from "./AbstractMenu"
 
-export class ShopPanel extends PanelBase {
+export class ShopMenu extends AbstractMenu {
 
     constructor(
         scene: Scene,
@@ -11,7 +11,7 @@ export class ShopPanel extends PanelBase {
     ) {
         super(scene, renderScene)
 
-        this.initPanel("shopPanel", 2, 1, 1024)
+        this.initPanel("shop_menu", 2, 1, 1024)
         this.initLabel("label")
         
         // Use arrow functions to capture 'this'
