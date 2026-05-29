@@ -43,7 +43,7 @@ The whole class is 87 lines.
 ```typescript
 interface MenuConfig {
     label: string
-    buttons: { label: string; icon?: TransformNode; action: () => void }[]
+    buttons: { label: string; icon?: TransformNode; click: () => void }[]
 }
 
 class SimpleMenu {

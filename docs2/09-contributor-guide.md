@@ -351,8 +351,8 @@ const menu = new SimpleMenu("my-menu", UIManager.getInstance().getGui3DManager()
 menu.setConfig({
     label: "My Menu",
     buttons: [
-        { label: "Do thing", action: () => doThing() },
-        { label: "Do other thing", action: () => doOther() },
+        { label: "Do thing", click: () => doThing() },
+        { label: "Do other thing", click: () => doOther() },
     ],
 })
 // menu sits 3.5 units in front of the camera and follows it

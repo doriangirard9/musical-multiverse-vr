@@ -66,6 +66,14 @@ export class MenuSystem {
         this.open(undefined)
     }
 
+    /**
+     * If the given menu is currently open, close it. Otherwise, open it.
+     */
+    toggle(menu: AbstractMenu, auto_dispose: boolean = true){
+        if(this.lastMenu===menu) this.close()
+        else this.open(menu, auto_dispose)
+    }
+
 
     //// Utiliies ////
     showMessage(message: string, color?: string){

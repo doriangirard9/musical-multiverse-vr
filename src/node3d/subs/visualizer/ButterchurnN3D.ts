@@ -149,14 +149,14 @@ export class ButterchurnN3D implements Node3D {
         const pageItems = this.presets.slice(start, end);
         const choices: any[] = [];
         if (this.currentPage > 0) {
-            choices.push({ label: "[ PREV ]", action: () => { this.currentPage--; this.openShaderMenu(); } });
+            choices.push({ label: "[ PREV ]", click: () => { this.currentPage--; this.openShaderMenu(); } });
         }
         pageItems.forEach(name => {
             const shortName = name.length > 30 ? name.substring(0, 27) + "..." : name;
-            choices.push({ label: shortName, action: () => this.selectPreset(name) });
+            choices.push({ label: shortName, click: () => this.selectPreset(name) });
         });
         if (end < this.presets.length) {
-            choices.push({ label: "[ NEXT ]", action: () => { this.currentPage++; this.openShaderMenu(); } });
+            choices.push({ label: "[ NEXT ]", click: () => { this.currentPage++; this.openShaderMenu(); } });
         }
         this.context.openMenu(choices);
     }

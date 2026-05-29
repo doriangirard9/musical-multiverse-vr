@@ -5,7 +5,7 @@ import { DrawingSystem } from "./DrawingSystem"
 import { Node3dManager } from "./Node3dManager"
 import { ShopMenuSystem } from "./ShopMenuSystem"
 import { Serialization } from "./Serialization"
-import { AbstractMesh, Color3, Matrix, Quaternion, Vector3 } from "@babylonjs/core"
+import { AbstractMesh, Color3, Matrix, Quaternion, Scene, Vector3 } from "@babylonjs/core"
 import { QuaternionUtils } from "../utils/quaternion"
 import { TargetManager } from "./TargetManager"
 import { BoxHighlight } from "../world/BoxHighlight"
@@ -34,6 +34,7 @@ export class HandMenuSystem {
 
     // Menu
     public menu!: ChoiceMenu
+    private transportMenu!: TransportMenu
 
     public pointer
     public selector
@@ -77,6 +78,13 @@ export class HandMenuSystem {
         })
         this.menu.show()
 
+        // Transport
+        this.transportMenu = new TransportMenu(this.scene, this.wamTransport)
+
+        wamTransport.onChange(() => {
+            this.updateMenu()
+        })
+
         // Highlight
         this.initHighlight()
         
@@ -89,18 +97,20 @@ export class HandMenuSystem {
         const buttons = [] as ChoiceMenuButton[]
 
         // Play/Stop
-        if(this.wamTransport.isPlaying) buttons.push({ label: "⏸ Stop", color: "#FF6666", action: ()=>{
+        if(this.wamTransport.isPlaying) buttons.push({ label: "⏸ Stop", color: "#FF6666", click: ()=>{
             this.wamTransport.stop()
-            this.updateMenu()
         }})
-        else buttons.push({ label: "▶ Play", color: "#66ff66", action: ()=>{
+        else buttons.push({ label: "▶ Play", color: "#66ff66", click: ()=>{
             this.wamTransport.start()
-            this.updateMenu()
+        }})
+
+        buttons.push({ label: `Open/Close settings`, color: "#66ccff", click: ()=>{
+            this.shopMenu.menus.toggle(this.transportMenu.menu, false)
         }})
 
 
         // Open shop menu
-        buttons.push({ label: "🛒 Open/Close shop menu", color: "#ffcc66", action: async()=>{
+        buttons.push({ label: "🛒 Open/Close shop menu", color: "#ffcc66", click: async()=>{
             this.shopMenu.toggle()
         }})
 
@@ -109,13 +119,13 @@ export class HandMenuSystem {
             buttons.push({ label: `On ${this.pointer.controller.side} pointed :`, color: "#ffffff"})
 
             // Delete pointed object
-            buttons.push({ label: "🗑 Delete node", color: "#ff6666", action: async()=>{
+            buttons.push({ label: "🗑 Delete node", color: "#ff6666", click: async()=>{
                 if(target.node==null) return
                 target.node.dispose()
             }})
 
             // Clone
-            buttons.push({ label: "📄 Clone pointed node", color: "#66ff66", action: async()=>{
+            buttons.push({ label: "📄 Clone pointed node", color: "#66ff66", click: async()=>{
                 if(!target.node) return
                 const serialized = Serialization.getInstance().save([target.node], false)
                 const clone = await Serialization.getInstance().load(serialized)
@@ -126,7 +136,7 @@ export class HandMenuSystem {
             }})
 
             // Copy
-            buttons.push({ label: "📋 Copy Structure", color: "#66ccff", action: async()=>{
+            buttons.push({ label: "📋 Copy Structure", color: "#66ccff", click: async()=>{
                 if(!target.node) return
                 const serialized = Serialization.getInstance().save([target.node], true)
                 const head = this.inputs.head.matrix.asArray()
@@ -140,7 +150,7 @@ export class HandMenuSystem {
             buttons.push({ label: `On ${this.pointer.controller.side} pointed :`, color: "#ffffff"})
 
             // Delete pointed object
-            buttons.push({ label: "🗑 Delete connection", color: "#ff6666", action: async()=>{
+            buttons.push({ label: "🗑 Delete connection", color: "#ff6666", click: async()=>{
                 if(target.connection==null) return
                 target.connection.dispose()
             }})
@@ -149,7 +159,7 @@ export class HandMenuSystem {
         buttons.push({ label: `---`, color: "#ffffff"})
 
         // Paste
-        buttons.push({ label: "📋 Paste Structure", color: "#6691ff", action: async()=>{
+        buttons.push({ label: "📋 Paste Structure", color: "#6691ff", click: async()=>{
             const text = await navigator.clipboard.readText()
             let parsed: {serialized: any, head: number[]}|undefined = JSON.parse(text)
             console.log(parsed)
@@ -170,7 +180,7 @@ export class HandMenuSystem {
         }})
 
         // Draw
-        buttons.push({ label: "✏️ Draw from clipboard path", color: "#66ccff", action: async()=>{
+        buttons.push({ label: "✏️ Draw from clipboard path", color: "#66ccff", click: async()=>{
             const path = await navigator.clipboard.readText()
             DrawingSystem.getInstance().drawFromSvg(
                 path,
@@ -217,4 +227,60 @@ export class HandMenuSystem {
     }
 
 
+}
+
+/**
+ * A menu to control the WAM transport (play/stop, tempo, time signature).
+ */
+class TransportMenu{
+
+    menu
+
+    constructor(
+        scenes: SceneManager,
+        private transport: WamTransportManager,
+    ){
+        this.menu = new ChoiceMenu(scenes.getScene(), scenes.getUtilityLayer().utilityLayerScene, [])
+        this.menu.hide()
+        this.updateMenu()
+
+        transport.onChange(() => {
+            this.updateMenu()
+        })
+    }
+
+    updateMenu(){
+        const buttons = [] as ChoiceMenuButton[]
+        
+        // Play/Stop
+        if(this.transport.isPlaying) buttons.push({ label: "⏸ Stop", color: "#FF6666", click: ()=>{
+            this.transport.stop()
+        }})
+        else buttons.push({ label: "▶ Play", color: "#66ff66", click: ()=>{
+            this.transport.start()
+        }})
+
+        // Tempo
+        buttons.push({ label: `Tempo : ${this.transport.getTempo()} BPM`, color: "#bbffff"})
+        buttons.push({ label: "+", color: "#bbffff", click: ()=>{
+            this.transport.setTempo(Math.min(300, this.transport.getTempo()+5))
+        }})
+        buttons.push({ label: "-", color: "#bbffff", click: ()=>{
+            this.transport.setTempo(Math.max(0,this.transport.getTempo()-5))
+        }})
+
+        // Time signature
+        buttons.push({ label: `Time Signature : ${this.transport.getTimeSignature().numerator}/1`, color: "#ffffbb"})
+        buttons.push({ label: "+", color: "#ffffbb", click: ()=>{
+            const ts = this.transport.getTimeSignature()
+            this.transport.setTimeSignature(ts.numerator+1, 1)
+        }})
+        buttons.push({ label: "-", color: "#ffffbb", click: ()=>{
+            const ts = this.transport.getTimeSignature()
+            this.transport.setTimeSignature(Math.max(1, ts.numerator-1), 1)
+        }})
+
+
+        this.menu.set(buttons)
+    }
 }

@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite --host",
+    "dev": "HTTPS=true vite --host",
     "server": "cd server-config; node server.js",
     "all": "concurrently --handleInput --prefixColors red,green \"npm run server\" \"npm run dev\"",
     "build": "tsc && vite build",
