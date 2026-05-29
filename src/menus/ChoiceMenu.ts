@@ -5,7 +5,7 @@ import { AbstractMenu } from "./AbstractMenu"
 export interface MenuButton{
     label: string
     color?: string
-    action?: () => void
+    click?: () => void,
 }
 
 /**
@@ -54,36 +54,46 @@ export class ChoiceMenu extends AbstractMenu {
             text.outlineWidth = 4
         }
 
+        function styleButton(button: Button, info: MenuButton){
+            button.color = info.color ?? "white"
+            button.background = "rgb(0,0,0,0)"
+            button.width = "230px"
+            button.height= "80px"
+            button.setPaddingInPixels(5,5,5,5)
+            button.pointerEnterAnimation = () => {
+                button.background = "rgb(255,255,255,0.2)"
+            }
+            button.pointerOutAnimation = () => {
+                button.background = "rgb(0,0,0,0)"
+            }
+            button.pointerUpAnimation = () => {
+                button.scaleX = 1
+                button.scaleY = 1
+            }
+            button.pointerDownAnimation = ()=>{
+                button.scaleX = 0.95
+                button.scaleY = 0.95
+            }
+            styleTextBlock(button.textBlock!, info)
+        }
+
         this.buttons.clearControls()
         for(const buttonInfo of buttonsInfo){
-            if(buttonInfo.action){
+            if(buttonInfo.click){
                 const button = Button.CreateSimpleButton(buttonInfo.label, buttonInfo.label)
-                button.color = buttonInfo.color?? "white"
+                styleButton(button, buttonInfo)
                 styleTextBlock(button.textBlock!, buttonInfo)
-                button.width = "230px"
-                button.height= "80px"
-                button.setPaddingInPixels(5,5,5,5)
-                button.pointerEnterAnimation = () => {
-                    button.background = "rgb(255,255,255,0.2)"
-                }
-                button.pointerOutAnimation = () => {
-                    button.background = "rgb(0,0,0,0)"
-                }
+
+                const b = button.pointerUpAnimation
                 button.pointerUpAnimation = ()=>{
-                    button.scaleX = 1
-                    button.scaleY = 1
+                    b()
                     try{
-                        buttonInfo.action?.()
+                        buttonInfo.click?.()
                     }catch(e){
                         console.error("Error in button click handler:", e)
                     }
-                    console.log("Button up:", buttonInfo.label)
                 }
-                button.pointerDownAnimation = ()=>{
-                    button.scaleX = 0.95
-                    button.scaleY = 0.95
-                    console.log("Button down:", buttonInfo.label)
-                }
+                
                 this.buttons.addControl(button)
             }
             else{

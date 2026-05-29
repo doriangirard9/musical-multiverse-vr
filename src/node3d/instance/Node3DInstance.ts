@@ -163,7 +163,7 @@ export class Node3DInstance implements Synchronized {
             },
 
             // Afficher un menu ou un message
-            openMenu(choices: { label: string; color?: string, action?: () => void; }[]) {
+            openMenu(choices: { label: string; color?: string, click?: () => void; }[]) {
                 if(lastMenu && lastMenu instanceof ChoiceMenu && lastMenu===menus.current_menu){
                     lastMenu.set(choices)
                 }
