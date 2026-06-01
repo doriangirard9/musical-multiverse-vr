@@ -23,8 +23,20 @@ export default defineConfig({
   esbuild: {
     target: "es2022"
   },
+  // Polyfill du global Node pour les dépendances transitives de Magenta
+  // (typedarray-pool, ndarray-fft, ndarray-resample assument `global`).
+  // Sans ça : ReferenceError au moment du chargement du chunk Magenta.
+  define: {
+    global: 'globalThis',
+  },
   optimizeDeps: {
     exclude: ['@babylonjs/havok'],
+    // Pré-bundle Magenta + TF.js : leur format mixte ESM/CJS donne lieu
+    // à des erreurs de résolution au premier import du bench-page sinon.
+    include: [
+      '@magenta/music',
+      '@tensorflow/tfjs',
+    ],
     esbuildOptions: {
       target: "es2022",
     }

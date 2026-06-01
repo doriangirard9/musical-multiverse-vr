@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Benchmark IMusicGeneratorAdapter</title>
+    <style>
+        body { font-family: -apple-system, system-ui, sans-serif; margin: 24px; }
+        #boot-status { background: #ffe; border: 1px solid #ddc; padding: 16px;
+                       border-radius: 6px; font-family: ui-monospace, monospace; }
+        #boot-error { display:none; background: #fee; border: 1px solid #fcc;
+                      padding: 16px; border-radius: 6px;
+                      font-family: ui-monospace, monospace; white-space: pre-wrap; }
+    </style>
+</head>
+<body>
+    <h1>Benchmark IMusicGeneratorAdapter</h1>
+    <div id="boot-status">Chargement du module…</div>
+    <div id="boot-error"></div>
+
+    <script type="module">
+        // Garde-fou : capture toute erreur d'import du module principal
+        // pour qu'on la voie sans avoir à ouvrir la console.
+        window.addEventListener('error', (e) => {
+            const box = document.getElementById('boot-error');
+            box.style.display = 'block';
+            box.textContent = '❌ Erreur de chargement :\n\n' +
+                              (e.error?.stack || e.message || String(e));
+        });
+        window.addEventListener('unhandledrejection', (e) => {
+            const box = document.getElementById('boot-error');
+            box.style.display = 'block';
+            box.textContent = '❌ Promesse rejetée pendant le chargement :\n\n' +
+                              (e.reason?.stack || e.reason?.message || String(e.reason));
+        });
+
+        // Import dynamique du module : si l'import échoue, on attrape
+        // l'erreur ici plutôt qu'au top-level (qui afficherait juste
+        // une page vide).
+        try {
+            await import('./bench-page.ts');
+            document.getElementById('boot-status').textContent =
+                '✓ Module chargé. Si la page ne se peuple pas, vérifier la console.';
+        } catch (e) {
+            const box = document.getElementById('boot-error');
+            box.style.display = 'block';
+            box.textContent = '❌ Échec de l\'import du module :\n\n' +
+                              (e.stack || e.message || String(e));
+        }
+    </script>
+</body>
+</html>
