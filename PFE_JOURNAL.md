@@ -76,6 +76,153 @@ plan prévoit :
 
 ---
 
+## 2026-06-02 — VALIDATION scheduler sur Pro54 : architecture confirmée [mesure] [décision]
+
+### Résultats (4 min, melody_rnn primer 8, branché sur Pro54 réel)
+
+```
+generationCalls : 509
+scheduledEvents : 989
+lateEvents      : 2      (uniquement après stress-test extrême)
+lowBufferTicks  : 406
+bufferDepthSec  : 0.460 s
+adapter p95     : 154.1 ms
+adapter p99     : 208.0 ms
+```
+
+À l'oreille : **son parfaitement continu**, aucun trou. Tempo et vélocité
+réagissent instantanément. Température réagit avec ~horizon de retard
+(attendu, bufferisé).
+
+### Verdict : ARCHITECTURE LOOK-AHEAD VALIDÉE
+
+- **lateEvents = 0 à réglages normaux** même quand l'adapter p99 monte à
+  208 ms → le buffer absorbe bien les pics GC. C'était LA preuve attendue.
+- Les 2 lateEvents ne sont apparus QU'APRÈS avoir poussé l'horizon à
+  0.10 s + maxé tempo/vélocité/température.
+
+### Le "glitch" est une confirmation, pas un échec
+
+Horizon 0.10 s < p95 du modèle 0.154 s. On ne peut PAS générer plus vite
+que le modèle ne tourne. Si horizon < latence_génération, le buffer DOIT
+finir par se vider — impossibilité physique, pas bug. 2 lateEvents sur
+989 (0.2 %) dans ces conditions cassées = amorti par le chunk multi-notes.
+
+### RÈGLE DE CONCEPTION (publiable)
+
+> **Horizon minimal viable ≈ p95 de latence du modèle SOUS CHARGE.**
+
+Horizon sûr ≈ 2-3× la p95. Avec p95 ≈ 154 ms → horizon 0.5 s = ~3× =
+marge confortable. Valide le défaut 0.5 s. En dessous de la latence du
+modèle → glitches inévitables. Façon principielle de régler l'horizon.
+
+### Finding : latence sous charge ≈ +50 % vs benchmark isolé
+
+| Contexte | melody_rnn p95 |
+|----------|----------------|
+| Benchmark isolé (run #3) | 102 ms |
+| Sous charge (Pro54 + audio + UI) | 154 ms |
+
+→ **La vraie latence d'usage est celle sous charge.** Le benchmark isolé
+sous-estime de ~50 %. À mentionner dans le mémoire : toujours mesurer en
+conditions d'usage, pas seulement en isolation. (Renforce la leçon du
+run #1/#2 sur les benchmarks trompeurs.)
+
+### Note : lowBufferTicks = 406 mais 0 échec réel
+
+Buffer descendu en zone d'alerte (< scheduleAheadSec 0.1 s) sur ~4 % des
+ticks (~9600 ticks sur 4 min) — surtout pendant le stress-test à 0.10 s
+et au démarrage. Au régime stable : bufferDepthSec 0.46 s ≈ horizon =
+sain. La marge fonctionne. Levier si besoin un jour : augmenter
+generationChunkMs (250 → 500) pour des chunks de sécurité plus gros.
+
+### Synergie repérée pour la suite
+
+Le `AIComposerN3D` (Node3D à venir) exposera ses hyperparamètres
+(température, densité) comme ENTRÉES d'automation. Or l'AudioPlaque et la
+Superformula déjà construites SORTENT des signaux d'automation 0..1.
+→ On pourra **diriger l'IA avec la balle de l'AudioPlaque ou la courbe de
+la Superformula AVANT même d'avoir la capture gestuelle**. Démo
+intermédiaire puissante qui réutilise tout l'existant.
+
+---
+
+## 2026-06-02 — Architecture look-ahead : découplage génération/lecture [décision]
+
+### Le problème résolu
+
+Run #3 a montré : latence Magenta ~100 ms (p95) + pics GC jusqu'à 300 ms
+(p99). Trop pour un appel-par-note dans le chemin audio. Solution : un
+**scheduler look-ahead** qui découple deux horloges.
+
+### Décision d'architecture (centrale pour le PFE)
+
+Le `MidiLookaheadScheduler` introduit une séparation entre :
+- **Temps de génération** : le modèle produit en avance dans un buffer
+- **Temps de lecture** : le transport draine le buffer aux temps précis
+
+Pattern "A Tale of Two Clocks" (Chris Wilson, 2013) : boucle JS grossière
+(tick 25 ms) qui programme sur l'horloge audio précise (AudioContext).
+
+### Le geste pilote DEUX choses à DEUX latences
+
+| Domaine | Gestes (chef) | Latence | Implémentation |
+|---------|---------------|---------|----------------|
+| Hyperparamètres | main gauche (température, densité, gamme) | = horizon buffer (~500 ms) | passés à l'adapter, affectent la génération FUTURE |
+| Post-génération | main droite (tempo, dynamique, accent) | ≈ 0 | appliqués AU DRAIN, ne passent pas par le modèle |
+
+**Insight musicalement authentique** : la main droite du chef (baguette =
+articulation/dynamique immédiate) tombe sur les contrôles à latence nulle ;
+la main gauche (façonnage du caractère, anticipé) tombe sur les
+hyperparamètres bufferisés. La double latence n'est pas un compromis subi,
+elle est **isomorphe à la cognition de la direction d'orchestre**. → À
+argumenter dans le mémoire comme contribution de conception.
+
+### Choix techniques retenus
+
+- **Horizon de génération configurable et jouable** (champ public
+  `horizonSec` + `setHorizonSec`, slider dans la page de test). Défaut
+  0.5 s ≈ 1 mesure à 120 BPM. L'utilisateur peut le régler ; ça devient
+  potentiellement un hyperparamètre exposé au mapping.
+- **Timing musical relatif dans le buffer** : les événements sont stockés
+  en deltaMs au tempo nominal, le temps audio absolu est calculé au drain
+  avec tempoScale → **tempo ET vélocité immédiats** (appliqués au drain,
+  pas pré-calculés). C'est plus propre que stocker des temps absolus.
+- **scheduleCallback découplé** (adapter pattern, comme demandé) : le
+  scheduler ignore Pro54, on lui injecte la fonction de programmation.
+  Testable avec un mock, branchable sur Pro54 en prod, réutilisable.
+- **Branchement Pro54 seul** (pas d'effet dans la chaîne) pour isoler la
+  validation du scheduler.
+
+### Métriques de validation (dans SchedulerStats)
+
+- `lateEvents` : événements programmés dans le passé = glitch audible.
+  **Critère de succès : doit rester à 0.** C'est LA preuve que le buffer
+  masque les pics GC.
+- `lowBufferTicks` : ticks où le buffer est tombé sous scheduleAheadSec
+  (risque de sous-alimentation).
+- `bufferDepthSec` : profondeur courante.
+
+### Fichiers livrés
+
+- `ai/scheduler/MidiLookaheadScheduler.ts` — composant pur
+- `ai/scheduler/scheduler-test-page.{ts,html}` — validation sur Pro54 réel
+  avec sliders (horizon, tempo, vélocité, température) + choix du modèle
+
+### À mesurer (prochain run de Yassine)
+
+Lancer la page, démarrer avec melody_rnn, laisser tourner plusieurs
+minutes en bougeant les sliders. Vérifier :
+1. **lateEvents reste à 0** même quand l'adapter p99 monte à 300 ms
+   → le buffer absorbe bien les pics GC
+2. Le **son est continu** (pas de trou à l'oreille)
+3. Tempo/vélocité **réagissent instantanément**
+4. Température réagit avec un **retard ≈ horizon** (normal, bufferisé)
+5. Réduire l'horizon à 0.15 s → voir apparaître des lateEvents (preuve
+   que l'horizon protège bien, et qu'il y a un plancher)
+
+---
+
 ## 2026-06-01 — Run #3 : loi primer↔latence + décision modèle [mesure] [décision]
 
 ### Résultats (hard-reload effectué, mesure principale 60 calls)

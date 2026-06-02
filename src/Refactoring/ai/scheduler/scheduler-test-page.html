@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Validation MidiLookaheadScheduler → Pro54</title>
+</head>
+<body>
+    <div id="boot">Chargement…</div>
+    <script type="module">
+        window.addEventListener('error', (e) => {
+            document.getElementById('boot').textContent =
+                '❌ ' + (e.error?.stack || e.message || String(e));
+        });
+        try {
+            await import('./scheduler-test-page.ts');
+            const b = document.getElementById('boot');
+            if (b) b.remove();
+        } catch (e) {
+            document.getElementById('boot').textContent =
+                '❌ Import échoué : ' + (e.stack || e.message || String(e));
+        }
+    </script>
+</body>
+</html>
