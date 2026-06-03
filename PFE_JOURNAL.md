@@ -76,6 +76,148 @@ plan prévoit :
 
 ---
 
+## 2026-06-03 — BLOCAGE : TF.js gèle le thread principal [surprise] [blocage]
+
+### Symptôme
+
+AIComposer validé dans le monde VR : le son sort de Pro54, génération
+parfaite, câblage AudioPlaque→température/densité fonctionne. MAIS dès que
+le modèle tourne, le WamJamParty **lague fortement**. Et ça empire à mesure
+que X (température) et surtout Y (densité) augmentent.
+
+### Diagnostic
+
+**TF.js exécute l'inférence sur le THREAD PRINCIPAL.** Le RNN tourne sur le
+GPU (WebGL) mais l'orchestration JS + le download des tenseurs GPU→CPU
+bloquent le main thread ~100-150 ms par génération. Ce thread est partagé
+avec :
+- boucle de rendu Babylon (16 ms/frame à 60 fps)
+- rendu XR (11 ms/frame à 90 fps sur Quest)
+- traitement audio des WAM
+
+→ chaque génération gèle le rendu ~100-150 ms = frames sautées = lag VR.
+
+### Pourquoi ça empire avec la densité (Y)
+
+density ↑ a un DOUBLE effet aggravant :
+1. plus de notes/génération → buffer se vide plus vite → générations plus
+   FRÉQUENTES
+2. `stepsToGen = baseSteps × (density/2)` → chaque génération plus LONGUE
+   (plus de pas RNN à calculer)
+
+La température (X) seule ne change pas le coût de calcul → c'est bien la
+densité le coupable. Confirme la nature "compute-bound sur main thread"
+du problème.
+
+### Le scheduler look-ahead ne résout PAS ça
+
+Important : le scheduler résout le problème de TIMING (les notes sortent au
+bon moment malgré la latence). Mais il n'empêche pas le BLOCAGE du thread :
+quand `requestNext` tourne dans `generateMore()`, c'est du JS synchrone sur
+le main thread qui gèle le rendu, scheduler ou pas. Le scheduler masque les
+trous AUDIO, pas les trous VISUELS.
+
+### Solutions (par ordre de propreté)
+
+1. **Web Worker** (LA solution) : faire tourner Magenta/TF.js dans un worker
+   thread. Le main thread reste libre pour le rendu. Défis :
+   - TF.js WebGL en worker nécessite OffscreenCanvas
+   - Communication worker↔main par messages (sérialiser les MidiEvent)
+   - L'adapter devient async-over-postMessage → un nouvel adapter
+     `WebWorkerAdapter` qui wrappe n'importe quel adapter dans un worker
+   - S'intègre PARFAITEMENT à l'adapter pattern : c'est juste un adapter
+     qui délègue à un worker.
+2. **Throttle de densité** : caper stepsToGen, générer par plus gros chunks
+   moins souvent (réduit la fréquence mais pas la durée du gel → palliatif).
+3. **Backend WebGPU** de TF.js : potentiellement moins bloquant, à
+   benchmarker.
+4. **Tier 2 serveur** : déplacer l'inférence hors navigateur (déjà prévu
+   comme extension). Le serveur ne bloque jamais le rendu VR.
+
+### Décision
+
+Le **WebWorkerAdapter** est la prochaine grosse tâche. Il valide aussi
+élégamment l'adapter pattern : on enveloppe melody_rnn dans un worker sans
+toucher au scheduler ni à l'AIComposerN3D. C'est un finding fort pour le
+mémoire : "AI in the browser" pour de la VR temps réel EXIGE le threading,
+sinon le rendu et l'inférence se battent pour le main thread. Peu de
+travaux le mesurent dans ce contexte précis (cf section 8.6 du plan).
+
+### Étape validée malgré tout
+
+La chaîne Couche A → audio fonctionne dans le monde VR, et la synergie
+contrôleurs→IA est démontrée. Le lag est un problème de PERFORMANCE
+(threading), pas d'ARCHITECTURE. L'archi est bonne ; il faut juste sortir
+l'inférence du main thread.
+
+---
+
+## 2026-06-02 — AIComposerN3D : l'IA entre dans le monde VR [décision]
+
+### Premier instrument IA intégré
+
+`node3d/subs/ai/AIComposerN3D.ts` — encapsule adapter melody_rnn +
+MidiLookaheadScheduler dans un Node3D câblable dans le monde.
+
+### Réutilisation de l'existant (exigence respectée)
+
+- **Sortie MIDI** : `MidiN3DConnectable.ListOutput` natif. Le scheduler
+  envoie les événements via `scheduleEvents()` à tous les WAM câblés en
+  aval — EXACTEMENT le pattern du SequencerN3D (vérifié : SequencerN3D.ts
+  ligne 234, `for(const cn of this.midi_output.connections) cn.scheduleEvents(...)`).
+  Donc l'AIComposer se câble nativement à Pro54 dans le monde, comme
+  n'importe quel générateur MIDI.
+
+### La synergie réalisée
+
+Entrées d'automation `température` et `densité` (AutomationN3DConnectable
+.Input). L'AudioPlaque et la Superformula SORTENT déjà des signaux 0..1.
+→ On peut câbler `AudioPlaque.X → AIComposer.température` et diriger l'IA
+avec la balle, AVANT toute capture gestuelle. Démo intermédiaire.
+
+### Mapping des deux latences, concrètement
+
+| Contrôle | Câblage | Latence |
+|----------|---------|---------|
+| température, densité | entrées automation (depuis AudioPlaque/etc.) | bufferisée (~horizon) |
+| tempo, vélocité | potards locaux → scheduler (drain) | immédiat |
+| horizon | potard local | règle le buffer |
+
+### Init paresseux
+
+L'adapter télécharge son checkpoint (~qq s). Init au PREMIER play, pas au
+spawn (sinon tout spawn bloquerait). Bouton play : vert=prêt,
+jaune=chargement, rouge=en cours, rouge foncé=erreur. Message
+"Chargement du modèle IA…" affiché pendant.
+
+### Enregistrement
+
+- `Node3DBuilder` : kind `ai_composer` → `AIComposerN3DFactory.MELODY`
+- `menuConfig.json` : entrée "AI Composer" dans Instruments
+- Type-check global propre.
+
+### À tester (prochain run de Yassine)
+
+Patch de démo à monter dans le monde VR :
+```
+AudioPlaque ──X(auto)──► AIComposer ──MIDI──► Pro54 ──audio──► AudioOutput
+                              ▲
+            Superformula.radius┘ (densité, optionnel)
+```
+1. Spawn AIComposer + Pro54 + AudioOutput
+2. Câbler AIComposer.MIDI → Pro54.MIDI-in, Pro54.audio → speaker
+3. Appuyer play sur l'AIComposer → modèle charge → musique sort de Pro54
+4. Spawn AudioPlaque, câbler X → AIComposer.température
+5. Bouger la balle → entendre le caractère de la musique changer (avec
+   ~horizon de retard, normal)
+6. Tourner les potards tempo/vélocité → changement immédiat
+
+→ Si ça marche : chaîne complète Couche A → audio validée DANS le monde
+VR, et la synergie contrôleurs→IA démontrée. Prêt pour la capture
+gestuelle (Couche C) qui se câblera aux mêmes entrées.
+
+---
+
 ## 2026-06-02 — VALIDATION scheduler sur Pro54 : architecture confirmée [mesure] [décision]
 
 ### Résultats (4 min, melody_rnn primer 8, branché sur Pro54 réel)
