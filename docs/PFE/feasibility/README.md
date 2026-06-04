@@ -1,26 +1,21 @@
 # Tests de faisabilité (Phase 0)
 
-*Scripts éphémères pour valider la viabilité des briques techniques avant
-d'investir dans l'intégration au projet Node3D. Tout ce qui est ici sera
-supprimé une fois Phase 0 close et les conclusions actées dans
-[`../02_DECISIONS.md`](../02_DECISIONS.md).*
+*Phase 0 close. Les tests prévus ici (scripts HTML éphémères) ont été
+remplacés par des **outils de mesure intégrés** dans `src/`, plus durables et
+reproductibles car ils réutilisent le code de production via l'adapter pattern.*
 
-## Contenu prévu
+## Où sont les outils maintenant
 
-- `magenta-latency.html` — Phase 0.2. Charge Magenta MelodyRNN, génère
-  100 notes, mesure la latence d'inférence et exporte un CSV.
-- `webxr-hand-tracking.html` — Phase 0.3. Active le hand tracking WebXR,
-  trace les positions et la fréquence d'échantillonnage.
+| Test prévu (Phase 0) | Réalisé sous forme de | Mesure actée dans |
+|----------------------|------------------------|-------------------|
+| Latence Magenta (0.2) | `src/Refactoring/ai/benchmark/bench-page.html` | [M-001, M-003](../03_MESURES.md) |
+| Validation scheduler | `src/Refactoring/ai/scheduler/scheduler-test-page.html` | [M-004](../03_MESURES.md) |
+| Hand tracking WebXR (0.3) | *à créer en Phase 1* (capture gestuelle) | M-002 (futur) |
 
-## Exécution
+## Pourquoi ce déplacement
 
-Chaque fichier HTML est autonome. Pour les lancer :
-
-```bash
-cd docs/PFE/feasibility
-python3 -m http.server 8080 --bind 127.0.0.1
-# Puis ouvrir http://localhost:8080/<fichier>.html
-```
-
-Pour le test WebXR, il faut HTTPS et un Quest connecté en USB+adb reverse,
-comme pour le projet principal.
+Le cadrage prévoyait des scripts jetables. En pratique, les outils de mesure
+sont devenus des **pages servies par Vite** qui réutilisent le code de
+production (adapters, scheduler). Ils restent donc valides au fil du projet au
+lieu d'être supprimés. Conclusions de Phase 0 : [`../02_DECISIONS.md`](../02_DECISIONS.md)
+(ADR-003 à 007) et [`../03_MESURES.md`](../03_MESURES.md).

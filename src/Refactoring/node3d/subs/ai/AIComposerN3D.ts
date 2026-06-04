@@ -3,8 +3,9 @@ import type { Node3D, Node3DFactory, Node3DGUI, Serializable } from "../../Node3
 import type { Node3DContext } from "../../Node3DContext";
 import type { Node3DGUIContext } from "../../Node3DGUIContext";
 import { MidiLookaheadScheduler } from "../../../ai/scheduler/MidiLookaheadScheduler";
-import { MagentaMusicRNNAdapter, MagentaRNNVariant } from "../../../ai/adapters/MagentaMusicRNNAdapter";
-import type { IMusicGeneratorAdapter } from "../../../ai/IMusicGeneratorAdapter";
+import type { MagentaRNNVariant } from "../../../ai/adapters/MagentaMusicRNNAdapter";
+import { WebWorkerAdapter } from "../../../ai/adapters/WebWorkerAdapter";
+import { PerfMonitor } from "../../../ai/perf/PerfMonitor";
 import type { MidiEvent } from "../../../ai/types";
 
 // ─── AIComposerN3D ───────────────────────────────────────────────────────────
@@ -120,8 +121,9 @@ export class AIComposerN3DGUI implements Node3DGUI {
 // ─── Logic ──────────────────────────────────────────────────────────────────
 
 export class AIComposerN3D implements Node3D {
-    private adapter: IMusicGeneratorAdapter;
+    private adapter: WebWorkerAdapter;
     private scheduler!: MidiLookaheadScheduler;
+    private perf!: PerfMonitor;
     private midiOutput!: InstanceType<(typeof import("../../tools"))["MidiN3DConnectable"]["ListOutput"]>;
 
     private playing = false;
@@ -143,7 +145,9 @@ export class AIComposerN3D implements Node3D {
         context.addToBoundingBox(gui.body);
 
         // ── Adapter (pas encore init — lazy au premier play) ──────────────────
-        this.adapter = new MagentaMusicRNNAdapter({ variant, primerMaxNotes: 8 });
+        // WebWorkerAdapter : l'inférence TF.js tourne dans un worker → le rendu
+        // VR n'est plus bloqué. Même interface, scheduler inchangé.
+        this.adapter = new WebWorkerAdapter({ variant, primerMaxNotes: 8 });
 
         // ── Sortie MIDI : ListOutput natif ────────────────────────────────────
         // Le scheduler enverra les événements à tous les WAM câblés en aval.
@@ -161,6 +165,9 @@ export class AIComposerN3D implements Node3D {
         );
         this.scheduler.setTempoScale(this.tempo);
         this.scheduler.setVelocityScale(this.velocity);
+
+        // ── PerfMonitor : mesure FPS / frame times / flux pour valider le gain ──
+        this.perf = new PerfMonitor(gui.root.getScene(), this.scheduler, this.adapter);
 
         // ── Entrées d'automation : température + densité ──────────────────────
         // setValue(0..1) appelé par l'AudioPlaque/Superformula câblée en amont.
@@ -219,6 +226,7 @@ export class AIComposerN3D implements Node3D {
 
         if (this.playing) {
             this.scheduler.stop();
+            this.perf.stop();
             this.playing = false;
             this.gui.playMat.emissiveColor = new Color3(0.2, 0.7, 0.3);   // vert
             console.log("[AIComposer] stop");
@@ -229,11 +237,11 @@ export class AIComposerN3D implements Node3D {
         if (!this.adapterReady) {
             this.initializing = true;
             this.gui.playMat.emissiveColor = new Color3(0.9, 0.7, 0.1);   // jaune = chargement
-            this.context.showMessage("Chargement du modèle IA…");
+            this.context.showMessage("Chargement du modèle IA (worker)…");
             try {
                 await this.adapter.init();
                 this.adapterReady = true;
-                console.log(`[AIComposer] adapter prêt (init ${this.adapter.stats.initTimeMs.toFixed(0)} ms)`);
+                console.log(`[AIComposer] adapter prêt (init ${this.adapter.stats.initTimeMs.toFixed(0)} ms, backend=${this.adapter.backend})`);
             } catch (e) {
                 console.error("[AIComposer] init échouée:", e);
                 this.context.showMessage("Échec du chargement du modèle.");
@@ -245,6 +253,7 @@ export class AIComposerN3D implements Node3D {
         }
 
         this.scheduler.start();
+        this.perf.start();   // logge FPS / frame times / flux toutes les 2 s
         this.playing = true;
         this.gui.playMat.emissiveColor = new Color3(0.9, 0.2, 0.3);   // rouge = en cours (= stop)
         console.log("[AIComposer] play");
@@ -289,6 +298,7 @@ export class AIComposerN3D implements Node3D {
     }
 
     async dispose() {
+        this.perf?.stop();
         this.scheduler?.stop();
         await this.adapter?.dispose();
     }

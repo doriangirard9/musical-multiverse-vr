@@ -31,11 +31,14 @@ export default defineConfig({
   },
   optimizeDeps: {
     exclude: ['@babylonjs/havok'],
-    // Pré-bundle Magenta + TF.js : leur format mixte ESM/CJS donne lieu
-    // à des erreurs de résolution au premier import du bench-page sinon.
+    // Pré-bundle des SOUS-MODULES Magenta (pas le barrel complet qui tire
+    // l'audio → OfflineAudioContext, incompatible worker) + TF.js + backend
+    // WASM. Leur format mixte ESM/CJS exige le pré-bundling esbuild.
     include: [
-      '@magenta/music',
+      '@magenta/music/esm/music_rnn',
+      '@magenta/music/esm/core/sequences',
       '@tensorflow/tfjs',
+      '@tensorflow/tfjs-backend-wasm',
     ],
     esbuildOptions: {
       target: "es2022",

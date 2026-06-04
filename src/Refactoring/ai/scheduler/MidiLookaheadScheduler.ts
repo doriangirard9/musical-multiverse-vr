@@ -78,6 +78,10 @@ export interface SchedulerStats {
     lowBufferTicks: number;
     /** Profondeur courante du buffer en secondes (temps réel, tempo appliqué). */
     bufferDepthSec: number;
+    /** Notes (note-on) GÉNÉRÉES par l'adapter depuis le start. */
+    notesGenerated: number;
+    /** Notes (note-on) effectivement JOUÉES (envoyées au scheduleCallback). */
+    notesPlayed: number;
 }
 
 export class MidiLookaheadScheduler {
@@ -106,6 +110,8 @@ export class MidiLookaheadScheduler {
         lateEvents: 0,
         lowBufferTicks: 0,
         bufferDepthSec: 0,
+        notesGenerated: 0,
+        notesPlayed: 0,
     };
 
     constructor(
@@ -183,6 +189,7 @@ export class MidiLookaheadScheduler {
                 this._stats.scheduledEvents++;
                 this.scheduleCallback(this.applyVelocity(pe.event), t);
             }
+            if (pe.event.type === "note-on") this._stats.notesPlayed++;
 
             // Avancer le temps de tête : delta du PROCHAIN événement, tempo appliqué
             const next = this.pending[0];
@@ -233,6 +240,7 @@ export class MidiLookaheadScheduler {
                 this.pending.push({ event: ev, deltaMs: ev.deltaMs });
                 // Maintenir le contexte glissant (16 derniers note-on)
                 if (ev.type === "note-on") {
+                    this._stats.notesGenerated++;
                     this.contextWindow.push(ev);
                     if (this.contextWindow.length > 16) this.contextWindow.shift();
                 }

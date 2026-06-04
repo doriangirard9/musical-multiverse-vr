@@ -1,4 +1,12 @@
-import * as mm from "@magenta/music";
+// IMPORTS CIBLÉS (sous-modules) — surtout PAS `@magenta/music` complet.
+// Le barrel complet tire gansynth/ddsp/spice/transcription → core/audio_utils,
+// qui crée un OfflineAudioContext AU CHARGEMENT (top-level) → crash dans un
+// worker ("Cannot use offline audio context in a web worker").  MusicRNN +
+// core/sequences ne touchent jamais audio_utils (vérifié).  Bonus : bundle
+// bien plus léger partout (main thread inclus).
+import { MusicRNN } from "@magenta/music/esm/music_rnn";
+import * as sequences from "@magenta/music/esm/core/sequences";
+import type { INoteSequence } from "@magenta/music/esm/protobuf";
 import {
     IMusicGeneratorAdapter, AdapterCapabilities, AdapterTier,
 } from "../IMusicGeneratorAdapter";
@@ -8,7 +16,7 @@ import {
 
 // ─── MagentaMusicRNNAdapter ──────────────────────────────────────────────────
 //
-//   Premier vrai modèle d'IA générative dans le benchmark.  Wraps `mm.MusicRNN`
+//   Premier vrai modèle d'IA générative dans le benchmark.  Wraps `MusicRNN`
 //   de Magenta.js (TensorFlow.js sous le capot).
 //
 //   Trois checkpoints disponibles côté Google (URLs publiques) :
@@ -115,7 +123,7 @@ export class MagentaMusicRNNAdapter implements IMusicGeneratorAdapter {
 
     readonly stats: AdapterStats = emptyStats();
 
-    private rnn: mm.MusicRNN | null = null;
+    private rnn: MusicRNN | null = null;
     private variant: MagentaRNNVariant;
     private checkpointUrl: string;
     private chordProgression: string[] | null;
@@ -125,7 +133,7 @@ export class MagentaMusicRNNAdapter implements IMusicGeneratorAdapter {
     private latencies: number[] = [];
 
     // Primer NoteSequence — historique des notes émises, taille bornée
-    private primer: mm.INoteSequence = {
+    private primer: INoteSequence = {
         notes: [],
         totalTime: 0,
         ticksPerQuarter: 220,
@@ -165,7 +173,7 @@ export class MagentaMusicRNNAdapter implements IMusicGeneratorAdapter {
         try {
             opts?.progressCallback?.(0);
 
-            this.rnn = new mm.MusicRNN(this.checkpointUrl);
+            this.rnn = new MusicRNN(this.checkpointUrl);
             await this.rnn.initialize();
 
             opts?.progressCallback?.(0.7);
@@ -173,7 +181,7 @@ export class MagentaMusicRNNAdapter implements IMusicGeneratorAdapter {
             // Warm-up : un premier appel à continueSequence pour amorcer les
             // weights TF.js dans le contexte WebGL.  Sans ça, le tout premier
             // appel "réel" payerait le coût du JIT et fausserait la mesure p95.
-            const qns = mm.sequences.quantizeNoteSequence(this.primer, STEPS_PER_QUARTER);
+            const qns = sequences.quantizeNoteSequence(this.primer, STEPS_PER_QUARTER);
             await this.rnn.continueSequence(
                 qns, 4, 1.0, this.chordProgression ?? undefined,
             );
@@ -226,7 +234,7 @@ export class MagentaMusicRNNAdapter implements IMusicGeneratorAdapter {
             this.absorbContextNotes(context);
 
             // 2. Quantifier le primer
-            const qns = mm.sequences.quantizeNoteSequence(this.primer, STEPS_PER_QUARTER);
+            const qns = sequences.quantizeNoteSequence(this.primer, STEPS_PER_QUARTER);
 
             // 3. Choisir combien de steps générer
             //    densityFactor = 1..8 → on multiplie par ceil(dtMs / MS_PER_STEP)

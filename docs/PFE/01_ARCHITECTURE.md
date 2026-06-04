@@ -1,18 +1,29 @@
 # Architecture du système
 
-*Décrit l'architecture du Chef d'Orchestre IA telle qu'elle est implémentée
-à un instant T. Document vivant — mis à jour à chaque évolution structurelle.*
+*Architecture du Chef d'Orchestre IA telle qu'implémentée. Document vivant.*
+
+> **Statut global** : Couche A (génération IA) **implémentée et validée**.
+> Couches B (mapping) et C (capture gestuelle) **non commencées**. En
+> attendant la capture gestuelle, les contrôleurs existants (AudioPlaque,
+> Superformula) servent de source de modulation — voir [synergie](#synergie-contrôleurs--ia).
 
 ---
 
 ## Sommaire
 
 - [Vue d'ensemble (trois couches)](#vue-densemble-trois-couches)
-- [Couche C — Capture gestuelle (`HandGestureN3D`)](#couche-c--capture-gestuelle-handgesturen3d)
-- [Couche B — Mapping (`GestureMapperN3D`)](#couche-b--mapping-gesturemappern3d)
-- [Couche A — Génération IA (`AIComposerN3D`)](#couche-a--génération-ia-aicomposern3d)
-- [Intégration dans le système Node3D existant](#intégration-dans-le-système-node3d-existant)
-- [Budget de latence](#budget-de-latence)
+- [Le découpage en deux latences](#le-découpage-en-deux-latences)
+- [Couche A — Génération IA (implémentée)](#couche-a--génération-ia-implémentée)
+  - [Adapter pattern](#adapter-pattern)
+  - [Le scheduler look-ahead](#le-scheduler-look-ahead)
+  - [Le threading (Web Worker)](#le-threading-web-worker)
+  - [AIComposerN3D](#aicomposern3d)
+  - [Paramètres du modèle](#paramètres-du-modèle)
+- [Couche B — Mapping (à venir)](#couche-b--mapping-à-venir)
+- [Couche C — Capture gestuelle (à venir)](#couche-c--capture-gestuelle-à-venir)
+- [Synergie contrôleurs → IA](#synergie-contrôleurs--ia)
+- [Carte des fichiers](#carte-des-fichiers)
+- [Budget de latence (révisé)](#budget-de-latence-révisé)
 
 ---
 
@@ -20,199 +31,226 @@
 
 ```
 ┌────────────────────────────────────────────────────────────────────┐
-│ Couche C — CAPTURE GESTUELLE                                       │
-│   HandGestureN3D                                                   │
-│   In :  WebXR hand tracking (25 joints × 2 mains × 60 Hz)          │
-│   Out : ~10 sorties d'automation 0..1 (features géométriques)      │
+│ Couche C — CAPTURE GESTUELLE        (non implémentée — Phase 1)    │
+│   WebXR hand tracking → ~10 sorties d'automation 0..1              │
 └────────────────────────────────────────────────────────────────────┘
                               │
-                              ▼
 ┌────────────────────────────────────────────────────────────────────┐
-│ Couche B — MAPPING                                                 │
-│   GestureMapperN3D                                                 │
-│   In :  features gestuelles (entrées automation)                   │
-│   Out : paramètres musicaux (sorties automation)                   │
-│   Logique : matrice de mapping configurable                        │
+│ Couche B — MAPPING                  (non implémentée — Phase 2)    │
+│   features gestuelles → paramètres musicaux (matrice)             │
 └────────────────────────────────────────────────────────────────────┘
                               │
-                              ▼
 ┌────────────────────────────────────────────────────────────────────┐
-│ Couche A — GÉNÉRATION IA                                           │
+│ Couche A — GÉNÉRATION IA            ✅ IMPLÉMENTÉE                  │
 │   AIComposerN3D                                                    │
-│   In :  paramètres musicaux (entrées automation)                   │
-│   Out : événements MIDI (sortie MIDI)                              │
-│   Modèle : Magenta MelodyRNN / DrumRNN (pré-entraîné)              │
+│     ├─ adapter (IMusicGeneratorAdapter)  ── Markov | Magenta | Worker │
+│     ├─ MidiLookaheadScheduler  (découplage génération/lecture)     │
+│     └─ sortie MIDI (MidiN3DConnectable.ListOutput)                 │
 └────────────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
+                              │  MIDI
 ┌────────────────────────────────────────────────────────────────────┐
-│   INSTRUMENTS WAM existants (Pro54, DrumKit, etc.)                 │
+│   INSTRUMENTS WAM existants (Pro54, DrumKit…) → audio              │
 └────────────────────────────────────────────────────────────────────┘
 ```
 
-Chaque Node3D est câblable indépendamment dans l'éditeur 3D du projet, comme
-tous les autres instruments. L'utilisateur peut donc tester chaque couche
-isolément, ou substituer un mapping personnalisé sans toucher au code.
+Chaque Node3D est câblable indépendamment dans l'éditeur 3D, comme tout
+instrument. On peut tester chaque couche isolément — exigence de l'évaluation
+comparative (geste-IA vs potards-IA vs potards-Markov).
 
 ---
 
-## Couche C — Capture gestuelle (`HandGestureN3D`)
+## Le découpage en deux latences
 
-### Statut : **non implémenté** (Phase 1)
+**Décision structurante** (voir [ADR-005](./02_DECISIONS.md)). Le geste du chef
+pilote DEUX familles de contrôles à DEUX latences différentes :
 
-### Responsabilités
+| Famille | Contrôles | Chemin | Latence | Main du chef |
+|---------|-----------|--------|---------|--------------|
+| **Génération** | température, densité, gamme | → hyperparamètres du modèle → génération FUTURE | ≈ horizon du buffer (~0.5 s) | gauche (façonne le caractère) |
+| **Lecture** | tempo, vélocité | → appliqués au drain du scheduler | ≈ 0 (immédiat) | droite (articulation) |
 
-- Activer `WebXRHandTracking` via Babylon
-- Échantillonner les 25 joints × 2 mains à 60 Hz
-- Calculer des features géométriques de plus haut niveau
-- Exposer chaque feature comme une sortie d'automation 0..1
-
-### Features exposées (provisoire)
-
-| Sortie | Description | Source géométrique |
-|--------|-------------|---------------------|
-| `rightHandY` | Hauteur main droite (relative au torse) | poignet.y |
-| `rightHandVelocity` | Vitesse instantanée main droite | dérivée des positions |
-| `rightHandAcceleration` | Accélération instantanée main droite | dérivée seconde |
-| `leftHandY` | Hauteur main gauche | poignet.y |
-| `leftHandVelocity` | Vitesse instantanée main gauche | dérivée des positions |
-| `handSpread` | Distance entre les deux poignets | norme du vecteur |
-| `rightHandOpenness` | Ouverture main droite (0=fermée, 1=ouverte) | écart pouce-petit doigt |
-| `leftHandOpenness` | Ouverture main gauche | écart pouce-petit doigt |
-| `rightHandPinch` | Détection de pince index-pouce | distance index-pouce |
-| `leftHandPinch` | Détection de pince index-pouce | distance index-pouce |
-
-### Algorithme
-
-1. À chaque tick du moteur de rendu (60 Hz) :
-   - Lire les positions des joints depuis Babylon
-   - Calculer les features (vectorisé, sans boucles imbriquées)
-   - Normaliser entre 0..1 (les plages min/max sont des constantes calibrées)
-   - Écrire sur les sorties automation correspondantes
-
-2. Lissage exponentiel (alpha ≈ 0.7) sur les features dérivées pour éviter
-   le bruit haute fréquence du tracking.
-
-### Risques
-
-- Tracking imprécis en faible lumière → ajouter un mode de fallback contrôleurs
-- Les features dérivées (vitesse, accélération) amplifient le bruit → lissage
-  agressif requis
+Cet isomorphisme — main droite immédiate / main gauche anticipée — est
+**musicalement authentique** et c'est ce qui rend la latence des modèles
+génératifs acceptable en VR temps réel. C'est une contribution de conception
+du PFE, pas un compromis subi.
 
 ---
 
-## Couche B — Mapping (`GestureMapperN3D`)
+## Couche A — Génération IA (implémentée)
 
-### Statut : **non implémenté** (Phase 2)
+### Adapter pattern
 
-### Responsabilités
-
-- Recevoir 10 entrées d'automation (les features gestuelles)
-- Appliquer une matrice de mapping `M[features × paramètres]`
-- Émettre 6-8 sorties d'automation (les paramètres musicaux)
-
-### Mapping initial (heuristique)
-
-Voir [`PFE_PLAN_APPROCHE_A.md`](../../PFE_PLAN_APPROCHE_A.md#6-mapping-gestes-paramètres-musicaux),
-section 6.
-
-### Pourquoi un Node3D dédié et non un mapping in-line ?
-
-- **Séparation des préoccupations** : la capture est invariante, le mapping
-  est variable et susceptible d'être réappris par utilisateur.
-- **Évaluable indépendamment** : on peut benchmarker le mapping en l'isolant.
-- **Substituable** : pour l'étude pilote, on pourra tester un mapping
-  Wekinator-style à la place de l'heuristique sans toucher aux autres couches.
-
----
-
-## Couche A — Génération IA (`AIComposerN3D`)
-
-### Statut : **non implémenté** (Phase 1)
-
-### Responsabilités
-
-- Charger un modèle Magenta pré-entraîné (MelodyRNN par défaut)
-- Recevoir des paramètres en entrées d'automation (température, densité, etc.)
-- Émettre des événements MIDI au transport WAM
-- Ne **pas** s'occuper de la synthèse audio (laissée aux WAM existants)
-
-### Choix du modèle
-
-À déterminer par Phase 0.2 (feasibility). Candidats :
-
-| Modèle | Latence cible | Statut |
-|--------|---------------|--------|
-| Magenta MelodyRNN | ~10-20 ms / note | Premier choix |
-| Magenta MusicVAE | ~30 ms / phrase | Backup (variations) |
-| Markov ordre 4 | < 1 ms | Baseline pour étude |
-
-### Algorithme (esquisse)
+Tous les modèles génératifs implémentent une interface commune
+`IMusicGeneratorAdapter` (`src/Refactoring/ai/IMusicGeneratorAdapter.ts`) :
 
 ```
-boucle au tempo :
-    sur chaque beat :
-        si on doit générer (selon densité) :
-            inférer la prochaine note depuis le modèle
-            avec température courante
-        émettre MIDI noteOn/noteOff
-        scheduler le noteOff au tick suivant
+init() / dispose()
+setHyperparameter(name, value) / getHyperparameter(name)
+requestNext(context, dtMs) → MidiEvent[]
+capabilities { streaming, hyperparameters, in/out modality }
+stats { avg/p50/p95/p99 inférence, callCount, … }
 ```
 
-### Risques
+Adapters implémentés :
 
-- Latence du modèle > 50 ms → bascule vers Markov
-- Modèle non chargeable dans le navigateur → autre format ONNX ou fallback
+| Adapter | Rôle | Backend |
+|---------|------|---------|
+| `MarkovChainAdapter` | baseline procédurale (ordre 4) | JS pur, < 1 ms |
+| `MagentaMusicRNNAdapter` | melody_rnn / basic_rnn / chord_pitches_improv | TF.js (main thread) |
+| `WebWorkerAdapter` | délègue à un worker (n'importe quel adapter) | worker, CPU |
+
+L'intérêt : changer de modèle ou de thread = changer une ligne, sans toucher
+au scheduler ni à l'AIComposerN3D. Le benchmark instancie chaque adapter à tour
+de rôle.
+
+### Le scheduler look-ahead
+
+`MidiLookaheadScheduler` (`src/Refactoring/ai/scheduler/`). Découple le temps de
+**génération** (lent, irrégulier) du temps de **lecture** (sample-accurate).
+Pattern "A Tale of Two Clocks" (Chris Wilson, 2013).
+
+- Boucle de tick grossière (25 ms) qui **programme à l'avance** sur l'horloge
+  audio précise (`AudioContext.currentTime`).
+- Buffer de notes en temps **musical relatif** → tempo/vélocité appliqués au
+  drain = immédiats.
+- À chaque tick : (1) DRAIN des événements échus, (2) REMPLISSAGE si l'horizon
+  n'est pas couvert.
+
+Paramètres clés :
+
+| Paramètre | Défaut | Rôle | Latence |
+|-----------|--------|------|---------|
+| `horizonSec` | 0.5 s | musique générée en avance | structurel |
+| `tempoScale` | 1.0 | vitesse de lecture | immédiat |
+| `velocityScale` | 1.0 | dynamique | immédiat |
+
+**Règle d'or mesurée** : horizon minimal viable ≈ p95 de latence du modèle
+*sous charge*. Métriques de validation dans `SchedulerStats` : `lateEvents`
+(doit rester 0), `lowBufferTicks`, `bufferDepthSec`, `notesGenerated`,
+`notesPlayed`.
+
+### Le threading (Web Worker)
+
+L'inférence TF.js sur le main thread gèle le rendu Babylon/XR (~150 ms/appel).
+`WebWorkerAdapter` (`src/Refactoring/ai/adapters/WebWorkerAdapter.ts`) délègue
+l'inférence à un worker (`src/Refactoring/ai/worker/ai-worker.ts`), qui réutilise
+le `MagentaMusicRNNAdapter` tel quel.
+
+Frictions résolues (cf [04_JOURNAL](./04_JOURNAL.md)) :
+- `global is not defined` → `define: { global: 'globalThis' }` (vite.config)
+- `window is not defined` → polyfill worker importé en premier
+- `OfflineAudioContext` → imports sous-modules Magenta (pas le barrel audio)
+- WASM sans kernel `Multinomial` → backend **CPU** ([ADR-006](./02_DECISIONS.md))
+
+Le `PerfMonitor` (`src/Refactoring/ai/perf/`) mesure les frame times du main
+thread (frame MAX, janky frames) pour quantifier le gain de threading.
+
+### AIComposerN3D
+
+`src/Refactoring/node3d/subs/ai/AIComposerN3D.ts`. Le Node3D qui rend l'IA
+jouable dans le monde VR.
+
+- **Sortie MIDI** : `MidiN3DConnectable.ListOutput` natif → se câble à Pro54
+  comme le Sequencer (le scheduler envoie via `scheduleEvents` aux WAM câblés).
+- **Entrées d'automation** : `température`, `densité` → câblables depuis
+  AudioPlaque/Superformula/potards.
+- **Potards** : tempo, vélocité (immédiats), horizon (buffer).
+- **Bouton play/stop** avec init paresseux de l'adapter (worker chargé au 1er play).
+
+### Paramètres du modèle
+
+Hyperparamètres exposés par `MagentaMusicRNNAdapter` (côté génération, latence
+bufferisée) :
+
+| Paramètre | Plage | Défaut | Rôle |
+|-----------|-------|--------|------|
+| `temperature` | 0.1–2.5 | 1.0 | aléa du tirage softmax : bas=répétitif, haut=chaotique |
+| `density` | 1–8 | 2 | notes par appel. ⚠ coûte du calcul (génération plus longue ET fréquente) |
+| `octaveCenter` | 48–84 | 60 | hauteur MIDI médiane (60 = Do4) |
+| `pitchRange` | 12–60 | 36 | étendue des sauts mélodiques |
+
+Modèle : **MusicRNN** (LSTM Magenta), API `continueSequence(primer, steps,
+temperature, chords?)`. Primer = 8 dernières notes (compromis contexte/latence,
+[ADR mesuré](./03_MESURES.md)). Checkpoints publics : `basic_rnn`, `melody_rnn`,
+`chord_pitches_improv` (`attention_rnn` absent du CDN).
 
 ---
 
-## Intégration dans le système Node3D existant
+## Couche B — Mapping (à venir)
 
-### Réutilisation
-
-- **Protocole automation** : le projet a déjà un système de sorties/entrées
-  d'automation (0..1, fan-out, synchronisé réseau). Les trois nouveaux Node3D
-  s'y conforment.
-- **Protocole MIDI** : Pro54 et autres WAM reçoivent déjà du MIDI via le
-  système existant. `AIComposerN3D` produit sur ce même bus.
-- **Sync réseau** : `getState` / `setState` du host. Les paramètres internes
-  du Composer (température courante, modèle sélectionné) sont synchronisés
-  comme tous les autres instruments.
-- **Bounding box** : observer de redressement (vu sur l'AudioPlaque) si
-  besoin.
-
-### Aucune modification du host
-
-Les trois Node3D s'enregistrent dans `Node3DBuilder.ts` comme tous les autres.
-Pas de modification de `Node3DContext.d.ts`, ni de `Node3DInstance.ts`.
-
-### Fichiers prévus
-
-| Fichier | Couche | Statut |
-|---------|--------|--------|
-| `src/Refactoring/node3d/subs/conductor/HandGestureN3D.ts` | C | À créer |
-| `src/Refactoring/node3d/subs/conductor/GestureMapperN3D.ts` | B | À créer |
-| `src/Refactoring/node3d/subs/conductor/AIComposerN3D.ts` | A | À créer |
-| `src/Refactoring/node3d/subs/conductor/ai/MagentaBackend.ts` | A — backend | À créer |
-| `src/Refactoring/node3d/subs/conductor/ai/MarkovBackend.ts` | A — backend baseline | À créer |
-| `src/Refactoring/app/Node3DBuilder.ts` | enregistrement | Modification minimale |
+`GestureMapperN3D` (Phase 2). Reçoit les features gestuelles (entrées
+automation), applique une matrice configurable, émet les paramètres musicaux
+(sorties automation). Mapping initial heuristique dans [CADRAGE](./CADRAGE.md)
+§6 ; option Wekinator à l'étude. **Non implémenté.**
 
 ---
 
-## Budget de latence
+## Couche C — Capture gestuelle (à venir)
 
-Mesuré bout-en-bout : *geste initié → son entendu*.
+`HandGestureN3D` (Phase 1). Active `WebXRHandTracking`, échantillonne 25 joints
+× 2 mains à 60 Hz, calcule des features géométriques (hauteur, vitesse,
+accélération, ouverture, pince, écartement) exposées en sorties d'automation
+0..1. **Non implémenté.**
 
-| Étape | Cible | Mesurée | Comment |
-|-------|-------|---------|---------|
-| WebXR hand tracking → Babylon callback | 10-20 ms | À mesurer en Phase 0.3 | Délai natif WebXR Quest 3 |
-| Lecture features dans HandGestureN3D | < 5 ms | À mesurer | `performance.now()` autour de l'algo |
-| Mapping (matrice 10×6) | < 1 ms | À mesurer | Idem |
-| Inférence IA (Magenta) | 10-30 ms | À mesurer en Phase 0.2 | À l'appel `model.continueSequence()` |
-| Scheduling MIDI vers WAM | < 5 ms | À mesurer | Délai jusqu'à WAM scheduleEvents |
-| Buffer audio (WebAudio) | 10-20 ms | Fixe selon AudioContext | Lié au navigateur |
-| **TOTAL** | **< 100 ms** | — | — |
+| Sortie prévue | Source géométrique |
+|---------------|---------------------|
+| `rightHandY`, `leftHandY` | poignet.y |
+| `rightHandVelocity`, … | dérivées |
+| `handSpread` | distance poignets |
+| `*Openness`, `*Pinch` | écarts doigts |
 
-Si la latence totale dépasse 100 ms, l'expérience est qualifiée de "non
-temps réel" par la littérature (Wessel & Wright, 2002). Cela invalide
-l'approche A et impose un fallback.
+---
+
+## Synergie contrôleurs → IA
+
+Les entrées d'automation de l'AIComposerN3D acceptent n'importe quelle source
+0..1. Or l'**AudioPlaque** et la **Superformula** (déjà construites) *sortent*
+de tels signaux. On peut donc **diriger l'IA avec la balle de l'AudioPlaque ou
+la courbe de la Superformula AVANT d'avoir la capture gestuelle** :
+
+```
+AudioPlaque.X ──automation──► AIComposer.température ──MIDI──► Pro54 ──► audio
+Superformula.radius ──auto──► AIComposer.densité
+```
+
+Démo intermédiaire qui valide la chaîne complète Couche A → audio et réutilise
+tout l'existant. Quand la Couche C arrivera, elle se câblera aux mêmes entrées.
+
+---
+
+## Carte des fichiers
+
+| Fichier | Rôle | Statut |
+|---------|------|--------|
+| `ai/IMusicGeneratorAdapter.ts` | interface commune | ✅ |
+| `ai/types.ts` | MidiEvent, HyperparamSpec, AdapterStats | ✅ |
+| `ai/adapters/MarkovChainAdapter.ts` | baseline | ✅ |
+| `ai/adapters/MagentaMusicRNNAdapter.ts` | modèle principal | ✅ |
+| `ai/adapters/WebWorkerAdapter.ts` | délégation worker | ✅ |
+| `ai/worker/ai-worker.ts` + `worker-polyfill.ts` | worker thread | ✅ |
+| `ai/scheduler/MidiLookaheadScheduler.ts` | découplage temporel | ✅ |
+| `ai/perf/PerfMonitor.ts` | métriques FPS/frames/flux | ✅ |
+| `ai/benchmark/bench-page.{ts,html}` | benchmark modèles | ✅ |
+| `ai/scheduler/scheduler-test-page.{ts,html}` | validation scheduler/Pro54 | ✅ |
+| `node3d/subs/ai/AIComposerN3D.ts` | Node3D IA | ✅ |
+| `node3d/subs/.../HandGestureN3D.ts` | couche C | ⬜ |
+| `node3d/subs/.../GestureMapperN3D.ts` | couche B | ⬜ |
+
+(Préfixe : `src/Refactoring/`)
+
+---
+
+## Budget de latence (révisé)
+
+Le budget « < 100 ms bout-en-bout » du cadrage initial **ne s'applique qu'au
+chemin temps-réel strict** (geste de lecture → son), pas à la génération.
+
+| Chemin | Cible | Mesuré | Note |
+|--------|-------|--------|------|
+| Geste de lecture (tempo/vélocité) → audio | < 50 ms | — | post-gen, pas de modèle |
+| Geste de caractère (température/densité) → audio | < horizon (~500 ms) | — | bufferisé, acceptable |
+| Inférence modèle (interne) | < horizon | ~150 ms (WebGL) / CPU à mesurer | absorbée par le buffer |
+
+→ La révision vient du scheduler look-ahead : la latence du **modèle** n'a plus
+besoin d'être < 100 ms, seulement < profondeur du buffer. Voir [ADR-005](./02_DECISIONS.md)
+et [03_MESURES](./03_MESURES.md).

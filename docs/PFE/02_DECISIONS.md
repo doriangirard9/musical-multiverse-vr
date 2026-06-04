@@ -29,7 +29,7 @@ lien vers la décision qui la remplace.*
 
 **Contexte :**
 Trois approches étaient envisagées pour le PFE Chef d'Orchestre IA (voir
-[`PFE_PLAN_APPROCHE_A.md`](../../PFE_PLAN_APPROCHE_A.md), section 2) :
+[`CADRAGE.md`](./CADRAGE.md), section 2) :
 - (A) modulation continue d'un flux IA par les gestes
 - (B) gestes qui composent les notes directement via IA
 - (C) orchestration multi-sections
@@ -87,8 +87,8 @@ Séparer en trois Node3D :
 
 ## ADR-003 : Magenta.js comme modèle de génération de référence
 
-**Date :** 2026-05-21
-**Statut :** Proposée *(à valider après Phase 0.2)*
+**Date :** 2026-05-21 · **Mise à jour :** 2026-06-01
+**Statut :** **Acceptée** *(validée par M-001)*
 
 **Contexte :**
 Quatre familles de modèles de génération musicale étaient candidates : (i)
@@ -118,6 +118,123 @@ exposés.
 - À valider expérimentalement en Phase 0.2 : si la latence mesurée dépasse
   50 ms par note sur la machine de référence, basculer entièrement sur la
   baseline Markov comme modèle principal.
+
+**Mise à jour 2026-06-01 (M-001) :** validé. `melody_rnn` retenu (p95 102 ms en
+isolation, primer 8). `attention_rnn` absent du CDN public → remplacé par
+`chord_pitches_improv`. Le critère « < 50 ms/note » initial était trop strict :
+le scheduler look-ahead (ADR-005) le rend caduc — seul l'horizon compte.
+
+---
+
+## ADR-004 : Adapter pattern pour les modèles génératifs
+
+**Date :** 2026-05-19
+**Statut :** Acceptée
+
+**Contexte :**
+Le PFE doit benchmarker plusieurs modèles (Markov, Magenta variants, futur
+serveur distant) et permettre d'en changer sans réécrire le reste. L'évaluation
+exige aussi une baseline procédurale comparable.
+
+**Décision :**
+Interface commune `IMusicGeneratorAdapter` (init/dispose, setHyperparameter,
+requestNext, capabilities, stats). Chaque modèle = un adapter. Le scheduler et
+l'AIComposerN3D ne dépendent que de l'interface.
+
+**Alternatives écartées :**
+- Coder Magenta en dur dans l'AIComposer : empêche le benchmark et la baseline.
+- Une classe par modèle sans interface commune : duplication, pas de
+  substituabilité.
+
+**Conséquences :**
+- Changer de modèle ou de thread = une ligne (ex. `WebWorkerAdapter` enveloppe
+  `MagentaMusicRNNAdapter` sans le modifier).
+- Le banc d'essai instancie les adapters en boucle → tableau comparatif.
+- L'extension serveur (tier 2) sera un simple `RemoteModelAdapter`.
+
+---
+
+## ADR-005 : Scheduler look-ahead (découplage génération/lecture)
+
+**Date :** 2026-06-02
+**Statut :** Acceptée *(validée par M-004)*
+
+**Contexte :**
+Latence Magenta ~100 ms + pics GC ~300 ms. Trop pour générer une note puis la
+jouer aussitôt (trous audibles). Il faut découpler génération et lecture.
+
+**Décision :**
+`MidiLookaheadScheduler` — pattern "two clocks". Le modèle génère en avance dans
+un buffer (horizon ~0.5 s) ; le transport draine le buffer aux temps précis sur
+l'horloge audio. Tempo/vélocité appliqués au drain (immédiats) ; hyperparamètres
+affectent la génération future (latence = horizon).
+
+**Alternatives écartées :**
+- Génération en lockstep (1 inférence/note) : trous garantis dès qu'une
+  inférence dépasse l'intervalle inter-notes.
+- Pré-générer un morceau entier : pas de réactivité aux gestes.
+
+**Conséquences :**
+- La latence du modèle n'a plus besoin d'être < 100 ms, seulement < horizon
+  → **révise le budget de latence du cadrage**.
+- Découverte d'un isomorphisme : les deux latences (immédiate/bufferisée)
+  correspondent aux deux mains du chef (droite/gauche). Contribution de
+  conception du mémoire.
+- Validé M-004 : lateEvents = 0 malgré pics GC.
+
+---
+
+## ADR-006 : Inférence dans un Web Worker, backend CPU
+
+**Date :** 2026-06-03
+**Statut :** Acceptée *(à confirmer par M-006)*
+
+**Contexte :**
+L'inférence TF.js sur le main thread gèle le rendu Babylon/XR (~150 ms/appel) →
+lag VR. Le scheduler résout le timing audio mais pas le gel visuel.
+
+**Décision :**
+`WebWorkerAdapter` délègue l'inférence à un worker. Backend **CPU** (et non
+WASM) : WASM 2.8.6 n'a pas le kernel `Multinomial` du sampling RNN (M-005). CPU
+est complet ; même lent, il ne bloque plus le main thread.
+
+**Alternatives écartées :**
+- WASM : plus rapide mais incomplet (Multinomial absent) → casse MusicRNN.
+- WebGL + OffscreenCanvas dans le worker : complet et rapide, mais setup plus
+  lourd. Gardé en repli si CPU trop lent (lateEvents).
+- Rester sur le main thread : lag VR rédhibitoire pour l'étude utilisateur.
+
+**Conséquences :**
+- Backend rendu configurable (cpu/wasm) pour comparaison.
+- Latence CPU probablement > WebGL, absorbée par l'horizon. À mesurer (M-006).
+- Finding mémoire : le choix de backend est d'abord une question de
+  **complétude de kernels**, pas que de vitesse.
+
+---
+
+## ADR-007 : Imports sous-modules Magenta (éviter l'audio)
+
+**Date :** 2026-06-03
+**Statut :** Acceptée
+
+**Contexte :**
+`import * as mm from "@magenta/music"` (barrel complet) crée un
+`OfflineAudioContext` au chargement (via gansynth/ddsp/spice → audio_utils) →
+crash dans un worker. On ne veut que MusicRNN (symbolique).
+
+**Décision :**
+Importer les sous-modules feuilles : `@magenta/music/esm/music_rnn` et
+`@magenta/music/esm/core/sequences`. Aucune dépendance de MusicRNN ne touche
+`audio_utils` (vérifié par cartographie des imports).
+
+**Alternatives écartées :**
+- Polyfiller `OfflineAudioContext` dans le worker : masque le problème, échoue
+  plus tard si l'audio est réellement utilisé.
+
+**Conséquences :**
+- Worker fonctionnel. Bonus : bundle bien plus léger partout (main thread inclus).
+- Finding mémoire : les libs ML "tout-en-un" initialisent de l'audio au
+  chargement ; le off-main-thread exige du tree-shaking manuel par sous-modules.
 
 ---
 
