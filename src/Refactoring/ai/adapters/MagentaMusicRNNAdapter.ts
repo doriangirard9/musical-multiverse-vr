@@ -5,7 +5,6 @@
 // core/sequences ne touchent jamais audio_utils (vérifié).  Bonus : bundle
 // bien plus léger partout (main thread inclus).
 import { MusicRNN } from "@magenta/music/esm/music_rnn";
-import * as sequences from "@magenta/music/esm/core/sequences";
 import type { INoteSequence } from "@magenta/music/esm/protobuf";
 import {
     IMusicGeneratorAdapter, AdapterCapabilities, AdapterTier,
@@ -132,13 +131,11 @@ export class MagentaMusicRNNAdapter implements IMusicGeneratorAdapter {
     private hypers = new Map<string, number>();
     private latencies: number[] = [];
 
-    // Primer NoteSequence — historique des notes émises, taille bornée
-    private primer: INoteSequence = {
-        notes: [],
-        totalTime: 0,
-        ticksPerQuarter: 220,
-        tempos: [{ time: 0, qpm: DEFAULT_BPM }],
-    };
+    // Historique des notes générées, en unités de STEP (grille quantifiée).
+    // On reconstruit un primer quantifié propre à chaque appel à partir d'ici —
+    // aucun mélange secondes/quantification (qui désalignait les notes dans
+    // l'ancienne version et corrompait le contexte du modèle).
+    private recentNotes: { pitch: number; durationSteps: number }[] = [];
 
     constructor(opts: MagentaMusicRNNAdapterOpts = {}) {
         this.variant = opts.variant ?? "basic_rnn";
@@ -160,12 +157,14 @@ export class MagentaMusicRNNAdapter implements IMusicGeneratorAdapter {
 
         for (const h of HYPERPARAMS) this.hypers.set(h.name, h.default);
 
-        // Seed le primer avec une simple note de Do (sinon continueSequence refuse
-        // une séquence vide).  Sera vite remplacée par les vraies notes émises.
-        this.primer.notes!.push({
-            pitch: 60, startTime: 0, endTime: 0.25, velocity: 80,
-        });
-        this.primer.totalTime = 0.25;
+        // Seed : un court motif Do majeur (C-D-E-G) pour donner au modèle un
+        // contexte TONAL de départ → sortie plus harmonique qu'avec une note seule.
+        this.recentNotes = [
+            { pitch: 60, durationSteps: 2 },
+            { pitch: 62, durationSteps: 2 },
+            { pitch: 64, durationSteps: 2 },
+            { pitch: 67, durationSteps: 2 },
+        ];
     }
 
     async init(opts?: InitOpts): Promise<void> {
@@ -179,11 +178,10 @@ export class MagentaMusicRNNAdapter implements IMusicGeneratorAdapter {
             opts?.progressCallback?.(0.7);
 
             // Warm-up : un premier appel à continueSequence pour amorcer les
-            // weights TF.js dans le contexte WebGL.  Sans ça, le tout premier
-            // appel "réel" payerait le coût du JIT et fausserait la mesure p95.
-            const qns = sequences.quantizeNoteSequence(this.primer, STEPS_PER_QUARTER);
+            // weights TF.js.  Sans ça, le tout premier appel "réel" payerait le
+            // coût du JIT et fausserait la mesure p95.
             await this.rnn.continueSequence(
-                qns, 4, 1.0, this.chordProgression ?? undefined,
+                this.buildQuantizedPrimer(), 4, 1.0, this.chordProgression ?? undefined,
             );
 
             opts?.progressCallback?.(1);
@@ -201,7 +199,7 @@ export class MagentaMusicRNNAdapter implements IMusicGeneratorAdapter {
             this.rnn = null;
         }
         this.latencies.length = 0;
-        this.primer.notes = [];
+        this.recentNotes.length = 0;
     }
 
     setHyperparameter(name: string, value: number): void {
@@ -230,96 +228,72 @@ export class MagentaMusicRNNAdapter implements IMusicGeneratorAdapter {
         const tStart = performance.now();
 
         try {
-            // 1. Intégrer les nouvelles notes du contexte dans le primer
-            this.absorbContextNotes(context);
+            // (Le contexte fourni par le scheduler N'EST PAS absorbé : ce sont
+            //  les notes qu'on a déjà générées — les ré-injecter doublerait
+            //  l'historique. L'adapter possède sa propre mémoire `recentNotes`.)
 
-            // 2. Quantifier le primer
-            const qns = sequences.quantizeNoteSequence(this.primer, STEPS_PER_QUARTER);
+            // 1. Primer QUANTIFIÉ propre depuis recentNotes (grille de steps,
+            //    aucune conversion secondes ↔ quantification → pas de dérive).
+            const primerQ = this.buildQuantizedPrimer();
 
-            // 3. Choisir combien de steps générer
-            //    densityFactor = 1..8 → on multiplie par ceil(dtMs / MS_PER_STEP)
-            const baseSteps = Math.max(1, Math.ceil(dtMs / MS_PER_STEP));
-            const densityFactor = this.hypers.get("density")!;
-            const stepsToGen = Math.min(32, Math.round(baseSteps * (densityFactor / 2)));
+            // 2. Steps à générer : fonction propre de dtMs, plancher à 4 pour
+            //    laisser le modèle former une phrase. density ajoute un peu
+            //    (borné — pas d'explosion de calcul comme avant).
+            const density = this.hypers.get("density")!;
+            const stepsToGen = Math.max(4, Math.min(24,
+                Math.round(dtMs / MS_PER_STEP) + Math.round(density)));
 
-            // 4. Appel au modèle (chordProgression seulement si conditionné)
+            // 3. Appel au modèle. continueSequence renvoie UNIQUEMENT la
+            //    continuation, en steps relatifs 0-based (vérifié S2).
             const temperature = this.hypers.get("temperature")!;
             const generated = await this.rnn.continueSequence(
-                qns, stepsToGen, temperature, this.chordProgression ?? undefined,
+                primerQ, stepsToGen, temperature, this.chordProgression ?? undefined,
             );
 
-            // 5. Extraction des NOUVELLES notes
-            //
-            // MusicRNN.continueSequence peut renvoyer SOIT la continuation
-            // seule, SOIT primer + continuation, selon les versions/checkpoints.
-            // L'ancienne logique « filtrer par quantizedStartStep » se faisait
-            // piéger par les champs undefined (cf S2 — Notes/call = 0 dans
-            // le premier bench).  Détection robuste par comparaison de taille :
-            //   - si on a plus de notes que le primer → primer est inclus, on slice
-            //   - sinon → c'est déjà juste la continuation, on prend tout
-            const primerNoteCount = qns.notes?.length ?? 0;
-            const allGenNotes = generated.notes ?? [];
-            const newNotes = allGenNotes.length > primerNoteCount
-                ? allGenNotes.slice(primerNoteCount)
-                : allGenNotes;
+            // 4. Trier par step de début (sécurité)
+            const genNotes = (generated.notes ?? [])
+                .slice()
+                .sort((a, b) => (a.quantizedStartStep ?? 0) - (b.quantizedStartStep ?? 0));
 
-            // 6. Post-filtrage selon la tessiture utilisateur
-            const octaveCenter = this.hypers.get("octaveCenter")!;
-            const pitchRange = this.hypers.get("pitchRange")!;
-            const minP = octaveCenter - pitchRange / 2;
-            const maxP = octaveCenter + pitchRange / 2;
-            const filtered = newNotes.filter(n => {
-                const p = n.pitch ?? 60;
-                return p >= minP && p <= maxP;
-            });
-
-            // 7. Conversion en MidiEvent[] avec deltaMs relatifs
+            // 5. Émission avec des deltaMs SÉQUENTIELS corrects.
+            //    Le scheduler additionne les deltaMs : chaque deltaMs = temps
+            //    depuis l'événement PRÉCÉDENT.
+            //      note-on  : écart depuis le step du dernier événement (un off)
+            //      note-off : durée de la note
+            //    (L'ancienne version mesurait l'écart depuis le DÉBUT de la note
+            //    précédente alors que le off avait déjà avancé le temps de la
+            //    durée → double comptage → rythme étiré.)
+            //    Les hauteurs hors tessiture sont REPLIÉES par octaves, pas
+            //    supprimées (filtrer trouait le rythme).
+            const center = this.hypers.get("octaveCenter")!;
+            const range = this.hypers.get("pitchRange")!;
             const events: MidiEvent[] = [];
-            let lastTimeSec = 0;
-            for (const n of filtered) {
-                const startSec = (n.quantizedStartStep ?? 0) * (MS_PER_STEP / 1000);
-                const endSec   = (n.quantizedEndStep   ?? 0) * (MS_PER_STEP / 1000);
-                const startDelta = events.length === 0 ? 0 : (startSec - lastTimeSec) * 1000;
+            let prevStep = genNotes.length ? (genNotes[0].quantizedStartStep ?? 0) : 0;
+            for (const n of genNotes) {
+                const startStep = n.quantizedStartStep ?? 0;
+                const endStep = Math.max(startStep + 1, n.quantizedEndStep ?? startStep + 1);
+                const pitch = foldIntoRange(n.pitch ?? 60, center, range);
+                const velocity = n.velocity ?? 90;
 
                 events.push({
-                    type: "note-on",
-                    note: n.pitch,
-                    velocity: n.velocity ?? 80,
-                    channel: 0,
-                    deltaMs: Math.max(0, startDelta),
+                    type: "note-on", note: pitch, velocity, channel: 0,
+                    deltaMs: Math.max(0, (startStep - prevStep) * MS_PER_STEP),
                 });
+                prevStep = startStep;
                 events.push({
-                    type: "note-off",
-                    note: n.pitch,
-                    channel: 0,
-                    deltaMs: Math.max(1, (endSec - startSec) * 1000),
+                    type: "note-off", note: pitch, channel: 0,
+                    deltaMs: Math.max(1, (endStep - startStep) * MS_PER_STEP),
                 });
+                prevStep = endStep;
 
-                lastTimeSec = startSec;
-
-                // Mettre à jour le primer avec cette nouvelle note
-                this.primer.notes!.push({
-                    pitch: n.pitch,
-                    startTime: this.primer.totalTime!,
-                    endTime: this.primer.totalTime! + (endSec - startSec),
-                    velocity: n.velocity,
-                });
-                this.primer.totalTime = (this.primer.totalTime ?? 0) + (endSec - startSec);
+                // Mémoriser pour le primer du prochain appel (en steps)
+                this.recentNotes.push({ pitch, durationSteps: endStep - startStep });
             }
 
-            // 8. Tronquer le primer si trop long (fenêtre glissante)
-            while ((this.primer.notes!.length) > this.primerMaxNotes) {
-                const dropped = this.primer.notes!.shift()!;
-                const droppedDuration = (dropped.endTime ?? 0) - (dropped.startTime ?? 0);
-                // Réaligner les startTimes restants pour éviter une dérive
-                for (const remaining of this.primer.notes!) {
-                    remaining.startTime = (remaining.startTime ?? 0) - droppedDuration;
-                    remaining.endTime = (remaining.endTime ?? 0) - droppedDuration;
-                }
-                this.primer.totalTime = (this.primer.totalTime ?? 0) - droppedDuration;
-            }
+            // 6. Fenêtre glissante du primer (en steps — pas de réalignement fragile)
+            while (this.recentNotes.length > this.primerMaxNotes) this.recentNotes.shift();
 
-            // 9. Stats
+            // 7. Stats
             const latency = performance.now() - tStart;
             this.recordLatency(latency);
             this.stats.callCount++;
@@ -335,26 +309,29 @@ export class MagentaMusicRNNAdapter implements IMusicGeneratorAdapter {
     // ── Helpers internes ──────────────────────────────────────────────────
 
     /**
-     * Si l'appelant fournit du contexte (notes consommées récemment),
-     * on l'absorbe dans le primer avant de générer.  Permet à un user
-     * tiers (par exemple un autre instrument live) d'influencer la suite.
+     * Construit un NoteSequence QUANTIFIÉ (grille de steps) depuis recentNotes.
+     * On bâtit directement en steps contigus — pas de quantizeNoteSequence,
+     * donc aucune dérive de réalignement. Les notes sont placées bout à bout.
      */
-    private absorbContextNotes(context: readonly MidiEvent[]): void {
-        for (const ev of context) {
-            if (ev.type !== "note-on" || ev.note === undefined) continue;
-            // Ne ré-ajoute pas si la note est déjà la dernière du primer
-            const last = this.primer.notes![this.primer.notes!.length - 1];
-            if (last && last.pitch === ev.note) continue;
-
-            const duration = 0.25; // valeur arbitraire pour le contexte externe
-            this.primer.notes!.push({
-                pitch: ev.note,
-                startTime: this.primer.totalTime!,
-                endTime: this.primer.totalTime! + duration,
-                velocity: ev.velocity ?? 80,
+    private buildQuantizedPrimer(): INoteSequence {
+        const notes: INoteSequence["notes"] = [];
+        let step = 0;
+        for (const rn of this.recentNotes) {
+            notes!.push({
+                pitch: rn.pitch,
+                quantizedStartStep: step,
+                quantizedEndStep: step + rn.durationSteps,
+                velocity: 90,
+                program: 0,
+                isDrum: false,
             });
-            this.primer.totalTime = (this.primer.totalTime ?? 0) + duration;
+            step += rn.durationSteps;
         }
+        return {
+            quantizationInfo: { stepsPerQuarter: STEPS_PER_QUARTER },
+            notes,
+            totalQuantizedSteps: step,
+        } as INoteSequence;
     }
 
     private recordLatency(ms: number): void {
@@ -381,4 +358,18 @@ export class MagentaMusicRNNAdapter implements IMusicGeneratorAdapter {
             this.stats.memHeapBytes = mem.usedJSHeapSize;
         }
     }
+}
+
+/**
+ * Replie une hauteur MIDI dans la tessiture [center ± range/2] par sauts
+ * d'octave (±12). Préserve la classe de hauteur (donc l'harmonie) tout en
+ * gardant la note DANS la plage — au lieu de la supprimer et trouer le rythme.
+ */
+function foldIntoRange(pitch: number, center: number, range: number): number {
+    const min = center - range / 2;
+    const max = center + range / 2;
+    let p = pitch;
+    while (p < min) p += 12;
+    while (p > max) p -= 12;
+    return Math.max(0, Math.min(127, Math.round(p)));
 }

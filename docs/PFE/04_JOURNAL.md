@@ -11,6 +11,49 @@ mémoire et de la soutenance.
 
 ---
 
+## 2026-06-04 — Notes "au hasard" : 6 bugs de génération corrigés [surprise] [décision]
+
+### Symptôme
+La musique générée semble aléatoire — ni harmonie ni rythme.
+
+### Diagnostic (6 bugs dans MagentaMusicRNNAdapter)
+
+1. **deltaMs faux (rythme)** — le `note-on` mesurait l'écart depuis le DÉBUT
+   de la note précédente, mais le `note-off` avait déjà avancé le temps de la
+   durée → double comptage → rythme étiré et irrégulier. C'était le pire.
+2. **Primer en secondes + réalignement (cohérence)** — mélange secondes/
+   quantification ; au tronquage, réalignement des startTime → notes
+   désalignées/superposées → primer corrompu → génération incohérente.
+3. **Filtrage de tessiture qui SUPPRIME des notes (rythme)** — trous dans la
+   grille.
+4. **Double comptage du contexte** — `absorbContextNotes` ré-injectait les
+   notes que l'adapter avait déjà générées (le scheduler les repasse).
+5. **Chunks de 2 steps** — le modèle n'avait pas la place de former une phrase.
+6. **Seed = 1 note** — aucun contexte tonal de départ.
+
+### Corrections
+- **Primer en unités de STEP** (`recentNotes: {pitch, durationSteps}[]`),
+  reconstruit propre à chaque appel via `buildQuantizedPrimer()` — zéro
+  conversion secondes↔quantification.
+- **deltaMs séquentiels corrects** : on suit `prevStep`, note-on delta =
+  `(start - prevStep)`, note-off delta = `(end - start)`. Le scheduler
+  reconstruit alors les bons temps absolus.
+- **foldIntoRange** : les hauteurs hors tessiture sont REPLIÉES par octaves
+  (préserve la classe de hauteur → l'harmonie) au lieu d'être supprimées.
+- **Contexte ignoré** par l'adapter Magenta : il possède sa propre mémoire,
+  plus de double comptage.
+- **stepsToGen ≥ 4** (plancher), borné à 24, + un peu de densité (sans
+  explosion de calcul comme avant).
+- **Seed = motif Do majeur C-D-E-G** → contexte tonal.
+
+### À écouter (run de Yassine)
+Rejouer le patch AudioPlaque → AIComposer → Pro54. Attendu : mélodie
+**cohérente et rythmée** (vraies croches/noires sur la grille), tonalité
+audible. Bouger la température (X) doit aller de répétitif (bas) à aventureux
+(haut) ; la tessiture/octave doit transposer proprement sans trouer le rythme.
+
+---
+
 ## 2026-05-19 — Démarrage du travail technique [décision]
 
 ### Contexte
