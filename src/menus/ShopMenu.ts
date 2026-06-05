@@ -190,6 +190,7 @@ export class ShopMenu extends AbstractMenu {
             container.clearControls()
             const kind = await navigator.clipboard.readText()
             const item = await this.createItem(kind)
+            console.log("Clipboard updated:", kind, item)
             if (item) {
                 item.width = "300px"
                 item.height = "300px"

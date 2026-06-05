@@ -3,8 +3,6 @@ import type { Node3D, Node3DFactory, Node3DGUI } from "../../Node3D";
 import type { Node3DContext } from "../../Node3DContext";
 import type { Node3DGUIContext } from "../../Node3DGUIContext";
 import type { AutomationN3DConnectable, MidiN3DConnectable } from "../../tools";
-import type { InputHoverBehavior } from "../../../xr/inputs/tools/InputHoverBehavior";
-import type { InputPressBehavior } from "../../../xr/inputs/tools/InputPressBehavior";
 
 
 
@@ -163,7 +161,7 @@ export class HyperKeyboardN3D implements Node3D {
         this.output.connections.forEach(conn => {
             conn.scheduleEvents({
                 type: "wam-midi",
-                time: conn.context.currentTime,
+                time: conn.context.currentTime + 0.002,
                 data: { bytes: [0x90, 60 + y, 127] }
             })
         })
@@ -182,6 +180,7 @@ export class HyperKeyboardN3D implements Node3D {
 
     private observers: {remove():void}[] = []
 
+    
     private output!: InstanceType<(typeof MidiN3DConnectable)["ListOutput"]>
 
     private automationOutputs: InstanceType<(typeof AutomationN3DConnectable)["Output"]>[] = []

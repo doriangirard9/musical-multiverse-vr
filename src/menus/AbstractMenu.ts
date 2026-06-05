@@ -160,6 +160,7 @@ export class AbstractMenu {
 
         const o = this.scene.onAfterPhysicsObservable.add(() => {
             const head = this.scene.activeCamera!.getForwardRay()
+            const head_up = this.scene.activeCamera!.upVector
 
             // Get how much the user is looking in the pointer direction
             const lookDir = head.direction.clone()
@@ -188,8 +189,10 @@ export class AbstractMenu {
             this.plane.scaling.setAll(.15*sizeMultiplier)
 
             // Rotate
-            const d = head.direction.multiplyByFloats(1, 0, 1).normalize()
-            this.plane.rotationQuaternion = Quaternion.FromLookDirectionLH(d.scale(-1), Vector3.Up())
+            this.plane.rotationQuaternion = Quaternion.FromLookDirectionLH(
+                head.direction.scale(-1),
+                head_up
+            )
         })
 
         const o2 = pointer.onMove.add(() => {

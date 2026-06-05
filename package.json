@@ -6,7 +6,10 @@
   "scripts": {
     "dev": "HTTPS=true vite --host",
     "server": "cd server-config; node server.js",
+
     "all": "concurrently --handleInput --prefixColors red,green \"npm run server\" \"npm run dev\"",
+    "all_headset": "VITE_SERVER_NAME=http://192.168.137.1:3000 AUTHORIZED_ORIGINS=https://192.168.137.1:5173 npm run all",
+
     "build": "tsc && vite build",
     "build:prod": "vite build --mode production --no-emptyOutDir",
     "preview": "vite preview",

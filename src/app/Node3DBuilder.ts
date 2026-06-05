@@ -92,6 +92,10 @@ export class Node3DBuilder {
             return await this.parseFactory(description)
         }
 
+        if(kind.startsWith("{")){
+            return await this.parseFactory(kind)
+        }
+
         // Dynamic from an url
         if (kind.startsWith("external:")) {
             const url = new URL(kind.substring("external:".length))
@@ -175,7 +179,8 @@ export class Node3DBuilder {
      * @returns 
      */
     public getFactory(kind: string): Promise<Node3DFactory<Node3DGUI, Node3D> | null> {
-        if (!kind || kind.trim() === "" || kind.length > 64) return Promise.resolve(null);
+        if (!kind || kind.trim() === "" || kind.length > 20_000) return Promise.resolve(null);
+        console.log(`Getting factory for kind: ${kind}`)
         if (!this.factories.has(kind)) {
             const promise = (async () => {
                 const factory = await this.createFactories(kind)

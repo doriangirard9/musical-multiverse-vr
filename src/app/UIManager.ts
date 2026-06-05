@@ -1,6 +1,5 @@
 import * as GUI from "@babylonjs/gui";
 import { Scene } from "@babylonjs/core";
-import {MessageManager} from "./MessageManager.ts";
 import {SceneManager} from "./SceneManager.ts";
 
 
@@ -10,14 +9,12 @@ export class UIManager {
     private readonly scene: Scene;
     private readonly gui: GUI.AdvancedDynamicTexture;
     private readonly guiManager: GUI.GUI3DManager;
-    private messageManager: MessageManager;
 
     private constructor(scene: Scene) {
         this.scene = scene;
         this.gui = GUI.AdvancedDynamicTexture.CreateFullscreenUI("UI",undefined, this.scene);
         this.guiManager = new GUI.GUI3DManager(this.scene);
         this.guiManager.controlScaling = 0.5;
-        this.messageManager = new MessageManager(); // CHANGER MESSAGE MANAGER EN SINGLETON
     }
 
     public static initialize(){
@@ -35,14 +32,6 @@ export class UIManager {
 
     public getGui3DManager(): GUI.GUI3DManager {
         return this.guiManager;
-    }
-
-    public showMessage(message: string, duration: number): void {
-        this.messageManager.showMessage(message, duration);
-    }
-
-    public hideMessage(): void {
-        this.messageManager.hideMessage();
     }
 
 }
