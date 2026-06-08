@@ -21,3 +21,4 @@ USER node
 EXPOSE 3000
 
 CMD ["node", "--experimental-sqlite", "server.js"]
+
