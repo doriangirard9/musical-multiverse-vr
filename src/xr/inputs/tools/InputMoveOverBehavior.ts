@@ -40,12 +40,10 @@ export class InputMoveOverBehavior implements Behavior<AbstractMesh> {
 
         this.hover = new InputMultiHoverBehavior(
             pointer=>{
-                console.log("enter", pointer)
                 this.onEnter(pointer)
                 this.addMoveObserver(pointer)
             }, 
             pointer=>{
-                console.log("exit", pointer)
                 this.onExit(pointer)
                 this.removeMoveObserver(pointer)
             },

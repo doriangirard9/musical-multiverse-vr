@@ -230,7 +230,6 @@ class SequencerN3D implements Node3D{
     }
 
     private sendNote(audioContext: AudioContext, note: number, velocity: number, duration: number){
-        console.log("Send note", note, "velocity", velocity, "duration", duration)
         for(const cn of this.midi_output.connections){
             cn.scheduleEvents({ type:'wam-midi', time: audioContext.currentTime, data: { bytes: [0x90, note, velocity] } })
             cn.scheduleEvents({ type:'wam-midi', time: audioContext.currentTime + duration, data: { bytes: [0x80, note, 0] } })

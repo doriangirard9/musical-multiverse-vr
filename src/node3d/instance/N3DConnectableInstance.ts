@@ -63,17 +63,14 @@ export class N3DConnectableInstance {
         }
 
         function onpickdown(pointer: PointerInput){
-            console.log("pick down", config.id)
             ioEventBus.emit('IO_CONNECT', { pickType : "down", connectable, pointer })
         }
 
         function onpickup(pointer: PointerInput){
-            console.log("pick up", config.id)
             ioEventBus.emit('IO_CONNECT', { pickType : "up", connectable, pointer })
         }
 
         function onpickout(pointer: PointerInput){
-            console.log("pick out", config.id)
             ioEventBus.emit('IO_CONNECT', { pickType : "out", connectable, pointer })
         }
 

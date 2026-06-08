@@ -57,11 +57,8 @@ export class Serialization {
         // Get all the connections
         const connections = new Set<N3DConnectionInstance>()
         for(const node of nodes){
-            console.log("NODE "+this.network.nodes.getData(this.network.nodes.getId(node)!!))
             for(const connectable of node.connectables.values()){
-                console.log(" - "+connectable.config.id)
                 for(const connection of connectable.connections.values()){
-                    console.log(" -  - "+"a connection")
                     connections.add(connection)
                 }
             }

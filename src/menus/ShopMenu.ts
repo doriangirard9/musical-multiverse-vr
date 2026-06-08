@@ -138,8 +138,6 @@ export class ShopMenu extends AbstractMenu {
                 for (const [kind, factory] of factories) {
                     const target = [] as string[][]
 
-                    console.log(kind, factory.tags)
-
                     if (factory.tags.includes("consumer")) target.push(menus.Output.Output)
 
                     if (factory.tags.includes("automation")) target.push(menus.Automation.Automation)
@@ -159,7 +157,6 @@ export class ShopMenu extends AbstractMenu {
                         else if (factory.tags.includes("effect")) target.push(menus.Video.Effect)
                         else target.push(menus.Video.Other)
                     }
-                    console.log(target)
                     if (target.length === 0) target.push(menus.Other.Other)
 
                     target.forEach(t => t.push(kind))
@@ -190,7 +187,6 @@ export class ShopMenu extends AbstractMenu {
             container.clearControls()
             const kind = await navigator.clipboard.readText()
             const item = await this.createItem(kind)
-            console.log("Clipboard updated:", kind, item)
             if (item) {
                 item.width = "300px"
                 item.height = "300px"

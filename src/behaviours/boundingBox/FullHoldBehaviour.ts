@@ -36,7 +36,6 @@ export class FullHoldBehaviour implements Behavior<TransformNode> {
         this.disposables.push(
             this.pointer.controller.squeeze.onDown.add(()=>{
                 this.rotate = true
-                console.log("Squeeze down, rotate mode")
                 this.update()
             }),
             this.pointer.controller.squeeze.onUp.add(()=>{

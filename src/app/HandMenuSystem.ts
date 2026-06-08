@@ -162,14 +162,12 @@ export class HandMenuSystem {
         buttons.push({ label: "📋 Paste Structure", color: "#6691ff", click: async()=>{
             const text = await navigator.clipboard.readText()
             let parsed: {serialized: any, head: number[]}|undefined = JSON.parse(text)
-            console.log("Parsed", parsed)
 
             if(!parsed?.head || !parsed?.serialized) return
             let old_head = Matrix.FromArray(parsed!!.head)
 
             const transformation = old_head.invert().multiply(this.inputs.head.matrix)
             
-            console.log("Parsed", parsed.serialized)
             let nodes = await Serialization.getInstance().load(parsed.serialized)
             for(const node of nodes){
                 node.boundingBoxMesh.setAbsolutePosition(Vector3.TransformCoordinates(node.boundingBoxMesh.absolutePosition,transformation))
