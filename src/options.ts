@@ -1,4 +1,3 @@
-
 export const SERVER_NAME = import.meta.env.VITE_SERVER_NAME
     ?? 'http://localhost:3000';
 

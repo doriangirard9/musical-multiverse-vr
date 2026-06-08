@@ -38,8 +38,6 @@ import ParticleEmitterN3DFactory from "../node3d/subs/particle/ParticleEmitterN3
 import { N3DThumbnailRenderer } from "../world/renderer/N3DThumbnailRenderer.ts";
 import { SERVER_NAME } from "../options.ts";
 
-
-
 export type Node3DConfig = { name: string, wam3d: WAMGuiInitCode }
 
 const SERVER_KINDS: string[] = await fetch(`${SERVER_NAME}/api/configs/`).then(r => r.json())
@@ -176,7 +174,7 @@ export class Node3DBuilder {
     /**
      * Get a Node3DFactory from it kind name.
      * @param kind The kind of Node3D, correspond to the name of its config file.
-     * @returns 
+     * @returns
      */
     public getFactory(kind: string): Promise<Node3DFactory<Node3DGUI, Node3D> | null> {
         if (!kind || kind.trim() === "" || kind.length > 20_000) return Promise.resolve(null);

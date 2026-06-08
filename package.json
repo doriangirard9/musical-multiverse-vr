@@ -22,7 +22,7 @@
     "@webaudiomodules/api": "^2.0.0-alpha.6",
     "typedoc": "^0.28.19",
     "typescript": "^5.8.2",
-    "vite": "^6.2.2"
+    "vite": "6.3.4"
   },
   "dependencies": {
     "@babylonjs/core": "^8.24.0",
