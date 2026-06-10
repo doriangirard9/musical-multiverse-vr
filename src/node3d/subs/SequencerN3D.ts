@@ -286,7 +286,7 @@ class SequencerN3D implements Node3D{
                 getStepCount() { return 128 },
                 getValue() { return midi_to_v(sequencer.notes_midi[n]) },
                 setValue(v){ sequencer.set_midi(n, v_to_midi(v)) },
-                stringify(v) { return `${gui.NOTE_NAME[v_to_midi(v)%12]}` },
+                stringify(v) { return `${gui.NOTE_NAME[v_to_midi(v)%12]} ${Math.ceil(v_to_midi(v)/12)} (${v_to_midi(v)})` },
             })
             sequencer.set_midi(n, sequencer.notes_midi[n])
         }
