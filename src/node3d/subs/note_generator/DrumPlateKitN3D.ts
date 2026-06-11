@@ -1,4 +1,4 @@
-import { Quaternion, Vector2, Vector3, type AbstractMesh, type Observer, type TransformNode } from "@babylonjs/core";
+import { Quaternion, Vector2, Vector3, type AbstractMesh, type TransformNode } from "@babylonjs/core";
 import type { Node3D, Node3DFactory, Node3DGUI } from "../../Node3D";
 import type { Node3DContext } from "../../Node3DContext";
 import type { Node3DGUIContext } from "../../Node3DGUIContext";
@@ -199,14 +199,15 @@ class PlateBehaviour {
         public note: number
     ) {
         const { babylon: B } = gui.context
+        const that = this
 
         context.createParameter({
             id: `plate_${i}_note`,
             meshes: [plate.noteSelector],
             getLabel() { return `Plate n°${i + 1} note` },
             getStepCount() { return 128 },
-            getValue() { return note / 127 },
-            setValue(value) { note = Math.round(value * 127) },
+            getValue() { return that.note / 127 },
+            setValue(value) { that.note = Math.round(value * 127) },
             stringify(value) {
                 const note = Math.round(value * 127)
                 return NOTE_NAME[note % OCTAVE] + " " + Math.floor(note / OCTAVE + 1) + " (" + note + ")"
@@ -257,7 +258,7 @@ export class DrumPlateKitN3D implements Node3D {
         this.output.connections.forEach(conn => {
             const t = conn.context.currentTime
             conn.scheduleEvents({ type: "wam-midi", time: t, data: { bytes: [0x90, note, velocity] } })
-            conn.scheduleEvents({ type: "wam-midi", time: t + NOTE_DURATION, data: { bytes: [0x90, note, 0] } })
+            //conn.scheduleEvents({ type: "wam-midi", time: t + NOTE_DURATION, data: { bytes: [0x90, note, 0] } })
             conn.scheduleEvents({ type: "wam-midi", time: t + NOTE_DURATION + 0.001, data: { bytes: [0x80, note, 0] } })
         })
         this.automationOutput.value = borderness
@@ -269,7 +270,7 @@ export class DrumPlateKitN3D implements Node3D {
 
     private automationOutput!: InstanceType<(typeof AutomationN3DConnectable)["Output"]>
 
-    private observers: Observer<any>[] = []
+    private observers: {remove():void}[] = []
 
     constructor(context: Node3DContext, private gui: DrumPlateKitN3DGUI) {
         const { tools: T, audioCtx, inputs } = context
@@ -280,11 +281,11 @@ export class DrumPlateKitN3D implements Node3D {
 
         // Hit
         for(const controller of inputs.controllers){
-            var wasInside = false
             const position = new Vector3()
             const before = new Vector3()
-            this.observers.push(controller.pointer.onMove.add(e => {
-                position.copyFrom(e.origin)
+
+            const interval = setInterval(()=>{
+                position.copyFrom(controller.pointer.origin)
                 const aabb = gui.root.getHierarchyBoundingVectors()
                 const isInside = aabb.min.x <= position.x && position.x <= aabb.max.x &&
                     aabb.min.y <= position.y && position.y <= aabb.max.y &&
@@ -296,9 +297,10 @@ export class DrumPlateKitN3D implements Node3D {
                     }
                 }
 
-                wasInside = isInside
                 before.copyFrom(position)
-            }))
+            },50)
+            
+            this.observers.push({remove(){clearInterval(interval)}})
         }
         
 
