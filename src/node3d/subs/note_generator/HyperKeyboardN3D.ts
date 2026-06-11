@@ -166,15 +166,15 @@ export class HyperKeyboardN3D implements Node3D {
             })
         })
         // Automation Output
-        this.automationOutputs[0].value = this.gui.factory.x==1 ? 1 : x/(this.gui.factory.x-1)
+        this.automationOutputs[0].value = this.gui.factory.y==1 ? 1 : y/(this.gui.factory.y-1)
         this.automationOutputs[1].value = this.gui.factory.z==1 ? 1 : z/(this.gui.factory.z-1)
     }
 
     onUp(x: number, y: number, z: number) {
         this.output.connections.forEach(conn => {
             const t = conn.context.currentTime
-            conn.scheduleEvents({ type: "wam-midi", time: t, data: { bytes: [0x90, 60 + y, 0] } })
-            conn.scheduleEvents({ type: "wam-midi", time: t + 0.001, data: { bytes: [0x80, 60 + y, 0] } })
+            // conn.scheduleEvents({ type: "wam-midi", time: t, data: { bytes: [0x90, 60 + y, 0] } })
+            conn.scheduleEvents({ type: "wam-midi", time: t + 0.001, data: { bytes: [0x80, 60 + x, 0] } })
         })
     }
 
