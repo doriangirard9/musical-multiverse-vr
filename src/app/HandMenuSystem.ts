@@ -268,14 +268,13 @@ class TransportMenu{
         }})
 
         // Time signature
-        buttons.push({ label: `Time Signature : ${this.transport.getTimeSignature().numerator}/1`, color: "#ffffbb"})
+        const ts = this.transport.getTimeSignature()
+        buttons.push({ label: `Time Signature : ${ts.numerator}/${ts.denominator}`, color: "#ffffbb"})
         buttons.push({ label: "+", color: "#ffffbb", click: ()=>{
-            const ts = this.transport.getTimeSignature()
-            this.transport.setTimeSignature(ts.numerator+1, 1)
+            this.transport.setTimeSignature(ts.numerator+1, ts.denominator)
         }})
         buttons.push({ label: "-", color: "#ffffbb", click: ()=>{
-            const ts = this.transport.getTimeSignature()
-            this.transport.setTimeSignature(Math.max(1, ts.numerator-1), 1)
+            this.transport.setTimeSignature(Math.max(1, ts.numerator-1), ts.denominator)
         }})
 
 

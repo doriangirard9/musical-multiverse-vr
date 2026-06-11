@@ -209,7 +209,7 @@ class PlateBehaviour {
             setValue(value) { note = Math.round(value * 127) },
             stringify(value) {
                 const note = Math.round(value * 127)
-                return NOTE_NAME[note % OCTAVE] + " " + Math.floor(note / OCTAVE + 1)
+                return NOTE_NAME[note % OCTAVE] + " " + Math.floor(note / OCTAVE + 1) + " (" + note + ")"
             },
         })
 
@@ -319,7 +319,7 @@ export class DrumPlateKitN3D implements Node3D {
         context.createConnectable(this.automationOutput)
 
         // Plates
-        this.plates = gui.plates.map((plate, i) => new PlateBehaviour(gui, this, context, i, plate, 60 + i))
+        this.plates = gui.plates.map((plate, i) => new PlateBehaviour(gui, this, context, i, plate, 36 + i))
     }
 
     async setState(key: string, value: any) { }
