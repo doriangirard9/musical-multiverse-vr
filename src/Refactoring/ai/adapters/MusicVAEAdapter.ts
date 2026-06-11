@@ -5,7 +5,7 @@ import {
 } from "../IMusicGeneratorAdapter";
 import { MidiEvent, AdapterStats, InitOpts, emptyStats } from "../types";
 import { VAE_HYPERPARAMS } from "../hyperparams";
-import { notesToMidiEvents } from "./noteConversion";
+import { notesToMidiEvents, notesEndStep } from "./noteConversion";
 
 // ─── MusicVAEAdapter (Famille 2 — espace latent) ─────────────────────────────
 //
@@ -29,6 +29,7 @@ const CHECKPOINT_URL =
 const STEPS_PER_QUARTER = 4;
 const DEFAULT_BPM = 120;
 const MS_PER_STEP = 60_000 / (DEFAULT_BPM * STEPS_PER_QUARTER);   // 125 ms
+const PHRASE_STEPS = 32;   // mel_2bar = 2 mesures de 16 steps — durée FIXE de phrase
 
 export interface MusicVAEAdapterOpts extends InitOpts {
     checkpointUrl?: string;
@@ -54,6 +55,10 @@ export class MusicVAEAdapter implements IMusicGeneratorAdapter {
     private zB: number[] = [];      // vecteur latent de l'ancre B
     private hypers = new Map<string, number>();
     private latencies: number[] = [];
+    /** Silence de queue de la phrase précédente (ms), reporté sur le premier
+     *  delta de la suivante — sans lui, les phrases de 2 mesures se collent
+     *  et la pulsation se compresse à chaque frontière (cf. noteConversion). */
+    private padCarryMs = 0;
 
     constructor(opts: MusicVAEAdapterOpts = {}) {
         this.checkpointUrl = opts.checkpointUrl ?? CHECKPOINT_URL;
@@ -125,13 +130,25 @@ export class MusicVAEAdapter implements IMusicGeneratorAdapter {
             zTensor.dispose();
 
             const phrase = seqs[0];
-            const events = notesToMidiEvents(phrase.notes ?? [], {
+            const notes = phrase.notes ?? [];
+            const events = notesToMidiEvents(notes, {
                 msPerStep: MS_PER_STEP,
                 isDrums: false,
                 octaveCenter: 60,
                 pitchRange: 128,   // pas de repliement : le VAE sort déjà des hauteurs valides
                 channel: 0,
             });
+
+            // GRILLE CONTINUE inter-phrases : la phrase fait PHRASE_STEPS pile ;
+            // le silence après la dernière note est reporté sur le premier
+            // delta de la phrase suivante (même règle que le RNN).
+            if (events.length > 0) {
+                events[0].deltaMs += this.padCarryMs;
+                const tailSteps = Math.max(0, PHRASE_STEPS - notesEndStep(notes));
+                this.padCarryMs = tailSteps * MS_PER_STEP;
+            } else {
+                this.padCarryMs += PHRASE_STEPS * MS_PER_STEP;
+            }
 
             const latency = performance.now() - tStart;
             this.recordLatency(latency);

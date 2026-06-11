@@ -40,10 +40,14 @@ import type { MidiEvent, HyperparamSpec } from "../../../ai/types";
 //     • température / densité (ou morph) → hyperparamètres → génération FUTURE
 //     • tempo / vélocité                 → appliqués au drain → immédiats
 
-// Plages des potards post-génération
+// Plages des potards post-génération.
+// Horizon : 2 s par défaut — l'inférence dans le worker (CPU) prend des
+// centaines de ms par chunk ; un horizon de 0.5 s provoquait une famine
+// cyclique (buffer vidé pendant l'inférence → ruptures de grille audibles).
+// Le prix : les changements d'hyperparamètres mettent ~2 s à s'entendre.
 const TEMPO_RANGE   = { min: 0.25, max: 3.0, default: 1.0 };
 const VEL_RANGE     = { min: 0.0,  max: 2.0, default: 1.0 };
-const HORIZON_RANGE = { min: 0.1,  max: 2.0, default: 0.5 };
+const HORIZON_RANGE = { min: 0.25, max: 4.0, default: 2.0 };
 
 const invlerp = (r: { min: number; max: number }, v: number) => (v - r.min) / (r.max - r.min);
 const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
@@ -592,8 +596,9 @@ export class AIComposerN3D implements Node3D {
                 if (nConn === 0) {
                     this.gui.setStatus("⚠ Sortie MIDI non câblée !");
                 } else {
-                    const late = stats.lateEvents > 0 ? `  ⚠ ${stats.lateEvents} retard` : "";
-                    this.gui.setStatus(`♪ En jeu →${nConn} — buffer ${stats.bufferDepthSec.toFixed(2)} s${late}`);
+                    const late = stats.lateEvents > 0 ? `  ⚠${stats.lateEvents} retard` : "";
+                    const resync = stats.gridResyncs > 0 ? `  ↻${stats.gridResyncs}` : "";
+                    this.gui.setStatus(`♪ En jeu →${nConn} — buffer ${stats.bufferDepthSec.toFixed(2)} s${late}${resync}`);
                 }
                 break;
             }

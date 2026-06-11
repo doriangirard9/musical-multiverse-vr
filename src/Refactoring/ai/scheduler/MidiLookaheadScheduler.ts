@@ -40,13 +40,15 @@ export type ClockFn = () => number;   // renvoie le temps audio courant en secon
 
 export interface SchedulerConfig {
     /** Horizon de génération en secondes.  Combien de musique on génère
-     *  en avance.  Plus grand = plus résistant aux pics GC mais hyperparamètres
-     *  plus lents à répondre.  Défaut : 0.5 s (≈ 1 mesure à 120 BPM).
-     *  Configurable et modifiable à chaud (setHorizonSec / champ public). */
+     *  en avance.  Plus grand = plus résistant aux pics GC et à la latence
+     *  d'inférence, mais hyperparamètres plus lents à répondre.
+     *  Défaut : 1.5 s.  Configurable et modifiable à chaud (setHorizonSec). */
     horizonSec?: number;
 
-    /** Durée musicale demandée à l'adapter par appel de génération (ms).
-     *  Défaut : 250 ms. */
+    /** Durée musicale MINIMALE demandée à l'adapter par appel (ms) — la
+     *  requête réelle est adaptative (déficit d'horizon, cf generateMore).
+     *  Défaut : 1000 ms.  Trop petit = appels d'inférence trop fréquents,
+     *  la génération ne tient pas devant la lecture (famine). */
     generationChunkMs?: number;
 
     /** Fenêtre de programmation audio sample-accurate (s).  Défaut : 0.1 s. */
@@ -82,6 +84,10 @@ export interface SchedulerStats {
     notesGenerated: number;
     /** Notes (note-on) effectivement JOUÉES (envoyées au scheduleCallback). */
     notesPlayed: number;
+    /** Ré-ancrages de la grille musicale (le buffer s'est vidé ET la
+     *  génération est revenue trop tard pour reprendre la grille).
+     *  Chaque resync = une rupture de pulsation audible. Doit rester bas. */
+    gridResyncs: number;
 }
 
 export class MidiLookaheadScheduler {
@@ -102,6 +108,12 @@ export class MidiLookaheadScheduler {
 
     private pending: PendingEvent[] = [];   // file musicale relative
     private headTimeSec = 0;                 // temps audio absolu du prochain événement à drainer
+    /** Temps audio absolu du DERNIER événement programmé ou en file.  C'est
+     *  l'ancre de la GRILLE MUSICALE : quand le buffer se vide puis qu'un
+     *  nouveau chunk arrive, son premier événement est posé à
+     *  lastEventTimeSec + delta — la pulsation traverse les vidages de
+     *  buffer au lieu de repartir d'un instant arbitraire. */
+    private lastEventTimeSec = 0;
     private contextWindow: MidiEvent[] = []; // contexte glissant passé à l'adapter
 
     private _stats: SchedulerStats = {
@@ -112,6 +124,7 @@ export class MidiLookaheadScheduler {
         bufferDepthSec: 0,
         notesGenerated: 0,
         notesPlayed: 0,
+        gridResyncs: 0,
     };
 
     constructor(
@@ -120,8 +133,8 @@ export class MidiLookaheadScheduler {
         private scheduleCallback: ScheduleCallback,
         config: SchedulerConfig = {},
     ) {
-        this.horizonSec = config.horizonSec ?? 0.5;
-        this.generationChunkMs = config.generationChunkMs ?? 250;
+        this.horizonSec = config.horizonSec ?? 1.5;
+        this.generationChunkMs = config.generationChunkMs ?? 1000;
         this.scheduleAheadSec = config.scheduleAheadSec ?? 0.1;
         this.tickMs = config.tickMs ?? 25;
         this.nominalBpm = config.nominalBpm ?? 120;
@@ -154,6 +167,7 @@ export class MidiLookaheadScheduler {
         if (this.running) return;
         this.running = true;
         this.headTimeSec = this.clock() + this.scheduleAheadSec;
+        this.lastEventTimeSec = this.headTimeSec;
         this.pending = [];
         this.contextWindow = [];
         this.tickHandle = setInterval(() => this.tick(), this.tickMs);
@@ -180,21 +194,29 @@ export class MidiLookaheadScheduler {
             const pe = this.pending.shift()!;
             const t = this.headTimeSec;
 
+            let scheduledAt: number;
             if (t < now) {
                 // Événement en retard = glitch audible. On le programme quand
                 // même (immédiatement) mais on compte la faute.
                 this._stats.lateEvents++;
-                this.scheduleCallback(this.applyVelocity(pe.event), now);
+                scheduledAt = now;
             } else {
                 this._stats.scheduledEvents++;
-                this.scheduleCallback(this.applyVelocity(pe.event), t);
+                scheduledAt = t;
             }
+            this.scheduleCallback(this.applyVelocity(pe.event), scheduledAt);
             if (pe.event.type === "note-on") this._stats.notesPlayed++;
 
-            // Avancer le temps de tête : delta du PROCHAIN événement, tempo appliqué
+            // Ancre de grille = temps RÉELLEMENT programmé.
+            this.lastEventTimeSec = scheduledAt;
+
+            // Avancer la tête : delta du PROCHAIN événement, tempo appliqué.
+            // Base = scheduledAt (pas t) : si on a pris du retard, la suite
+            // glisse d'autant (rubato) au lieu de rester en retard pour
+            // toujours et de partir en rafale.
             const next = this.pending[0];
             if (next) {
-                this.headTimeSec = t + (next.deltaMs / 1000) / this.tempoScale;
+                this.headTimeSec = scheduledAt + (next.deltaMs / 1000) / this.tempoScale;
             }
         }
 
@@ -226,14 +248,31 @@ export class MidiLookaheadScheduler {
     private async generateMore(): Promise<void> {
         this.generating = true;
         try {
-            const events = await this.adapter.requestNext(
-                this.contextWindow, this.generationChunkMs,
-            );
-            this._stats.generationCalls++;
+            // Taille de requête ADAPTATIVE : viser 1.5× l'horizon pour absorber
+            // la latence d'inférence (CPU worker : centaines de ms par appel).
+            // De gros chunks = moins d'appels = la génération reste devant la
+            // lecture. Converti en temps NOMINAL (les deltas sont au tempo 1).
+            const deficitSec = Math.max(0, this.horizonSec * 1.5 - this._stats.bufferDepthSec);
+            const dtMs = Math.min(4000, Math.max(this.generationChunkMs, deficitSec * this.tempoScale * 1000));
 
-            // Si le buffer était vide, réaligner la tête sur "maintenant + marge"
+            const events = await this.adapter.requestNext(this.contextWindow, dtMs);
+            this._stats.generationCalls++;
+            if (events.length === 0) return;
+
+            // Si le buffer était vide : REPRENDRE LA GRILLE depuis le dernier
+            // événement connu (lastEventTimeSec + delta du nouvel événement,
+            // qui inclut le silence de fin de chunk reporté par l'adapter).
+            // On ne ré-ancre sur "maintenant" QUE si la grille est déjà passée
+            // (vraie famine) — chaque ré-ancrage casse la pulsation, compté.
             if (this.pending.length === 0) {
-                this.headTimeSec = this.clock() + this.scheduleAheadSec;
+                const now = this.clock();
+                const anchor = this.lastEventTimeSec + (events[0].deltaMs / 1000) / this.tempoScale;
+                if (anchor >= now + 0.02) {
+                    this.headTimeSec = anchor;
+                } else {
+                    this.headTimeSec = now + this.scheduleAheadSec;
+                    this._stats.gridResyncs++;
+                }
             }
 
             for (const ev of events) {

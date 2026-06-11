@@ -371,6 +371,27 @@ export class Superformula3DN3DGUI implements Node3DGUI {
         this.surface.refreshBoundingInfo();
     }
 
+    /**
+     * Échantillonne la SURFACE AFFICHÉE en (u01, v01) ∈ [0,1]² : interpolation
+     * bilinéaire entre les 4 sommets voisins des buffers du mesh (positions +
+     * normales).  La boule qui suit ce point est collée aux facettes RENDUES
+     * par construction — aucune divergence possible entre la formule analytique
+     * et le maillage (résolution, spikes, morphing en cours…).
+     */
+    samplePoint(u01: number, v01: number, outPos: Vector3, outNormal: Vector3): void {
+        const fu = Math.max(0, Math.min(0.9999, u01)) * U_SEGS;
+        const fv = Math.max(0, Math.min(0.9999, v01)) * V_SEGS;
+        const i0 = Math.floor(fu), j0 = Math.floor(fv);
+        const du = fu - i0, dv = fv - j0;
+        const read = (buf: Float32Array, i: number, j: number, k: number) =>
+            buf[(j * (U_SEGS + 1) + i) * 3 + k];
+        const bilerp = (buf: Float32Array, k: number) =>
+            (read(buf, i0, j0, k) * (1 - du) + read(buf, i0 + 1, j0, k) * du) * (1 - dv) +
+            (read(buf, i0, j0 + 1, k) * (1 - du) + read(buf, i0 + 1, j0 + 1, k) * du) * dv;
+        outPos.set(bilerp(this.positions, 0), bilerp(this.positions, 1), bilerp(this.positions, 2));
+        outNormal.set(bilerp(this.normals, 0), bilerp(this.normals, 1), bilerp(this.normals, 2));
+    }
+
     /** Pousse une position de playhead dans la traînée (fondante). */
     pushTrailPoint(p: Vector3): void {
         if (!this.trail || this.trail.isDisposed()) return;
@@ -514,6 +535,7 @@ export class Superformula3DN3D implements Node3D {
         let firstFrame = true;
         let surfaceDirty = true;
         const ballPos = new Vector3();
+        const ballNormal = new Vector3();
         const vel = new Vector3();
 
         context.observe(scene.onBeforeRenderObservable, () => {
@@ -539,18 +561,23 @@ export class Superformula3DN3D implements Node3D {
                 surfaceDirty = false;
             }
 
-            // 2. Playhead en spirale sur la surface
+            // 2. Playhead en spirale sur la SURFACE AFFICHÉE — on échantillonne
+            //    les buffers du mesh (bilinéaire), PAS la formule analytique :
+            //    collage parfait aux facettes rendues quels que soient la
+            //    résolution, les spikes ou le morphing en cours.
             this.theta += this.current.speed * dt;
-            const u = ((this.theta % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI) - Math.PI;
-            const v = (Math.PI / 2) * 0.92 * Math.sin(this.theta * 0.37);
-            const r1 = superformula(u, this.current.mA, this.current.n1A, this.current.n2A, this.current.n3A);
-            const r2 = superformula(v, this.current.mB, this.current.n1B, this.current.n2B, this.current.n3B);
+            const u01 = (((this.theta % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI)) / (2 * Math.PI);
+            const v01 = 0.5 + 0.46 * Math.sin(this.theta * 0.37);
             const s = this.current.scale;
-            ballPos.set(
-                r1 * Math.cos(u) * r2 * Math.cos(v) * s,
-                r2 * Math.sin(v) * s,
-                r1 * Math.sin(u) * r2 * Math.cos(v) * s,
-            );
+            gui.samplePoint(u01, v01, ballPos, ballNormal);
+            // Poser la boule SUR la facette : petit décalage le long de la
+            // normale extérieure (retournée si elle pointe vers le centre).
+            const nLen = ballNormal.length();
+            if (nLen > 1e-6) {
+                ballNormal.scaleInPlace(1 / nLen);
+                if (Vector3.Dot(ballNormal, ballPos) < 0) ballNormal.scaleInPlace(-1);
+                ballPos.addInPlace(ballNormal.scaleInPlace(0.02));
+            }
             gui.ballRoot.position.copyFrom(ballPos);
             // Première frame : la traînée démarre SUR la boule (sinon un trait
             // parasite relie l'origine à la position de départ).

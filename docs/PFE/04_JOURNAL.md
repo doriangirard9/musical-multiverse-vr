@@ -11,6 +11,52 @@ mémoire et de la soutenance.
 
 ---
 
+## 2026-06-11 (b) — Rythme réparé : la densité jetait 75 % des notes [surprise] [décision]
+
+### Symptômes (test VR utilisateur)
+Son complètement désordonné, aucun rythme ; au bout d'un moment les notes
+deviennent rares. La machinerie rythmique (report de silence inter-chunks,
+accents métriques, ancrage de grille du scheduler) était pourtant en place.
+
+### Cause racine n°1 — la valeur par défaut de `density`
+Le filtre d'émission interprète density comme une PROPORTION de notes
+jouées : `keepProb = density / max`. Or la spec gardait l'ancien défaut
+(2 sur max 8, hérité de la sémantique « steps par appel ») →
+**keepProb = 0.25 : 75 % des notes générées étaient supprimées AU HASARD
+par `Math.random()`**. Trous imprévisibles partout = aucun rythme ; flux
+clairsemé = « notes rarement consommées ». Leçon : quand on change la
+SÉMANTIQUE d'un hyperparamètre, réviser sa valeur par défaut ET sa
+description en même temps que le code.
+- Fix 1 : défaut density = 8 (tout jouer), description à jour.
+- Fix 2 : éclaircissage DÉTERMINISTE et MÉTRIQUE (niveaux : début de
+  mesure → temps → croche → double-croche ; on retire les niveaux faibles
+  d'abord). Baisser la densité reste musical : le squelette du groove
+  (temps forts) survit toujours.
+
+### Cause racine n°2 — pas de report de silence dans le VAE
+Le RNN reportait le silence de queue de chunk, pas le VAE : les phrases
+mel_2bar (32 steps pile) se collaient à la dernière note → compression de
+la pulsation à chaque frontière de phrase. Fix : même règle de carry que
+le RNN (PHRASE_STEPS − notesEndStep reporté sur le delta suivant).
+
+### Cause racine n°3 — horizon 0.5 s < latence d'inférence worker
+L'AIComposer écrasait le défaut du scheduler (1.5 s) avec 0.5 s :
+l'inférence CPU dans le worker (centaines de ms par chunk) vidait le
+buffer pendant qu'elle tournait → famine cyclique → ré-ancrages de grille
+(ruptures de pulsation audibles). Fix : défaut 2 s (plage 0.25–4 s), et
+l'écran affiche désormais `↻N` (compteur de resyncs) pour surveiller.
+
+### Boule du Superformula 3D : asservissement au mesh AFFICHÉ
+Le playhead suivait la formule analytique exacte pendant que l'écran
+montre un maillage discrétisé — toute divergence (résolution, spikes,
+morphing en cours) décollait la boule. Fix structurel : `samplePoint()`
+échantillonne les BUFFERS du mesh (interpolation bilinéaire entre les 4
+sommets voisins, positions + normales) → la boule est collée aux facettes
+rendues PAR CONSTRUCTION, avec un petit décalage le long de la normale
+extérieure pour rouler dessus au lieu d'y être à moitié enfouie.
+
+---
+
 ## 2026-06-11 — Interop MIDI WAM (canal 0) + fix playhead Superformula 3D [décision]
 
 ### Bug : AIComposer batterie/mélodie muets sur guitarMIDI et DRM-16

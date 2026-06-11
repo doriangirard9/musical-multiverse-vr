@@ -13,7 +13,7 @@ import {
     MidiEvent, AdapterStats, InitOpts, emptyStats,
 } from "../types";
 import { RNN_HYPERPARAMS } from "../hyperparams";
-import { notesToMidiEvents } from "./noteConversion";
+import { notesToMidiEvents, notesEndStep } from "./noteConversion";
 
 // ─── MagentaMusicRNNAdapter ──────────────────────────────────────────────────
 //
@@ -122,6 +122,10 @@ export class MagentaMusicRNNAdapter implements IMusicGeneratorAdapter {
     // fin du primer pour y rattacher la continuation générée.
     private recentNotes: { pitch: number; startStep: number; endStep: number }[] = [];
     private nextStep = 0;
+    /** Silence de queue du chunk précédent (ms), reporté sur le premier delta
+     *  du chunk suivant — la grille rythmique traverse les frontières de
+     *  chunks (cf. règles de conservation des silences dans noteConversion). */
+    private padCarryMs = 0;
 
     constructor(opts: MagentaMusicRNNAdapterOpts = {}) {
         this.variant = opts.variant ?? "basic_rnn";
@@ -241,12 +245,11 @@ export class MagentaMusicRNNAdapter implements IMusicGeneratorAdapter {
             //    aucune conversion secondes ↔ quantification → pas de dérive).
             const primerQ = this.buildQuantizedPrimer();
 
-            // 2. Steps à générer : fonction propre de dtMs, plancher à 4 pour
-            //    laisser le modèle former une phrase. density ajoute un peu
-            //    (borné — pas d'explosion de calcul comme avant).
-            const density = this.hypers.get("density")!;
-            const stepsToGen = Math.max(4, Math.min(24,
-                Math.round(dtMs / MS_PER_STEP) + Math.round(density)));
+            // 2. Steps à générer : couvre dtMs, ARRONDI AU TEMPS SUPÉRIEUR
+            //    (multiple de 4 steps) pour que les chunks tombent sur la
+            //    pulsation. Bornes 8..32 (2 temps à 2 mesures).
+            const stepsToGen = Math.min(32, Math.max(8,
+                Math.ceil(dtMs / MS_PER_STEP / 4) * 4));
 
             // 3. Appel au modèle. continueSequence renvoie UNIQUEMENT la
             //    continuation, en steps relatifs 0-based (vérifié S2).
@@ -255,24 +258,10 @@ export class MagentaMusicRNNAdapter implements IMusicGeneratorAdapter {
                 primerQ, stepsToGen, temperature, this.chordProgression ?? undefined,
             );
 
-            // 4. Conversion en MidiEvent[] (helper partagé, gère la polyphonie).
-            //    Mélodie : repliement de hauteur dans la tessiture. Batterie :
-            //    hauteur conservée (notes GM 36/38/42…).
-            //    CANAL 0 pour tout, batterie comprise : la convention de
-            //    wamjamparty (Sequencer, DrumPlateKit…) émet tout sur 0x90 et
-            //    les WAMs de batterie (DRM-16, drumsampler) ignorent le canal
-            //    10 GM — ils mappent par numéro de note sur le canal 0.
+            // 4. La mémoire du modèle (primer du prochain appel) garde la
+            //    continuation COMPLÈTE — la cohérence musicale se construit
+            //    sur ce que le modèle a réellement composé.
             const genNotes = generated.notes ?? [];
-            const events = notesToMidiEvents(genNotes, {
-                msPerStep: MS_PER_STEP,
-                isDrums: this.isDrums,
-                octaveCenter: this.hypers.get("octaveCenter")!,
-                pitchRange: this.hypers.get("pitchRange")!,
-                channel: 0,
-            });
-
-            // 5. Rattacher la continuation au primer (en steps absolus), puis
-            //    glisser la fenêtre par nombre de notes.
             for (const n of genNotes) {
                 const startStep = n.quantizedStartStep ?? 0;
                 const endStep = Math.max(startStep + 1, n.quantizedEndStep ?? startStep + 1);
@@ -286,7 +275,54 @@ export class MagentaMusicRNNAdapter implements IMusicGeneratorAdapter {
             this.nextStep += stepsToGen;
             while (this.recentNotes.length > this.primerMaxNotes) this.recentNotes.shift();
 
-            // 7. Stats
+            // 5. Densité = proportion de notes JOUÉES (filtre d'émission,
+            //    la grille reste intacte : retirer une note crée un silence,
+            //    pas une compression). Éclaircissage DÉTERMINISTE et MÉTRIQUE :
+            //    on retire d'abord les subdivisions faibles (doubles-croches),
+            //    le squelette du groove (temps forts) reste — un tirage
+            //    aléatoire trouait le rythme de façon imprévisible.
+            const density = this.hypers.get("density")!;
+            const densitySpec = HYPERPARAMS.find(h => h.name === "density")!;
+            const keepProb = density / densitySpec.max;
+            let playNotes = genNotes;
+            if (keepProb < 1) {
+                // Niveau métrique : 0 = début de mesure … 4 = double-croche faible
+                const level = (s: number) =>
+                    s % 16 === 0 ? 0 : s % 8 === 0 ? 1 : s % 4 === 0 ? 2 : s % 2 === 0 ? 3 : 4;
+                const maxLevel = Math.floor(keepProb * 4 + 1e-6);
+                playNotes = genNotes.filter(n => level(n.quantizedStartStep ?? 0) <= maxLevel);
+            }
+
+            // 6. Conversion en MidiEvent[] (helper partagé : polyphonie,
+            //    silences de tête conservés, vélocités musicales).
+            //    Mélodie : repliement de hauteur dans la tessiture. Batterie :
+            //    hauteur conservée (notes GM 36/38/42…).
+            //    CANAL 0 pour tout, batterie comprise : la convention de
+            //    wamjamparty (Sequencer, DrumPlateKit…) émet tout sur 0x90 et
+            //    les WAMs de batterie (DRM-16, drumsampler) ignorent le canal
+            //    10 GM — ils mappent par numéro de note sur le canal 0.
+            const events = notesToMidiEvents(playNotes, {
+                msPerStep: MS_PER_STEP,
+                isDrums: this.isDrums,
+                octaveCenter: this.hypers.get("octaveCenter")!,
+                pitchRange: this.hypers.get("pitchRange")!,
+                channel: 0,
+            });
+
+            // 7. GRILLE CONTINUE inter-chunks : le silence de QUEUE du chunk
+            //    (après le dernier événement, jusqu'à la frontière stepsToGen)
+            //    n'a pas d'événement porteur — on le REPORTE sur le premier
+            //    delta du chunk suivant. Chunk sans note émise = chunk entier
+            //    reporté (un vrai silence musical, pas un trou de grille).
+            if (events.length > 0) {
+                events[0].deltaMs += this.padCarryMs;
+                const tailSteps = Math.max(0, stepsToGen - notesEndStep(playNotes));
+                this.padCarryMs = tailSteps * MS_PER_STEP;
+            } else {
+                this.padCarryMs += stepsToGen * MS_PER_STEP;
+            }
+
+            // 8. Stats
             const latency = performance.now() - tStart;
             this.recordLatency(latency);
             this.stats.callCount++;
