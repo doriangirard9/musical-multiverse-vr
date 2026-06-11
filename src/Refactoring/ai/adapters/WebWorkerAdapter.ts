@@ -2,9 +2,13 @@ import {
     IMusicGeneratorAdapter, AdapterCapabilities, AdapterTier,
 } from "../IMusicGeneratorAdapter";
 import {
-    MidiEvent, HyperparamSpec, AdapterStats, InitOpts, emptyStats,
+    MidiEvent, AdapterStats, InitOpts, emptyStats,
 } from "../types";
 import type { MagentaRNNVariant } from "./MagentaMusicRNNAdapter";
+import { RNN_HYPERPARAMS, VAE_HYPERPARAMS } from "../hyperparams";
+
+// Type de modèle exécuté dans le worker (Famille 1 = RNN, Famille 2 = VAE).
+export type WorkerModelType = "music_rnn" | "music_vae";
 
 // ─── WebWorkerAdapter ────────────────────────────────────────────────────────
 //
@@ -23,18 +27,11 @@ import type { MagentaRNNVariant } from "./MagentaMusicRNNAdapter";
 //   Les hyperparamètres sont mis en cache côté main (pour getHyperparameter
 //   synchrone) ET postés au worker (fire-and-forget).
 
-// Mêmes specs que MagentaMusicRNNAdapter — dupliquées ici car le worker n'est
-// pas interrogeable de façon synchrone au moment de construire les capabilities.
-const HYPERPARAMS: HyperparamSpec[] = [
-    { name: "temperature", displayName: "Température", description: "Chaos vs prévisibilité (1.0 = naturel)", min: 0.1, max: 2.5, default: 1.0 },
-    { name: "density", displayName: "Densité", description: "Steps par appel (plus = dense). ⚠ coûte du calcul", min: 1, max: 8, default: 2 },
-    { name: "octaveCenter", displayName: "Octave centrale", description: "Pitch MIDI médian (60 = C4)", min: 48, max: 84, default: 60 },
-    { name: "pitchRange", displayName: "Tessiture", description: "Demi-tons d'étendue", min: 12, max: 60, default: 36 },
-];
-
 export type WorkerBackend = "cpu" | "wasm";
 
 export interface WebWorkerAdapterOpts extends InitOpts {
+    /** Type de modèle dans le worker. Défaut "music_rnn". */
+    modelType?: WorkerModelType;
     variant?: MagentaRNNVariant;
     primerMaxNotes?: number;
     /**
@@ -52,18 +49,14 @@ export class WebWorkerAdapter implements IMusicGeneratorAdapter {
     readonly displayName: string;
     readonly tier: AdapterTier = "local-browser";
 
-    readonly capabilities: AdapterCapabilities = {
-        streaming: true,
-        hyperparameters: HYPERPARAMS,
-        inputModality: "midi-context",
-        outputModality: "midi-events",
-    };
+    readonly capabilities: AdapterCapabilities;
 
     readonly stats: AdapterStats = emptyStats();
 
     /** Backend TF.js effectivement utilisé par le worker (rempli à l'init). */
     public backend = "?";
 
+    private modelType: WorkerModelType;
     private variant: MagentaRNNVariant;
     private primerMaxNotes: number;
     private requestedBackend: WorkerBackend;
@@ -78,12 +71,24 @@ export class WebWorkerAdapter implements IMusicGeneratorAdapter {
     private latencies: number[] = [];
 
     constructor(opts: WebWorkerAdapterOpts = {}) {
+        this.modelType = opts.modelType ?? "music_rnn";
         this.variant = opts.variant ?? "melody_rnn";
         this.primerMaxNotes = opts.primerMaxNotes ?? 8;
         this.requestedBackend = opts.backend ?? "cpu";
-        this.id = `webworker-${this.variant}`;
-        this.displayName = `WebWorker (${this.variant})`;
-        for (const h of HYPERPARAMS) this.hypers.set(h.name, h.default);
+
+        // Capabilities selon le type de modèle (specs partagées, pures données).
+        const specs = this.modelType === "music_vae" ? VAE_HYPERPARAMS : RNN_HYPERPARAMS;
+        this.capabilities = {
+            streaming: true,
+            hyperparameters: specs,
+            inputModality: "midi-context",
+            outputModality: "midi-events",
+        };
+
+        const tag = this.modelType === "music_vae" ? "vae" : this.variant;
+        this.id = `webworker-${tag}`;
+        this.displayName = `WebWorker (${tag})`;
+        for (const h of specs) this.hypers.set(h.name, h.default);
     }
 
     async init(opts?: InitOpts): Promise<void> {
@@ -111,7 +116,7 @@ export class WebWorkerAdapter implements IMusicGeneratorAdapter {
 
         // Envoyer l'init et attendre la confirmation
         const result = await this.request<{ initTimeMs: number; backend: string }>(
-            (requestId) => ({ type: "init", requestId, variant: this.variant, primerMaxNotes: this.primerMaxNotes, backend: this.requestedBackend }),
+            (requestId) => ({ type: "init", requestId, modelType: this.modelType, variant: this.variant, primerMaxNotes: this.primerMaxNotes, backend: this.requestedBackend }),
         );
         this.backend = result.backend;
 
@@ -136,7 +141,7 @@ export class WebWorkerAdapter implements IMusicGeneratorAdapter {
     }
 
     setHyperparameter(name: string, value: number): void {
-        const spec = HYPERPARAMS.find(h => h.name === name);
+        const spec = this.capabilities.hyperparameters.find(h => h.name === name);
         if (!spec) throw new Error(`WebWorkerAdapter: unknown hyperparameter "${name}"`);
         if (value < spec.min || value > spec.max) {
             throw new Error(`WebWorkerAdapter: ${name}=${value} out of range [${spec.min}, ${spec.max}]`);

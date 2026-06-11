@@ -36,6 +36,7 @@ export default defineConfig({
     // WASM. Leur format mixte ESM/CJS exige le pré-bundling esbuild.
     include: [
       '@magenta/music/esm/music_rnn',
+      '@magenta/music/esm/music_vae',
       '@magenta/music/esm/core/sequences',
       '@tensorflow/tfjs',
       '@tensorflow/tfjs-backend-wasm',

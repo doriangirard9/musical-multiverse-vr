@@ -11,6 +11,244 @@ mémoire et de la soutenance.
 
 ---
 
+## 2026-06-11 — Interop MIDI WAM (canal 0) + fix playhead Superformula 3D [décision]
+
+### Bug : AIComposer batterie/mélodie muets sur guitarMIDI et DRM-16
+Audit de TOUS les émetteurs MIDI de wamjamparty (Sequencer, Harp,
+DrumPlateKit, DrumKit) : **tout le monde émet sur le canal 0** (`0x90`),
+y compris DrumPlateKit qui pilote des WAMs de batterie. Notre variante
+batterie émettait sur le canal 9 (convention GM canal 10) → les WAMs de
+type DRM-16/drumsampler, qui mappent par numéro de note sur le canal 0,
+ignoraient tout. **Fix : canal 0 pour tout** (les numéros de notes GM
+36/38/42 suffisent aux drum machines).
+
+Pour la mélodie→guitarMIDI : les octets émis sont identiques à ceux du
+Sequencer (0x90/0x80, canal 0) et le chemin (`WamNode.scheduleEvents`)
+est le même — pas de cause côté AIComposer identifiable hors VR. Ajout de
+**diagnostics embarqués** pour trancher au prochain test :
+- log console à chaque connexion/déconnexion MIDI (instanceId),
+- log du 1er note-on émis puis tous les 50 (avec nb de connexions),
+- écran : `♪ En jeu →N` (N = connexions) et **« ⚠ Sortie MIDI non
+  câblée ! »** si play sans connexion.
+Diagnostic différentiel : si l'écran affiche →1 et que les notes montent
+mais silence → le WAM ne joue pas ce qu'on lui envoie (tester la même
+chaîne avec le Sequencer pour confirmer) ; si →0 → problème de câblage.
+
+### Bug : la boule du Superformula 3D « ne suit pas le chemin »
+Quatre causes cumulées, toutes corrigées :
+1. **Maillage sous-échantillonné** (48×24) : la boule suit la formule
+   EXACTE mais la surface affichée était une approximation grossière —
+   dès m>6 la boule flottait visiblement hors des facettes. → 96×48.
+2. **Auto-rotation permanente** : la forme tournait sous la boule, le
+   mouvement combiné était illisible. → rotation uniquement pendant le
+   morphing (la forme « remue »), stable au repos.
+3. **Traînée initialisée à l'origine** → trait parasite au centre. → la
+   traînée démarre sur la boule (1re frame).
+4. **Culling erratique** : wire (clone) et trail (lignes mises à jour par
+   instance) gardaient une bounding info dégénérée jamais rafraîchie →
+   disparitions selon l'angle de vue. → `alwaysSelectAsActiveMesh`.
+
+### Leçon (mémoire)
+L'interopérabilité MIDI entre générateurs et WAMs ne se joue pas que sur
+le protocole (wam-midi/scheduleEvents) mais sur des conventions tacites :
+canal d'écoute, gestion des timestamps futurs, mapping de notes. La
+convention de l'écosystème hôte (ici : tout sur canal 0) prime sur la
+norme générale (GM canal 10 batterie).
+
+---
+
+## 2026-06-10 — Shake VR réparé, redesign AIComposer, Superformula 3D [décision] [surprise]
+
+### Bug : le shake-to-delete ne marchait pas DU TOUT en VR
+Cause racine : `ShakeBehavior` écoutait `pointer.onMove` (rayon du pointeur),
+un chemin d'input qui ne se déclenche pas pendant que `FullHoldBehaviour`
+tient la boîte en VR. Fix dans `Node3DInstance` : la détection se base
+désormais sur le **mouvement réel de la bounding box tenue** (observables
+`onGrab/onMove/onRelease` du `HoldableBehaviour`) — si le drag marche, la
+détection marche. 6 inversions de direction franches (≥5 cm d'amplitude,
+fenêtre glissante 900 ms) suppriment, avec couleur blanc→rouge + message %.
+
+### Surprise d'architecture : la bounding box avale les contrôles
+La `BoundingBox` pickable ajoute une marge de **+0.1 unité MONDE en
+profondeur** autour des meshes `addToBoundingBox`. Mes potards à z=0.28
+local étaient entièrement à l'intérieur → le rayon frappait la boîte
+invisible avant eux → impossibles à manipuler. L'idiome correct (déjà
+utilisé par AudioPlaque/Superformula) : **plaque-poignée à l'arrière** dans
+la bounding box, contrôles devant. Autre découverte : le spawn oriente
+**+z loin du joueur** → la face interactive doit être en -z.
+
+### Redesign AIComposer (console synthé)
+- Châssis métal (seule cible de la BB) + panneau avant sombre face joueur,
+  liserés lumineux couleur d'accent par variante (cyan mélodie, orange
+  impro, rouge batterie, violet VAE).
+- **Potards cylindriques rotatifs** (encoche -135°..+135°, bague colorée)
+  sur tiges qui dépassent DEVANT la bounding box → manipulables en VR,
+  et toujours câblables (couplage automatique paramètre↔automation).
+- **Cœur IA lumineux = bouton play/stop** : vert prêt / ambre clignotant
+  chargement / accent en jeu / rouge erreur ; **pulse à chaque note,
+  synchronisé au temps AUDIBLE** (setTimeout sur timeSec - currentTime,
+  pas à l'émission look-ahead) ; anneau orbital dont la vitesse suit
+  l'activité.
+- **Écran embarqué** (ADT) : nom du modèle, état, progression du
+  chargement, valeurs des 5 potards, jauge de buffer look-ahead,
+  compteur de notes, alerte lateEvents.
+- `sendSignal` (vague colorée au sol) au démarrage.
+
+### Superformula 3D (nouveau Node3D `superformula3d`)
+Supershape de Gielis (produit sphérique de 2 superformules), même rôle que
+le 2D : contrôleur d'automation. Mesh updatable 49×25 sommets :
+- **Morphing lissé** : les knobs écrivent une CIBLE, les paramètres
+  courants glissent vers elle à chaque frame → la surface se déforme
+  fluidement (pas de saut).
+- Couleurs par rayon (violet→cyan), surcouche wireframe qui s'intensifie
+  pendant le morphing, cage 12 arêtes qui pulse, auto-rotation qui
+  accélère pendant le morphing.
+- Playhead en spirale (θ, φ incommensurables) + traînée fondante ;
+  **8 métriques 3D** en automation : posX/Y/Z (Z est nouveau vs 2D),
+  rayon, Δrayon, vitesse, accélération, courbure.
+- 8 knobs math (2 profils A/B) + échelle + vitesse + resize + passthrough
+  audio. Enregistré dans Node3DBuilder + menuConfig.
+
+### Fichiers
+- `node3d/instance/Node3DInstance.ts` — détection de secouage via holdable.
+- `node3d/subs/ai/AIComposerN3D.ts` — réécriture GUI + feedback.
+- `node3d/subs/behaviours/Superformula3DN3D.ts` — NOUVEAU.
+- `app/Node3DBuilder.ts`, `xr/menuConfig.json` — enregistrement.
+
+### À tester en VR
+1. Secouer un instrument tenu → % monte, boîte rougit, suppression à 100 %.
+2. AIComposer : tourner les potards à la main, lancer via le cœur,
+   vérifier pulse par note + écran (buffer, notes).
+3. Superformula 3D : tourner les knobs → morphing fluide ; câbler
+   posX/posY/posZ vers température/densité d'un AIComposer.
+
+---
+
+## 2026-06-08 — UX VR : potards IA directs + suppression revue [décision]
+
+### Contexte
+Retour d'usage : (1) les hyperparamètres IA (température/densité) n'étaient
+QUE des entrées d'automation (câblables) — impossible de les régler à la main
+en VR, et leur valeur n'était pas lisible ; (2) la seule façon de supprimer
+un instrument était de secouer sa boîte ~5 s, geste non découvrable et
+déclenchable par accident.
+
+### Potards IA directement contrôlables + valeur affichée
+- Les 2 premiers hyperparamètres du modèle deviennent des **potards
+  `createParameter`** (sphères façade) : directement tournables en VR.
+  RNN → température + densité ; VAE → température + morph.
+- Subtilité d'archi : l'host couple AUTOMATIQUEMENT chaque paramètre à un
+  point d'automation sur le **même mesh** (`Node3DInstance.createParameter`).
+  Donc « directement contrôlable » ET toujours câblable pour le chef
+  d'orchestre, sans mesh supplémentaire ni encombrement.
+- **Panneau de valeurs permanent** au-dessus de l'instrument (plan billboard
+  + `AdvancedDynamicTexture`) : affiche en continu température, densité/morph,
+  tempo, vélocité, horizon. Mis à jour à chaque changement (`refreshStatus`).
+- `setHyperparameter` met en cache même avant `init()` (poussé au worker à
+  l'init) → régler un potard avant le play fonctionne.
+
+### Suppression revue (infra partagée — TOUS les Node3D)
+- Geste de secouage conservé (choix utilisateur) mais rendu **découvrable et
+  progressif** dans `Node3DInstance` :
+  - message d'invite « Secoue pour supprimer… NN% »,
+  - couleur de la boîte blanc → rouge proportionnelle à l'avancement,
+  - seuil raccourci (`DELETE_SHAKE_TICKS = 4`, ~1.6 s) + garde anti-double.
+- Évite les suppressions accidentelles (il faut secouer franchement, avec
+  feedback clair de ce qui va arriver).
+
+### Fichiers
+- `node3d/subs/ai/AIComposerN3D.ts` : GUI (potards façade + panneau billboard),
+  logique (knobs hyperparamètres, `refreshStatus`, sync).
+- `node3d/instance/Node3DInstance.ts` : handlers `on_start/on_shake/on_stop`.
+
+### À tester en VR
+Tourner les potards (valeur visible ?), secouer pour supprimer (feedback +
+seuil OK ?), vérifier que le câblage AudioPlaque→potard marche toujours.
+
+---
+
+## 2026-06-05 — Famille 2 : MusicVAE (espace latent) + architecture multi-modèle [décision]
+
+### Objectif
+Ajouter la Famille 2 (modèles à espace latent) — l'idée chef d'orchestre la
+plus prometteuse : le geste = position dans l'espace latent = morphing continu.
+
+### MusicVAEAdapter
+- `mel_2bar_small`. À l'init : 2 phrases-ancres aléatoires → leurs vecteurs
+  latents zA, zB. Hyperparamètre `morph` (0..1) interpole : décoder
+  lerp(zA, zB, morph) → une phrase qui morphe entre A et B.
+- requestNext décode une phrase 2-mesures au morph courant ; le scheduler
+  bufferise. Changement de morph → effet à la phrase suivante (bufferisé,
+  cohérent avec le modèle deux-latences).
+- Hyperparamètres VAE : température (diversité) + morph.
+
+### Refactor pour le multi-modèle
+- `ai/hyperparams.ts` : specs PURES (RNN_HYPERPARAMS, VAE_HYPERPARAMS), sans
+  import Magenta → importable côté main thread sans tirer TF.js.
+- `ai/adapters/noteConversion.ts` : conversion notes→MidiEvent partagée
+  (polyphonie, repliement de hauteur), utilisée par RNN et VAE.
+- Worker : dispatch par `modelType` (music_rnn | music_vae).
+- WebWorkerAdapter : `modelType`, capabilities (hyperparamètres) selon le type.
+- AIComposerN3D : entrées d'automation GÉNÉRIQUES — câble les 2 premiers
+  hyperparamètres du modèle (RNN→temp+densité, VAE→temp+morph) en lisant les
+  specs depuis capabilities. Plus rien de codé en dur.
+
+### Instrument ajouté
+`ai_composer_vae` — "AI Composer — Latent (VAE)". Le potard/entrée MORPH
+morphe la musique entre deux phrases.
+
+### À tester (run de Yassine)
+- VAE → câbler vers Pro54, play. Une phrase mélodique doit sortir.
+- Câbler AudioPlaque.Y → morph, bouger : la musique doit MORPHER (caractère
+  qui change continûment) à chaque nouvelle phrase.
+- vite.config a changé (music_vae) → `rm -rf node_modules/.vite` avant test.
+
+---
+
+## 2026-06-04 — Plusieurs instruments Famille 1 + support polyphonie [décision]
+
+### Objectif
+Exposer plusieurs modèles de continuation de séquence (Famille 1) comme
+instruments distincts dans WamJamParty. Tous partagent la classe Magenta
+`MusicRNN` → un checkpoint = un instrument.
+
+### Pré-requis technique : polyphonie
+melody_rnn et chord_pitches_improv sont monophoniques, mais drum_kit_rnn est
+POLYPHONIQUE (kick+hihat au même step). L'émission d'événements monophonique
+(note-on/off séquentiels) cassait sur les notes simultanées.
+
+→ Refonte de `MagentaMusicRNNAdapter` :
+- `recentNotes` passe en **steps absolus** (startStep/endStep explicites) →
+  supporte les notes simultanées dans le primer.
+- Émission **événementielle triée** : on éclate chaque note en (on@start,
+  off@end), on trie tous les événements par step (off avant on à step égal),
+  puis deltaMs = écart depuis l'événement précédent. Gère mono ET polyphonie.
+- `buildQuantizedPrimer` re-normalise sur 0 en préservant les positions
+  relatives (polyphonie conservée), `isDrum` selon le mode.
+
+### Instruments ajoutés (4 variantes AIComposerN3DFactory)
+| Kind | Checkpoint | Type | Canal |
+|------|-----------|------|-------|
+| `ai_composer` | melody_rnn | mélodie tonale | 0 |
+| `ai_composer_basic` | basic_rnn | mélodie neutre (comparaison) | 0 |
+| `ai_composer_improv` | chord_pitches_improv | mélodie sur accords (Do) | 0 |
+| `ai_composer_drums` | drum_kit_rnn | batterie polyphonique | 9 (GM) |
+
+Mode batterie : pas de repliement de hauteur (le pitch = type de fût),
+seed = petit beat rock, primer plus grand (24, car polyphonique), sortie
+sur canal MIDI 10.
+
+Enregistrés dans Node3DBuilder + menuConfig (mélodie/impro/batterie visibles
+en VR ; basic réservé au benchmark).
+
+### À tester (run de Yassine)
+- Mélodie/Impro → câbler vers Pro54.
+- Batterie → câbler vers un drum kit WAM (wam3d-Drum). Vérifier qu'un beat
+  cohérent (kick/snare/hihat) sort, pas du bruit.
+- L'émission triée ne doit pas régresser la mélodie (mono = même résultat).
+
+---
+
 ## 2026-06-04 — Notes "au hasard" : 6 bugs de génération corrigés [surprise] [décision]
 
 ### Symptôme

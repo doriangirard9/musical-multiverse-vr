@@ -10,8 +10,10 @@ import {
     IMusicGeneratorAdapter, AdapterCapabilities, AdapterTier,
 } from "../IMusicGeneratorAdapter";
 import {
-    MidiEvent, HyperparamSpec, AdapterStats, InitOpts, emptyStats,
+    MidiEvent, AdapterStats, InitOpts, emptyStats,
 } from "../types";
+import { RNN_HYPERPARAMS } from "../hyperparams";
+import { notesToMidiEvents } from "./noteConversion";
 
 // ─── MagentaMusicRNNAdapter ──────────────────────────────────────────────────
 //
@@ -41,7 +43,11 @@ import {
 //   Si la latence p95 dépasse 100 ms → drapeau rouge, bascule sur
 //   l'architecture serveur (tier 2) discutée Section 5.6 du plan PFE.
 
-export type MagentaRNNVariant = "basic_rnn" | "melody_rnn" | "chord_pitches_improv";
+export type MagentaRNNVariant =
+    | "basic_rnn"            // mélodie monophonique simple
+    | "melody_rnn"           // mélodie monophonique structurée
+    | "chord_pitches_improv" // mélodie improvisée sur accords (ImprovRNN)
+    | "drum_kit_rnn";        // patterns de batterie (DrumsRNN, polyphonique)
 
 export interface MagentaMusicRNNAdapterOpts extends InitOpts {
     /** Quel checkpoint Magenta charger.  Défaut : "basic_rnn". */
@@ -74,39 +80,17 @@ const CHECKPOINT_URLS: Record<MagentaRNNVariant, string> = {
     basic_rnn:            "https://storage.googleapis.com/magentadata/js/checkpoints/music_rnn/basic_rnn",
     melody_rnn:           "https://storage.googleapis.com/magentadata/js/checkpoints/music_rnn/melody_rnn",
     chord_pitches_improv: "https://storage.googleapis.com/magentadata/js/checkpoints/music_rnn/chord_pitches_improv",
+    drum_kit_rnn:         "https://storage.googleapis.com/magentadata/js/checkpoints/music_rnn/drum_kit_rnn",
 };
+
+// Pitches GM de batterie pour le seed du DrumsRNN
+const GM_KICK = 36, GM_SNARE = 38, GM_HIHAT = 42;
 
 const STEPS_PER_QUARTER = 4;   // sixteenths
 const DEFAULT_BPM = 120;
 const MS_PER_STEP = 60_000 / (DEFAULT_BPM * STEPS_PER_QUARTER);   // 125 ms
 
-const HYPERPARAMS: HyperparamSpec[] = [
-    {
-        name: "temperature",
-        displayName: "Température",
-        description: "Chaos vs prévisibilité du tirage softmax (1.0 = naturel)",
-        min: 0.1, max: 2.5, default: 1.0,
-    },
-    {
-        name: "density",
-        displayName: "Densité",
-        description: "Steps de génération par appel — plus haut = flux plus dense",
-        min: 1, max: 8, default: 2,
-    },
-    {
-        name: "octaveCenter",
-        displayName: "Octave centrale",
-        description: "Pitch MIDI médian. Sert au post-filtrage des notes hors tessiture.",
-        min: 48, max: 84, default: 60,
-        expensiveToUpdate: false,
-    },
-    {
-        name: "pitchRange",
-        displayName: "Tessiture",
-        description: "Demi-tons d'étendue autour de l'octave centrale (post-filtrage)",
-        min: 12, max: 60, default: 36,
-    },
-];
+const HYPERPARAMS = RNN_HYPERPARAMS;
 
 export class MagentaMusicRNNAdapter implements IMusicGeneratorAdapter {
     readonly id: string;
@@ -127,20 +111,23 @@ export class MagentaMusicRNNAdapter implements IMusicGeneratorAdapter {
     private checkpointUrl: string;
     private chordProgression: string[] | null;
     private primerMaxNotes: number;
+    private readonly isDrums: boolean;        // batterie = polyphonique, pas de repliement de hauteur
 
     private hypers = new Map<string, number>();
     private latencies: number[] = [];
 
-    // Historique des notes générées, en unités de STEP (grille quantifiée).
-    // On reconstruit un primer quantifié propre à chaque appel à partir d'ici —
-    // aucun mélange secondes/quantification (qui désalignait les notes dans
-    // l'ancienne version et corrompait le contexte du modèle).
-    private recentNotes: { pitch: number; durationSteps: number }[] = [];
+    // Historique des notes générées, en STEPS ABSOLUS (positions explicites →
+    // supporte la POLYPHONIE : plusieurs notes au même step). On reconstruit un
+    // primer quantifié propre à chaque appel à partir d'ici. `nextStep` suit la
+    // fin du primer pour y rattacher la continuation générée.
+    private recentNotes: { pitch: number; startStep: number; endStep: number }[] = [];
+    private nextStep = 0;
 
     constructor(opts: MagentaMusicRNNAdapterOpts = {}) {
         this.variant = opts.variant ?? "basic_rnn";
         this.checkpointUrl = opts.checkpointUrl ?? CHECKPOINT_URLS[this.variant];
         this.primerMaxNotes = opts.primerMaxNotes ?? 8;
+        this.isDrums = this.variant === "drum_kit_rnn";
 
         // chord_pitches_improv exige une progression d'accords.
         // Défaut : un seul accord de Do si non fourni.
@@ -157,14 +144,32 @@ export class MagentaMusicRNNAdapter implements IMusicGeneratorAdapter {
 
         for (const h of HYPERPARAMS) this.hypers.set(h.name, h.default);
 
-        // Seed : un court motif Do majeur (C-D-E-G) pour donner au modèle un
-        // contexte TONAL de départ → sortie plus harmonique qu'avec une note seule.
-        this.recentNotes = [
-            { pitch: 60, durationSteps: 2 },
-            { pitch: 62, durationSteps: 2 },
-            { pitch: 64, durationSteps: 2 },
-            { pitch: 67, durationSteps: 2 },
-        ];
+        // Seed adapté au type de modèle.
+        if (this.isDrums) {
+            // Un petit beat rock : kick/snare alternés + hi-hat sur chaque temps.
+            // Notes simultanées (même step) → exerce la polyphonie dès le primer.
+            this.seedNotes([
+                { pitch: GM_KICK,  startStep: 0, endStep: 1 },
+                { pitch: GM_HIHAT, startStep: 0, endStep: 1 },
+                { pitch: GM_HIHAT, startStep: 2, endStep: 3 },
+                { pitch: GM_SNARE, startStep: 4, endStep: 5 },
+                { pitch: GM_HIHAT, startStep: 4, endStep: 5 },
+                { pitch: GM_HIHAT, startStep: 6, endStep: 7 },
+            ]);
+        } else {
+            // Un court motif Do majeur (C-D-E-G) → contexte TONAL de départ.
+            this.seedNotes([
+                { pitch: 60, startStep: 0, endStep: 2 },
+                { pitch: 62, startStep: 2, endStep: 4 },
+                { pitch: 64, startStep: 4, endStep: 6 },
+                { pitch: 67, startStep: 6, endStep: 8 },
+            ]);
+        }
+    }
+
+    private seedNotes(notes: { pitch: number; startStep: number; endStep: number }[]): void {
+        this.recentNotes = notes.map(n => ({ ...n }));
+        this.nextStep = Math.max(...notes.map(n => n.endStep), 0);
     }
 
     async init(opts?: InitOpts): Promise<void> {
@@ -250,47 +255,35 @@ export class MagentaMusicRNNAdapter implements IMusicGeneratorAdapter {
                 primerQ, stepsToGen, temperature, this.chordProgression ?? undefined,
             );
 
-            // 4. Trier par step de début (sécurité)
-            const genNotes = (generated.notes ?? [])
-                .slice()
-                .sort((a, b) => (a.quantizedStartStep ?? 0) - (b.quantizedStartStep ?? 0));
+            // 4. Conversion en MidiEvent[] (helper partagé, gère la polyphonie).
+            //    Mélodie : repliement de hauteur dans la tessiture. Batterie :
+            //    hauteur conservée (notes GM 36/38/42…).
+            //    CANAL 0 pour tout, batterie comprise : la convention de
+            //    wamjamparty (Sequencer, DrumPlateKit…) émet tout sur 0x90 et
+            //    les WAMs de batterie (DRM-16, drumsampler) ignorent le canal
+            //    10 GM — ils mappent par numéro de note sur le canal 0.
+            const genNotes = generated.notes ?? [];
+            const events = notesToMidiEvents(genNotes, {
+                msPerStep: MS_PER_STEP,
+                isDrums: this.isDrums,
+                octaveCenter: this.hypers.get("octaveCenter")!,
+                pitchRange: this.hypers.get("pitchRange")!,
+                channel: 0,
+            });
 
-            // 5. Émission avec des deltaMs SÉQUENTIELS corrects.
-            //    Le scheduler additionne les deltaMs : chaque deltaMs = temps
-            //    depuis l'événement PRÉCÉDENT.
-            //      note-on  : écart depuis le step du dernier événement (un off)
-            //      note-off : durée de la note
-            //    (L'ancienne version mesurait l'écart depuis le DÉBUT de la note
-            //    précédente alors que le off avait déjà avancé le temps de la
-            //    durée → double comptage → rythme étiré.)
-            //    Les hauteurs hors tessiture sont REPLIÉES par octaves, pas
-            //    supprimées (filtrer trouait le rythme).
-            const center = this.hypers.get("octaveCenter")!;
-            const range = this.hypers.get("pitchRange")!;
-            const events: MidiEvent[] = [];
-            let prevStep = genNotes.length ? (genNotes[0].quantizedStartStep ?? 0) : 0;
+            // 5. Rattacher la continuation au primer (en steps absolus), puis
+            //    glisser la fenêtre par nombre de notes.
             for (const n of genNotes) {
                 const startStep = n.quantizedStartStep ?? 0;
                 const endStep = Math.max(startStep + 1, n.quantizedEndStep ?? startStep + 1);
-                const pitch = foldIntoRange(n.pitch ?? 60, center, range);
-                const velocity = n.velocity ?? 90;
-
-                events.push({
-                    type: "note-on", note: pitch, velocity, channel: 0,
-                    deltaMs: Math.max(0, (startStep - prevStep) * MS_PER_STEP),
+                const rawPitch = n.pitch ?? 60;
+                this.recentNotes.push({
+                    pitch: rawPitch,
+                    startStep: this.nextStep + startStep,
+                    endStep: this.nextStep + endStep,
                 });
-                prevStep = startStep;
-                events.push({
-                    type: "note-off", note: pitch, channel: 0,
-                    deltaMs: Math.max(1, (endStep - startStep) * MS_PER_STEP),
-                });
-                prevStep = endStep;
-
-                // Mémoriser pour le primer du prochain appel (en steps)
-                this.recentNotes.push({ pitch, durationSteps: endStep - startStep });
             }
-
-            // 6. Fenêtre glissante du primer (en steps — pas de réalignement fragile)
+            this.nextStep += stepsToGen;
             while (this.recentNotes.length > this.primerMaxNotes) this.recentNotes.shift();
 
             // 7. Stats
@@ -309,28 +302,35 @@ export class MagentaMusicRNNAdapter implements IMusicGeneratorAdapter {
     // ── Helpers internes ──────────────────────────────────────────────────
 
     /**
-     * Construit un NoteSequence QUANTIFIÉ (grille de steps) depuis recentNotes.
-     * On bâtit directement en steps contigus — pas de quantizeNoteSequence,
-     * donc aucune dérive de réalignement. Les notes sont placées bout à bout.
+     * Construit un NoteSequence QUANTIFIÉ depuis recentNotes (positions en steps
+     * ABSOLUS). On re-normalise sur 0 (la plus ancienne note commence au step 0)
+     * et on préserve les positions relatives → la POLYPHONIE est conservée
+     * (notes simultanées au même step). Aucun quantizeNoteSequence, donc aucune
+     * dérive de réalignement.
      */
     private buildQuantizedPrimer(): INoteSequence {
         const notes: INoteSequence["notes"] = [];
-        let step = 0;
+        const base = this.recentNotes.length
+            ? Math.min(...this.recentNotes.map(n => n.startStep))
+            : 0;
+        let total = 0;
         for (const rn of this.recentNotes) {
+            const s = rn.startStep - base;
+            const e = rn.endStep - base;
             notes!.push({
                 pitch: rn.pitch,
-                quantizedStartStep: step,
-                quantizedEndStep: step + rn.durationSteps,
+                quantizedStartStep: s,
+                quantizedEndStep: e,
                 velocity: 90,
                 program: 0,
-                isDrum: false,
+                isDrum: this.isDrums,
             });
-            step += rn.durationSteps;
+            if (e > total) total = e;
         }
         return {
             quantizationInfo: { stepsPerQuarter: STEPS_PER_QUARTER },
             notes,
-            totalQuantizedSteps: step,
+            totalQuantizedSteps: total,
         } as INoteSequence;
     }
 
@@ -360,16 +360,3 @@ export class MagentaMusicRNNAdapter implements IMusicGeneratorAdapter {
     }
 }
 
-/**
- * Replie une hauteur MIDI dans la tessiture [center ± range/2] par sauts
- * d'octave (±12). Préserve la classe de hauteur (donc l'harmonie) tout en
- * gardant la note DANS la plage — au lieu de la supprimer et trouer le rythme.
- */
-function foldIntoRange(pitch: number, center: number, range: number): number {
-    const min = center - range / 2;
-    const max = center + range / 2;
-    let p = pitch;
-    while (p < min) p += 12;
-    while (p > max) p -= 12;
-    return Math.max(0, Math.min(127, Math.round(p)));
-}

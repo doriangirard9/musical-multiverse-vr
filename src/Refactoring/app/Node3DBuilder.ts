@@ -33,6 +33,7 @@ import { TextureAtlas } from "../utils/atlas.ts";
 import { AutoDispose } from "../utils/auto_dispose.ts";
 import { AudioPlaqueN3DFactory } from "../node3d/subs/behaviours/AudioPlaqueN3D.ts";
 import { SuperformulaN3DFactory } from "../node3d/subs/behaviours/SuperformulaN3D.ts";
+import { Superformula3DN3DFactory } from "../node3d/subs/behaviours/Superformula3DN3D.ts";
 import { AIComposerN3DFactory } from "../node3d/subs/ai/AIComposerN3D.ts";
 import ParticleEmitterN3DFactory from "../node3d/subs/particle/ParticleEmitterN3D.ts";
 import { N3DThumbnailRenderer } from "../world/renderer/N3DThumbnailRenderer.ts";
@@ -66,7 +67,7 @@ export class Node3DBuilder {
      */
     FACTORY_KINDS = [
         "audiooutput", "oscillator", "maracas", "livepiano", "notesbox", "pianoroll", "drumkit", "pro54michel", "butterchurn", "screen", "box_screen", "sphere_screen", "cylinder_screen", "isf_shader",
-        "hyperkeyboard", "drumplatekit", "automation_controller", "the_cube", "harp", "large_harp", "voice", "gaze", "sequencer", "audio_plaque", "superformula", "ai_composer",
+        "hyperkeyboard", "drumplatekit", "automation_controller", "the_cube", "harp", "large_harp", "voice", "gaze", "sequencer", "audio_plaque", "superformula", "superformula3d", "ai_composer", "ai_composer_improv", "ai_composer_drums", "ai_composer_basic", "ai_composer_vae",
         ...Object.keys(examples).map(k => `wam3d-${k}`),
         ...Object.keys(additionalConfig).map(k => `add-` + k)
     ]
@@ -109,7 +110,12 @@ export class Node3DBuilder {
         // Builtin
         if (kind == "audio_plaque") return AudioPlaqueN3DFactory.DEFAULT;
         if (kind == "superformula") return SuperformulaN3DFactory.DEFAULT;
+        if (kind == "superformula3d") return Superformula3DN3DFactory.DEFAULT;
         if (kind == "ai_composer") return AIComposerN3DFactory.MELODY;
+        if (kind == "ai_composer_improv") return AIComposerN3DFactory.IMPROV;
+        if (kind == "ai_composer_drums") return AIComposerN3DFactory.DRUMS;
+        if (kind == "ai_composer_basic") return AIComposerN3DFactory.BASIC;
+        if (kind == "ai_composer_vae") return AIComposerN3DFactory.VAE;
         if (kind == "audiooutput") return SpeakerN3DFactory
         if (kind == "sequencer") return SequencerN3DFactory
         if (kind == "oscillator") return OscillatorN3DFactory

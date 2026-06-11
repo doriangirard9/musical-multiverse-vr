@@ -26,7 +26,6 @@ import { N3DHighlighter } from "./utils/N3DHighlighter";
 import { N3DShared } from "./N3DShared";
 import { N3DMenuInstance } from "./utils/N3DMenuManager";
 import { AutomationN3DConnectable, MeshUtils } from "../tools";
-import { ShakeBehavior } from "../../behaviours/ShakeBehavior.ts";
 import { NetworkManager } from "../../network/NetworkManager.ts";
 import { N3DButtonInstance } from "./N3DButtonInstance.ts";
 import { SceneManager } from "../../app/SceneManager.ts";
@@ -253,17 +252,75 @@ export class Node3DInstance implements Synchronized {
         this.bounding_box = new BoundingBox(this.bounding_mesh)
 
 
-        // Shake behavior
-        const shake = new ShakeBehavior()
-        this.bounding_box.boundingBox.addBehavior(shake)
+        // Secouer pour supprimer — détection basée sur le MOUVEMENT RÉEL de la
+        // boîte tenue (observables du HoldableBehaviour), pas sur le rayon du
+        // pointeur : l'ancien ShakeBehavior écoutait pointer.onMove, un chemin
+        // qui ne se déclenche pas en VR pendant que FullHoldBehaviour tient la
+        // boîte. Si le drag marche, cette détection marche.
+        //
+        // Un "aller" = déplacement d'au moins SWING_MIN mètres ; une inversion
+        // de direction après un aller franc compte pour 1. REVERSALS_TO_DELETE
+        // inversions rapprochées suppriment l'instrument, avec feedback
+        // progressif (couleur blanc→rouge + message %). Sans inversion pendant
+        // RESET_MS le compteur retombe — un déplacement normal ne supprime rien.
+        const SWING_MIN = 0.05            // m : amplitude minimale d'un aller
+        const REVERSALS_TO_DELETE = 6     // ≈ 3 allers-retours francs (~1.5-2 s)
+        const RESET_MS = 900
 
-        shake.on_start = () => MeshUtils.setColor(this.bounding_box?.boundingBox!!, Color3.Red().toColor4())
+        const box = this.bounding_box.boundingBox
+        const holdable = this.bounding_box.holdable
+        const lastPos = new Vector3()
+        const delta = new Vector3()
+        const lastDelta = new Vector3()
+        let swingDist = 0
+        let reversals = 0
+        let lastReversalAt = 0
+        let deleting = false
 
-        shake.on_shake = (_, time: number) => {
-            if (time > 5) NetworkManager.getInstance().node3d.nodes.remove(this)
+        const resetShakeFeedback = () => {
+            reversals = 0
+            swingDist = 0
+            if (!box.isDisposed()) MeshUtils.setColor(box, Color3.White().toColor4())
         }
 
-        shake.on_stop = () => MeshUtils.setColor(this.bounding_box?.boundingBox!!, Color3.White().toColor4())
+        holdable.onGrabObservable.add(() => {
+            lastPos.copyFrom(box.absolutePosition)
+            lastDelta.setAll(0)
+            resetShakeFeedback()
+        })
+
+        holdable.onMoveObservable.add(() => {
+            if (this.disposed || deleting || box.isDisposed()) return
+            box.absolutePosition.subtractToRef(lastPos, delta)
+            if (delta.length() < 0.003) return   // bruit de tracking
+            const now = performance.now()
+            if (reversals > 0 && now - lastReversalAt > RESET_MS) resetShakeFeedback()
+            if (Vector3.Dot(delta, lastDelta) < 0) {
+                // Inversion de direction : compte seulement si l'aller était franc
+                if (swingDist >= SWING_MIN) {
+                    reversals++
+                    lastReversalAt = now
+                    const progress = reversals / REVERSALS_TO_DELETE
+                    if (reversals >= REVERSALS_TO_DELETE) {
+                        deleting = true
+                        this.menu.print("🗑 Instrument supprimé")
+                        NetworkManager.getInstance().node3d.nodes.remove(this)
+                        return
+                    }
+                    MeshUtils.setColor(box, Color3.Lerp(Color3.White(), Color3.Red(), progress).toColor4())
+                    this.menu.print(`Secoue pour supprimer… ${Math.round(progress * 100)} %`)
+                }
+                swingDist = 0
+            } else {
+                swingDist += delta.length()
+            }
+            lastDelta.copyFrom(delta)
+            lastPos.copyFrom(box.absolutePosition)
+        })
+
+        holdable.onReleaseObservable.add(() => {
+            if (!this.disposed && !deleting) resetShakeFeedback()
+        })
 
 
         // On position change

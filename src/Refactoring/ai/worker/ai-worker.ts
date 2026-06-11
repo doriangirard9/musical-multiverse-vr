@@ -24,7 +24,11 @@ import * as tf from "@tensorflow/tfjs";
 import { setWasmPaths } from "@tensorflow/tfjs-backend-wasm";
 import { MagentaMusicRNNAdapter } from "../adapters/MagentaMusicRNNAdapter";
 import type { MagentaRNNVariant } from "../adapters/MagentaMusicRNNAdapter";
+import { MusicVAEAdapter } from "../adapters/MusicVAEAdapter";
+import type { IMusicGeneratorAdapter } from "../IMusicGeneratorAdapter";
 import type { MidiEvent } from "../types";
+
+export type WorkerModelType = "music_rnn" | "music_vae";
 
 // Backend TF.js choisi par l'appelant.
 //   cpu  : couverture complète des kernels (dont Multinomial), lent mais
@@ -45,7 +49,7 @@ async function setupBackend(backend: WorkerBackend): Promise<void> {
 // ─── Protocole de messages ───────────────────────────────────────────────────
 
 type InMessage =
-    | { type: "init"; requestId: number; variant: MagentaRNNVariant; primerMaxNotes: number; backend: WorkerBackend }
+    | { type: "init"; requestId: number; modelType: WorkerModelType; variant: MagentaRNNVariant; primerMaxNotes: number; backend: WorkerBackend }
     | { type: "setHyperparameter"; name: string; value: number }
     | { type: "requestNext"; requestId: number; context: MidiEvent[]; dtMs: number }
     | { type: "dispose"; requestId: number };
@@ -57,7 +61,7 @@ type OutMessage =
     | { type: "disposeDone"; requestId: number }
     | { type: "error"; requestId: number; message: string };
 
-let adapter: MagentaMusicRNNAdapter | null = null;
+let adapter: IMusicGeneratorAdapter | null = null;
 
 function post(msg: OutMessage) {
     (self as any).postMessage(msg);
@@ -74,10 +78,13 @@ self.onmessage = async (e: MessageEvent<InMessage>) => {
                 // Backend choisi par l'appelant (cpu par défaut, cf WebWorkerAdapter)
                 await setupBackend(msg.backend);
 
-                adapter = new MagentaMusicRNNAdapter({
-                    variant: msg.variant,
-                    primerMaxNotes: msg.primerMaxNotes,
-                });
+                // Choix de l'adapter selon le type de modèle (Famille 1 ou 2)
+                adapter = msg.modelType === "music_vae"
+                    ? new MusicVAEAdapter()
+                    : new MagentaMusicRNNAdapter({
+                        variant: msg.variant,
+                        primerMaxNotes: msg.primerMaxNotes,
+                    });
                 await adapter.init();
 
                 post({
