@@ -2,6 +2,8 @@ import type { Color4, AbstractMesh } from "@babylonjs/core";
 import type { Node3D, Node3DFactory, Node3DGUI } from "../Node3D";
 import type { Node3DGUIContext } from "../Node3DGUIContext";
 import type { Node3DContext } from "../Node3DContext";
+import { WamTransportManager } from "../../app/WamTransportManager";
+import { IntegerN3DParameter } from "../tools/parameter";
 
 
 
@@ -11,6 +13,7 @@ class SequencerN3DGUI implements Node3DGUI {
     block
     notes: AbstractMesh[][] = []
     noteSliders: AbstractMesh[] = []
+    duration_slider!: AbstractMesh
     output
     syncInput
     syncOutput
@@ -126,6 +129,10 @@ class SequencerN3DGUI implements Node3DGUI {
                 slider.parent = this.root
                 this.noteSliders.push(slider)
             }
+
+            const tempo_slider = this.duration_slider = sliderTemplate.createInstance(`sequence tempo slider`)
+            tempo_slider.position.set(fx - baseSize*.7*3, baseSize*.1, (fy+ty)/2)
+            tempo_slider.parent = this.root
         }
 
         createKeyboard(
@@ -181,6 +188,10 @@ class SequencerN3D implements Node3D{
 
     private sync
 
+    private start_time = 0
+
+    private duration_multiplier = 1
+
     private midi_output
 
     // Update note data and visual
@@ -206,7 +217,7 @@ class SequencerN3D implements Node3D{
     }
 
     private updateStep(gui: SequencerN3DGUI, audioContext: AudioContext){
-        const loop = (audioContext.currentTime%this.sync.total)
+        const loop = ((audioContext.currentTime-this.start_time)%this.sync.total)
         const local = (loop-this.sync.start)/this.sync.duration
 
         let newStep
@@ -254,6 +265,21 @@ class SequencerN3D implements Node3D{
         context.createConnectable(new T.SynxN3DConnectable.Input("syncInput", [gui.syncInput], "Sync Input", this.sync))
         context.createConnectable(new T.SynxN3DConnectable.Output("syncOutput", [gui.syncOutput], "Sync Output", this.sync))
 
+        // TODO: REPLACE WITH A GOOD API
+        const transport = WamTransportManager.getInstance(context.audioCtx)
+
+        function updateTransport(){
+            sequencer.sync.duration = (60/transport.getTempo()) * // Beat duration in seconds
+                4 / transport.getTimeSignature().denominator * // Note duration in seconds
+                gui.noteCount * // Total duration in seconds
+                sequencer.duration_multiplier // With multiplier
+            sequencer.start_time = transport.getElapsedSeconds()
+        }
+
+        const disposeTransport = transport.onChange(updateTransport)
+
+
+
         // Create note buttons
         for(let s=0; s<gui.notes.length; s++){
             const step_note_states = [] as boolean[]
@@ -291,12 +317,30 @@ class SequencerN3D implements Node3D{
             sequencer.set_midi(n, sequencer.notes_midi[n])
         }
 
+        context.createParameter(new IntegerN3DParameter(
+            "duration_multiplier",
+            [gui.duration_slider],
+            1, 16,
+            v=>{
+                sequencer.duration_multiplier = v
+                updateTransport()
+            },
+            ()=>sequencer.duration_multiplier,
+            ()=>"Duration Multiplier",
+            "x",
+            false
+        ))
+
         const interval = setInterval(()=>{
-            sequencer.updateStep(gui, context.audioCtx)
+            const transport = WamTransportManager.getInstance(context.audioCtx)
+            if(transport.isPlaying)sequencer.updateStep(gui, context.audioCtx)
         },5)
+
+        updateTransport()
 
         this.dispose = async ()=>{
             clearInterval(interval)
+            disposeTransport()
         }
     }
 
