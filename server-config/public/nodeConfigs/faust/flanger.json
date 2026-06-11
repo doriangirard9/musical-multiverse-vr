@@ -1,0 +1,140 @@
+{
+    "aspect_ratio": 1.4,
+    "size": 0.7,
+    "bottom_color": "#29bdcd",
+    "top_color": "#79d3db",
+    "face": "water",
+    "face_color": "#ffffff",
+    "outline_color": "#ffffff",
+    "outline_width": 0.08,
+    "shape": "rectangle",
+    "modifier": "normal",
+    "modifier_strength": 0.5,
+    "controls": [
+        {
+            "x": 0.7060878846085447,
+            "y": 0.2725915276242534,
+            "width": 0.10889933614076484,
+            "height": 0.45005018196832713,
+            "values": {
+                "Unfilled/Shape": "rectangle",
+                "Unfilled/Top Color": "#000000",
+                "Unfilled/Bottom Color": "#000000",
+                "Unfilled/Outline Color": "#000000",
+                "Unfilled/Outline Width": 0,
+                "Unfilled/Front Face Image": "",
+                "Unfilled/Front Face Color": "#FFFFFF",
+                "Unfilled/Modifier": "normal",
+                "Unfilled/Modifier Strength": 0.5,
+                "Unfilled/Height": 0.2,
+                "Unfilled/Rotation": 0,
+                "Filled/Shape": "rectangle",
+                "Filled/Top Color": "#478bb8",
+                "Filled/Bottom Color": "#9aebed",
+                "Filled/Outline Color": "#000000",
+                "Filled/Outline Width": 0,
+                "Filled/Front Face Image": "",
+                "Filled/Front Face Color": "#FFFFFF",
+                "Filled/Modifier": "normal",
+                "Filled/Modifier Strength": 0.5,
+                "Filled/Height": 0.2,
+                "Filled/Rotation": 0,
+                "Direction": "+y",
+                "Target": "/flanger/Mix/Wet"
+            },
+            "control": "jauge"
+        },
+        {
+            "x": 0.5666460679295792,
+            "y": 0.2725915276242534,
+            "width": 0.10889933614076484,
+            "height": 0.45005018196832713,
+            "values": {
+                "Unfilled/Shape": "rectangle",
+                "Unfilled/Top Color": "#000000",
+                "Unfilled/Bottom Color": "#000000",
+                "Unfilled/Outline Color": "#000000",
+                "Unfilled/Outline Width": 0,
+                "Unfilled/Front Face Image": "",
+                "Unfilled/Front Face Color": "#FFFFFF",
+                "Unfilled/Modifier": "normal",
+                "Unfilled/Modifier Strength": 0.5,
+                "Unfilled/Height": 0.2,
+                "Unfilled/Rotation": 0,
+                "Filled/Shape": "rectangle",
+                "Filled/Top Color": "#3fa7c0",
+                "Filled/Bottom Color": "#92d2f5",
+                "Filled/Outline Color": "#000000",
+                "Filled/Outline Width": 0,
+                "Filled/Front Face Image": "",
+                "Filled/Front Face Color": "#FFFFFF",
+                "Filled/Modifier": "normal",
+                "Filled/Modifier Strength": 0.5,
+                "Filled/Height": 0.2,
+                "Filled/Rotation": 0,
+                "Direction": "+y",
+                "Target": "/flanger/Mix/Dry"
+            },
+            "control": "jauge"
+        },
+        {
+            "x": 0.19841957202503074,
+            "y": 0.558643065026853,
+            "width": 0.16374208659948564,
+            "height": 0.16399864456572755,
+            "values": {
+                "Base Color": "#d9d9d9",
+                "Cursor Color": "#34b8cb",
+                "Target": "/flanger/Delay/Frequence"
+            },
+            "control": "cursor_control"
+        },
+        {
+            "x": 0.3852904975722709,
+            "y": 0.558643065026853,
+            "width": 0.16076224864328492,
+            "height": 0.16399864456572755,
+            "values": {
+                "Base Color": "#d9d9d9",
+                "Cursor Color": "#34b8cb",
+                "Target": "/flanger/Delay/MaxDelay"
+            },
+            "control": "cursor_control"
+        },
+        {
+            "x": 0.3043380178586557,
+            "y": 0.2996597563812445,
+            "width": 0.11716729303791384,
+            "height": 0.18340933120143127,
+            "values": {
+                "Text": "Flanger",
+                "Color": "#000000",
+                "Outline Color": "#000000",
+                "Outline Width": 0,
+                "Font": "xolonium"
+            },
+            "control": "text"
+        },
+        {
+            "x": 0.8359483595285989,
+            "y": 0.441356934973147,
+            "width": 0.16405164047140108,
+            "height": 0.1546708854216572,
+            "values": {
+                "Color": "#FF0000"
+            },
+            "control": "output_control"
+        },
+        {
+            "x": 0,
+            "y": 0.441356934973147,
+            "width": 0.16405164047140108,
+            "height": 0.1546708854216572,
+            "values": {
+                "Color": "#00FF00"
+            },
+            "control": "input_control"
+        }
+    ],
+    "wam_url": "https://jempasam.github.io/SamWAMS/simple/effect/flanger/index.js"
+}

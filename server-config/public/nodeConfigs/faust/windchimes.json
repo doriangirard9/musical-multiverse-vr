@@ -1,0 +1,133 @@
+{
+    "aspect_ratio": 1.8,
+    "size": 0.7,
+    "bottom_color": "#5a3c23",
+    "top_color": "#896021",
+    "face": "wood",
+    "face_color": "#532e0d",
+    "outline_color": "#000000",
+    "outline_width": 0.06,
+    "shape": "rectangle",
+    "modifier": "normal",
+    "modifier_strength": 0.5,
+    "controls": [
+        {
+            "x": 0.21151001811894374,
+            "y": 0.6390289564369385,
+            "width": 0.07914597752093921,
+            "height": 0.33088382030388774,
+            "values": {
+                "Shape/Shape": "rectangle",
+                "Shape/Top Color": "#decc29",
+                "Shape/Bottom Color": "#ffae06",
+                "Shape/Outline Color": "#000000",
+                "Shape/Outline Width": 0,
+                "Shape/Front Face Image": "",
+                "Shape/Front Face Color": "#FFFFFF",
+                "Shape/Modifier": "normal",
+                "Shape/Modifier Strength": 0.5,
+                "Shape/Height": 0.307,
+                "Shape/Rotation": 0
+            },
+            "control": "decoration"
+        },
+        {
+            "x": 0.709344004360117,
+            "y": 0.6241316881521954,
+            "width": 0.07914597752093921,
+            "height": 0.31747866945983116,
+            "values": {
+                "Shape/Shape": "rectangle",
+                "Shape/Top Color": "#decc29",
+                "Shape/Bottom Color": "#ffae06",
+                "Shape/Outline Color": "#000000",
+                "Shape/Outline Width": 0,
+                "Shape/Front Face Image": "",
+                "Shape/Front Face Color": "#FFFFFF",
+                "Shape/Modifier": "normal",
+                "Shape/Modifier Strength": 0.5,
+                "Shape/Height": 0.307,
+                "Shape/Rotation": 0
+            },
+            "control": "decoration"
+        },
+        {
+            "x": 0.46403361824890854,
+            "y": 0.6583933718685424,
+            "width": 0.07616496090448155,
+            "height": 0.2832169857434842,
+            "values": {
+                "Shape/Shape": "rectangle",
+                "Shape/Top Color": "#decc29",
+                "Shape/Bottom Color": "#ffae06",
+                "Shape/Outline Color": "#000000",
+                "Shape/Outline Width": 0,
+                "Shape/Front Face Image": "",
+                "Shape/Front Face Color": "#FFFFFF",
+                "Shape/Modifier": "normal",
+                "Shape/Modifier Strength": 0.5,
+                "Shape/Height": 0.307,
+                "Shape/Rotation": 0
+            },
+            "control": "decoration"
+        },
+        {
+            "x": 0.4342409660928655,
+            "y": 0.31132168147386247,
+            "width": 0.12381329994915424,
+            "height": 0.11368074934201014,
+            "values": {
+                "Text": "WindChimes",
+                "Color": "#000000",
+                "Outline Color": "#ffffff",
+                "Outline Width": 0,
+                "Font": "avara"
+            },
+            "control": "text"
+        },
+        {
+            "x": 0.22939535117524712,
+            "y": 0.4677300130664522,
+            "width": 0.5442000042692008,
+            "height": 0.11787487641062355,
+            "values": {
+                "Unfilled/Shape": "rectangle",
+                "Unfilled/Top Color": "#000000",
+                "Unfilled/Bottom Color": "#000000",
+                "Unfilled/Outline Color": "#000000",
+                "Unfilled/Outline Width": 0,
+                "Unfilled/Front Face Image": "",
+                "Unfilled/Front Face Color": "#FFFFFF",
+                "Unfilled/Modifier": "normal",
+                "Unfilled/Modifier Strength": 0.5,
+                "Unfilled/Height": 0.2,
+                "Unfilled/Rotation": 0,
+                "Filled/Shape": "rectangle",
+                "Filled/Top Color": "#04fbee",
+                "Filled/Bottom Color": "#ffffff",
+                "Filled/Outline Color": "#000000",
+                "Filled/Outline Width": 0,
+                "Filled/Front Face Image": "",
+                "Filled/Front Face Color": "#FFFFFF",
+                "Filled/Modifier": "normal",
+                "Filled/Modifier Strength": 0.5,
+                "Filled/Height": 0.2,
+                "Filled/Rotation": 0,
+                "Direction": "+x",
+                "Target": "/wind_chimes/wind"
+            },
+            "control": "jauge"
+        },
+        {
+            "x": 0.8121151909811009,
+            "y": 0.43542797051947285,
+            "width": 0.1878848090188992,
+            "height": 0.17596820747827494,
+            "values": {
+                "Color": "#FF0000"
+            },
+            "control": "output_control"
+        }
+    ],
+    "wam_url": "https://jempasam.github.io/SamWAMS/module/generator/windchimes/index.js"
+}

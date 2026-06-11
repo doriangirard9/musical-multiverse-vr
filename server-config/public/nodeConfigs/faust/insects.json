@@ -1,0 +1,60 @@
+{
+    "aspect_ratio": 1.7,
+    "size": 0.6,
+    "bottom_color": "#369640",
+    "top_color": "#6cfc58",
+    "face": "hair",
+    "face_color": "#5fc146",
+    "outline_color": "#000000",
+    "outline_width": 0.07,
+    "shape": "rectangle",
+    "modifier": "normal",
+    "modifier_strength": 0.5,
+    "controls": [
+        {
+            "x": 0.4141056103181678,
+            "y": 0.40810566696377343,
+            "width": 0.16853208563288513,
+            "height": 0.1744870421256297,
+            "values": {
+                "Text": "Insects",
+                "Color": "#000000",
+                "Outline Color": "#ffffff",
+                "Outline Width": 0,
+                "Font": "avara"
+            },
+            "control": "text"
+        },
+        {
+            "x": 0.7730878771076397,
+            "y": 0.40810566696377343,
+            "width": 0.21022840453217873,
+            "height": 0.20724925846374154,
+            "values": {
+                "Color": "#FF0000"
+            },
+            "control": "output_control"
+        },
+        {
+            "x": 0,
+            "y": 0.384645074572485,
+            "width": 0.2269121228923603,
+            "height": 0.23070985085503004,
+            "values": {
+                "Shape/Shape": "hexagon",
+                "Shape/Top Color": "#4f9559",
+                "Shape/Bottom Color": "#517b39",
+                "Shape/Outline Color": "#000000",
+                "Shape/Outline Width": 0.13,
+                "Shape/Front Face Image": "",
+                "Shape/Front Face Color": "#FFFFFF",
+                "Shape/Modifier": "normal",
+                "Shape/Modifier Strength": 0.5,
+                "Shape/Height": 0.19,
+                "Shape/Rotation": 0
+            },
+            "control": "decoration"
+        }
+    ],
+    "wam_url": "https://jempasam.github.io/SamWAMS/module/generator/insects/index.js"
+}

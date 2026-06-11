@@ -1,0 +1,72 @@
+{
+    "aspect_ratio": 0.6,
+    "size": 1,
+    "bottom_color": "#b50000",
+    "top_color": "#fe960a",
+    "face": "flame",
+    "face_color": "#ff9326",
+    "outline_color": "#000000",
+    "outline_width": 0.05,
+    "shape": "rectangle",
+    "modifier": "normal",
+    "modifier_strength": 0.5,
+    "controls": [
+        {
+            "x": 0.3336643596649734,
+            "y": 0.07597164277869867,
+            "width": 0.326415101201232,
+            "height": 0.25789474162717496,
+            "values": {
+                "Text": "Fire",
+                "Color": "#000000",
+                "Outline Color": "#ffffff",
+                "Outline Width": 0,
+                "Font": "avara"
+            },
+            "control": "text"
+        },
+        {
+            "x": 0.7123137976884525,
+            "y": 0.44834270072675275,
+            "width": 0.2876862023115475,
+            "height": 0.286196629277329,
+            "values": {
+                "Color": "#FF0000"
+            },
+            "control": "output_control"
+        },
+        {
+            "x": 0.32204860560043236,
+            "y": 0.49451237283657107,
+            "width": 0.3651423824400274,
+            "height": 0.36367304779511883,
+            "values": {
+                "Low Color": "#222222",
+                "High Color": "#0000ff",
+                "Target": "/fire/wet"
+            },
+            "control": "color_control"
+        },
+        {
+            "x": 0,
+            "y": 0.33386638440587363,
+            "width": 0.3336643596649734,
+            "height": 0.34694991376323575,
+            "values": {
+                "Shape/Shape": "hexagon",
+                "Shape/Top Color": "#000000",
+                "Shape/Bottom Color": "#000000",
+                "Shape/Outline Color": "#000000",
+                "Shape/Outline Width": 0,
+                "Shape/Front Face Image": "",
+                "Shape/Front Face Color": "#FFFFFF",
+                "Shape/Modifier": "normal",
+                "Shape/Modifier Strength": 0.5,
+                "Shape/Height": 0.316,
+                "Shape/Rotation": 0
+            },
+            "control": "decoration"
+        }
+    ],
+    "wam_url": "https://jempasam.github.io/SamWAMS/module/generator/fire/index.js"
+}

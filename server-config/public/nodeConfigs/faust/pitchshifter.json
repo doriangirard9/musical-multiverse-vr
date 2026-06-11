@@ -1,0 +1,62 @@
+{
+    "aspect_ratio": 0.7,
+    "size": 0.8,
+    "bottom_color": "#000000",
+    "top_color": "#282828",
+    "face": "freq",
+    "face_color": "#57125a",
+    "outline_color": "#cb41c0",
+    "outline_width": 0.09,
+    "shape": "rectangle",
+    "modifier": "noise",
+    "modifier_strength": 0.5,
+    "controls": [
+        {
+            "x": 0.44987266004094295,
+            "y": 0.13854109386825406,
+            "width": 0.09849962511232313,
+            "height": 0.2050262421373749,
+            "values": {
+                "Text": "PitchShifter",
+                "Color": "#e752e7",
+                "Outline Color": "#ffffff",
+                "Outline Width": 0,
+                "Font": "xolonium"
+            },
+            "control": "text"
+        },
+        {
+            "x": 0.3675915528271031,
+            "y": 0.4366216275245499,
+            "width": 0.2965491102856586,
+            "height": 0.29054761073495167,
+            "values": {
+                "Base Color": "#222222",
+                "Cursor Color": "#cb2cd3",
+                "Target": "/pitchshifter/shift__semitones_"
+            },
+            "control": "cursor_control"
+        },
+        {
+            "x": 0.7229557227217928,
+            "y": 0.4366216275245499,
+            "width": 0.27704427727820724,
+            "height": 0.2728307617404984,
+            "values": {
+                "Color": "#FF0000"
+            },
+            "control": "output_control"
+        },
+        {
+            "x": 0,
+            "y": 0.4366216275245499,
+            "width": 0.2770442772782073,
+            "height": 0.27283076174049853,
+            "values": {
+                "Color": "#00FF00"
+            },
+            "control": "input_control"
+        }
+    ],
+    "wam_url": "https://jempasam.github.io/SamWAMS/module/filter/pitchshifter/index.js"
+}

@@ -1,7 +1,8 @@
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
+const options = require('./options');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'wamjam-dev-secret-change-in-production';
+const JWT_SECRET = options.JWT_SECRET;
 const ACCESS_TOKEN_EXPIRY = '15m';
 const REFRESH_TOKEN_EXPIRY_DAYS = 7;
 const BCRYPT_SALT_ROUNDS = 12;

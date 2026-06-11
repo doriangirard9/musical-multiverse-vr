@@ -4,10 +4,12 @@ import path from 'path';
 
 export default defineConfig({
   server: {
-    https: {
-      key: fs.readFileSync(path.resolve(__dirname, 'localhost.key')),
-      cert: fs.readFileSync(path.resolve(__dirname, 'localhost.crt')),
-    },
+    ...(process.env.HTTPS && {
+      https: {
+        key: fs.readFileSync(path.resolve(__dirname, 'localhost.key')),
+        cert: fs.readFileSync(path.resolve(__dirname, 'localhost.crt')),
+      }
+    }),
     host: true,
     proxy: {
       '/api': {
@@ -49,4 +51,4 @@ export default defineConfig({
   worker: {
     format: 'es'
   }
-});
+})

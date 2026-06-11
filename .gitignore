@@ -31,3 +31,5 @@ dist-ssr
 desktop.ini
 server-config/data
 
+/docs/
+

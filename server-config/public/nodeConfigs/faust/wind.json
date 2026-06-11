@@ -1,0 +1,73 @@
+{
+    "aspect_ratio": 1.2,
+    "size": 0.6,
+    "bottom_color": "#ffffff",
+    "top_color": "#aaaaaa",
+    "face": "freq",
+    "face_color": "#c6eff0",
+    "outline_color": "#000000",
+    "outline_width": 0.08,
+    "shape": "rectangle",
+    "modifier": "left_wide",
+    "modifier_strength": 0.5,
+    "controls": [
+        {
+            "x": 0.3515376216769706,
+            "y": 0.2905001385961276,
+            "width": 0.25193644949030036,
+            "height": 0.2191658427374905,
+            "values": {
+                "Text": "Wind",
+                "Color": "#000000",
+                "Outline Color": "#ffffff",
+                "Outline Width": 0,
+                "Font": "rich_eatin"
+            },
+            "control": "text"
+        },
+        {
+            "x": 0.7611714898075039,
+            "y": 0.3917681680613667,
+            "width": 0.2236345618401464,
+            "height": 0.2191658427374905,
+            "values": {
+                "Color": "#FF0000"
+            },
+            "control": "output_control"
+        },
+        {
+            "x": 0.2709022264260669,
+            "y": 0.5096659813336182,
+            "width": 0.4490598994799954,
+            "height": 0.10126802946523902,
+            "values": {
+                "Unfilled/Shape": "rectangle",
+                "Unfilled/Top Color": "#000000",
+                "Unfilled/Bottom Color": "#000000",
+                "Unfilled/Outline Color": "#000000",
+                "Unfilled/Outline Width": 0,
+                "Unfilled/Front Face Image": "",
+                "Unfilled/Front Face Color": "#FFFFFF",
+                "Unfilled/Modifier": "normal",
+                "Unfilled/Modifier Strength": 0.5,
+                "Unfilled/Height": 0.2,
+                "Unfilled/Rotation": 0,
+                "Filled/Shape": "rectangle",
+                "Filled/Top Color": "#22dddd",
+                "Filled/Bottom Color": "#48dfdf",
+                "Filled/Outline Color": "#000000",
+                "Filled/Outline Width": 0,
+                "Filled/Front Face Image": "",
+                "Filled/Front Face Color": "#FFFFFF",
+                "Filled/Modifier": "normal",
+                "Filled/Modifier Strength": 0.5,
+                "Filled/Height": 0.2,
+                "Filled/Rotation": 0,
+                "Direction": "+x",
+                "Target": "/wind/force"
+            },
+            "control": "jauge"
+        }
+    ],
+    "wam_url": "https://jempasam.github.io/SamWAMS/module/generator/wind/index.js"
+}
