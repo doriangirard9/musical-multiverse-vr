@@ -6,7 +6,6 @@ import { SceneManager } from "./SceneManager.ts";
 import { WamInitializer } from "./WamInitializer.ts";
 import { WAMGuiInitCode, examples } from "wam3dgenerator";
 import { Wam3DGeneratorN3DFactory } from "../node3d/subs/Wam3DGeneratorN3D.ts";
-import { SequencerN3DFactory } from "../node3d/subs/SequencerN3D.ts";
 import { N3DShared } from "../node3d/instance/N3DShared.ts";
 import { MaracasN3DFactory } from "../node3d/subs/maracas/MaracasN3D.ts";
 import { NoteBoxN3DFactory } from "../node3d/subs/NoteBoxN3D.ts";
@@ -37,6 +36,7 @@ import { SuperformulaN3DFactory } from "../node3d/subs/behaviours/SuperformulaN3
 import ParticleEmitterN3DFactory from "../node3d/subs/particle/ParticleEmitterN3D.ts";
 import { N3DThumbnailRenderer } from "../world/renderer/N3DThumbnailRenderer.ts";
 import { SERVER_NAME } from "../options.ts";
+import { Sequencer12N3DFactory, Sequencer16N3DFactory } from "../node3d/subs/SequencerN3D.ts";
 
 export type Node3DConfig = { name: string, wam3d: WAMGuiInitCode }
 
@@ -65,7 +65,7 @@ export class Node3DBuilder {
      */
     FACTORY_KINDS = [
         "audiooutput", "oscillator", "maracas", "livepiano", "notesbox", "pianoroll", "drumkit", "pro54michel", "butterchurn", "screen", "box_screen", "sphere_screen", "cylinder_screen", "isf_shader",
-        "hyperkeyboard", "drumplatekit", "automation_controller", "the_cube", "harp", "large_harp", "voice", "gaze", "sequencer", "audio_plaque", "superformula",
+        "hyperkeyboard", "drumplatekit", "automation_controller", "the_cube", "harp", "large_harp", "voice", "gaze", "sequencer12", "sequencer16", "audio_plaque", "superformula",
         ...Object.keys(examples).map(k => `wam3d-${k}`),
         ...SERVER_KINDS.map(k => `server-${k}`),
     ]
@@ -127,7 +127,8 @@ export class Node3DBuilder {
         if (kind == "superformula") return SuperformulaN3DFactory.DEFAULT;
         if (kind == "swarmtheremin") return SwarmThereminN3DFactory;
         if (kind == "audiooutput") return SpeakerN3DFactory
-        if (kind == "sequencer") return SequencerN3DFactory
+        if (kind == "sequencer" || kind == "sequencer12") return Sequencer12N3DFactory
+        if (kind == "sequencer16") return Sequencer16N3DFactory
         if (kind == "oscillator") return OscillatorN3DFactory
         if (kind == "maracas") return MaracasN3DFactory
         if (kind == "livepiano") return LivePianoN3DFactory
