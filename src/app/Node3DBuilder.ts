@@ -141,7 +141,7 @@ export class Node3DBuilder {
         if (kind == "box_screen") return BoxScreenN3DFactory
         if (kind == "sphere_screen") return SphereScreenN3DFactory
         if (kind == "cylinder_screen") return CylinderScreenN3DFactory
-        if (kind == "hyperkeyboard") return HyperKeyboardN3DFactory.SMALL
+        if (kind == "hyperkeyboard") return HyperKeyboardN3DFactory.SIMPLE
         if (kind == "drumplatekit") return DrumPlateKitN3DFactory.SMALL
         if (kind == "automation_controller") return AutomationControllerN3DFactory
         if (kind == "the_cube") return PositionCubeN3DFactory.DEFAULT

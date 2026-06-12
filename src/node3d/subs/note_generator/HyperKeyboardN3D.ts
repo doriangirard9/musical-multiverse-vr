@@ -162,7 +162,7 @@ export class HyperKeyboardN3D implements Node3D {
             conn.scheduleEvents({
                 type: "wam-midi",
                 time: conn.context.currentTime + 0.002,
-                data: { bytes: [0x90, 60 + y, 127] }
+                data: { bytes: [0x90, 60 + x, 127] }
             })
         })
         // Automation Output
@@ -272,7 +272,13 @@ export class HyperKeyboardN3DFactory implements Node3DFactory<HyperKeyboardN3DGU
     static SMALL = new HyperKeyboardN3DFactory(
         5, 3, 3,
         "Small HyperKeyboard",
-        "A 3D hyperkeyboard with 5 keys in width, 3 in height and 1 in depth"
+        "A 3D hyperkeyboard with 5 keys in width, 3 in height and 3 in depth"
+    )
+
+    static SIMPLE = new HyperKeyboardN3DFactory(
+        12, 6, 4,
+        "HyperKeyboard",
+        "A 3D hyperkeyboard with 12 keys in width, 6 in height and 4 in depth"
     )
 
 }
