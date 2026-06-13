@@ -114,6 +114,16 @@ export interface IMusicGeneratorAdapter {
      */
     getHyperparameter(name: string): number;
 
+    /**
+     * Optionnel.  Informe l'adapter de la SIGNATURE RYTHMIQUE de l'hôte
+     * (transmise par les wam-transport events du WamTransportManager).
+     * Les adapters rythmiques (RNN batterie/mélodie) s'en servent pour
+     * aligner leurs barres et leurs accents métriques (4/4, 3/4, 6/8…).
+     * Le TEMPO, lui, est appliqué au drain par le scheduler (immédiat),
+     * pas ici.
+     */
+    setMeter?(numerator: number, denominator: number): void;
+
     // ── Génération ─────────────────────────────────────────────────────────
 
     /**

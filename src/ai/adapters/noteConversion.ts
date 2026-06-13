@@ -40,6 +40,10 @@ export interface ConvertOpts {
     pitchRange: number;
     /** Canal MIDI de sortie. */
     channel: number;
+    /** Signature rythmique (en steps) pour les accents métriques. Défauts =
+     *  4/4 (16 steps/mesure, 4 steps/temps) → rétro-compatible. */
+    barSteps?: number;
+    beatSteps?: number;
 }
 
 /**
@@ -82,12 +86,15 @@ const DRUM_VELOCITY: Record<number, number> = {
     45: 88,  47: 88, 48: 88, 50: 88,   // toms
 };
 
-/** Accent métrique mélodique : 1er temps de mesure > temps > croches. */
-function metricAccent(step: number): number {
-    if (step % 16 === 0) return 1.0;     // début de mesure (4/4, 16 steps)
-    if (step % 4 === 0)  return 0.92;    // temps
-    if (step % 2 === 0)  return 0.84;    // croche
-    return 0.78;                          // double-croche
+/** Accent métrique : downbeat de mesure > temps > demi-temps > reste.
+ *  Meter-aware : barSteps/beatSteps viennent de la signature rythmique de
+ *  l'hôte (4/4 → 16/4, 3/4 → 12/4, 6/8 → 12/2…). */
+function metricAccent(step: number, barSteps: number, beatSteps: number): number {
+    if (step % barSteps === 0)  return 1.0;    // downbeat de mesure
+    if (step % beatSteps === 0) return 0.92;   // temps
+    const half = Math.max(1, Math.floor(beatSteps / 2));
+    if (step % half === 0)      return 0.84;   // demi-temps
+    return 0.78;                                // subdivision faible
 }
 
 const jitter = (amp: number) => (Math.random() * 2 - 1) * amp;
@@ -95,6 +102,8 @@ const clampVel = (v: number) => Math.max(1, Math.min(127, Math.round(v)));
 
 export function notesToMidiEvents(notes: QuantNote[], opts: ConvertOpts): MidiEvent[] {
     const { msPerStep, isDrums, octaveCenter, pitchRange, channel } = opts;
+    const barSteps = opts.barSteps ?? 16;
+    const beatSteps = opts.beatSteps ?? 4;
 
     type TEv = { step: number; on: boolean; pitch: number; velocity: number };
     const timed: TEv[] = [];
@@ -107,12 +116,14 @@ export function notesToMidiEvents(notes: QuantNote[], opts: ConvertOpts): MidiEv
             ? Math.max(0, Math.min(127, rawPitch))
             : foldIntoRange(rawPitch, octaveCenter, pitchRange);
 
-        // Vélocité musicale : par fût (batterie) ou par accent métrique
-        // (mélodie), humanisée. Une vélocité explicite du modèle est
-        // respectée comme base.
+        // Vélocité musicale, humanisée. L'accent métrique suit la SIGNATURE
+        // RYTHMIQUE de l'hôte (downbeat appuyé selon 4/4, 3/4…). Batterie :
+        // base par fût + léger relief métrique (85→100 %). Mélodie : accent
+        // direct (78→100 %). Une vélocité explicite du modèle sert de base.
+        const accent = metricAccent(startStep, barSteps, beatSteps);
         const velocity = isDrums
-            ? clampVel((n.velocity ?? DRUM_VELOCITY[pitch] ?? 84) + jitter(6))
-            : clampVel((n.velocity ?? 96) * metricAccent(startStep) + jitter(3));
+            ? clampVel((n.velocity ?? DRUM_VELOCITY[pitch] ?? 84) * (0.85 + 0.15 * (accent - 0.78) / 0.22) + jitter(6))
+            : clampVel((n.velocity ?? 96) * accent + jitter(3));
 
         timed.push({ step: startStep, on: true,  pitch, velocity });
         timed.push({ step: endStep,   on: false, pitch, velocity: 0 });

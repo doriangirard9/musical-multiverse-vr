@@ -8,11 +8,7 @@ import type { Node3DGUIContext } from "../../Node3DGUIContext";
 import type { AutomationN3DConnectable } from "../../tools";
 import { BoidSwarm } from "./steering/Boid";
 
-// ── Runtime resize bounds + boid limits (same defaults as AudioPlaque) ────────
-// Runtime resize bounds — see AudioPlaqueN3D.ts for rationale (0.3×–4×).
-const RESIZE_MIN = 0.3;
-const RESIZE_MAX = 4.0;
-const RESIZE_DEFAULT = 1.0;
+// Redimensionnement désormais à deux mains (hôte) → plus de poignée par item.
 const BOID_MAX = 30;
 
 // ─── Superformula math ────────────────────────────────────────────────────────
@@ -95,8 +91,7 @@ export class SuperformulaN3DGUI implements Node3DGUI {
     // Cached scene reference for trail rebuild (LinesMesh has no scene getter)
     private scene!: Scene;
 
-    // Runtime UI (resize handle + 3 boid buttons + container for boid meshes)
-    resizeHandle!:   AbstractMesh;
+    // Runtime UI (3 boid buttons + container for boid meshes)
     btnBoidToggle!: AbstractMesh;
     btnBoidAdd!:    AbstractMesh;
     btnBoidRemove!: AbstractMesh;
@@ -310,13 +305,7 @@ export class SuperformulaN3DGUI implements Node3DGUI {
         this.trail.isPickable = false;
         this.trail.alpha      = 1;
 
-        // ── Resize handle (top-right corner — outputs row uses the bottom) ────
-        this.resizeHandle = B.MeshBuilder.CreateSphere("sf_resize", { diameter: 0.08 }, context.scene);
-        this.resizeHandle.parent = this.root;
-        this.resizeHandle.position.set(0.45, 0.45, 0);
-        const resizeMat = new StandardMaterial("sf_resize_mat", context.scene);
-        resizeMat.emissiveColor = new Color3(0.85, 0.3, 0.95);   // violet
-        this.resizeHandle.material = resizeMat;
+        // (Plus de poignée de resize : redimensionnement à deux mains via l'hôte.)
 
         // ── Boid controls — top-left area, far from the 8 motion outputs ──────
         //
@@ -462,7 +451,6 @@ export class SuperformulaN3D implements Node3D {
     private boidVortOut!:  InstanceType<(typeof AutomationN3DConnectable)["Output"]>;
 
     // Runtime UI state — synced across peers
-    private userScale = RESIZE_DEFAULT;
     private boidMode  = false;
     private boidCount = 5;
 
@@ -565,32 +553,7 @@ export class SuperformulaN3D implements Node3D {
         setupKnob("scale", "Scale",          gui.knobScale, "scale",  40, 2, () => this.scale, v => this.scale = v);
         setupKnob("speed", "Speed",          gui.knobSpeed, "speed",  60, 2, () => this.speed, v => this.speed = v);
 
-        // ── Resize handle + boid controls (same pattern as AudioPlaque) ───────
-        //
-        //   See AudioPlaqueN3D for the long comment explaining why we don't
-        //   recompute the bounding box on scale change — Node3DInstance's
-        //   dispose cascade would wipe the entire mesh tree.
-        //
-        const applyScale = (s: number) => {
-            this.userScale = Math.max(RESIZE_MIN, Math.min(RESIZE_MAX, s));
-            gui.root.scaling.setAll(this.userScale);
-        };
-        applyScale(this.userScale);
-
-        context.createParameter({
-            id: "userScale",
-            meshes: [gui.resizeHandle],
-            getLabel: () => "Resize",
-            getStepCount: () => 0,
-            getValue: () => (this.userScale - RESIZE_MIN) / (RESIZE_MAX - RESIZE_MIN),
-            setValue: (v01: number) => {
-                applyScale(RESIZE_MIN + v01 * (RESIZE_MAX - RESIZE_MIN));
-                context.notifyStateChange("userScale");
-            },
-            stringify: (v01: number) =>
-                `Size: ${(RESIZE_MIN + v01 * (RESIZE_MAX - RESIZE_MIN)).toFixed(2)}x`,
-        });
-
+        // ── Boid controls (redimensionnement à deux mains géré par l'hôte) ────
         this.swarm = new BoidSwarm(gui.boidContainer, scene);
         this.swarm.setCount(this.boidCount);
         this.swarm.setEnabled(this.boidMode);
@@ -641,10 +604,6 @@ export class SuperformulaN3D implements Node3D {
             },
             release: () => {},
         });
-
-        // ── Spawn log ─────────────────────────────────────────────────────────
-        const fmt = (v: Vector3) => `(${v.x.toFixed(3)}, ${v.y.toFixed(3)}, ${v.z.toFixed(3)})`;
-        const sp = context.getPosition();
 
         // ── Per-frame loop ────────────────────────────────────────────────────
         //
@@ -793,7 +752,7 @@ export class SuperformulaN3D implements Node3D {
 
     // ── State sync — knob values + runtime UI state; theta evolves per peer ──
     getStateKeys(): string[] {
-        return ["m", "n1", "n2", "n3", "scale", "speed", "userScale", "boidMode", "boidCount"];
+        return ["m", "n1", "n2", "n3", "scale", "speed", "boidMode", "boidCount"];
     }
 
     async getState(key: string): Promise<Serializable | void> {
@@ -804,7 +763,6 @@ export class SuperformulaN3D implements Node3D {
             case "n3":        return this.n3;
             case "scale":     return this.scale;
             case "speed":     return this.speed;
-            case "userScale": return this.userScale;
             case "boidMode":  return this.boidMode;
             case "boidCount": return this.boidCount;
         }
@@ -812,11 +770,6 @@ export class SuperformulaN3D implements Node3D {
 
     async setState(key: string, value: Serializable | undefined): Promise<void> {
         // Runtime-UI keys handled here (boolean/integer values); knob keys fall through.
-        if (key === "userScale" && typeof value === "number") {
-            this.userScale = Math.max(RESIZE_MIN, Math.min(RESIZE_MAX, value));
-            this.gui.root.scaling.setAll(this.userScale);
-            return;
-        }
         if (key === "boidMode" && typeof value === "boolean") {
             this.boidMode = value;
             this.swarm.setEnabled(value);
@@ -874,6 +827,6 @@ export class SuperformulaN3DFactory implements Node3DFactory<SuperformulaN3DGUI,
         "Gielis Superformula controller. Six knobs shape the parametric curve; a playhead " +
         "ball traces it autonomously. Eight motion metrics (X, Y, Radius, Speed, etc.) plus " +
         "5 boid-swarm metrics are exposed as automation outputs. " +
-        "Drag the violet corner handle to resize (0.5×–4×).",
+        "Resize with a two-handed grab.",
     );
 }

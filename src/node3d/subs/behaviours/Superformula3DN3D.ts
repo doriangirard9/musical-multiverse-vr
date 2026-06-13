@@ -76,8 +76,7 @@ const BOID_MAX = 30;
 const norm   = (key: RangeKey, v: number) => (v - RANGES[key].min) / (RANGES[key].max - RANGES[key].min);
 const denorm = (key: RangeKey, t: number) => RANGES[key].min + Math.max(0, Math.min(1, t)) * (RANGES[key].max - RANGES[key].min);
 
-// Runtime resize (même plage que le 2D / AudioPlaque)
-const RESIZE_MIN = 0.3, RESIZE_MAX = 4.0, RESIZE_DEFAULT = 1.0;
+// Redimensionnement à deux mains géré par l'hôte → plus de poignée par item.
 
 // Résolution de la surface.  97×49 ≈ 4 750 sommets : nécessaire pour que la
 // surface AFFICHÉE colle à la vraie formule — la boule suit la formule exacte,
@@ -115,7 +114,6 @@ export class Superformula3DN3DGUI implements Node3DGUI {
     audioIn!: AbstractMesh;
     audioOut!: AbstractMesh;
     knobs: Record<string, AbstractMesh> = {};
-    resizeHandle!: AbstractMesh;
 
     outPosX!: AbstractMesh;  outPosY!: AbstractMesh;  outPosZ!: AbstractMesh;
     outRadius!: AbstractMesh; outRadiusDelta!: AbstractMesh;
@@ -345,13 +343,7 @@ export class Superformula3DN3DGUI implements Node3DGUI {
         this.outAcceleration = mkOut("sf3d_out_accel",  xs[6], outColors.accel);
         this.outCurvature    = mkOut("sf3d_out_curv",   xs[7], outColors.curvature);
 
-        // ── Poignée de resize — sommet de la cage ─────────────────────────────
-        this.resizeHandle = B.MeshBuilder.CreateSphere("sf3d_resize", { diameter: 0.08 }, scene);
-        this.resizeHandle.parent = this.root;
-        this.resizeHandle.position.set(0, 0.70, 0);
-        const resizeMat = new StandardMaterial("sf3d_resize_mat", scene);
-        resizeMat.emissiveColor = new Color3(0.85, 0.3, 0.95);
-        this.resizeHandle.material = resizeMat;
+        // (Plus de poignée de resize : redimensionnement à deux mains via l'hôte.)
 
         // ── Contrôles boids — disques en haut à gauche (même idiome que le 2D) ─
         const mkDisc = (name: string, diameter: number, emissive: Color3): AbstractMesh => {
@@ -489,7 +481,6 @@ export class Superformula3DN3D implements Node3D {
     private current = { ...this.target };
 
     private theta = 0;          // phase du playhead
-    private userScale = RESIZE_DEFAULT;
     private morphActivity = 0;  // 0..1 — pilote wireframe/cage/rotation
 
     // Boids (synchronisés réseau, comme le 2D)
@@ -580,24 +571,7 @@ export class Superformula3DN3D implements Node3D {
             });
         }
 
-        // ── Resize runtime ────────────────────────────────────────────────────
-        const applyScale = (s: number) => {
-            this.userScale = Math.max(RESIZE_MIN, Math.min(RESIZE_MAX, s));
-            gui.root.scaling.setAll(this.userScale);
-        };
-        applyScale(this.userScale);
-        context.createParameter({
-            id: "userScale",
-            meshes: [gui.resizeHandle],
-            getLabel: () => "Resize",
-            getStepCount: () => 0,
-            getValue: () => (this.userScale - RESIZE_MIN) / (RESIZE_MAX - RESIZE_MIN),
-            setValue: (v01: number) => {
-                applyScale(RESIZE_MIN + v01 * (RESIZE_MAX - RESIZE_MIN));
-                context.notifyStateChange("userScale");
-            },
-            stringify: (v01: number) => `Size: ${(RESIZE_MIN + v01 * (RESIZE_MAX - RESIZE_MIN)).toFixed(2)}x`,
-        });
+        // (Redimensionnement à deux mains géré par l'hôte → pas de userScale.)
 
         // ── Boids : essaim 3D qui chasse la boule ─────────────────────────────
         this.swarm = new BoidSwarm(gui.boidContainer, scene, { is3D: true });
@@ -817,11 +791,10 @@ export class Superformula3DN3D implements Node3D {
         this.swarm?.dispose();
     }
 
-    // ── Sync : 13 knobs + resize + boids ; theta évolue librement par pair ────
-    getStateKeys(): string[] { return [...Object.keys(RANGES), "userScale", "boidMode", "boidCount"]; }
+    // ── Sync : 13 knobs + boids ; theta évolue librement par pair ─────────────
+    getStateKeys(): string[] { return [...Object.keys(RANGES), "boidMode", "boidCount"]; }
 
     async getState(key: string): Promise<Serializable | void> {
-        if (key === "userScale") return this.userScale;
         if (key === "boidMode") return this.boidMode;
         if (key === "boidCount") return this.boidCount;
         if (key in RANGES) return this.target[key as RangeKey];
@@ -837,11 +810,6 @@ export class Superformula3DN3D implements Node3D {
             return;
         }
         if (typeof value !== "number") return;
-        if (key === "userScale") {
-            this.userScale = Math.max(RESIZE_MIN, Math.min(RESIZE_MAX, value));
-            this.gui.root.scaling.setAll(this.userScale);
-            return;
-        }
         if (key === "boidCount") {
             this.boidCount = Math.max(0, Math.min(BOID_MAX, Math.floor(value)));
             this.swarm.setCount(this.boidCount);
@@ -883,7 +851,7 @@ export class Superformula3DN3DFactory implements Node3DFactory<Superformula3DN3D
         "spirale auto, déviés = la boule vise ce point de la surface (pilotables " +
         "à la main ou par automation). Mode BOIDS 3D : un essaim chasse la boule " +
         "dans la cage (toggle + boutons ±), 6 métriques d'essaim en automation " +
-        "(centroïde X/Y/Z, dispersion, alignement, vorticité). Poignée violette " +
-        "pour redimensionner.",
+        "(centroïde X/Y/Z, dispersion, alignement, vorticité). Redimensionnement " +
+        "à deux mains.",
     );
 }

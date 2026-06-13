@@ -11,6 +11,112 @@ mémoire et de la soutenance.
 
 ---
 
+## 2026-06-13 (c) — Poignées de resize retirées + diagnostic menu [décision]
+
+### Resize : place au geste deux mains de Samuel
+Samuel a ajouté le redimensionnement à DEUX MAINS host-wide
+(TwoPointerHoldBehaviour sur la bounding box). Mes poignées violettes par
+instrument faisaient doublon (deux façons de retailler = confusion). Retrait
+complet de la poignée + du paramètre `userScale` (mesh, createParameter,
+champ, sync get/setState, constantes RESIZE_*) dans les 4 contrôleurs :
+AudioPlaque, Superformula 2D, Superformula 3D, Fluid Field. Moins de clutter,
+un seul geste de resize cohérent dans toute l'appli.
+
+### Fluid Field absent du shop : DynamicTexture jamais "ready" [surprise]
+Symptôme : Superformula 3D apparaît dans l'onglet Automation, pas Fluid
+Field — alors que les deux sont tagués "automation", enregistrés, bundlés.
+Cause : le rendu de VIGNETTE du shop n'instancie que la GUI (createGUI),
+jamais la logique. La GUI de Fluid Field crée une `DynamicTexture` qui n'est
+dessinée que dans la boucle de rendu (logique) → jamais appelée pour la
+vignette → texture jamais "ready" → le render-to-texture de la vignette ne
+se termine pas → `getThumbnail` ne résout jamais → l'item n'est jamais
+ajouté au menu. Superformula 3D, lui, n'utilise que des matériaux à vertex
+colors (ready d'emblée), d'où l'asymétrie. Fix : dessiner un fond + appeler
+`tex.update()` dans `createGUI` → texture ready immédiatement.
+Leçon : tout Node3D dont la GUI porte une DynamicTexture doit la rendre
+"ready" dès createGUI, sinon il disparaît silencieusement du shop.
+
+Axe Y de la projection inversé : la DynamicTexture s'affiche miroir-vertical
+sur la plaque (canvas y=0 = bas). « Manette en haut » envoyait le vortex en
+bas. Corrigé (0.5 + local.y au lieu de 0.5 − local.y) ; sortie swarmY alignée
+sur la même convention (haut = 1, comme l'AudioPlaque).
+
+### Menu : menuConfig.json est MORT
+Diagnostic d'un « instrument disparu » : `menuConfig.json` n'est plus importé
+par personne — le seul menu est le SHOP (bouton A → ShopMenu), qui construit
+ses onglets DYNAMIQUEMENT à partir des `tags` de chaque factory (onglet
+Automation = tag "automation"). Superformula 3D et Fluid Field sont tagués
+"automation", enregistrés dans FACTORY_KINDS, ET présents dans le bundle
+construit (vérifié) → ils s'auto-listent dans l'onglet Automation après un
+build propre. Le « disparu » venait d'un build périmé côté test. Note : mes
+anciennes éditions de menuConfig.json étaient des no-ops (fichier mort).
+
+### Rappel : les boids 3D du Gielis 3D existent déjà
+Le mode boids (toggle, ±, essaim 3D, 6 métriques) a été ajouté au
+Superformula 3D le 2026-06-12 ; il était juste invisible faute de voir
+l'instrument dans le menu (build périmé).
+
+---
+
+## 2026-06-13 (b) — Suppression : accord trouvé, détection par mouvement rétablie [décision]
+
+Après discussion (feedback prof #2), on retient MA détection de secouage
+basée sur le mouvement réel de la boîte tenue (observables HoldableBehaviour)
+plutôt que le ShakeBehavior pointer.onMove de main (inopérant en VR).
+Rétablie dans `Node3DInstance`, mais RENDUE MOINS AGRESSIVE sur demande :
+- amplitude minimale d'un aller 0.05 → **0.07 m** (gros gestes seulement),
+- inversions requises 6 → **10** (~5 allers-retours, ~3 s),
+- fenêtre de reset 900 → **700 ms** (une pause/hésitation remet à zéro).
+Résultat : replacer un objet en hésitant (va-et-vient lents/petits) ne
+déclenche plus la suppression ; il faut un secouage franc et soutenu.
+Import ShakeBehavior retiré (plus utilisé).
+
+---
+
+## 2026-06-13 — Merge de main + l'AIComposer suit le transport de l'hôte [décision]
+
+### Merge origin/main (71 commits, travail de Samuel & co.)
+Base commune = restructuration src/ déjà partagée → seulement 2 conflits
+(Node3DBuilder FACTORY_KINDS, options.ts), résolus en gardant main +
+ajoutant mes kinds. **Suppression : on garde la version de main** (geste de
+secouage ShakeBehavior) le temps de s'accorder avec Samuel — ma détection
+par mouvement de la boîte tenue est retirée du merge (à réintroduire après
+accord). ⚠ À vérifier : le ShakeBehavior de main reste basé sur
+pointer.onMove, le chemin que l'utilisateur signalait comme inopérant en VR.
+
+### Feedback prof #1 : le générateur doit ÉCOUTER le transport
+Samuel a ajouté `WamTransportManager` (singleton : tempo + signature +
+play, broadcast de wam-transport events, getters + onChange). L'AIComposer
+imposait son propre tempo (120 BPM figé) — corrigé :
+- **Tempo** : `scheduler.tempoScale = bpmHôte/120 × potard`. Le potard
+  "Tempo" devient un MULTIPLICATEUR relatif (1.0 = tempo du chef) → rubato
+  sans quitter la pulsation de l'orchestre. Abonnement `onChange` → suit les
+  changements live.
+- **Signature rythmique** : nouveau canal `setMeter(num, den)` (interface
+  optionnelle → worker → MagentaMusicRNNAdapter). Pilote :
+  · les accents métriques meter-aware dans noteConversion (downbeat appuyé
+    selon 4/4, 3/4, 6/8 : barSteps = num·16/den, beatSteps = 16/den) ;
+  · l'alignement des chunks sur des barres entières ;
+  · l'éclaircissage de densité (garde downbeats/temps d'abord).
+- **Alignement downbeat** : `scheduler.start(atSec?)` — si l'hôte joue, le
+  1er événement tombe sur le prochain début de mesure (calculé via
+  getElapsedSeconds + secPerBar). La batterie tombe sur le "1" du chef.
+- Écran : « Hôte 96 BPM 3/4 · Tempo ×1.00 · Vél ×1.00 ».
+
+**Caveat honnête (à dire au prof)** : Magenta drum_kit_rnn est entraîné en
+4/4. La grille, les accents et l'alignement suivent 3/4 etc., mais le
+*contenu* phrasé du modèle reste 4/4-isant. Tempo = 100 % fidèle ; mesure =
+« grille correcte, contenu approché ».
+
+### Feedback prof #2 et #3 (à planifier, pas encore codé)
+#2 suppression : voir avec Samuel (cf. ci-dessus). #3 découvrabilité :
+Samuel a ajouté le resize 2 mains host-wide (TwoPointerHoldBehaviour) → mes
+poignées de resize deviennent redondantes. Plan retenu : presets +
+retrait des poignées, puis help/labels, puis « genetic evolution » (clou
+PFE). Commencé par le transport (point #1) sur choix utilisateur.
+
+---
+
 ## 2026-06-12 (b) — Fluid Field : port du sketch p5 « Perlin Noise Fluid Field » [décision]
 
 ### Le sketch source

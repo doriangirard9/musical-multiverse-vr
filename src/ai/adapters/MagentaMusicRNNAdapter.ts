@@ -116,6 +116,12 @@ export class MagentaMusicRNNAdapter implements IMusicGeneratorAdapter {
     private hypers = new Map<string, number>();
     private latencies: number[] = [];
 
+    // Signature rythmique de l'hôte (en steps). 4/4 par défaut → 16 steps/mesure,
+    // 4 steps/temps. Mise à jour par setMeter() depuis les wam-transport events.
+    // Sert à aligner les chunks sur des barres entières + accents métriques.
+    private barSteps = 16;
+    private beatSteps = 4;
+
     // Historique des notes générées, en STEPS ABSOLUS (positions explicites →
     // supporte la POLYPHONIE : plusieurs notes au même step). On reconstruit un
     // primer quantifié propre à chaque appel à partir d'ici. `nextStep` suit la
@@ -228,6 +234,14 @@ export class MagentaMusicRNNAdapter implements IMusicGeneratorAdapter {
         return v;
     }
 
+    /** Signature rythmique de l'hôte → grille de génération (steps).
+     *  steps/temps = STEPS_PER_QUARTER × (4/den) ; steps/mesure = num × ça. */
+    setMeter(numerator: number, denominator: number): void {
+        const beats = Math.max(1, Math.round(STEPS_PER_QUARTER * 4 / Math.max(1, denominator)));
+        this.beatSteps = beats;
+        this.barSteps = Math.max(beats, Math.max(1, Math.floor(numerator)) * beats);
+    }
+
     async requestNext(_context: readonly MidiEvent[], dtMs: number): Promise<MidiEvent[]> {
         if (!this.rnn) {
             this.stats.failureCount++;
@@ -246,10 +260,13 @@ export class MagentaMusicRNNAdapter implements IMusicGeneratorAdapter {
             const primerQ = this.buildQuantizedPrimer();
 
             // 2. Steps à générer : couvre dtMs, ARRONDI AU TEMPS SUPÉRIEUR
-            //    (multiple de 4 steps) pour que les chunks tombent sur la
-            //    pulsation. Bornes 8..32 (2 temps à 2 mesures).
-            const stepsToGen = Math.min(32, Math.max(8,
-                Math.ceil(dtMs / MS_PER_STEP / 4) * 4));
+            //    (multiple de beatSteps de la signature courante) pour que les
+            //    chunks tombent sur la pulsation. Bornes [1 mesure .. ~2 mesures]
+            //    de la signature → respecte 4/4, 3/4, 6/8…
+            const unit = this.beatSteps;
+            const maxSteps = Math.max(this.barSteps * 2, 32);
+            const stepsToGen = Math.min(maxSteps, Math.max(this.barSteps,
+                Math.ceil(dtMs / MS_PER_STEP / unit) * unit));
 
             // 3. Appel au modèle. continueSequence renvoie UNIQUEMENT la
             //    continuation, en steps relatifs 0-based (vérifié S2).
@@ -286,9 +303,13 @@ export class MagentaMusicRNNAdapter implements IMusicGeneratorAdapter {
             const keepProb = density / densitySpec.max;
             let playNotes = genNotes;
             if (keepProb < 1) {
-                // Niveau métrique : 0 = début de mesure … 4 = double-croche faible
+                // Niveau métrique (meter-aware) : 0 = downbeat de mesure …
+                // 4 = subdivision faible. On garde d'abord les niveaux forts.
+                const half = Math.max(1, Math.floor(this.beatSteps / 2));
                 const level = (s: number) =>
-                    s % 16 === 0 ? 0 : s % 8 === 0 ? 1 : s % 4 === 0 ? 2 : s % 2 === 0 ? 3 : 4;
+                    s % this.barSteps === 0 ? 0
+                    : s % this.beatSteps === 0 ? 2
+                    : s % half === 0 ? 3 : 4;
                 const maxLevel = Math.floor(keepProb * 4 + 1e-6);
                 playNotes = genNotes.filter(n => level(n.quantizedStartStep ?? 0) <= maxLevel);
             }
@@ -307,6 +328,8 @@ export class MagentaMusicRNNAdapter implements IMusicGeneratorAdapter {
                 octaveCenter: this.hypers.get("octaveCenter")!,
                 pitchRange: this.hypers.get("pitchRange")!,
                 channel: 0,
+                barSteps: this.barSteps,
+                beatSteps: this.beatSteps,
             });
 
             // 7. GRILLE CONTINUE inter-chunks : le silence de QUEUE du chunk

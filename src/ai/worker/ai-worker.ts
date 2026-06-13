@@ -51,6 +51,7 @@ async function setupBackend(backend: WorkerBackend): Promise<void> {
 type InMessage =
     | { type: "init"; requestId: number; modelType: WorkerModelType; variant: MagentaRNNVariant; primerMaxNotes: number; backend: WorkerBackend }
     | { type: "setHyperparameter"; name: string; value: number }
+    | { type: "setMeter"; numerator: number; denominator: number }
     | { type: "requestNext"; requestId: number; context: MidiEvent[]; dtMs: number }
     | { type: "dispose"; requestId: number };
 
@@ -99,6 +100,12 @@ self.onmessage = async (e: MessageEvent<InMessage>) => {
             case "setHyperparameter": {
                 // Fire-and-forget : pas de requestId, pas de réponse.
                 adapter?.setHyperparameter(msg.name, msg.value);
+                break;
+            }
+
+            case "setMeter": {
+                // Fire-and-forget. No-op si l'adapter n'implémente pas setMeter.
+                adapter?.setMeter?.(msg.numerator, msg.denominator);
                 break;
             }
 

@@ -68,6 +68,7 @@ export class WebWorkerAdapter implements IMusicGeneratorAdapter {
     private readyResolve: (() => void) | null = null;
 
     private hypers = new Map<string, number>();
+    private meter = { numerator: 4, denominator: 4 };   // signature rythmique de l'hôte
     private latencies: number[] = [];
 
     constructor(opts: WebWorkerAdapterOpts = {}) {
@@ -124,6 +125,8 @@ export class WebWorkerAdapter implements IMusicGeneratorAdapter {
         for (const [name, value] of this.hypers) {
             this.worker.postMessage({ type: "setHyperparameter", name, value });
         }
+        // Pousser la signature rythmique courante (mise en cache avant init)
+        this.worker.postMessage({ type: "setMeter", numerator: this.meter.numerator, denominator: this.meter.denominator });
 
         opts?.progressCallback?.(1);
         this.stats.initTimeMs = performance.now() - t0;
@@ -154,6 +157,11 @@ export class WebWorkerAdapter implements IMusicGeneratorAdapter {
         const v = this.hypers.get(name);
         if (v === undefined) throw new Error(`WebWorkerAdapter: unknown hyperparameter "${name}"`);
         return v;
+    }
+
+    setMeter(numerator: number, denominator: number): void {
+        this.meter = { numerator, denominator };                                  // cache main
+        this.worker?.postMessage({ type: "setMeter", numerator, denominator });   // fire-and-forget
     }
 
     async requestNext(context: readonly MidiEvent[], dtMs: number): Promise<MidiEvent[]> {

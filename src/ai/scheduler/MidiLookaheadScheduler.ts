@@ -161,10 +161,17 @@ export class MidiLookaheadScheduler {
 
     // ── Cycle de vie ──────────────────────────────────────────────────────
 
-    start(): void {
+    /**
+     * @param atSec  Optionnel : temps audio absolu auquel poser le PREMIER
+     *   événement. Sert à aligner le départ sur le downbeat de l'hôte (le
+     *   prochain début de mesure du WamTransportManager). Ignoré s'il est dans
+     *   le passé (on ne peut pas programmer avant `now`).
+     */
+    start(atSec?: number): void {
         if (this.running) return;
         this.running = true;
-        this.headTimeSec = this.clock() + this.scheduleAheadSec;
+        const base = this.clock() + this.scheduleAheadSec;
+        this.headTimeSec = (atSec !== undefined && atSec > base) ? atSec : base;
         this.lastEventTimeSec = this.headTimeSec;
         this.pending = [];
         this.contextWindow = [];

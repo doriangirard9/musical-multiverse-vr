@@ -8,6 +8,7 @@ import type { MagentaRNNVariant } from "../../../ai/adapters/MagentaMusicRNNAdap
 import { WebWorkerAdapter, WorkerModelType } from "../../../ai/adapters/WebWorkerAdapter";
 import { PerfMonitor } from "../../../ai/perf/PerfMonitor";
 import type { MidiEvent, HyperparamSpec } from "../../../ai/types";
+import { WamTransportManager } from "../../../app/WamTransportManager";
 
 // ─── AIComposerN3D ───────────────────────────────────────────────────────────
 //
@@ -40,11 +41,17 @@ import type { MidiEvent, HyperparamSpec } from "../../../ai/types";
 //     • température / densité (ou morph) → hyperparamètres → génération FUTURE
 //     • tempo / vélocité                 → appliqués au drain → immédiats
 
+// BPM nominal du modèle (Magenta génère ses deltas à 120). Le tempo réel vient
+// de l'hôte : tempoScale du scheduler = bpmHôte/120 × multiplicateur du potard.
+const NOMINAL_BPM = 120;
+
 // Plages des potards post-génération.
+// Le potard "Tempo" est désormais un MULTIPLICATEUR RELATIF au tempo de
+// l'hôte (WamTransportManager) : 1.0 = exactement le tempo du chef, <1 plus
+// lent, >1 plus vite → rubato sans quitter la pulsation de l'orchestre.
 // Horizon : 2 s par défaut — l'inférence dans le worker (CPU) prend des
 // centaines de ms par chunk ; un horizon de 0.5 s provoquait une famine
 // cyclique (buffer vidé pendant l'inférence → ruptures de grille audibles).
-// Le prix : les changements d'hyperparamètres mettent ~2 s à s'entendre.
 const TEMPO_RANGE   = { min: 0.25, max: 3.0, default: 1.0 };
 const VEL_RANGE     = { min: 0.0,  max: 2.0, default: 1.0 };
 const HORIZON_RANGE = { min: 0.25, max: 4.0, default: 2.0 };
@@ -353,10 +360,17 @@ export class AIComposerN3D implements Node3D {
     private loadProgress = 0;
     private noteOnsSent = 0;        // diagnostic d'émission MIDI
 
-    // Valeurs courantes des potards post-gen (synchronisées)
+    // Valeurs courantes des potards post-gen (synchronisées).
+    // `tempo` = multiplicateur RELATIF au tempo de l'hôte (1.0 = tempo du chef).
     private tempo = TEMPO_RANGE.default;
     private velocity = VEL_RANGE.default;
     private horizon = HORIZON_RANGE.default;
+
+    // Transport de l'hôte (tempo + signature rythmique partagés)
+    private transport!: WamTransportManager;
+    private unsubTransport: (() => void) | null = null;
+    private hostBpm = NOMINAL_BPM;
+    private timeSig = { numerator: 4, denominator: 4 };
 
     // Hyperparamètres (2 premiers du modèle)
     private hypSpecs: HyperparamSpec[] = [];
@@ -402,10 +416,15 @@ export class AIComposerN3D implements Node3D {
             (ev: MidiEvent, timeSec: number) => this.emitToConnections(ev, timeSec),
             { horizonSec: this.horizon },
         );
-        this.scheduler.setTempoScale(this.tempo);
         this.scheduler.setVelocityScale(this.velocity);
 
         this.perf = new PerfMonitor(scene, this.scheduler, this.adapter);
+
+        // ── Transport de l'hôte : tempo + signature rythmique (feedback prof) ──
+        // L'AIComposer ÉCOUTE le WamTransportManager au lieu d'imposer son tempo.
+        // tempo hôte → scheduler ; signature → grille/accents de l'adapter.
+        this.transport = WamTransportManager.getInstance(audioCtx);
+        this.unsubTransport = this.transport.onChange(() => this.applyTransport());
 
         // ── Potards hyperparamètres : les 2 PREMIERS du modèle ────────────────
         // RNN → température + densité ; VAE → température + morph.  Le mesh est
@@ -436,14 +455,17 @@ export class AIComposerN3D implements Node3D {
         });
 
         // ── Potards post-gen ──────────────────────────────────────────────────
-        this.setupKnob("tempo", "Tempo", gui.tempoKnob, TEMPO_RANGE,
-            () => this.tempo, (v) => { this.tempo = v; this.scheduler.setTempoScale(v); }, true);
+        // "Tempo" = multiplicateur relatif au tempo hôte → applyTransport() le
+        // combine avec le BPM courant (rubato sans casser la pulsation).
+        this.setupKnob("tempo", "Tempo ×", gui.tempoKnob, TEMPO_RANGE,
+            () => this.tempo, (v) => { this.tempo = v; this.applyTransport(); }, true);
         this.setupKnob("velocity", "Vélocité", gui.velKnob, VEL_RANGE,
             () => this.velocity, (v) => { this.velocity = v; this.scheduler.setVelocityScale(v); }, true);
         this.setupKnob("horizon", "Horizon", gui.horizonKnob, HORIZON_RANGE,
             () => this.horizon, (v) => { this.horizon = v; this.scheduler.setHorizonSec(v); }, true);
 
-        this.refreshValues();
+        // Applique le tempo + la signature de l'hôte dès le départ.
+        this.applyTransport();
         this.gui.setStatus("Prêt — touche le cœur");
 
         // ── Boucle de feedback (pulse, anneau, halo, écran throttlé) ──────────
@@ -563,7 +585,18 @@ export class AIComposerN3D implements Node3D {
             this.initializing = false;
         }
 
-        this.scheduler.start();
+        // Démarrage aligné sur le DOWNBEAT de l'hôte : si le transport joue, on
+        // pose le 1er événement au prochain début de mesure → la batterie tombe
+        // sur le "1" du chef, pas à un instant arbitraire.
+        let startAt: number | undefined;
+        if (this.transport.getPlaying()) {
+            const { numerator, denominator } = this.transport.getTimeSignature();
+            const secPerBeat = (60 / this.transport.getTempo()) * (4 / denominator);
+            const secPerBar = secPerBeat * numerator;
+            const intoBar = this.transport.getElapsedSeconds() % secPerBar;
+            startAt = this.audioCtx.currentTime + (secPerBar - intoBar);
+        }
+        this.scheduler.start(startAt);
         this.perf.start();
         this.playing = true;
         this.coreState = "playing";
@@ -574,6 +607,18 @@ export class AIComposerN3D implements Node3D {
         console.log("[AIComposer] play");
     }
 
+    // ── Suit le transport de l'hôte : tempo (immédiat) + signature (grille) ──
+    private applyTransport(): void {
+        this.hostBpm = this.transport.getTempo();
+        this.timeSig = this.transport.getTimeSignature();
+        // Tempo réel = BPM hôte × multiplicateur du potard (le scheduler joue
+        // des deltas calés à NOMINAL_BPM, d'où le ratio).
+        this.scheduler.setTempoScale((this.hostBpm / NOMINAL_BPM) * this.tempo);
+        // Signature rythmique → grille/accents de l'adapter (worker).
+        this.adapter.setMeter(this.timeSig.numerator, this.timeSig.denominator);
+        this.refreshValues();
+    }
+
     // ── Écran : valeurs des potards ───────────────────────────────────────────
     private refreshValues(): void {
         const fmt = (spec: HyperparamSpec, v: number) =>
@@ -582,7 +627,7 @@ export class AIComposerN3D implements Node3D {
             `${spec.displayName} ${fmt(spec, this.hypValues[spec.name] ?? spec.default)}`);
         this.gui.setValues(
             parts.join("  ·  "),
-            `Tempo ${this.tempo.toFixed(2)}×  ·  Vél ${this.velocity.toFixed(2)}×  ·  Hor ${this.horizon.toFixed(2)} s`,
+            `Hôte ${Math.round(this.hostBpm)} BPM ${this.timeSig.numerator}/${this.timeSig.denominator}  ·  Tempo ×${this.tempo.toFixed(2)}  ·  Vél ×${this.velocity.toFixed(2)}`,
         );
     }
 
@@ -638,6 +683,7 @@ export class AIComposerN3D implements Node3D {
 
     async dispose() {
         this.alive = false;
+        this.unsubTransport?.();
         this.perf?.stop();
         this.scheduler?.stop();
         await this.adapter?.dispose();

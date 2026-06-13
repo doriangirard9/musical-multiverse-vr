@@ -106,7 +106,7 @@ type RangeKey = keyof typeof RANGES;
 const norm   = (k: RangeKey, v: number) => (v - RANGES[k].min) / (RANGES[k].max - RANGES[k].min);
 const denorm = (k: RangeKey, t: number) => RANGES[k].min + Math.max(0, Math.min(1, t)) * (RANGES[k].max - RANGES[k].min);
 
-const RESIZE_MIN = 0.3, RESIZE_MAX = 4.0, RESIZE_DEFAULT = 1.0;
+// Redimensionnement à deux mains géré par l'hôte → plus de poignée par item.
 
 // ── Canvas / grille (1200×750, res 25 dans le sketch → réduit pour le Quest) ──
 const TEX_W = 800, TEX_H = 500;       // même ratio 1.6:1
@@ -153,7 +153,6 @@ export class FluidFieldN3DGUI implements Node3DGUI {
     audioOut!: AbstractMesh;
     midiOut!: AbstractMesh;
     knobs: Record<string, AbstractMesh> = {};
-    resizeHandle!: AbstractMesh;
     btnBoidAdd!: AbstractMesh;
     btnBoidRemove!: AbstractMesh;
     btnDrone!: AbstractMesh;
@@ -190,6 +189,15 @@ export class FluidFieldN3DGUI implements Node3DGUI {
 
         this.tex = new DynamicTexture("fluid_tex", { width: TEX_W, height: TEX_H }, scene, false);
         this.ctx = this.tex.getContext() as CanvasRenderingContext2D;
+        // Dessiner un premier frame + update() IMMÉDIATEMENT : sans ça la
+        // DynamicTexture n'est jamais "ready" tant que la logique (render loop)
+        // ne tourne pas — or le RENDU DE VIGNETTE du shop n'instancie que la GUI
+        // (pas la logique). Une texture jamais-ready y bloque le render-to-texture
+        // → la vignette ne se termine pas → l'instrument n'apparaît pas du tout
+        // dans le menu. Un fond dessiné une fois rend la texture ready d'emblée.
+        this.ctx.fillStyle = "rgb(15,15,20)";
+        this.ctx.fillRect(0, 0, TEX_W, TEX_H);
+        this.tex.update();
         const mat = new StandardMaterial("fluid_mat", scene);
         mat.emissiveTexture = this.tex;
         mat.diffuseColor = new Color3(0, 0, 0);
@@ -301,13 +309,7 @@ export class FluidFieldN3DGUI implements Node3DGUI {
         this.outSwarmX      = mkOut("fluid_out_swarmx",  0.15, new Color4(1.00, 0.40, 0.70, 1));  // rose
         this.outSwarmY      = mkOut("fluid_out_swarmy",  0.45, new Color4(0.40, 0.70, 1.00, 1));  // bleu clair
 
-        // ── Poignée de resize ─────────────────────────────────────────────────
-        this.resizeHandle = B.MeshBuilder.CreateSphere("fluid_resize", { diameter: 0.08 }, scene);
-        this.resizeHandle.parent = this.root;
-        this.resizeHandle.position.set(0.95, -0.62, 0);
-        const rm = new StandardMaterial("fluid_resize_mat", scene);
-        rm.emissiveColor = new Color3(0.85, 0.3, 0.95);
-        this.resizeHandle.material = rm;
+        // (Plus de poignée de resize : redimensionnement à deux mains via l'hôte.)
     }
 
     // ── Projection monde → local plaque (copie de l'AudioPlaque, clamps 1.6×1) ─
@@ -370,8 +372,6 @@ export class FluidFieldN3D implements Node3D {
     private droneOn = false;
     private droneTimer = 0;
     private lastDronePitch = -1;
-
-    private userScale = RESIZE_DEFAULT;
 
     private gainIn!: GainNode;
     private panner!: StereoPannerNode;
@@ -506,24 +506,7 @@ export class FluidFieldN3D implements Node3D {
         });
         refreshDroneColor();
 
-        // ── Resize ────────────────────────────────────────────────────────────
-        const applyScale = (s: number) => {
-            this.userScale = Math.max(RESIZE_MIN, Math.min(RESIZE_MAX, s));
-            gui.root.scaling.setAll(this.userScale);
-        };
-        applyScale(this.userScale);
-        context.createParameter({
-            id: "userScale",
-            meshes: [gui.resizeHandle],
-            getLabel: () => "Resize",
-            getStepCount: () => 0,
-            getValue: () => (this.userScale - RESIZE_MIN) / (RESIZE_MAX - RESIZE_MIN),
-            setValue: (v01: number) => {
-                applyScale(RESIZE_MIN + v01 * (RESIZE_MAX - RESIZE_MIN));
-                context.notifyStateChange("userScale");
-            },
-            stringify: (v01: number) => `Size: ${(RESIZE_MIN + v01 * (RESIZE_MAX - RESIZE_MIN)).toFixed(2)}x`,
-        });
+        // (Redimensionnement à deux mains géré par l'hôte → pas de userScale.)
 
         // ── Input : laser + gâchette sur le canvas = vortex (mouseIsPressed) ──
         const pointerToCanvas = (pointer: PointerInput): { x: number, y: number } | null => {
@@ -539,10 +522,14 @@ export class FluidFieldN3D implements Node3D {
                 if (tHit < 0) return null;
                 local = gui.projectOntoPlaque(pointer.origin.add(pointer.forward.scale(tHit)));
             }
-            // local (-0.8..0.8, -0.5..0.5) → px canvas (y inversé : canvas y vers le bas)
+            // local (-0.8..0.8, -0.5..0.5) → px canvas.
+            // La texture de Babylon s'affiche miroir-vertical sur la plaque
+            // (canvas y=0 = bas de la plaque) : on envoie donc « manette en
+            // haut » (local.y +) vers le BAS du canvas pour que le vortex
+            // apparaisse bien en haut. X est direct.
             return {
                 x: (local.x / (HALF_W * 2) + 0.5) * TEX_W,
-                y: (0.5 - local.y / (HALF_H * 2)) * TEX_H,
+                y: (0.5 + local.y / (HALF_H * 2)) * TEX_H,
             };
         };
         const grab = new T.InputGrabBehavior(
@@ -664,7 +651,10 @@ export class FluidFieldN3D implements Node3D {
         this.curl01 += (curlRaw - this.curl01) * ema;
         if (this.boids.length > 0) {
             this.comX01 += (comX / this.boids.length / TEX_W - this.comX01) * ema;
-            this.comY01 += ((1 - comY / this.boids.length / TEX_H) - this.comY01) * ema;
+            // Même convention d'axe que la projection : haut de la plaque = 1
+            // (le canvas est miroir-vertical, donc canvas-y grand = haut → pas
+            // de « 1 - » ici). swarmX/Y restent cohérents avec l'AudioPlaque.
+            this.comY01 += (comY / this.boids.length / TEX_H - this.comY01) * ema;
         }
     }
 
@@ -810,13 +800,12 @@ export class FluidFieldN3D implements Node3D {
         try { this.gainOut.disconnect(); } catch (_) {}
     }
 
-    // ── Sync : knobs + boids + drone + taille ──────────────────────────────────
-    getStateKeys(): string[] { return [...Object.keys(RANGES), "boidCount", "droneOn", "userScale"]; }
+    // ── Sync : knobs + boids + drone ────────────────────────────────────────
+    getStateKeys(): string[] { return [...Object.keys(RANGES), "boidCount", "droneOn"]; }
 
     async getState(key: string): Promise<Serializable | void> {
         if (key === "boidCount") return this.boidCount;
         if (key === "droneOn") return this.droneOn;
-        if (key === "userScale") return this.userScale;
         if (key in RANGES) return this.vals[key as RangeKey];
     }
 
@@ -832,11 +821,6 @@ export class FluidFieldN3D implements Node3D {
         if (key === "boidCount") {
             this.boidCount = Math.max(0, Math.min(BOID_MAX, Math.floor(value)));
             this.syncBoidPool();
-            return;
-        }
-        if (key === "userScale") {
-            this.userScale = Math.max(RESIZE_MIN, Math.min(RESIZE_MAX, value));
-            this.gui.root.scaling.setAll(this.userScale);
             return;
         }
         if (key in RANGES) this.vals[key as RangeKey] = value;
@@ -876,6 +860,6 @@ export class FluidFieldN3DFactory implements Node3DFactory<FluidFieldN3DGUI, Flu
         "par Swarm X. Bouton drone : Sol grave retriggé chaque seconde sur la " +
         "sortie MIDI (câbler vers un synthé). 8 knobs : échelle/évolution du " +
         "bruit, viscosité, rayon/force du vortex, vitesse des boids, force du " +
-        "sillage, note du drone. Boutons ±10 boids, poignée violette de resize.",
+        "sillage, note du drone. Boutons ±10 boids. Redimensionnement à deux mains.",
     );
 }
