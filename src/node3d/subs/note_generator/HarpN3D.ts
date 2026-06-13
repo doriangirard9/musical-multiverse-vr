@@ -141,12 +141,12 @@ export class HarpN3D implements Node3D {
     unpress(index: number){
         this.midiOutput.connections.forEach(conn => {
             const t = conn.context.currentTime
-            conn.scheduleEvents({ type: "wam-midi", time: t, data: { bytes: [0x90, 60 + index, 0] } })
-            conn.scheduleEvents({ type: "wam-midi", time: t + 0.001, data: { bytes: [0x80, 60 + index, 0] } })
+            conn.scheduleEvents({ type: "wam-midi", time: t, data: { bytes: [0x90, this.context.tools.NoteUtils.getnote(index), 0] } })
+            conn.scheduleEvents({ type: "wam-midi", time: t + 0.001, data: { bytes: [0x80, this.context.tools.NoteUtils.getnote(index), 0] } })
         })
     }
 
-    constructor(context: Node3DContext, private gui: HarpN3DGUI) {
+    constructor(private context: Node3DContext, private gui: HarpN3DGUI) {
         const { tools: T } = context
         const inputs = InputManager.getInstance()
 

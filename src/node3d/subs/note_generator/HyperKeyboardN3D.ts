@@ -162,7 +162,7 @@ export class HyperKeyboardN3D implements Node3D {
             conn.scheduleEvents({
                 type: "wam-midi",
                 time: conn.context.currentTime + 0.002,
-                data: { bytes: [0x90, 60 + x, 127] }
+                data: { bytes: [0x90, this.context.tools.NoteUtils.getnote(x), 127] }
             })
         })
         // Automation Output
@@ -174,7 +174,7 @@ export class HyperKeyboardN3D implements Node3D {
         this.output.connections.forEach(conn => {
             const t = conn.context.currentTime
             // conn.scheduleEvents({ type: "wam-midi", time: t, data: { bytes: [0x90, 60 + y, 0] } })
-            conn.scheduleEvents({ type: "wam-midi", time: t + 0.001, data: { bytes: [0x80, 60 + x, 0] } })
+            conn.scheduleEvents({ type: "wam-midi", time: t + 0.001, data: { bytes: [0x80, this.context.tools.NoteUtils.getnote(x), 0] } })
         })
     }
 
@@ -185,7 +185,7 @@ export class HyperKeyboardN3D implements Node3D {
 
     private automationOutputs: InstanceType<(typeof AutomationN3DConnectable)["Output"]>[] = []
 
-    constructor(context: Node3DContext, private gui: HyperKeyboardN3DGUI) {
+    constructor(private context: Node3DContext, private gui: HyperKeyboardN3DGUI) {
         const { tools: T } = context
 
         // Hitbox
