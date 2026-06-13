@@ -99,9 +99,9 @@ class PianoRollN3DGUI implements Node3DGUI {
   public endZ!: number;
 
   // Cell sizing
-  public buttonWidth  = 2;
+  public buttonWidth = 2;
   public buttonHeight = 0.2;
-  public buttonDepth  = 0.5;
+  public buttonDepth = 0.5;
   public buttonSpacing = 0.2;
   public keyboardWidth = 3;
 
@@ -170,27 +170,27 @@ class PianoRollN3DGUI implements Node3DGUI {
   private _calculateAndApplyScaling(): void {
     // Calculate the total dimensions of the piano roll
     this.recalculateGridBoundaries();
-    
+
     // Calculate the total width including keyboard and spacing
-    const totalWidth = (this.endX - this.startX) + 
-                      (this.keyboardWidth * 2 + this.buttonSpacing) + 
-                      (this.keyboardWidth + this.buttonSpacing * 2);
-    
+    const totalWidth = (this.endX - this.startX) +
+      (this.keyboardWidth * 2 + this.buttonSpacing) +
+      (this.keyboardWidth + this.buttonSpacing * 2);
+
     // Calculate the total depth including spacing and extra room
-    const totalDepth = this.endZ - this.startZ + 
-                      this.buttonDepth + this.buttonSpacing + 
-                      (this.buttonDepth + this.buttonSpacing) * 2 + 0.8;
-    
+    const totalDepth = this.endZ - this.startZ +
+      this.buttonDepth + this.buttonSpacing +
+      (this.buttonDepth + this.buttonSpacing) * 2 + 0.8;
+
     // Calculate the total height (base height + button height + some margin)
     const totalHeight = 0.2 + this.buttonHeight + 0.6; // base + button + margin
-    
+
     // Find the maximum dimension
     const maxDimension = Math.max(totalWidth, totalDepth, totalHeight);
-    
+
     // Calculate scaling factor to fit within 1x1x1 block
     // Use 0.95 to leave some margin
     const scaleFactor = 0.95 / maxDimension;
-    if (DEBUG_LOG) console.log('maxDimension:', maxDimension );
+    if (DEBUG_LOG) console.log('maxDimension:', maxDimension);
     if (DEBUG_LOG) console.log('scaleFactor:', scaleFactor);
     // Apply the scaling
     this.root.scaling.setAll(scaleFactor);
@@ -248,7 +248,7 @@ class PianoRollN3DGUI implements Node3DGUI {
 
   // ───────────────────────────────────────────────────────────────────────────
   public async instantiate(context: Node3DGUIContext): Promise<void> {
-    const {tools:T} = context;
+    const { tools: T } = context;
 
     this.recalculateGridBoundaries();
     this.createGrid();
@@ -278,7 +278,7 @@ class PianoRollN3DGUI implements Node3DGUI {
 
     this.midiInput = T.ConnectableUtils.createInputMesh(
       "piano roll midi input",
-      this.buttonWidth*2,
+      this.buttonWidth * 2,
       this.context.scene
     );
     this.tool.MeshUtils.setColor(this.midiInput, MidiN3DConnectable.Color.toColor4());
@@ -316,44 +316,44 @@ class PianoRollN3DGUI implements Node3DGUI {
     }
   ): B.Mesh {
     const scene = this.context.scene;
-  
+
     // Local half-extents of target (X, Y, Z) in target space
     const bi = target.getBoundingInfo();
     const ext = bi?.boundingBox.extendSize ?? new B.Vector3(0.5, 0.5, 0.5);
-  
+
     // Plane should cover the top face: width -> X, height -> Z (since we rotate it flat)
     const padding = options?.padding ?? 0.02;
-    const planeWidth  = options?.width  ?? Math.max(0.05, ext.x * 2 - padding * 2);
+    const planeWidth = options?.width ?? Math.max(0.05, ext.x * 2 - padding * 2);
     const planeHeight = options?.height ?? Math.max(0.05, ext.z * 2 - padding * 2);
-  
+
     const dtSize = options?.textureSize ?? { width: 1024, height: 512 }; // higher res to keep text crisp
     const dt = new B.DynamicTexture(`meshLabelDT_${target.name}_${Date.now()}`, dtSize, scene, true);
     dt.hasAlpha = true;
-  
+
     const mat = new B.StandardMaterial(`meshLabelMat_${target.name}_${Date.now()}`, scene);
     mat.disableLighting = true;
     mat.emissiveTexture = dt;
-    mat.opacityTexture  = dt;
-  
+    mat.opacityTexture = dt;
+
     const plane = B.MeshBuilder.CreatePlane(
       `meshLabel_${target.name}_${Date.now()}`,
       { width: planeWidth, height: planeHeight },
       scene
     );
-    plane.material   = mat;
+    plane.material = mat;
     plane.isPickable = false;
-  
+
     // Attach to mesh and place just above the top surface
     plane.parent = target;
     const defaultOffset = new B.Vector3(0, ext.y + 0.001, 0); // tiny lift to avoid z-fighting
     plane.position.copyFrom(options?.offset ?? defaultOffset);
-  
+
     // Match keyboard behavior: fixed to mesh, lying flat
     plane.billboardMode = B.AbstractMesh.BILLBOARDMODE_NONE;
     if (options?.rotateFlatLikeKeyboard !== false) {
       plane.rotation.x = Math.PI / 2;
     }
-  
+
     // Draw text and auto-fit inside the texture with padding
     const ctx = dt.getContext();
     const W = dt.getSize().width;
@@ -361,11 +361,11 @@ class PianoRollN3DGUI implements Node3DGUI {
     const textPadding = options?.textPaddingPx ?? Math.floor(Math.min(W, H) * 0.08);
     const availW = W - textPadding * 2;
     const availH = H - textPadding * 2;
-  
+
     ctx.clearRect(0, 0, W, H);
     ctx.fillStyle = options?.background ?? "rgba(255,255,255,0)";
     ctx.fillRect(0, 0, W, H);
-  
+
     // Auto-fit font size to available width/height
     const baseFont = options?.font ?? "bold 300px sans-serif";
     const fitFontSize = (maxW: number, maxH: number): number => {
@@ -389,7 +389,7 @@ class PianoRollN3DGUI implements Node3DGUI {
       }
       return best;
     };
-  
+
     const fontPx = fitFontSize(availW, availH);
     ctx.font = baseFont.replace(/\d+px/, `${fontPx}px`);
     ctx.fillStyle = options?.textColor ?? "#000";
@@ -397,9 +397,9 @@ class PianoRollN3DGUI implements Node3DGUI {
     anyCtx.textAlign = "center";
     anyCtx.textBaseline = "middle";
     anyCtx.fillText(text, W / 2, H / 2);
-  
+
     dt.update();
-  
+
     return plane;
   }
   // ───────────────────────────────────────────────────────────────────────────
@@ -441,20 +441,20 @@ class PianoRollN3DGUI implements Node3DGUI {
     const material = new B.StandardMaterial("noteCellMaterial", this.context.scene);
     material.diffuseColor = new B.Color3(1, 1, 1);
     this.noteCell.material = material;
-    this.noteCell.parent   = this.root;
+    this.noteCell.parent = this.root;
 
     this.noteCell.isPickable = true;
     this.noteCell.thinInstanceEnablePicking = true;
 
     const instanceCount = this.visibleRowCount * this.cols;
     this.thinInstanceMatrices = new Float32Array(instanceCount * 16);
-    this.thinInstanceColors   = new Float32Array(instanceCount * 4);
+    this.thinInstanceColors = new Float32Array(instanceCount * 4);
 
     this._fillVisibleWindowBuffers();
 
     // updatable buffers
     this.noteCell.thinInstanceSetBuffer("matrix", this.thinInstanceMatrices, 16, false);
-    this.noteCell.thinInstanceSetBuffer("color",  this.thinInstanceColors,   4,  false);
+    this.noteCell.thinInstanceSetBuffer("color", this.thinInstanceColors, 4, false);
 
     this._setupPointerHandlers();
   }
@@ -552,7 +552,7 @@ class PianoRollN3DGUI implements Node3DGUI {
     this._drawHoverLabel((this.hoverLabel!.material as B.StandardMaterial).emissiveTexture as B.DynamicTexture, label);
     this.hoverLabel!.isVisible = true;
     this._positionHoverLabelAboveNote(row, col);
-    
+
     // Set up continuous scale updates while hovering
     this._setupLabelScaleUpdates();
 
@@ -578,7 +578,7 @@ class PianoRollN3DGUI implements Node3DGUI {
     }
     this._hoveredThinIndex = null;
     if (this.hoverLabel) this.hoverLabel.isVisible = false;
-    
+
     // Stop continuous scale updates
     this._stopLabelScaleUpdates();
   }
@@ -605,33 +605,33 @@ class PianoRollN3DGUI implements Node3DGUI {
 
   private _positionHoverLabelAboveNote(row: number, col: number): void {
     if (!this.hoverLabel) return;
-    
+
     // Get the exact position of the hovered note cell
     const cellPosition = this.getCellLocalPosition(row, col);
-    
+
     // Position the label directly above the note cell
     const x = cellPosition.x; // Same X as the note
     const y = cellPosition.y + this.buttonHeight * 2; // Above the note cell
     const z = cellPosition.z; // Same Z as the note
-    
+
     this.hoverLabel.position.set(x, y, z);
-    
+
     // Scale label based on distance to camera
     this._updateLabelScale();
   }
 
   private _updateLabelScale(): void {
     if (!this.hoverLabel) return;
-    
+
     // Get camera position
     const camera = this.context.scene.activeCamera;
     if (!camera) return;
-    
+
     // Calculate distance from label to camera
     const labelWorldPos = this.hoverLabel.getAbsolutePosition();
     const cameraPos = camera.position;
     const distance = B.Vector3.Distance(labelWorldPos, cameraPos);
-    
+
     // Scale factors: closer = smaller, farther = bigger
     // Base distance of 5 units = normal size (scale 1.0)
     // At distance 10+ units, scale up to 2.0x
@@ -639,7 +639,7 @@ class PianoRollN3DGUI implements Node3DGUI {
     const baseDistance = 5.0;
     const minDistance = 2.0;
     const maxDistance = 15.0;
-    
+
     let scale = 1.0;
     if (distance > baseDistance) {
       // Scale up when far
@@ -650,7 +650,7 @@ class PianoRollN3DGUI implements Node3DGUI {
       const closeScale = Math.max(0.5, 1.0 - (baseDistance - distance) / (baseDistance - minDistance));
       scale = closeScale;
     }
-    
+
     // Apply the scale to the label
     this.hoverLabel.scaling.setAll(scale);
   }
@@ -660,7 +660,7 @@ class PianoRollN3DGUI implements Node3DGUI {
   private _setupLabelScaleUpdates(): void {
     // Remove existing observer if any
     this._stopLabelScaleUpdates();
-    
+
     // Set up continuous scale updates
     this._labelScaleObserver = this.context.scene.onBeforeRenderObservable.add(() => {
       if (this.hoverLabel && this.hoverLabel.isVisible) {
@@ -736,7 +736,7 @@ class PianoRollN3DGUI implements Node3DGUI {
 
   private _createKeyLabel(row: number, text: string): B.Mesh {
     const plane = B.MeshBuilder.CreatePlane(`keyLabel_${row}`, { width: 2.2, height: 0.7 }, this.context.scene);
-    plane.parent    = this.root;
+    plane.parent = this.root;
     plane.isPickable = false;
     plane.billboardMode = B.AbstractMesh.BILLBOARDMODE_Y;
 
@@ -744,9 +744,9 @@ class PianoRollN3DGUI implements Node3DGUI {
     dt.hasAlpha = true;
 
     const mat = new B.StandardMaterial(`keyLabelMat_${row}`, this.context.scene);
-    mat.disableLighting  = true;
-    mat.emissiveTexture  = dt;
-    mat.opacityTexture   = dt;
+    mat.disableLighting = true;
+    mat.emissiveTexture = dt;
+    mat.opacityTexture = dt;
 
     // Optional: if you want white text on "black rows"
     if (this.strategy.isBlackRow(row)) {
@@ -798,17 +798,17 @@ class PianoRollN3DGUI implements Node3DGUI {
     ctx.fillRect(0, 0, W, H);
 
     ctx.font = "bold 200px sans-serif";
-    
+
     // Draw text outline for better visibility
     const anyCtx = ctx as any;
     anyCtx.textAlign = "center";
     anyCtx.textBaseline = "middle";
-    
+
     // Black outline
     anyCtx.strokeStyle = "#000000";
     anyCtx.lineWidth = 8;
     anyCtx.strokeText(text, W / 2, H / 2);
-    
+
     // Bright yellow text
     anyCtx.fillStyle = "#ffff00";
     anyCtx.fillText(text, W / 2, H / 2);
@@ -911,14 +911,14 @@ class PianoRollN3DGUI implements Node3DGUI {
       { width: 2, height: 0.6, depth: 0.4 },
       B.Color3.Red(),
       new B.Vector3(
-        this.startX - (this.buttonWidth + this.buttonSpacing) + 8, 
+        this.startX - (this.buttonWidth + this.buttonSpacing) + 8,
         0.2,
         this.endZ + (this.buttonDepth + this.buttonSpacing)
       ),
       this.root
     );
     this.btnRecord.isVisible = true;
-    this.createLabelForMesh(this.btnRecord, "REC", {textColor: "#fff"});
+    this.createLabelForMesh(this.btnRecord, "REC", { textColor: "#fff" });
   }
 
   public createMenuButton(): void {
@@ -949,7 +949,7 @@ class PianoRollN3DGUI implements Node3DGUI {
     this.preventClickBetweenNotesMesh.visibility = 0;
   }
 
-  private clearPatternButton(){
+  private clearPatternButton() {
     this.btnClearPattern = this.createBox(
       "clearPatternButton",
       { width: 5, height: 0.2, depth: 1 },
@@ -963,7 +963,7 @@ class PianoRollN3DGUI implements Node3DGUI {
     );
     this.btnClearPattern.isVisible = true;
     this.btnClearPattern.actionManager = new B.ActionManager(this.context.scene);
-    this.createLabelForMesh(this.btnClearPattern,"Clear Notes",{textColor:"#fff"})
+    this.createLabelForMesh(this.btnClearPattern, "Clear Notes", { textColor: "#fff" })
   }
 
 
@@ -971,20 +971,20 @@ class PianoRollN3DGUI implements Node3DGUI {
   // Scroll buttons
 
   private _createScrollButtons(): void {
-    const upArrow   = this.createUpArrowMesh(this.context.scene, "btnScrollUp");
+    const upArrow = this.createUpArrowMesh(this.context.scene, "btnScrollUp");
     const downArrow = this.createDownArrowMesh(this.context.scene, "btnScrollDown");
 
     const mat = new B.StandardMaterial("scrollMat", this.context.scene);
     mat.diffuseColor = COLOR_INACTIVE;
-    upArrow.material   = mat;
+    upArrow.material = mat;
     downArrow.material = mat.clone("scrollMatDown");
 
     // position (placed at right side)
-    upArrow.position.set(this.endX + 2,  -0.2, -this.endZ / 3);
-    downArrow.position.set(this.endX + 2,  0.2,  this.endZ / 3);
+    upArrow.position.set(this.endX + 2, -0.2, -this.endZ / 3);
+    downArrow.position.set(this.endX + 2, 0.2, this.endZ / 3);
 
     // click handlers
-    upArrow.actionManager   = new B.ActionManager(this.context.scene);
+    upArrow.actionManager = new B.ActionManager(this.context.scene);
     downArrow.actionManager = new B.ActionManager(this.context.scene);
 
     upArrow.actionManager.registerAction(
@@ -994,14 +994,14 @@ class PianoRollN3DGUI implements Node3DGUI {
       new B.ExecuteCodeAction(B.ActionManager.OnPickTrigger, () => this._scrollDown())
     );
 
-    upArrow.parent   = this.root;
+    upArrow.parent = this.root;
     downArrow.parent = this.root;
     upArrow.scaling.setAll(2);
     downArrow.scaling.setAll(2);
 
     // hover highlight
     const highlightLayer = new B.HighlightLayer("highlightScrollButtons", this.context.scene);
-    const addHighlight    = (m: B.Mesh) => highlightLayer.addMesh(m, B.Color3.Yellow());
+    const addHighlight = (m: B.Mesh) => highlightLayer.addMesh(m, B.Color3.Yellow());
     const removeHighlight = (m: B.Mesh) => highlightLayer.removeMesh(m);
 
     [upArrow, downArrow].forEach(mesh => {
@@ -1010,11 +1010,11 @@ class PianoRollN3DGUI implements Node3DGUI {
         new B.ExecuteCodeAction(B.ActionManager.OnPointerOverTrigger, () => addHighlight(mesh))
       );
       mesh.actionManager.registerAction(
-        new B.ExecuteCodeAction(B.ActionManager.OnPointerOutTrigger,  () => removeHighlight(mesh))
+        new B.ExecuteCodeAction(B.ActionManager.OnPointerOutTrigger, () => removeHighlight(mesh))
       );
     });
 
-    this._btnScrollUp   = upArrow;
+    this._btnScrollUp = upArrow;
     this._btnScrollDown = downArrow;
   }
 
@@ -1049,10 +1049,10 @@ class PianoRollN3DGUI implements Node3DGUI {
 
   public recalculateGridBoundaries(): void {
     this.startX = -((this.cols - 1) / 2) * (this.buttonWidth + this.buttonSpacing);
-    this.endX   =  ((this.cols - 1) / 2) * (this.buttonWidth + this.buttonSpacing);
+    this.endX = ((this.cols - 1) / 2) * (this.buttonWidth + this.buttonSpacing);
 
     this.startZ = -((this.visibleRowCount - 1) / 2) * (this.buttonDepth + this.buttonSpacing);
-    this.endZ   =  ((this.visibleRowCount - 1) / 2) * (this.buttonDepth + this.buttonSpacing);
+    this.endZ = ((this.visibleRowCount - 1) / 2) * (this.buttonDepth + this.buttonSpacing);
   }
 
   public updateRowVisibility(): void {
@@ -1069,7 +1069,7 @@ class PianoRollN3DGUI implements Node3DGUI {
       if (colorBox) {
         if (isVisible) {
           colorBox.position.z = centeredZ;
-          colorBox.isVisible  = true;
+          colorBox.isVisible = true;
         } else {
           colorBox.isVisible = false;
         }
@@ -1086,11 +1086,11 @@ class PianoRollN3DGUI implements Node3DGUI {
 
       if (owner?.rowControlBorders?.[row]) {
         const vIdx = row - this._startRowIndex;
-        const cz   = (vIdx - visibleRangeCenter) * (this.buttonDepth + this.buttonSpacing);
+        const cz = (vIdx - visibleRangeCenter) * (this.buttonDepth + this.buttonSpacing);
         owner.rowControlBorders[row].forEach(bar => {
           bar.position.z = cz;
           bar.position.y = this.buttonHeight / 2;
-          bar.isVisible  = isVisible;
+          bar.isVisible = isVisible;
         });
       }
     }
@@ -1098,10 +1098,10 @@ class PianoRollN3DGUI implements Node3DGUI {
     this.refreshVisibleWindow();
 
     // update scroll button colors
-    const matUp   = this._btnScrollUp.material as B.StandardMaterial;
+    const matUp = this._btnScrollUp.material as B.StandardMaterial;
     const matDown = this._btnScrollDown.material as B.StandardMaterial;
 
-    matUp.diffuseColor   = this._startRowIndex > 0 ? COLOR_INACTIVE : COLOR_DISABLED;
+    matUp.diffuseColor = this._startRowIndex > 0 ? COLOR_INACTIVE : COLOR_DISABLED;
     matDown.diffuseColor = this._startRowIndex + this.visibleRowCount < this.rows ? COLOR_INACTIVE : COLOR_DISABLED;
   }
 
@@ -1109,37 +1109,37 @@ class PianoRollN3DGUI implements Node3DGUI {
   // Arrow meshes
 
   public createUpArrowMesh(
-    scene : B.Scene,
-    name  = "upArrow",
+    scene: B.Scene,
+    name = "upArrow",
     width = 1,
-    height= 1.2,
+    height = 1.2,
     depth = 0.2
   ): B.Mesh {
-    const w  = width  * 0.5;
-    const r  = width  * 0.25;
+    const w = width * 0.5;
+    const r = width * 0.25;
     const hH = height * 0.6;
     const pts: B.Vector2[] = [
       new B.Vector2(-r, 0),
       new B.Vector2(-r, hH),
       new B.Vector2(-w, hH),
-      new B.Vector2( 0, height),
-      new B.Vector2( w, hH),
-      new B.Vector2( r, hH),
-      new B.Vector2( r, 0)
+      new B.Vector2(0, height),
+      new B.Vector2(w, hH),
+      new B.Vector2(r, hH),
+      new B.Vector2(r, 0)
     ];
 
     const builder = new B.PolygonMeshBuilder(`${name}Triangulation`, pts, scene);
-    const mesh    = builder.build(false, depth);
+    const mesh = builder.build(false, depth);
     mesh.bakeCurrentTransformIntoVertices();
     mesh.rotation.x = Math.PI; // orient into XZ plane
     return mesh;
   }
 
   public createDownArrowMesh(
-    scene : B.Scene,
-    name  = "downArrow",
+    scene: B.Scene,
+    name = "downArrow",
     width = 1,
-    height= 1.2,
+    height = 1.2,
     depth = 0.2
   ): B.Mesh {
     const arrow = this.createUpArrowMesh(scene, name, width, height, depth);
@@ -1195,7 +1195,7 @@ class PianoRollN3DGUI implements Node3DGUI {
       this.context.scene.onPointerObservable.remove(this._clickObserver);
       this._clickObserver = undefined;
     }
-    
+
     // Clean up label scale observer
     this._stopLabelScaleUpdates();
   }
@@ -1203,7 +1203,7 @@ class PianoRollN3DGUI implements Node3DGUI {
   // For bounding volume consumers
   // Now that the GUI is properly scaled to fit within 1x1x1, 
   // we can use a more appropriate world size
-  public get worldSize() { return  20; }
+  public get worldSize() { return 20; }
 }
 
 
@@ -1230,7 +1230,7 @@ export class PianoRollN3D implements Node3D {
   private pattern: Pattern;
   private isActive: boolean[][] = [];
   private mode: ("normal" | "control" | "none")[][] = [];
-  public  rowControlBorders: { [row: number]: B.Mesh[] } = {};
+  public rowControlBorders: { [row: number]: B.Mesh[] } = {};
 
   // Interaction
   private currentControlSequence: ControlSequence | null = null;
@@ -1243,9 +1243,9 @@ export class PianoRollN3D implements Node3D {
   private midiOutputConnectable: InstanceType<typeof MidiN3DConnectable.ListOutput>;
   private midiInputConnectable?: InstanceType<typeof MidiN3DConnectable.Input>;
   private isRecording = false; // Track recording state
-  
+
   // MIDI Note Recording state (adapted from MIDINoteRecorder.ts)
-  private noteStates: Array<{onTick?: number; onVelocity?: number}> = [];
+  private noteStates: Array<{ onTick?: number; onVelocity?: number }> = [];
   private recordingChannel = -1; // -1 means all channels
 
   constructor(context: Node3DContext, gui: PianoRollN3DGUI) {
@@ -1280,35 +1280,35 @@ export class PianoRollN3D implements Node3D {
 
 
     this.midiOutputConnectable = new this.context.tools.MidiN3DConnectable.ListOutput(
-      "midioutput", 
-      [gui.midiOutput], 
+      "midioutput",
+      [gui.midiOutput],
       "MIDI Output",
       // Callback when instrument connects
       (wamNode: WamNode) => {
-          if (DEBUG_LOG) console.log(`Instrument connected: ${wamNode.instanceId}`);
-          
-          // Connect to WAM instance if it exists
-          if (this.wamInstance?.audioNode) {
-              this.wamInstance.audioNode.connectEvents(wamNode.instanceId);
-          }
-          
-          if (wamNode.instanceId.includes("drum")) {
-              this.gui.setStrategy(new DrumPadsStrategy());
-          } else {
-              this.gui.setStrategy(new Piano88Strategy());
-          }
-          this.onInstrumentConnected(wamNode);
+        if (DEBUG_LOG) console.log(`Instrument connected: ${wamNode.instanceId}`);
+
+        // Connect to WAM instance if it exists
+        if (this.wamInstance?.audioNode) {
+          this.wamInstance.audioNode.connectEvents(wamNode.instanceId);
+        }
+
+        if (wamNode.instanceId.includes("drum")) {
+          this.gui.setStrategy(new DrumPadsStrategy());
+        } else {
+          this.gui.setStrategy(new Piano88Strategy());
+        }
+        this.onInstrumentConnected(wamNode);
       },
       // Callback when instrument disconnects
       (wamNode: WamNode) => {
-          if (DEBUG_LOG) console.log(`Instrument disconnected: ${wamNode.instanceId}`);
-          
-          // Disconnect from WAM instance if it exists
-          if (this.wamInstance?.audioNode) {
-              this.wamInstance.audioNode.disconnectEvents(wamNode.instanceId);
-          }
-          
-          this.onInstrumentDisconnected(wamNode);
+        if (DEBUG_LOG) console.log(`Instrument disconnected: ${wamNode.instanceId}`);
+
+        // Disconnect from WAM instance if it exists
+        if (this.wamInstance?.audioNode) {
+          this.wamInstance.audioNode.disconnectEvents(wamNode.instanceId);
+        }
+
+        this.onInstrumentDisconnected(wamNode);
       }
     );
 
@@ -1316,7 +1316,7 @@ export class PianoRollN3D implements Node3D {
 
     // Note: MIDI input connectable will be created after WAM initialization
     // because it needs this.wamInstance.audioNode to exist
-    
+
 
     // ---- Shared Transport ----
     this.transport = WamTransportManager.getInstance(context.audioCtx);
@@ -1335,7 +1335,7 @@ export class PianoRollN3D implements Node3D {
 
     // Start/Stop toggling
     this.toggleStartStopBtn();
-    
+
     // Recording button
     this.setupRecordingButton();
 
@@ -1352,18 +1352,18 @@ export class PianoRollN3D implements Node3D {
         this.currentControlSequence = null;
       }
     });
-    
 
-// Right grip (squeeze) acts like holding "A" for long-note editing
-InputManager.getInstance().right.squeeze.onChange.add((event) => {
-  const active = (event.value ?? 0) > 0 || !!event.pressed; // optional: change 0 -> 0.1 as deadzone
-  if (active) {
-    this.isAKeyPressed = true;
-  } else {
-    this.isAKeyPressed = false;
-    this.currentControlSequence = null;
-  }
-});
+
+    // Right grip (squeeze) acts like holding "A" for long-note editing
+    InputManager.getInstance().right.squeeze.onChange.add((event) => {
+      const active = (event.value ?? 0) > 0 || !!event.pressed; // optional: change 0 -> 0.1 as deadzone
+      if (active) {
+        this.isAKeyPressed = true;
+      } else {
+        this.isAKeyPressed = false;
+        this.currentControlSequence = null;
+      }
+    });
 
     // Bar/beat divider lines
     this.createBars();
@@ -1387,137 +1387,137 @@ InputManager.getInstance().right.squeeze.onChange.add((event) => {
     const mat = this.gui.btnStartStop.material as B.StandardMaterial;
     mat.diffuseColor = this.transport.getPlaying() ? B.Color3.Green() : B.Color3.Red();
     this.handleClearPattern();
-    
 
-// initialize input managers
-const im = InputManager.getInstance()
-const inputs = InputManager.getInstance()
-const t = SceneManager.getInstance().getScene()
 
-// Track if we're currently scrolling to prevent camera movement
-let isScrolling = false;
+    // initialize input managers
+    const im = InputManager.getInstance()
+    const inputs = InputManager.getInstance()
+    const t = SceneManager.getInstance().getScene()
 
-// Helper function to get the piano roll instance from a mesh
-const getPianoRollFromMesh = (mesh: B.AbstractMesh): PianoRollN3D | null => {
-  // Check if the mesh is part of this piano roll's GUI
-  if (mesh === this.gui.preventClickBetweenNotesMesh || 
-    mesh === this.gui.block || 
-      mesh === this.gui.playhead || 
-      mesh === this.gui.menuButton || 
-      mesh === this.gui.midiOutput ||
-      mesh === this.gui.btnStartStop ||
-      mesh === this.gui.btnClearPattern ||
-      this.gui.keyBoard.includes(mesh as B.Mesh) ||
-      this.gui.keyLabels.includes(mesh as B.Mesh) ||
-      mesh === this.gui.noteCell) {
+    // Track if we're currently scrolling to prevent camera movement
+    let isScrolling = false;
+
+    // Helper function to get the piano roll instance from a mesh
+    const getPianoRollFromMesh = (mesh: B.AbstractMesh): PianoRollN3D | null => {
+      // Check if the mesh is part of this piano roll's GUI
+      if (mesh === this.gui.preventClickBetweenNotesMesh ||
+        mesh === this.gui.block ||
+        mesh === this.gui.playhead ||
+        mesh === this.gui.menuButton ||
+        mesh === this.gui.midiOutput ||
+        mesh === this.gui.btnStartStop ||
+        mesh === this.gui.btnClearPattern ||
+        this.gui.keyBoard.includes(mesh as B.Mesh) ||
+        this.gui.keyLabels.includes(mesh as B.Mesh) ||
+        mesh === this.gui.noteCell) {
         if (DEBUG_LOG) console.log("Piano roll found");
-    return this; // This is our piano roll instance
-  }
-  
-  // Check if it's a thin instance of our note cell
-  if (mesh === this.gui.noteCell) {
-    if (DEBUG_LOG) console.log("Note cell found");
-    return this;
-  }
-  
-  return null;
-};
+        return this; // This is our piano roll instance
+      }
 
-// Helper function to perform raycast and get pointed piano roll
-const getPointedPianoRollLeftController = (): PianoRollN3D | null => {
-  const leftController = inputs.left
-  
-  // Create ray from controller
-  const {targetMesh} = leftController.pointer
-  
-  if (targetMesh) {
-    // Check if the picked mesh belongs to this piano roll
-    return getPianoRollFromMesh(targetMesh);
-  }
-  
-  return null;
-};
-const getPointedPianoRollRightController = (): PianoRollN3D | null => {
+      // Check if it's a thin instance of our note cell
+      if (mesh === this.gui.noteCell) {
+        if (DEBUG_LOG) console.log("Note cell found");
+        return this;
+      }
 
-   const {right} = InputManager.getInstance();
+      return null;
+    };
 
-  if (!right) return null;
-  
-  // Create ray from controller
-  const ray = new B.Ray(right.pointer.origin, right.pointer.forward, 100);
-  const pickResult = t.pickWithRay(ray);
-  
-  if (pickResult?.hit && pickResult.pickedMesh) {
-    // Check if the picked mesh belongs to this piano roll
-    return getPianoRollFromMesh(pickResult.pickedMesh);
-  }
-  return null;
-}
+    // Helper function to perform raycast and get pointed piano roll
+    const getPointedPianoRollLeftController = (): PianoRollN3D | null => {
+      const leftController = inputs.left
+
+      // Create ray from controller
+      const { targetMesh } = leftController.pointer
+
+      if (targetMesh) {
+        // Check if the picked mesh belongs to this piano roll
+        return getPianoRollFromMesh(targetMesh);
+      }
+
+      return null;
+    };
+    const getPointedPianoRollRightController = (): PianoRollN3D | null => {
+
+      const { right } = InputManager.getInstance();
+
+      if (!right) return null;
+
+      // Create ray from controller
+      const ray = new B.Ray(right.pointer.origin, right.pointer.forward, 100);
+      const pickResult = t.pickWithRay(ray);
+
+      if (pickResult?.hit && pickResult.pickedMesh) {
+        // Check if the picked mesh belongs to this piano roll
+        return getPianoRollFromMesh(pickResult.pickedMesh);
+      }
+      return null;
+    }
 
 
-// Continuous scrolling while thumbstick is held
-// @ts-ignore
-let scrollInterval: NodeJS.Timeout | null = null;
-const scrollSpeed = 200; // milliseconds between scroll steps
+    // Continuous scrolling while thumbstick is held
+    // @ts-ignore
+    let scrollInterval: NodeJS.Timeout | null = null;
+    const scrollSpeed = 200; // milliseconds between scroll steps
 
-const startScrolling = (direction: number) => {
-  if (scrollInterval) return; // Already scrolling
-  
-  const pointedPianoRollLeft = getPointedPianoRollLeftController() ;
-  const pointedPianoRollRight = getPointedPianoRollRightController();
-  
+    const startScrolling = (direction: number) => {
+      if (scrollInterval) return; // Already scrolling
 
-  if (pointedPianoRollLeft === this || pointedPianoRollRight === this) {
-    isScrolling = true;
-    // Completely disable movement features to prevent camera rotation
-    inputs.movement.stackDisable()
-    
-    // Start continuous scrolling
-    scrollInterval = setInterval(() => {
-      this.gui.scrollByRows(direction);
-    }, scrollSpeed);
-  }
-};
+      const pointedPianoRollLeft = getPointedPianoRollLeftController();
+      const pointedPianoRollRight = getPointedPianoRollRightController();
 
-const stopScrolling = () => {
-  if (scrollInterval) {
-    clearInterval(scrollInterval);
-    scrollInterval = null;
-  }
-  if (isScrolling) {
-    isScrolling = false;
-    // Re-enable both rotation and translation
-    inputs.movement.stackEnable();
-  }
-};
 
-// Start scrolling when thumbstick is pushed
-im.right.thumbstick.on_up_down.add(() => startScrolling(-1));
-im.right.thumbstick.on_down_down.add(() => startScrolling(1));
+      if (pointedPianoRollLeft === this || pointedPianoRollRight === this) {
+        isScrolling = true;
+        // Completely disable movement features to prevent camera rotation
+        inputs.movement.stackDisable()
 
-// Stop scrolling when thumbstick is released
-im.right.thumbstick.on_up_up.add(() => stopScrolling());
-im.right.thumbstick.on_down_up.add(() => stopScrolling());
+        // Start continuous scrolling
+        scrollInterval = setInterval(() => {
+          this.gui.scrollByRows(direction);
+        }, scrollSpeed);
+      }
+    };
 
-// Also stop when thumbstick returns to center
-im.right.thumbstick.on_value_change.add(({ x, y }) => {
-  const deadzone = 0.1;
-  const isInDeadzone = Math.abs(x) < deadzone && Math.abs(y) < deadzone;
-  
-  if (isInDeadzone) {
-    stopScrolling();
-  }
-});
+    const stopScrolling = () => {
+      if (scrollInterval) {
+        clearInterval(scrollInterval);
+        scrollInterval = null;
+      }
+      if (isScrolling) {
+        isScrolling = false;
+        // Re-enable both rotation and translation
+        inputs.movement.stackEnable();
+      }
+    };
+
+    // Start scrolling when thumbstick is pushed
+    im.right.thumbstick.on_up_down.add(() => startScrolling(-1));
+    im.right.thumbstick.on_down_down.add(() => startScrolling(1));
+
+    // Stop scrolling when thumbstick is released
+    im.right.thumbstick.on_up_up.add(() => stopScrolling());
+    im.right.thumbstick.on_down_up.add(() => stopScrolling());
+
+    // Also stop when thumbstick returns to center
+    im.right.thumbstick.on_value_change.add(({ x, y }) => {
+      const deadzone = 0.1;
+      const isInDeadzone = Math.abs(x) < deadzone && Math.abs(y) < deadzone;
+
+      if (isInDeadzone) {
+        stopScrolling();
+      }
+    });
   }
 
   private onInstrumentConnected(_wamNode: WamNode) {
     // Handle new instrument connection
     // You can check wamNode.moduleId to determine instrument type
-}
+  }
 
-private onInstrumentDisconnected(_wamNode: WamNode) {
+  private onInstrumentDisconnected(_wamNode: WamNode) {
     // Handle instrument disconnection
-}
+  }
 
   // ───────────────────────────────────────────────────────────────────────────
   // GUI ↔ Controller contract
@@ -1553,14 +1553,14 @@ private onInstrumentDisconnected(_wamNode: WamNode) {
 
     // reset visuals
     this.isActive = Array.from({ length: rows }, () => Array(cols).fill(false));
-    this.mode    = Array.from({ length: rows }, () => Array(cols).fill("normal"));
-    
+    this.mode = Array.from({ length: rows }, () => Array(cols).fill("normal"));
+
     // Clear pattern notes array (we'll restore them after rebuilding the grid)
     this.pattern.notes = [];
-    
+
     Object.values(this.rowControlBorders).flat().forEach(m => m.dispose());
     this.rowControlBorders = {};
-    
+
     // Always restore all preserved notes when switching strategies
     // Notes that can't be mapped to the new strategy will be kept in the pattern
     // but won't be displayed (e.g., piano notes when switching to drum)
@@ -1589,15 +1589,15 @@ private onInstrumentDisconnected(_wamNode: WamNode) {
     // );
     // this.context.createConnectable(output);
     // Set the WamNode for the existing connectable
-        // Connect any existing connections to the WAM instance
-        this.midiOutputConnectable.connections.forEach(wamNode => {
-          this.wamInstance.audioNode.connectEvents(wamNode.instanceId);
-      });
+    // Connect any existing connections to the WAM instance
+    this.midiOutputConnectable.connections.forEach(wamNode => {
+      this.wamInstance.audioNode.connectEvents(wamNode.instanceId);
+    });
 
     // Create a wrapper WamNode to intercept incoming MIDI for recording
     const pianoRollAudioNode = this.wamInstance.audioNode;
     const originalScheduleEvents = pianoRollAudioNode.scheduleEvents.bind(pianoRollAudioNode);
-    
+
     // Wrap scheduleEvents to intercept MIDI for recording
     pianoRollAudioNode.scheduleEvents = (event: any) => {
       // Debug: Log ALL incoming events to diagnose the issue
@@ -1607,17 +1607,17 @@ private onInstrumentDisconnected(_wamNode: WamNode) {
         data: event.data,
         isRecording: this.isRecording
       });
-      
+
       // Forward to original (for audio output)
       originalScheduleEvents(event);
-      
+
       // If recording and this is a MIDI event, capture it
       if (this.isRecording && event.type === 'wam-midi') {
         console.log('[PianoRoll] Intercepted MIDI event for recording');
         this.onMidiEventForRecording(event.data.bytes, event.time);
       }
     };
-    
+
     // Now create the MIDI input connectable
     this.midiInputConnectable = new this.context.tools.MidiN3DConnectable.Input(
       `midiinput_pianoRollInput`,
@@ -1626,45 +1626,45 @@ private onInstrumentDisconnected(_wamNode: WamNode) {
       pianoRollAudioNode
     );
     this.context.createConnectable(this.midiInputConnectable);
-    
+
     console.log('[PianoRoll] MIDI input connectable created with recording interception');
 
 
 
     // Join shared transport group
     this.transport.register(this.wamInstance.audioNode);
-    
-    // connect to drump
-      // Example with a web assembly instrument (Pro24 synth) WAM compiled from C-Major code)
-  //   const wamInstanceDrum = await WamInitializer.getInstance()
-  // .initWamInstance('https://www.webaudiomodules.com/community/plugins/burns-audio/drumsampler/index.js');
-  // this.wamInstance.audioNode.connectEvents(wamInstanceDrum.instanceId);
 
-    
-  // // For the notes extension. Register the mapping
-  // if(window.WAMExtensions.notes)
-  // window.WAMExtensions.notes.addMapping(this.wamInstance.audioNode.instanceId, [wamInstanceDrum.instanceId]);
-  
+    // connect to drump
+    // Example with a web assembly instrument (Pro24 synth) WAM compiled from C-Major code)
+    //   const wamInstanceDrum = await WamInitializer.getInstance()
+    // .initWamInstance('https://www.webaudiomodules.com/community/plugins/burns-audio/drumsampler/index.js');
+    // this.wamInstance.audioNode.connectEvents(wamInstanceDrum.instanceId);
+
+
+    // // For the notes extension. Register the mapping
+    // if(window.WAMExtensions.notes)
+    // window.WAMExtensions.notes.addMapping(this.wamInstance.audioNode.instanceId, [wamInstanceDrum.instanceId]);
+
     // Check if note extension exists
     this.registerNoteListHandler();
-	
 
-	
+
+
   }
 
   registerNoteListHandler() {
-		if (window.WAMExtensions && window.WAMExtensions.notes) {
-			window.WAMExtensions.notes.addListener(this.wamInstance.instanceId, (notes) => {
-				const noteList = notes;
+    if (window.WAMExtensions && window.WAMExtensions.notes) {
+      window.WAMExtensions.notes.addListener(this.wamInstance.instanceId, (notes) => {
+        const noteList = notes;
 
         // update the 3D view, or at least store the notes
-				//if (this.renderCallback) {
-					//this.renderCallback()
-				//}
+        //if (this.renderCallback) {
+        //this.renderCallback()
+        //}
 
         console.log("Note list from extension:", noteList);
-			});
-		}else console.warn("No note extension found");
+      });
+    } else console.warn("No note extension found");
   }
 
   /** advance playhead + live highlight via shared transport time */
@@ -1688,47 +1688,47 @@ private onInstrumentDisconnected(_wamNode: WamNode) {
    */
   private onMidiEventForRecording(bytes: Uint8Array | number[], timestamp: number): void {
     console.log('[PianoRoll] onMidiEventForRecording called', { bytes, timestamp });
-    
+
     const event = Array.isArray(bytes) ? bytes : Array.from(bytes);
     console.log('[PianoRoll] MIDI event array:', event);
-    
+
     let isNoteOn = (event[0] & 0xF0) === 0x90;  // MIDI Note ON
     let isNoteOff = (event[0] & 0xF0) === 0x80; // MIDI Note OFF
     console.log('[PianoRoll] Note type:', { isNoteOn, isNoteOff, status: event[0].toString(16) });
-    
+
     // Check channel filter
     if ((isNoteOn || isNoteOff) && this.recordingChannel !== -1 && (event[0] & 0x0F) !== this.recordingChannel) {
       console.log('[PianoRoll] Wrong channel, ignoring');
       return; // Wrong channel, ignore
     }
-    
+
     // Treat note on with 0 velocity as note off
     if (isNoteOn && event[2] === 0) {
       isNoteOn = false;
       isNoteOff = true;
       console.log('[PianoRoll] Converted note on with 0 velocity to note off');
     }
-    
+
     const noteNumber = event[1];
     const velocity = event[2];
     const state = this.noteStates[noteNumber];
-    
+
     console.log('[PianoRoll] Processing note:', { noteNumber, velocity, currentState: state });
-    
+
     const currentTick = this.getCurrentTick(timestamp);
     console.log('[PianoRoll] Current tick:', currentTick);
-    
+
     if (isNoteOff && state.onTick !== undefined) {
       console.log('[PianoRoll] Finalizing note off');
       this.finalizeRecordedNote(noteNumber, currentTick);
     }
-    
+
     if (isNoteOn && state.onTick !== undefined) {
       // Note already held, finalize old one first
       console.log('[PianoRoll] Finalizing previous note on');
       this.finalizeRecordedNote(noteNumber, currentTick);
     }
-    
+
     if (isNoteOn) {
       console.log('[PianoRoll] Recording note on at tick', currentTick);
       this.noteStates[noteNumber] = {
@@ -1737,7 +1737,7 @@ private onInstrumentDisconnected(_wamNode: WamNode) {
       };
     }
   }
-  
+
   /**
    * Get current tick position based on transport time (adapted from MIDINoteRecorder.getTick)
    */
@@ -1748,27 +1748,27 @@ private onInstrumentDisconnected(_wamNode: WamNode) {
     const tickPosition = Math.floor((elapsed / this.cellDuration) * this.ticksPerColumn);
     return tickPosition % this.pattern.length;
   }
-  
+
   /**
    * Finalize a recorded note and add it to the pattern
    */
   private finalizeRecordedNote(noteNumber: number, endTick: number): void {
     const state = this.noteStates[noteNumber];
     if (!state.onTick || !state.onVelocity) return;
-    
+
     const startTick = state.onTick;
     let duration = endTick - startTick;
-    
+
     // Handle wrap-around at pattern end
     if (duration < 0) {
       duration += this.pattern.length;
     }
-    
+
     // Ensure minimum duration of 1 tick for drum hits (they often have very short duration)
     if (duration === 0) {
       duration = 1;
     }
-    
+
     // Only add notes with positive duration
     if (duration > 0) {
       // Remove any existing note at this position
@@ -1778,7 +1778,7 @@ private onInstrumentDisconnected(_wamNode: WamNode) {
       if (existingIdx !== -1) {
         this.pattern.notes.splice(existingIdx, 1);
       }
-      
+
       // Add the new note
       this.pattern.notes.push({
         tick: startTick,
@@ -1786,20 +1786,20 @@ private onInstrumentDisconnected(_wamNode: WamNode) {
         duration: duration,
         velocity: state.onVelocity
       });
-      
+
       console.log(`[PianoRoll] Recorded note ${noteNumber} at tick ${startTick}, duration ${duration}`);
-      
+
       // Update the 3D visualization
       this._applyPattern(this.pattern);
-      
+
       // Notify network sync
       this.context.notifyStateChange("pattern");
     }
-    
+
     // Clear the state
     this.noteStates[noteNumber] = {};
   }
-  
+
   /**
    * Finalize all currently held notes (called when stopping recording)
    */
@@ -1811,7 +1811,7 @@ private onInstrumentDisconnected(_wamNode: WamNode) {
       }
     }
   }
-  
+
   /**
    * Clear all recording note states (called when starting new recording)
    */
@@ -1855,18 +1855,18 @@ private onInstrumentDisconnected(_wamNode: WamNode) {
     this.gui.btnRecord.actionManager.registerAction(
       new B.ExecuteCodeAction(B.ActionManager.OnPickTrigger, () => {
         this.isRecording = !this.isRecording;
-        
+
         console.log(`[PianoRoll] Recording toggled - isRecording: ${this.isRecording}`);
-        
+
         // Update button appearance
         const mat = this.gui.btnRecord.material as B.StandardMaterial;
         mat.diffuseColor = this.isRecording ? B.Color3.Red() : new B.Color3(0.5, 0.5, 0.5);
         mat.emissiveColor = this.isRecording ? new B.Color3(0.5, 0, 0) : B.Color3.Black();
-        
+
         if (this.isRecording) {
           // Clear any held notes from previous recording
           this.clearRecordingNoteStates();
-          
+
           // Start transport if not already playing
           if (!this.transport.getPlaying()) {
             console.log('[PianoRoll] Auto-starting transport for recording');
@@ -1874,27 +1874,29 @@ private onInstrumentDisconnected(_wamNode: WamNode) {
             const startStopMat = this.gui.btnStartStop.material as B.StandardMaterial;
             startStopMat.diffuseColor = B.Color3.Green();
           }
-          
+
           console.log('[PianoRoll] Recording armed - listening for MIDI input');
         } else {
           // When stopping recording, finalize any held notes
           this.finalizeAllRecordingNotes();
+          // Send the recorded pattern to the WAM plugin to start playback
+          this._safeSendPatternToPianoRoll();
           console.log('[PianoRoll] Recording disarmed');
         }
       })
     );
-    
+
     // Set initial color to gray (not recording)
     const mat = this.gui.btnRecord.material as B.StandardMaterial;
     mat.diffuseColor = new B.Color3(0.5, 0.5, 0.5);
-    
+
     console.log('[PianoRoll] Recording button setup complete');
   }
 
   // ───────────────────────────────────────────────────────────────────────────
   // Pattern delegate (safe / deferred)
 
-  private handleClearPattern(){
+  private handleClearPattern() {
     this.gui.btnClearPattern.actionManager = new B.ActionManager(this.gui.context.scene);
     this.gui.btnClearPattern.actionManager.registerAction(
       new B.ExecuteCodeAction(B.ActionManager.OnPickTrigger, () => {
@@ -1917,7 +1919,7 @@ private onInstrumentDisconnected(_wamNode: WamNode) {
         console.log('[PianoRoll] Skipping pattern send to WAM - currently recording');
         return;
       }
-      
+
       if (!this.wamInstance?.audioNode) return;
       const instanceId = (this.wamInstance.audioNode as any).instanceId;
       if (!instanceId) return;
@@ -1941,7 +1943,7 @@ private onInstrumentDisconnected(_wamNode: WamNode) {
     const cols = this.gui.cols;
 
     this.isActive = Array.from({ length: rows }, () => Array(cols).fill(false));
-    this.mode     = Array.from({ length: rows }, () => Array(cols).fill("normal"));
+    this.mode = Array.from({ length: rows }, () => Array(cols).fill("normal"));
 
     Object.values(this.rowControlBorders).flat().forEach(m => m.dispose());
     this.rowControlBorders = {};
@@ -2206,7 +2208,7 @@ private onInstrumentDisconnected(_wamNode: WamNode) {
 
     const rows = this.gui.strategy.getRowCount();
     this.isActive = Array.from({ length: rows }, () => Array(newColumnCount).fill(false));
-    this.mode    = Array.from({ length: rows }, () => Array(newColumnCount).fill("normal"));
+    this.mode = Array.from({ length: rows }, () => Array(newColumnCount).fill("normal"));
 
     // rebuild visuals
     this.gui.keyBoard.forEach(key => key.dispose());
@@ -2251,7 +2253,7 @@ private onInstrumentDisconnected(_wamNode: WamNode) {
     (this.gui as any).rows = newRowCount;
 
     this.isActive = Array.from({ length: newRowCount }, () => Array(this.gui.cols).fill(false));
-    this.mode     = Array.from({ length: newRowCount }, () => Array(this.gui.cols).fill("normal"));
+    this.mode = Array.from({ length: newRowCount }, () => Array(this.gui.cols).fill("normal"));
 
     if ((this.gui as any).rows < this.gui.visibleRowCount) this.gui.visibleRowCount = (this.gui as any).rows;
 
@@ -2328,7 +2330,7 @@ private onInstrumentDisconnected(_wamNode: WamNode) {
       // Fallback: try sending noteOff for all unique notes in the current pattern
       const allNotes = Array.from(new Set(this.pattern.notes.map(n => n.number)));
       allNotes.forEach(number => {
-        try { audioNode.noteOff(number); } catch (_) {}
+        try { audioNode.noteOff(number); } catch (_) { }
       });
     }
   }
@@ -2337,13 +2339,13 @@ private onInstrumentDisconnected(_wamNode: WamNode) {
 
 export const PianoRollN3DFactory: Node3DFactory<PianoRollN3DGUI, PianoRollN3D> = {
   label: "pianoroll",
-  description : "3D Piano Roll Sequencer, sources WAM from sequencer.party",
+  description: "3D Piano Roll Sequencer, sources WAM from sequencer.party",
   tags: ["wam", "midi", "sequencer", "pianoroll", "generator"],
   async createGUI(context) { return new PianoRollN3DGUI(context) },
   async create(context, gui) {
     const ret = new PianoRollN3D(context, gui)
     await ret.ready
     await new Promise(res => setTimeout(res, 1000)) // Wait till patterns are sent. TODO: Faire ça proprement avec des async await
-    return ret  
+    return ret
   },
 }
