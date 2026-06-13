@@ -18,10 +18,10 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      - ./server-config/database:/app/data
+      - config-data:/app/data
     environment:
       - NODE_ENV=production
-      - JWT_SECRET=c76d5fc8-8d7e-4750-9cde-26d97e117c24
+      - JWT_SECRET=${JWT_SECRET}
       - PORT=3000
       - AUTHORIZED_ORIGINS=https://wamjamparty.i3s.univ-cotedazur.fr
     restart: always
@@ -38,3 +38,7 @@ services:
       - "5173:5173"
     environment:
       - NODE_ENV=production
+
+volumes:
+  config-data:
+
