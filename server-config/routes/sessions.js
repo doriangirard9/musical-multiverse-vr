@@ -271,6 +271,7 @@ router.post('/:id/leave', (req, res) => {
  * POST /api/sessions/:id/save
  * Save CRDT data for a session (with data loss protection)
  * Body: { participantId: string, crdtData: string (JSON) }
+ * Note: public-sandbox session does not persist to DB (Yjs-only state)
  */
 router.post('/:id/save', (req, res) => {
     try {
@@ -282,6 +283,11 @@ router.post('/:id/save', (req, res) => {
         // Verify participant exists
         const participant = db.prepare('SELECT * FROM session_participants WHERE participant_id = ? AND session_id = ?').get(participantId, req.params.id);
         if (!participant) return res.status(403).json({ error: 'Not a participant of this session' });
+
+        // Special handling for public-sandbox: don't persist to DB
+        if (req.params.id === 'public-sandbox') {
+            return res.json({ message: 'Saved (public sandbox - not persisted to DB)' });
+        }
 
         // Data loss protection
         const session = db.prepare('SELECT crdt_data FROM sessions WHERE id = ?').get(req.params.id);

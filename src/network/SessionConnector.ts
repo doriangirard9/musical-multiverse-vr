@@ -170,6 +170,12 @@ export class SessionConnector {
     }
 
     private startAutoSave(): void {
+        // Skip auto-save for public-sandbox (state is not persisted to DB)
+        if (this.sessionId === 'public-sandbox') {
+            console.log('[SessionConnector] Skipping auto-save for public-sandbox session');
+            return;
+        }
+
         // Save every 30 seconds
         this.saveInterval = setInterval(async () => {
             if (!this.isConnected || !this.participantId) return;

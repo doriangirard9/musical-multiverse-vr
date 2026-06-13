@@ -90,6 +90,51 @@ function initDatabase() {
         CREATE INDEX IF NOT EXISTS idx_authorized_users_user_id ON authorized_users(user_id);
     `);
 
+    // Initialize system user and public sandbox session
+    try {
+        const crypto = require('crypto');
+        const bcrypt = require('bcrypt');
+        
+        const systemUserId = 'system-user';
+        const systemProjectId = 'system-project';
+        const publicSandboxSessionId = 'public-sandbox';
+        
+        // Check if system user exists
+        const existingUser = db.prepare('SELECT id FROM users WHERE id = ?').get(systemUserId);
+        if (!existingUser) {
+            // Create system user with a random password (not used)
+            const randomPassword = crypto.randomBytes(16).toString('hex');
+            const passwordHash = bcrypt.hashSync(randomPassword, 10);
+            db.prepare(`
+                INSERT INTO users (id, username, email, password_hash)
+                VALUES (?, ?, ?, ?)
+            `).run(systemUserId, 'system', 'system@wamjam.local', passwordHash);
+            console.log('[Database] Created system user');
+        }
+        
+        // Check if system project exists
+        const existingProject = db.prepare('SELECT id FROM projects WHERE id = ?').get(systemProjectId);
+        if (!existingProject) {
+            db.prepare(`
+                INSERT INTO projects (id, name, description, owner_id)
+                VALUES (?, ?, ?, ?)
+            `).run(systemProjectId, 'System', 'System-managed projects', systemUserId);
+            console.log('[Database] Created system project');
+        }
+        
+        // Check if public sandbox session exists
+        const existingSession = db.prepare('SELECT id FROM sessions WHERE id = ?').get(publicSandboxSessionId);
+        if (!existingSession) {
+            db.prepare(`
+                INSERT INTO sessions (id, project_id, name, is_public, max_users, share_token)
+                VALUES (?, ?, ?, ?, ?, ?)
+            `).run(publicSandboxSessionId, systemProjectId, 'Public Sandbox', 1, 1000, null);
+            console.log('[Database] Created public sandbox session');
+        }
+    } catch (e) {
+        console.error('[Database] Error initializing system data:', e);
+    }
+
     console.log('[Database] SQLite initialized at', DB_PATH);
     return db;
 }
