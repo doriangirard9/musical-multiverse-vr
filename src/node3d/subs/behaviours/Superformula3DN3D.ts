@@ -6,6 +6,7 @@ import type { Node3D, Node3DFactory, Node3DGUI, Serializable } from "../../Node3
 import type { Node3DContext } from "../../Node3DContext";
 import type { Node3DGUIContext } from "../../Node3DGUIContext";
 import type { AutomationN3DConnectable } from "../../tools";
+import { BoidSwarm } from "./steering/Boid";
 
 // ─── Superformula3DN3D — supershape de Gielis en 3D ──────────────────────────
 //
@@ -55,8 +56,22 @@ const RANGES = {
     n3B: { min: 0.1,  max: 10.0, default: 1.5 },
     scale: { min: 0.10, max: 0.45, default: 0.32 },
     speed: { min: 0.10, max: 6.00, default: 1.20 },
+    // Pilotage de la boule (0.5 = centré). Déviés du centre, les trois potards
+    // définissent une DIRECTION : la boule glisse vers le point de la surface
+    // visé (elle ne quitte jamais la surface). Tous centrés → pilote
+    // automatique (spirale). Câblables en automation comme tout paramètre.
+    ballX: { min: 0, max: 1, default: 0.5 },
+    ballY: { min: 0, max: 1, default: 0.5 },
+    ballZ: { min: 0, max: 1, default: 0.5 },
 } as const;
 type RangeKey = keyof typeof RANGES;
+
+// Seules ces clés déclenchent un rebuild de la surface. Les potards de boule
+// peuvent être modulés en continu par automation — il ne faut PAS reconstruire
+// ~4 700 sommets par frame pour ça.
+const SHAPE_KEYS: RangeKey[] = ["mA", "n1A", "n2A", "n3A", "mB", "n1B", "n2B", "n3B", "scale"];
+
+const BOID_MAX = 30;
 
 const norm   = (key: RangeKey, v: number) => (v - RANGES[key].min) / (RANGES[key].max - RANGES[key].min);
 const denorm = (key: RangeKey, t: number) => RANGES[key].min + Math.max(0, Math.min(1, t)) * (RANGES[key].max - RANGES[key].min);
@@ -105,6 +120,15 @@ export class Superformula3DN3DGUI implements Node3DGUI {
     outPosX!: AbstractMesh;  outPosY!: AbstractMesh;  outPosZ!: AbstractMesh;
     outRadius!: AbstractMesh; outRadiusDelta!: AbstractMesh;
     outSpeed!: AbstractMesh; outAcceleration!: AbstractMesh; outCurvature!: AbstractMesh;
+
+    // Boids
+    boidContainer!: TransformNode;
+    btnBoidToggle!: AbstractMesh;
+    btnBoidAdd!: AbstractMesh;
+    btnBoidRemove!: AbstractMesh;
+    boidToggleMat!: StandardMaterial;
+    outBoidCx!: AbstractMesh;  outBoidCy!: AbstractMesh;  outBoidCz!: AbstractMesh;
+    outBoidDisp!: AbstractMesh; outBoidAlign!: AbstractMesh; outBoidVort!: AbstractMesh;
 
     // Buffers réutilisés du mesh (positions/normales/couleurs ; indices fixes)
     private positions!: Float32Array;
@@ -284,6 +308,15 @@ export class Superformula3DN3DGUI implements Node3DGUI {
         this.knobs["speed"] = mkKnob("sf3d_knob_speed", motion);
         this.knobs["speed"].position.set(0.68, -0.42, 0);
 
+        // Potards de pilotage de la boule — roses comme elle, bas centre,
+        // sous l'arête inférieure de la cage (y=-0.5)
+        const pink = new Color4(1.0, 0.45, 0.75, 1);
+        (["ballX", "ballY", "ballZ"] as RangeKey[]).forEach((key, i) => {
+            const k = mkKnob(`sf3d_knob_${key}`, pink);
+            k.position.set(-0.22 + i * 0.22, -0.62, 0);
+            this.knobs[key] = k;
+        });
+
         // ── 8 sorties d'automation — rangée du bas ────────────────────────────
         const outColors: Record<string, Color4> = {
             posX:        new Color4(0.90, 0.15, 0.15, 1),
@@ -319,6 +352,45 @@ export class Superformula3DN3DGUI implements Node3DGUI {
         const resizeMat = new StandardMaterial("sf3d_resize_mat", scene);
         resizeMat.emissiveColor = new Color3(0.85, 0.3, 0.95);
         this.resizeHandle.material = resizeMat;
+
+        // ── Contrôles boids — disques en haut à gauche (même idiome que le 2D) ─
+        const mkDisc = (name: string, diameter: number, emissive: Color3): AbstractMesh => {
+            const m = B.MeshBuilder.CreateCylinder(name, { diameter, height: 0.025, tessellation: 24 }, scene);
+            m.rotation.x = Math.PI / 2;
+            const mat = new StandardMaterial(`${name}_mat`, scene);
+            mat.emissiveColor = emissive;
+            mat.disableLighting = true;
+            m.material = mat;
+            m.parent = this.root;
+            return m;
+        };
+        this.btnBoidAdd = mkDisc("sf3d_boid_add", 0.08, new Color3(0.2, 0.85, 0.35));
+        this.btnBoidAdd.position.set(-0.50, 0.70, 0);
+        this.btnBoidToggle = mkDisc("sf3d_boid_toggle", 0.10, new Color3(0, 0.5, 0.6));
+        this.btnBoidToggle.position.set(-0.36, 0.70, 0);
+        this.boidToggleMat = this.btnBoidToggle.material as StandardMaterial;
+        this.btnBoidRemove = mkDisc("sf3d_boid_remove", 0.08, new Color3(0.85, 0.2, 0.3));
+        this.btnBoidRemove.position.set(-0.22, 0.70, 0);
+
+        // L'essaim vit dans l'espace de la forme (suit sa rotation, comme la boule)
+        this.boidContainer = new B.TransformNode("sf3d_boid_container", scene);
+        this.boidContainer.parent = this.shapeRoot;
+
+        // ── 6 sorties de métriques boids — 2e rangée sous les sorties motion ──
+        const mkBoidOut = (name: string, x: number, c: Color4): AbstractMesh => {
+            const m = ConnectableUtils.createOutputMesh(name, 0.06, scene);
+            m.parent = this.root;
+            m.position.set(x, -0.92, 0);
+            MeshUtils.setColor(m, c);
+            return m;
+        };
+        const bxs = [-0.50, -0.30, -0.10, 0.10, 0.30, 0.50];
+        this.outBoidCx    = mkBoidOut("sf3d_boid_cx",    bxs[0], new Color4(1.00, 0.40, 0.70, 1));  // rose
+        this.outBoidCy    = mkBoidOut("sf3d_boid_cy",    bxs[1], new Color4(0.40, 0.70, 1.00, 1));  // bleu clair
+        this.outBoidCz    = mkBoidOut("sf3d_boid_cz",    bxs[2], new Color4(0.30, 0.95, 0.80, 1));  // turquoise
+        this.outBoidDisp  = mkBoidOut("sf3d_boid_disp",  bxs[3], new Color4(1.00, 0.85, 0.30, 1));  // or
+        this.outBoidAlign = mkBoidOut("sf3d_boid_align", bxs[4], new Color4(0.30, 0.90, 0.55, 1));  // émeraude
+        this.outBoidVort  = mkBoidOut("sf3d_boid_vort",  bxs[5], new Color4(0.75, 0.40, 1.00, 1));  // violet
     }
 
     /**
@@ -420,10 +492,16 @@ export class Superformula3DN3D implements Node3D {
     private userScale = RESIZE_DEFAULT;
     private morphActivity = 0;  // 0..1 — pilote wireframe/cage/rotation
 
+    // Boids (synchronisés réseau, comme le 2D)
+    private boidMode = false;
+    private boidCount = 5;
+    private swarm!: BoidSwarm;
+
     private gainIn!: GainNode;
     private gainOut!: GainNode;
 
     private outs: Record<string, InstanceType<(typeof AutomationN3DConnectable)["Output"]>> = {};
+    private boidOuts: Record<string, InstanceType<(typeof AutomationN3DConnectable)["Output"]>> = {};
 
     constructor(context: Node3DContext, private gui: Superformula3DN3DGUI) {
         const { audioCtx, tools: T } = context;
@@ -479,6 +557,9 @@ export class Superformula3DN3D implements Node3D {
             ["n3B", "Hauteur B (n3)",    2],
             ["scale", "Échelle",         2],
             ["speed", "Vitesse",         2],
+            ["ballX", "Boule X",         2],
+            ["ballY", "Boule Y",         2],
+            ["ballZ", "Boule Z",         2],
         ];
         for (const [key, label, decimals] of knobDefs) {
             const mesh = gui.knobs[key];
@@ -518,6 +599,65 @@ export class Superformula3DN3D implements Node3D {
             stringify: (v01: number) => `Size: ${(RESIZE_MIN + v01 * (RESIZE_MAX - RESIZE_MIN)).toFixed(2)}x`,
         });
 
+        // ── Boids : essaim 3D qui chasse la boule ─────────────────────────────
+        this.swarm = new BoidSwarm(gui.boidContainer, scene, { is3D: true });
+        this.swarm.setCount(this.boidCount);
+        this.swarm.setEnabled(this.boidMode);
+
+        const refreshToggleColor = () => {
+            gui.boidToggleMat.emissiveColor = this.boidMode
+                ? new Color3(0.95, 0.75, 0.15)
+                : new Color3(0, 0.5, 0.6);
+        };
+        refreshToggleColor();
+
+        context.createButton({
+            id: "boidToggle", meshes: [gui.btnBoidToggle], label: "Boids on/off",
+            color: new Color3(0.95, 0.75, 0.15),
+            press: () => {
+                this.boidMode = !this.boidMode;
+                this.swarm.setEnabled(this.boidMode);
+                refreshToggleColor();
+                context.notifyStateChange("boidMode");
+            },
+            release: () => {},
+        });
+        context.createButton({
+            id: "boidAdd", meshes: [gui.btnBoidAdd], label: "+ Boid",
+            color: new Color3(0.2, 0.85, 0.35),
+            press: () => {
+                this.boidCount = Math.min(BOID_MAX, this.boidCount + 1);
+                this.swarm.setCount(this.boidCount);
+                context.notifyStateChange("boidCount");
+            },
+            release: () => {},
+        });
+        context.createButton({
+            id: "boidRemove", meshes: [gui.btnBoidRemove], label: "− Boid",
+            color: new Color3(0.85, 0.2, 0.3),
+            press: () => {
+                this.boidCount = Math.max(0, this.boidCount - 1);
+                this.swarm.setCount(this.boidCount);
+                context.notifyStateChange("boidCount");
+            },
+            release: () => {},
+        });
+
+        // 6 sorties de métriques de l'essaim (centroïde 3D + dynamique)
+        const boidOutDefs: [string, AbstractMesh, string, number][] = [
+            ["boidCentroidX",  gui.outBoidCx,    "Boid Centroid X", 0.5],
+            ["boidCentroidY",  gui.outBoidCy,    "Boid Centroid Y", 0.5],
+            ["boidCentroidZ",  gui.outBoidCz,    "Boid Centroid Z", 0.5],
+            ["boidDispersion", gui.outBoidDisp,  "Boid Dispersion", 0],
+            ["boidAlignment",  gui.outBoidAlign, "Boid Alignment",  0],
+            ["boidVorticity",  gui.outBoidVort,  "Boid Vorticity",  0],
+        ];
+        for (const [id, mesh, label, def] of boidOutDefs) {
+            const out = new A(id, [mesh], label, def);
+            this.boidOuts[id] = out;
+            context.createConnectable(out);
+        }
+
         console.log("[Superformula3D] SPAWNED");
 
         // ── Boucle par frame ──────────────────────────────────────────────────
@@ -534,6 +674,7 @@ export class Superformula3DN3D implements Node3D {
         let prevR = 0;
         let firstFrame = true;
         let surfaceDirty = true;
+        let uCur = 0, vCur = 0.5;   // position (u,v) courante de la boule (lissée)
         const ballPos = new Vector3();
         const ballNormal = new Vector3();
         const vel = new Vector3();
@@ -543,17 +684,21 @@ export class Superformula3DN3D implements Node3D {
             if (dt <= 0) return;
             const tNow = performance.now() / 1000;
 
-            // 1. Morphing lissé
-            let maxDiff = 0;
+            // 1. Morphing lissé (toutes les clés glissent vers leur cible, mais
+            //    SEULES les clés de FORME déclenchent un rebuild de surface —
+            //    les potards Boule X/Y/Z peuvent être modulés chaque frame).
             const k = Math.min(1, dt * 6);
+            let shapeDiff = 0;
             for (const key of Object.keys(RANGES) as RangeKey[]) {
                 const diff = this.target[key] - this.current[key];
-                const span = RANGES[key].max - RANGES[key].min;
-                maxDiff = Math.max(maxDiff, Math.abs(diff) / span);
                 this.current[key] += diff * k;
             }
-            this.morphActivity = Math.min(1, maxDiff * 12);
-            if (maxDiff > 1e-4) surfaceDirty = true;
+            for (const key of SHAPE_KEYS) {
+                const span = RANGES[key].max - RANGES[key].min;
+                shapeDiff = Math.max(shapeDiff, Math.abs(this.target[key] - this.current[key]) / span);
+            }
+            this.morphActivity = Math.min(1, shapeDiff * 12);
+            if (shapeDiff > 1e-4) surfaceDirty = true;
 
             if (surfaceDirty) {
                 const c = this.current;
@@ -561,15 +706,36 @@ export class Superformula3DN3D implements Node3D {
                 surfaceDirty = false;
             }
 
-            // 2. Playhead en spirale sur la SURFACE AFFICHÉE — on échantillonne
-            //    les buffers du mesh (bilinéaire), PAS la formule analytique :
-            //    collage parfait aux facettes rendues quels que soient la
-            //    résolution, les spikes ou le morphing en cours.
+            // 2. Playhead sur la SURFACE AFFICHÉE — on échantillonne les buffers
+            //    du mesh (bilinéaire), PAS la formule analytique : collage
+            //    parfait aux facettes rendues.
+            //    PILOTAGE : potards Boule X/Y/Z centrés → spirale automatique ;
+            //    déviés → la boule glisse vers le point de la surface dans la
+            //    direction visée (θ = atan2(z,x), φ = asin(y/|T|)). Elle reste
+            //    toujours SUR la surface (2 degrés de liberté).
             this.theta += this.current.speed * dt;
-            const u01 = (((this.theta % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI)) / (2 * Math.PI);
-            const v01 = 0.5 + 0.46 * Math.sin(this.theta * 0.37);
+            const tx = this.current.ballX - 0.5;
+            const ty = this.current.ballY - 0.5;
+            const tz = this.current.ballZ - 0.5;
+            const tLen = Math.sqrt(tx * tx + ty * ty + tz * tz);
+            let uTarget: number, vTarget: number;
+            if (tLen < 0.06) {
+                // Pilote automatique : spirale (θ, φ incommensurables)
+                uTarget = (((this.theta % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI)) / (2 * Math.PI);
+                vTarget = 0.5 + 0.46 * Math.sin(this.theta * 0.37);
+            } else {
+                const thetaDir = Math.atan2(tz, tx);                                    // [-π, π]
+                const phiDir = Math.asin(Math.max(-1, Math.min(1, ty / tLen)));         // [-π/2, π/2]
+                uTarget = (thetaDir + Math.PI) / (2 * Math.PI);
+                vTarget = Math.max(0.04, Math.min(0.96, (phiDir + Math.PI / 2) / Math.PI));
+            }
+            // Lissage vers la cible (u est cyclique → plus court chemin)
+            const ek = Math.min(1, dt * 6);
+            const du = ((uTarget - uCur + 1.5) % 1) - 0.5;
+            uCur = (((uCur + du * ek) % 1) + 1) % 1;
+            vCur += (vTarget - vCur) * ek;
             const s = this.current.scale;
-            gui.samplePoint(u01, v01, ballPos, ballNormal);
+            gui.samplePoint(uCur, vCur, ballPos, ballNormal);
             // Poser la boule SUR la facette : petit décalage le long de la
             // normale extérieure (retournée si elle pointe vers le centre).
             const nLen = ballNormal.length();
@@ -611,7 +777,18 @@ export class Superformula3DN3D implements Node3D {
             this.outs.accel.value       = c01(accMag / 50.0);
             this.outs.curvature.value   = c01(curvature / (Math.PI / 2));
 
-            // 4. Feedback continu.
+            // 4. Boids : l'essaim chasse la boule (no-op si désactivé) puis
+            //    ses métriques agrégées partent en automation.
+            this.swarm.update(gui.ballRoot.position, dt);
+            const bm = this.swarm.computeMetrics();
+            this.boidOuts.boidCentroidX.value  = bm.centroidX;
+            this.boidOuts.boidCentroidY.value  = bm.centroidY;
+            this.boidOuts.boidCentroidZ.value  = bm.centroidZ;
+            this.boidOuts.boidDispersion.value = bm.dispersion;
+            this.boidOuts.boidAlignment.value  = bm.alignment;
+            this.boidOuts.boidVorticity.value  = bm.vorticity;
+
+            // 5. Feedback continu.
             //    PAS d'auto-rotation au repos : la forme reste stable pour que
             //    la boule se lise clairement en train de parcourir la surface.
             //    Pendant le morphing seulement, la forme « remue » doucement.
@@ -622,6 +799,10 @@ export class Superformula3DN3D implements Node3D {
             gui.wireMat.alpha = 0.10 + this.morphActivity * 0.45;
             const glow = 0.75 + this.morphActivity * 0.8 + Math.sin(tNow * Math.PI * 2) * 0.06;
             gui.edgeMat.emissiveColor.set(0 * glow, 0.75 * glow, 0.85 * glow);
+            if (this.boidMode) {
+                const pulse = 0.6 + Math.sin(tNow * Math.PI * 2) * 0.4;
+                gui.boidToggleMat.emissiveColor.set(0.95 * pulse, 0.75 * pulse, 0.15 * pulse);
+            }
 
             prevVel.set(vel.x / Math.max(dt, 1e-6), vel.y / Math.max(dt, 1e-6), vel.z / Math.max(dt, 1e-6));
             prev.copyFrom(ballPos);
@@ -633,21 +814,37 @@ export class Superformula3DN3D implements Node3D {
     async dispose() {
         try { this.gainIn.disconnect(); } catch (_) {}
         try { this.gainOut.disconnect(); } catch (_) {}
+        this.swarm?.dispose();
     }
 
-    // ── Sync : 10 knobs + resize ; theta évolue librement par pair ────────────
-    getStateKeys(): string[] { return [...Object.keys(RANGES), "userScale"]; }
+    // ── Sync : 13 knobs + resize + boids ; theta évolue librement par pair ────
+    getStateKeys(): string[] { return [...Object.keys(RANGES), "userScale", "boidMode", "boidCount"]; }
 
     async getState(key: string): Promise<Serializable | void> {
         if (key === "userScale") return this.userScale;
+        if (key === "boidMode") return this.boidMode;
+        if (key === "boidCount") return this.boidCount;
         if (key in RANGES) return this.target[key as RangeKey];
     }
 
     async setState(key: string, value: Serializable | undefined): Promise<void> {
+        if (key === "boidMode" && typeof value === "boolean") {
+            this.boidMode = value;
+            this.swarm.setEnabled(value);
+            this.gui.boidToggleMat.emissiveColor = value
+                ? new Color3(0.95, 0.75, 0.15)
+                : new Color3(0, 0.5, 0.6);
+            return;
+        }
         if (typeof value !== "number") return;
         if (key === "userScale") {
             this.userScale = Math.max(RESIZE_MIN, Math.min(RESIZE_MAX, value));
             this.gui.root.scaling.setAll(this.userScale);
+            return;
+        }
+        if (key === "boidCount") {
+            this.boidCount = Math.max(0, Math.min(BOID_MAX, Math.floor(value)));
+            this.swarm.setCount(this.boidCount);
             return;
         }
         if (key in RANGES) this.target[key as RangeKey] = value;
@@ -682,6 +879,11 @@ export class Superformula3DN3DFactory implements Node3DFactory<Superformula3DN3D
         "8 knobs sculptent la surface (2 profils), qui MORPHE en douceur sous les " +
         "yeux (couleurs par rayon + wireframe lumineux). Un playhead parcourt la " +
         "surface en spirale ; 8 métriques de mouvement 3D (X, Y, Z, rayon, " +
-        "vitesse…) sortent en automation. Poignée violette pour redimensionner.",
+        "vitesse…) sortent en automation. Potards roses Boule X/Y/Z : centrés = " +
+        "spirale auto, déviés = la boule vise ce point de la surface (pilotables " +
+        "à la main ou par automation). Mode BOIDS 3D : un essaim chasse la boule " +
+        "dans la cage (toggle + boutons ±), 6 métriques d'essaim en automation " +
+        "(centroïde X/Y/Z, dispersion, alignement, vorticité). Poignée violette " +
+        "pour redimensionner.",
     );
 }

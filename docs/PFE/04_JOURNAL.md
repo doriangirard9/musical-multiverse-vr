@@ -11,6 +11,79 @@ mémoire et de la soutenance.
 
 ---
 
+## 2026-06-12 (b) — Fluid Field : port du sketch p5 « Perlin Noise Fluid Field » [décision]
+
+### Le sketch source
+Champ de vecteurs à deux couches (Perlin évolutif + remous amortis), vortex
+injecté à la souris, boids qui suivent le courant et laissent des sillages.
+Mappings audio : Σ|remous| → cutoff+overdrive, curl moyen → résonance+delay,
+centre de masse des boids → pan stéréo ; drone Sol retriggé chaque seconde.
+Chaîne WAM codée en dur (Pro54→disto→panner→delay→reverb).
+
+### L'adaptation wamjamparty (FluidFieldN3D, kind fluid_field)
+- **Grand canvas = DynamicTexture** (800×500) sur une plaque 1.6×1.0,
+  idiome AudioPlaque complet : plaque-poignée arrière (bounding box),
+  projection laser par produits scalaires, aplatissement du tilt de spawn,
+  poignée de resize.
+- **Gâchette sur le canvas = vortex** sous le pointeur (l'équivalent VR du
+  mouseIsPressed), halo rouge de feedback au rayon du vortex.
+- **La chaîne WAM codée en dur devient des sorties d'automation** :
+  disturbance, curl, swarmX, swarmY — l'utilisateur câble vers ce qu'il
+  veut (pattern AudioPlaque/Superformula). Le PAN du sketch devient réel :
+  le passthrough audio traverse un StereoPannerNode piloté par swarmX.
+- **Drone = sortie MIDI + bouton** : Sol grave (note réglable 24-60)
+  retriggé chaque seconde (off puis on +20 ms, comme le sketch) vers les
+  WAM câblés. Patch complet du sketch reconstructible : FluidField MIDI →
+  Pro54 → effets → FluidField audio in (panner) → Audio Output.
+- **Simulation à pas fixe 1/60 s** : toutes les constantes du sketch
+  (viscosité par frame, px/frame) gardent leur sens, framerate-indépendant.
+- **Perlin 3D maison** (improved Perlin + fbm 4 octaves ≈ caractère de
+  p5.noise) — Babylon n'a pas de bruit CPU.
+- **Perf Quest** : grille 41×26 (vs 48×30), rendu par BATCHING des segments
+  par niveau de couleur (24 strokes/frame au lieu de ~1 000), LUT de
+  couleurs précalculée (pas de chaînes rgba par cellule).
+- 8 knobs (échelle/évolution bruit, viscosité, rayon/force vortex, vitesse
+  boids, force sillage, note drone) + boutons ±10 boids. Sync : knobs,
+  boidCount, droneOn, userScale (le fluide lui-même est local par pair,
+  comme theta du Superformula).
+
+---
+
+## 2026-06-12 — Superformula 3D : boids 3D + pilotage X/Y/Z de la boule [décision]
+
+### Contexte
+Le Gielis 3D est validé en VR (boule collée à la surface). Demande : le mode
+boids du 2D (toggle, ±, métriques) et trois paramètres X/Y/Z pour piloter la
+boule rose.
+
+### Boids étendus en 3D (steering/Boid.ts, opt-in)
+- Flag `is3D` dans BoidConfig : spawn/clamp/vol sur Z, mesh = cône orienté
+  selon la vélocité via lookAt (axe +Y cuit en +Z), au lieu du disque plat.
+  Comportement 2D STRICTEMENT inchangé (AudioPlaque/Superformula 2D).
+- Métriques généralisées sans casser le 2D : `centroidZ` ajouté, dispersion/
+  alignement avec termes Z (nuls en 2D), vorticité = |Σ r×v|/n vectorielle
+  (le scalaire 2D en est le cas particulier porté par Z).
+- Superformula3D : essaim dans l'espace de la forme (suit sa rotation),
+  chasse la boule ; toggle (pulse doré) + boutons ± ; 6 sorties d'automation
+  (centroïde X/Y/Z, dispersion, alignement, vorticité) ; boidMode/boidCount
+  synchronisés réseau.
+
+### Pilotage de la boule : 3 potards roses Boule X/Y/Z
+Contrainte : la boule doit RESTER sur la surface (2 degrés de liberté) alors
+que X/Y/Z en font 3. Solution : les potards définissent une DIRECTION.
+- Centrés (zone morte |T|<0.06) → pilote automatique (spirale).
+- Déviés → la boule glisse vers le point de la surface dans la direction
+  visée : θ = atan2(z, x), φ = asin(y/|T|) → (u, v) → samplePoint (toujours
+  collée aux facettes rendues).
+- Lissage (u, v) avec plus court chemin cyclique sur u → transitions douces
+  auto↔manuel, et pilotables par AUTOMATION (câbler un AIComposer ou une
+  AudioPlaque dessus = diriger la source de direction).
+- Perf : seules les clés de FORME déclenchent un rebuild de surface — les
+  potards de boule peuvent être modulés chaque frame sans reconstruire
+  ~4 700 sommets.
+
+---
+
 ## 2026-06-11 (b) — Rythme réparé : la densité jetait 75 % des notes [surprise] [décision]
 
 ### Symptômes (test VR utilisateur)
