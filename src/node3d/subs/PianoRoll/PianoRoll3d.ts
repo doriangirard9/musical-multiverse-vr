@@ -1742,9 +1742,10 @@ private onInstrumentDisconnected(_wamNode: WamNode) {
    * Get current tick position based on transport time (adapted from MIDINoteRecorder.getTick)
    */
   private getCurrentTick(_timestamp: number): number {
+    // Must match the playhead formula: column = elapsed / cellDuration
+    // Each column = ticksPerColumn ticks, so tick = elapsed / cellDuration * ticksPerColumn
     const elapsed = this.transport.getElapsedSeconds();
-    const beatPosition = (elapsed / this.beatDuration);
-    const tickPosition = Math.floor(beatPosition * this.ticksPerColumn);
+    const tickPosition = Math.floor((elapsed / this.cellDuration) * this.ticksPerColumn);
     return tickPosition % this.pattern.length;
   }
   
