@@ -5,7 +5,6 @@ import { NetworkEventBus } from "../eventBus/NetworkEventBus.ts";
 import { SIGNALING_SERVER } from '../options.ts';
 
 // Serveur de signalisation pour WebRTC
-//const SIGNALING_SERVER = `wss://${window.location.hostname}:443`; // 'wss://musical-multiverse-vr.onrender.com';
 
 /**
  * Composant gérant les connexions WebRTC et l'awareness des pairs.

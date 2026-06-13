@@ -3,8 +3,6 @@ import type { Node3D, Node3DFactory, Node3DGUI } from "../../Node3D";
 import type { Node3DContext } from "../../Node3DContext";
 import type { Node3DGUIContext } from "../../Node3DGUIContext";
 import type { AutomationN3DConnectable, MidiN3DConnectable } from "../../tools";
-import type { InputHoverBehavior } from "../../../xr/inputs/tools/InputHoverBehavior";
-import type { InputPressBehavior } from "../../../xr/inputs/tools/InputPressBehavior";
 
 
 
@@ -163,30 +161,31 @@ export class HyperKeyboardN3D implements Node3D {
         this.output.connections.forEach(conn => {
             conn.scheduleEvents({
                 type: "wam-midi",
-                time: conn.context.currentTime,
-                data: { bytes: [0x90, 60 + y, 127] }
+                time: conn.context.currentTime + 0.002,
+                data: { bytes: [0x90, this.context.tools.NoteUtils.getnote(x), 127] }
             })
         })
         // Automation Output
-        this.automationOutputs[0].value = this.gui.factory.x==1 ? 1 : x/(this.gui.factory.x-1)
+        this.automationOutputs[0].value = this.gui.factory.y==1 ? 1 : y/(this.gui.factory.y-1)
         this.automationOutputs[1].value = this.gui.factory.z==1 ? 1 : z/(this.gui.factory.z-1)
     }
 
     onUp(x: number, y: number, z: number) {
         this.output.connections.forEach(conn => {
             const t = conn.context.currentTime
-            conn.scheduleEvents({ type: "wam-midi", time: t, data: { bytes: [0x90, 60 + y, 0] } })
-            conn.scheduleEvents({ type: "wam-midi", time: t + 0.001, data: { bytes: [0x80, 60 + y, 0] } })
+            // conn.scheduleEvents({ type: "wam-midi", time: t, data: { bytes: [0x90, 60 + y, 0] } })
+            conn.scheduleEvents({ type: "wam-midi", time: t + 0.001, data: { bytes: [0x80, this.context.tools.NoteUtils.getnote(x), 0] } })
         })
     }
 
     private observers: {remove():void}[] = []
 
+    
     private output!: InstanceType<(typeof MidiN3DConnectable)["ListOutput"]>
 
     private automationOutputs: InstanceType<(typeof AutomationN3DConnectable)["Output"]>[] = []
 
-    constructor(context: Node3DContext, private gui: HyperKeyboardN3DGUI) {
+    constructor(private context: Node3DContext, private gui: HyperKeyboardN3DGUI) {
         const { tools: T } = context
 
         // Hitbox
@@ -273,7 +272,13 @@ export class HyperKeyboardN3DFactory implements Node3DFactory<HyperKeyboardN3DGU
     static SMALL = new HyperKeyboardN3DFactory(
         5, 3, 3,
         "Small HyperKeyboard",
-        "A 3D hyperkeyboard with 5 keys in width, 3 in height and 1 in depth"
+        "A 3D hyperkeyboard with 5 keys in width, 3 in height and 3 in depth"
+    )
+
+    static SIMPLE = new HyperKeyboardN3DFactory(
+        12, 6, 4,
+        "HyperKeyboard",
+        "A 3D hyperkeyboard with 12 keys in width, 6 in height and 4 in depth"
     )
 
 }

@@ -1,13 +1,14 @@
 services:
-  # wss-server:
-  #   build:
-  #     context: ./bin
-  #     dockerfile: Dockerfile
-  #   ports:
-  #     - "3001:443"
-  #   environment:
-  #     - NODE_ENV=production
-  #     - PORT=443
+  wss-server:
+    build:
+      context: ./bin
+      dockerfile: Dockerfile
+    ports:
+      - "3001:443"
+    environment:
+      - NODE_ENV=production
+      - PORT=443
+    restart: always
   
   # The config server
   config:
@@ -17,23 +18,27 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      - ./server-config/data:/app/data
+      - config-data:/app/data
     environment:
       - NODE_ENV=production
-      - JWT_SECRET=change-this-in-production-use-a-strong-secret
+      - JWT_SECRET=${JWT_SECRET}
       - PORT=3000
-      - AUTHORIZED_ORIGINS=https://localhost:5173
-  
+      - AUTHORIZED_ORIGINS=https://wamjamparty.i3s.univ-cotedazur.fr
+    restart: always
+
   # The main client app
   app:
     build:
       context: ./
       dockerfile: Dockerfile
       args:
-        - VITE_SERVER_NAME=http://localhost:3000
+        - VITE_SERVER_NAME=https://wamjamparty.i3s.univ-cotedazur.fr/config
         - VITE_SIGNALING_SERVER=https://wamjamparty.i3s.univ-cotedazur.fr/rtc
     ports:
       - "5173:5173"
     environment:
       - NODE_ENV=production
-      - HTTPS=true
+
+volumes:
+  config-data:
+

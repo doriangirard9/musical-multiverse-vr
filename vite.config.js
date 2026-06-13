@@ -1,8 +1,8 @@
-import { defineConfig } from 'vite';
-import fs from 'fs';
-import path from 'path';
+import { defineConfig } from 'vite'
+import fs from 'fs'
+import path from 'path'
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   server: {
     ...(process.env.HTTPS && {
       https: {
@@ -18,6 +18,11 @@ export default defineConfig({
         secure: false,
       }
     }
+  },
+  preview: {
+    host: '0.0.0.0',
+    port: 5173,
+    allowedHosts: ['wamjamparty.i3s.univ-cotedazur.fr'],
   },
   build: {
     target: "es2022"
@@ -51,4 +56,4 @@ export default defineConfig({
   worker: {
     format: 'es'
   }
-})
+}))

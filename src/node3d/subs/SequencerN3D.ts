@@ -2,6 +2,8 @@ import type { Color4, AbstractMesh } from "@babylonjs/core";
 import type { Node3D, Node3DFactory, Node3DGUI } from "../Node3D";
 import type { Node3DGUIContext } from "../Node3DGUIContext";
 import type { Node3DContext } from "../Node3DContext";
+import { WamTransportManager } from "../../app/WamTransportManager";
+import { IntegerN3DParameter } from "../tools/parameter";
 
 
 
@@ -11,14 +13,12 @@ class SequencerN3DGUI implements Node3DGUI {
     block
     notes: AbstractMesh[][] = []
     noteSliders: AbstractMesh[] = []
+    duration_slider!: AbstractMesh
     output
     syncInput
     syncOutput
     notePadTemplate: AbstractMesh | null = null
     noteSliderTemplate: AbstractMesh | null = null
-
-    readonly stepCount = 12
-    readonly noteCount = 8
 
     readonly NOTE_NAME: string[]
     readonly NODE_COLOR: Color4[]
@@ -26,7 +26,11 @@ class SequencerN3DGUI implements Node3DGUI {
     readonly ON_COLOR: Color4
     readonly BASE_MIDI_NOTE = 48
 
-    constructor(readonly context: Node3DGUIContext) {
+    constructor(
+        readonly context: Node3DGUIContext,
+        readonly stepCount = 12,
+        readonly noteCount = 8
+    ) {
         const {babylon:B,tools:T} = context
 
         this.root = new B.TransformNode("sequencer root", context.scene)
@@ -126,6 +130,10 @@ class SequencerN3DGUI implements Node3DGUI {
                 slider.parent = this.root
                 this.noteSliders.push(slider)
             }
+
+            const tempo_slider = this.duration_slider = sliderTemplate.createInstance(`sequence tempo slider`)
+            tempo_slider.position.set(fx - baseSize*.7*3, baseSize*.1, (fy+ty)/2)
+            tempo_slider.parent = this.root
         }
 
         createKeyboard(
@@ -181,6 +189,10 @@ class SequencerN3D implements Node3D{
 
     private sync
 
+    private start_time = 0
+
+    private duration_multiplier = 1
+
     private midi_output
 
     // Update note data and visual
@@ -206,7 +218,7 @@ class SequencerN3D implements Node3D{
     }
 
     private updateStep(gui: SequencerN3DGUI, audioContext: AudioContext){
-        const loop = (audioContext.currentTime%this.sync.total)
+        const loop = ((audioContext.currentTime-this.start_time)%this.sync.total)
         const local = (loop-this.sync.start)/this.sync.duration
 
         let newStep
@@ -230,7 +242,6 @@ class SequencerN3D implements Node3D{
     }
 
     private sendNote(audioContext: AudioContext, note: number, velocity: number, duration: number){
-        console.log("Send note", note, "velocity", velocity, "duration", duration)
         for(const cn of this.midi_output.connections){
             cn.scheduleEvents({ type:'wam-midi', time: audioContext.currentTime, data: { bytes: [0x90, note, velocity] } })
             cn.scheduleEvents({ type:'wam-midi', time: audioContext.currentTime + duration, data: { bytes: [0x80, note, 0] } })
@@ -254,6 +265,21 @@ class SequencerN3D implements Node3D{
         this.sync = new T.SynxN3DConnectable.Container(5)
         context.createConnectable(new T.SynxN3DConnectable.Input("syncInput", [gui.syncInput], "Sync Input", this.sync))
         context.createConnectable(new T.SynxN3DConnectable.Output("syncOutput", [gui.syncOutput], "Sync Output", this.sync))
+
+        // TODO: REPLACE WITH A GOOD API
+        const transport = WamTransportManager.getInstance(context.audioCtx)
+
+        function updateTransport(){
+            sequencer.sync.duration = (60/transport.getTempo()) * // Beat duration in seconds
+                4 / transport.getTimeSignature().denominator * // Note duration in seconds
+                gui.noteCount * // Total duration in seconds
+                sequencer.duration_multiplier // With multiplier
+            sequencer.start_time = transport.getElapsedSeconds()
+        }
+
+        const disposeTransport = transport.onChange(updateTransport)
+
+
 
         // Create note buttons
         for(let s=0; s<gui.notes.length; s++){
@@ -287,17 +313,35 @@ class SequencerN3D implements Node3D{
                 getStepCount() { return 128 },
                 getValue() { return midi_to_v(sequencer.notes_midi[n]) },
                 setValue(v){ sequencer.set_midi(n, v_to_midi(v)) },
-                stringify(v) { return `${gui.NOTE_NAME[v_to_midi(v)%12]}` },
+                stringify(v) { return `${gui.NOTE_NAME[v_to_midi(v)%12]} ${Math.ceil(v_to_midi(v)/12)} (${v_to_midi(v)})` },
             })
             sequencer.set_midi(n, sequencer.notes_midi[n])
         }
 
+        context.createParameter(new IntegerN3DParameter(
+            "duration_multiplier",
+            [gui.duration_slider],
+            1, 16,
+            v=>{
+                sequencer.duration_multiplier = v
+                updateTransport()
+            },
+            ()=>sequencer.duration_multiplier,
+            ()=>"Duration Multiplier",
+            "x",
+            false
+        ))
+
         const interval = setInterval(()=>{
-            sequencer.updateStep(gui, context.audioCtx)
+            const transport = WamTransportManager.getInstance(context.audioCtx)
+            if(transport.isPlaying)sequencer.updateStep(gui, context.audioCtx)
         },5)
+
+        updateTransport()
 
         this.dispose = async ()=>{
             clearInterval(interval)
+            disposeTransport()
         }
     }
 
@@ -311,16 +355,18 @@ class SequencerN3D implements Node3D{
 
 }
 
-export const SequencerN3DFactory: Node3DFactory<SequencerN3DGUI,SequencerN3D> = {
-
-    label: "Sequencer",
-
-    description: "A simple sequencer that can be used to create patterns of MIDI notes. ",
-
+export const Sequencer12N3DFactory: Node3DFactory<SequencerN3DGUI,SequencerN3D> = {
+    label: "Sequencer 12",
+    description: "A simple sequencer that can be used to create patterns of MIDI notes with 12 steps. ",
     tags: ["sequencer", "midi", "generator", "pattern"],
-    
-    async createGUI(context) { return new SequencerN3DGUI(context) },
+    async createGUI(context) { return new SequencerN3DGUI(context, 12, 8) },
+    async create(context, gui) { return new SequencerN3D(context, gui) },
+}
 
-    async create(context, gui) { return new SequencerN3D(context,gui) },
-
+export const Sequencer16N3DFactory: Node3DFactory<SequencerN3DGUI,SequencerN3D> = {
+    label: "Sequencer 16",
+    description: "A simple sequencer that can be used to create patterns of MIDI notes with 16 steps. ",
+    tags: ["sequencer", "midi", "generator", "pattern"],
+    async createGUI(context) { return new SequencerN3DGUI(context, 16, 8) },
+    async create(context, gui) { return new SequencerN3D(context, gui) },
 }

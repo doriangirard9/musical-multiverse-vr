@@ -4,10 +4,10 @@ import { N3DConnectableInstance } from "./N3DConnectableInstance"
 import { Node3DInstance } from "./Node3DInstance"
 import { SyncSerializable } from "../../network/sync/SyncSerializable"
 import { Doc } from "yjs"
-import { UIManager } from "../../app/UIManager"
 import { MeshUtils } from "../tools"
 import { ShakeBehavior } from "../../behaviours/ShakeBehavior"
 import { SceneManager } from "../../app/SceneManager"
+import { MenuSystem } from "../../app"
 
 /**
  * Une connection entre deux connectable de deux Node3D.
@@ -25,7 +25,7 @@ export class N3DConnectionInstance{
         private scene: Scene,
         private nodes: SyncManager<Node3DInstance,any>,
         private connections: SyncManager<N3DConnectionInstance,any>,
-        private messages: UIManager,
+        private menus: MenuSystem,
     ){
         this._tube = CreateCylinder("connection tube",{
             height: 1,
@@ -97,26 +97,26 @@ export class N3DConnectionInstance{
 
         // Check that the connection is not a self connection
         if(cA==cB){
-            this.messages.showMessage("Can't connect a node to itself", 2000)
+            this.menus.showMessage("Can't connect a node to itself", "red")
             return false
         }
 
         // Check that the connection does not already exists
         for(const connection of cA.connections){
             if(connection.cInput == cB || connection.cOutput == cB){
-                this.messages.showMessage(`Already connected to ${cB.config.label}`, 2000)
+                this.menus.showMessage(`Already connected to ${cB.config.label}`, "red")
                 return false
             }
         }
 
         // Check that the connection don't have the maximum number of connection
         if(cA.connections.size >= (cA.config.max_connections??Number.MAX_SAFE_INTEGER)){
-            this.messages.showMessage(`The first connectable already have the maximum number of connection`,2000)
+            this.menus.showMessage(`The first connectable already have the maximum number of connection`, "red")
             return false
         }
 
         if(cB.connections.size >= (cB.config.max_connections??Number.MAX_SAFE_INTEGER)){
-            this.messages.showMessage(`The second connectable already have the maximum number of connection`,2000)
+            this.menus.showMessage(`The second connectable already have the maximum number of connection`, "red")
             return false
         }
         
@@ -125,13 +125,13 @@ export class N3DConnectionInstance{
         if([cA.config.direction, cB.config.direction].includes("bidirectional")) canConnect = true
         else if(cA.config.direction != cB.config.direction) canConnect = true
         if(!canConnect){
-            this.messages.showMessage(`Cannot connect a ${cA.config.direction} port to a ${cB.config.direction} port`, 2000)
+            this.menus.showMessage(`Cannot connect a ${cA.config.direction} port to a ${cB.config.direction} port`, "red")
             return false
         }
 
         // Check that the connections types are compatibles
         if(cA.config.type != cB.config.type){
-            this.messages.showMessage(`Can't connect a ${cA.config.type} to a ${cB.config.type}`, 2000)
+            this.menus.showMessage(`Can't connect a ${cA.config.type} to a ${cB.config.type}`, "red")
             return false
         }
 
@@ -303,7 +303,7 @@ export class N3DConnectionInstance{
         scene: Scene,
         doc: Doc,
         nodes: SyncManager<Node3DInstance, any>,
-        messages: UIManager,
+        messages: MenuSystem,
         onAdd?: (instance:N3DConnectionInstance)=>void,
         onRemove?: (instance:N3DConnectionInstance)=>void,
     ){

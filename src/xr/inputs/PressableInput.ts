@@ -178,7 +178,6 @@ export class PressableInput {
             if(isPressed && (e.buttons & (1 << mouseKey))==0){
                 this._notify({ pressable: this, pressed:false, touched:this.state.is_touched, value: 1 })
                 isPressed = false
-                console.log("force mouse up")
             }
         }
 

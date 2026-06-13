@@ -2,7 +2,7 @@ FROM node:lts-alpine AS builder
 
 WORKDIR /app
 
-COPY package*.json ./
+COPY package.json ./
 
 RUN npm install --production
 
@@ -14,11 +14,6 @@ WORKDIR /app
 
 COPY --from=builder /app /app
 
-RUN mkdir -p /app/data && chown -R node:node /app/data
+EXPOSE 443
 
-USER node
-
-EXPOSE 3000
-
-CMD ["node", "--experimental-sqlite", "server.js"]
-
+CMD ["node", "server.js"]

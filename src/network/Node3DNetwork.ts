@@ -3,9 +3,9 @@ import { N3DConnectionInstance } from '../node3d/instance/N3DConnectionInstance.
 import { SceneManager } from '../app/SceneManager.ts';
 import { Node3DInstance } from '../node3d/instance/Node3DInstance.ts';
 import { Node3dManager } from '../app/Node3dManager.ts';
-import { UIManager } from '../app/UIManager.ts';
 import { SyncSerializable } from './sync/SyncSerializable.ts';
 import { Observable } from '@babylonjs/core';
+import { MenuSystem } from '../app/MenuSystem.ts';
 
 /**
  * Composant gérant les nœuds audio et leurs états.
@@ -45,7 +45,7 @@ export class Node3DNetwork {
             scene,
             doc,
             this.nodes,
-            UIManager.getInstance(),
+            MenuSystem.getInstance(),
             instance => this.onConnectionAdded.notifyObservers(instance),
             instance => this.onConnectionRemoved.notifyObservers(instance),
         )

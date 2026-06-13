@@ -1,11 +1,12 @@
 const express = require('express');
 const path = require('path');
 const cors = require('cors');
+const fs = require('node:fs');
+const https = require('https');
 const cookieParser = require('cookie-parser');
 const options = require('./options');
 const { initDatabase } = require('./database');
 const { startHeartbeatService } = require('./heartbeat');
-
 const app = express();
 
 // Initialize database

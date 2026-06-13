@@ -6,7 +6,6 @@ import { SceneManager } from "./SceneManager.ts";
 import { WamInitializer } from "./WamInitializer.ts";
 import { WAMGuiInitCode, examples } from "wam3dgenerator";
 import { Wam3DGeneratorN3DFactory } from "../node3d/subs/Wam3DGeneratorN3D.ts";
-import { SequencerN3DFactory } from "../node3d/subs/SequencerN3D.ts";
 import { N3DShared } from "../node3d/instance/N3DShared.ts";
 import { MaracasN3DFactory } from "../node3d/subs/maracas/MaracasN3D.ts";
 import { NoteBoxN3DFactory } from "../node3d/subs/NoteBoxN3D.ts";
@@ -39,8 +38,7 @@ import { AIComposerN3DFactory } from "../node3d/subs/ai/AIComposerN3D.ts";
 import ParticleEmitterN3DFactory from "../node3d/subs/particle/ParticleEmitterN3D.ts";
 import { N3DThumbnailRenderer } from "../world/renderer/N3DThumbnailRenderer.ts";
 import { SERVER_NAME } from "../options.ts";
-
-
+import { Sequencer12N3DFactory, Sequencer16N3DFactory } from "../node3d/subs/SequencerN3D.ts";
 
 export type Node3DConfig = { name: string, wam3d: WAMGuiInitCode }
 
@@ -69,7 +67,7 @@ export class Node3DBuilder {
      */
     FACTORY_KINDS = [
         "audiooutput", "oscillator", "maracas", "livepiano", "notesbox", "pianoroll", "drumkit", "pro54michel", "butterchurn", "screen", "box_screen", "sphere_screen", "cylinder_screen", "isf_shader",
-        "hyperkeyboard", "drumplatekit", "automation_controller", "the_cube", "harp", "large_harp", "voice", "gaze", "sequencer", "audio_plaque", "superformula", "superformula3d", "fluid_field", "ai_composer", "ai_composer_improv", "ai_composer_drums", "ai_composer_basic", "ai_composer_vae",
+        "hyperkeyboard", "drumplatekit", "automation_controller", "the_cube", "harp", "large_harp", "voice", "gaze", "sequencer12", "sequencer16", "audio_plaque", "superformula", "superformula3d", "fluid_field", "ai_composer", "ai_composer_improv", "ai_composer_drums", "ai_composer_basic", "ai_composer_vae",
         ...Object.keys(examples).map(k => `wam3d-${k}`),
         ...SERVER_KINDS.map(k => `server-${k}`),
     ]
@@ -92,6 +90,10 @@ export class Node3DBuilder {
         if (kind.startsWith("desc:")) {
             const description = kind.substring(5)
             return await this.parseFactory(description)
+        }
+
+        if(kind.startsWith("{")){
+            return await this.parseFactory(kind)
         }
 
         // Dynamic from an url
@@ -133,7 +135,8 @@ export class Node3DBuilder {
         if (kind == "ai_composer_basic") return AIComposerN3DFactory.BASIC;
         if (kind == "ai_composer_vae") return AIComposerN3DFactory.VAE;
         if (kind == "audiooutput") return SpeakerN3DFactory
-        if (kind == "sequencer") return SequencerN3DFactory
+        if (kind == "sequencer" || kind == "sequencer12") return Sequencer12N3DFactory
+        if (kind == "sequencer16") return Sequencer16N3DFactory
         if (kind == "oscillator") return OscillatorN3DFactory
         if (kind == "maracas") return MaracasN3DFactory
         if (kind == "livepiano") return LivePianoN3DFactory
@@ -146,7 +149,7 @@ export class Node3DBuilder {
         if (kind == "box_screen") return BoxScreenN3DFactory
         if (kind == "sphere_screen") return SphereScreenN3DFactory
         if (kind == "cylinder_screen") return CylinderScreenN3DFactory
-        if (kind == "hyperkeyboard") return HyperKeyboardN3DFactory.SMALL
+        if (kind == "hyperkeyboard") return HyperKeyboardN3DFactory.SIMPLE
         if (kind == "drumplatekit") return DrumPlateKitN3DFactory.SMALL
         if (kind == "automation_controller") return AutomationControllerN3DFactory
         if (kind == "the_cube") return PositionCubeN3DFactory.DEFAULT
@@ -180,10 +183,11 @@ export class Node3DBuilder {
     /**
      * Get a Node3DFactory from it kind name.
      * @param kind The kind of Node3D, correspond to the name of its config file.
-     * @returns 
+     * @returns
      */
     public getFactory(kind: string): Promise<Node3DFactory<Node3DGUI, Node3D> | null> {
-        if (!kind || kind.trim() === "" || kind.length > 64) return Promise.resolve(null);
+        if (!kind || kind.trim() === "" || kind.length > 20_000) return Promise.resolve(null);
+        console.log(`Getting factory for kind: ${kind}`)
         if (!this.factories.has(kind)) {
             const promise = (async () => {
                 const factory = await this.createFactories(kind)

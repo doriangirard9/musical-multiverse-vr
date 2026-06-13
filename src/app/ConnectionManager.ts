@@ -4,8 +4,8 @@ import { NetworkManager } from "../network/NetworkManager.ts";
 import { RandomUtils } from "../node3d/tools/utils/RandomUtils.ts";
 import { N3DConnectionInstance } from "../node3d/instance/N3DConnectionInstance.ts";
 import { SceneManager } from "./SceneManager.ts";
-import { UIManager } from "./UIManager.ts";
 import { VisualTube } from "../visual/VisualTube.ts";
+import { MenuSystem } from "./MenuSystem.ts";
 
 /**
  * Manager responsible of connecting two connectable nodes together.
@@ -19,7 +19,7 @@ export class ConnectionManager {
     private ioEventBus: IOEventBus = IOEventBus.getInstance()
     private network = NetworkManager.getInstance().node3d
     private scene = SceneManager.getInstance().getScene()
-    private ui = UIManager.getInstance()
+    private menus = MenuSystem.getInstance()
     private disposePreview: (() => void) | null = null;
 
     private constructor() {
@@ -93,7 +93,7 @@ export class ConnectionManager {
 
     public connect(nodeA: N3DConnectableInstance, nodeB: N3DConnectableInstance, id?: string): void {
         const newid = id ?? RandomUtils.randomID()
-        const connection = new N3DConnectionInstance( this.scene, this.network.nodes, this.network.connections, this.ui)
+        const connection = new N3DConnectionInstance( this.scene, this.network.nodes, this.network.connections, this.menus)
         connection.set(nodeA, nodeB)
         if(!connection.isConnecting)connection.dispose()
         this.network.connections.add(newid, connection)

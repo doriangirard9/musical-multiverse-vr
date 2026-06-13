@@ -11,6 +11,7 @@ import { TargetManager } from "./TargetManager"
 import { BoxHighlight } from "../world/BoxHighlight"
 import { PointerVisualSystem } from "./PointerVisualSystem"
 import { ChoiceMenu, MenuButton as ChoiceMenuButton } from "../menus/ChoiceMenu"
+import { NoteUtils } from "../node3d/tools";
 
 
 /**
@@ -162,14 +163,12 @@ export class HandMenuSystem {
         buttons.push({ label: "📋 Paste Structure", color: "#6691ff", click: async()=>{
             const text = await navigator.clipboard.readText()
             let parsed: {serialized: any, head: number[]}|undefined = JSON.parse(text)
-            console.log(parsed)
 
             if(!parsed?.head || !parsed?.serialized) return
             let old_head = Matrix.FromArray(parsed!!.head)
 
             const transformation = old_head.invert().multiply(this.inputs.head.matrix)
             
-            console.log(parsed.serialized)
             let nodes = await Serialization.getInstance().load(parsed.serialized)
             for(const node of nodes){
                 node.boundingBoxMesh.setAbsolutePosition(Vector3.TransformCoordinates(node.boundingBoxMesh.absolutePosition,transformation))
@@ -270,14 +269,20 @@ class TransportMenu{
         }})
 
         // Time signature
-        buttons.push({ label: `Time Signature : ${this.transport.getTimeSignature().numerator}/1`, color: "#ffffbb"})
+        const ts = this.transport.getTimeSignature()
+        buttons.push({ label: `Time Signature : ${ts.numerator}/${ts.denominator}`, color: "#ffffbb"})
         buttons.push({ label: "+", color: "#ffffbb", click: ()=>{
-            const ts = this.transport.getTimeSignature()
-            this.transport.setTimeSignature(ts.numerator+1, 1)
+            this.transport.setTimeSignature(ts.numerator+1, ts.denominator)
         }})
         buttons.push({ label: "-", color: "#ffffbb", click: ()=>{
-            const ts = this.transport.getTimeSignature()
-            this.transport.setTimeSignature(Math.max(1, ts.numerator-1), 1)
+            this.transport.setTimeSignature(Math.max(1, ts.numerator-1), ts.denominator)
+        }})
+
+        // Gamme
+        const notes = NoteUtils
+        buttons.push({ label: notes.getSelectedGamme().label, color: "#d982c6", click: ()=>{
+            notes.setSelectedGammeIndex(notes.getSelectedGammeIndex()+1)
+            this.updateMenu()
         }})
 
 

@@ -612,8 +612,6 @@ export class SuperformulaN3D implements Node3D {
                 this.swarm.setEnabled(this.boidMode);
                 refreshToggleColor();
                 context.notifyStateChange("boidMode");
-                console.log("[Superformula] Boid mode:", this.boidMode ? "ON" : "OFF",
-                    "  count:", this.boidCount);
             },
             release: () => {},
         });
@@ -627,7 +625,6 @@ export class SuperformulaN3D implements Node3D {
                 this.boidCount = Math.min(BOID_MAX, this.boidCount + 1);
                 this.swarm.setCount(this.boidCount);
                 context.notifyStateChange("boidCount");
-                console.log("[Superformula] Boid count:", this.boidCount);
             },
             release: () => {},
         });
@@ -641,7 +638,6 @@ export class SuperformulaN3D implements Node3D {
                 this.boidCount = Math.max(0, this.boidCount - 1);
                 this.swarm.setCount(this.boidCount);
                 context.notifyStateChange("boidCount");
-                console.log("[Superformula] Boid count:", this.boidCount);
             },
             release: () => {},
         });
@@ -649,13 +645,6 @@ export class SuperformulaN3D implements Node3D {
         // ── Spawn log ─────────────────────────────────────────────────────────
         const fmt = (v: Vector3) => `(${v.x.toFixed(3)}, ${v.y.toFixed(3)}, ${v.z.toFixed(3)})`;
         const sp = context.getPosition();
-        console.log(
-            "[Superformula] SPAWNED",
-            "\n  world position :", fmt(sp.position),
-            "\n  knobs (m,n1,n2,n3,scale,speed):",
-            this.m.toFixed(2), this.n1.toFixed(2), this.n2.toFixed(2),
-            this.n3.toFixed(2), this.scale.toFixed(2), this.speed.toFixed(2),
-        );
 
         // ── Per-frame loop ────────────────────────────────────────────────────
         //
@@ -792,16 +781,6 @@ export class SuperformulaN3D implements Node3D {
             const nowMs = performance.now();
             if (nowMs - _lastLogTime >= 500) {
                 _lastLogTime = nowMs;
-                console.log(
-                    "[Superformula] TICK",
-                    "\n  knobs   :", `m=${this.m.toFixed(2)} n1=${this.n1.toFixed(2)} n2=${this.n2.toFixed(2)} n3=${this.n3.toFixed(2)} scale=${this.scale.toFixed(2)} speed=${this.speed.toFixed(2)}`,
-                    "\n  theta   :", this.theta.toFixed(3),
-                    "\n  ball    :", `(${x.toFixed(3)}, ${y.toFixed(3)})  r=${r.toFixed(3)}`,
-                    "\n  outputs : posX=", nPosX.toFixed(3), "posY=", nPosY.toFixed(3),
-                    "radius=", nRadius.toFixed(3), "speed=", nSpeed.toFixed(3),
-                    "\n  scale   :", this.userScale.toFixed(2) + "x",
-                    "\n  boids   :", `${this.boidMode ? "ON" : "OFF"}  (${this.boidCount})`,
-                );
             }
         });
     }
