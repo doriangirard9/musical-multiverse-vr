@@ -7,6 +7,7 @@ interface SessionInfo {
     id: string;
     name: string;
     is_public: number;
+    is_locked?: number;
     max_users: number;
     project_name: string;
     owner_username: string;
@@ -149,6 +150,7 @@ export class SessionBrowserPage {
                                 ${s.is_public ? '🌐 Public' : '🔒 Private'}
                             </span>
                             <span>${this.escapeHtml(s.project_name)} · ${this.escapeHtml(s.owner_username)}</span>
+                            ${s.is_locked ? '<span style="color:#ff6b6b; font-weight:500;">Locked</span>' : ''}
                         </div>
                     </div>
                     <div class="wj-participants">

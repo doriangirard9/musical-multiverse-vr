@@ -6,6 +6,7 @@ export interface JoinResponse {
     sessionName: string;
     maxUsers: number;
     crdtData?: string;
+    sessionLocked?: boolean;
 }
 
 /**

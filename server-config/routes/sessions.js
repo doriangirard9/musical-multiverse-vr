@@ -14,7 +14,7 @@ router.get('/public', (req, res) => {
     try {
         const db = getDb();
         const sessions = db.prepare(`
-            SELECT s.id, s.name, s.is_public, s.max_users, s.project_id, s.created_at,
+            SELECT s.id, s.name, s.is_public, s.is_locked, s.max_users, s.project_id, s.created_at,
                    p.name as project_name, u.username as owner_username,
                    (SELECT COUNT(*) FROM session_participants sp WHERE sp.session_id = s.id) as participant_count
             FROM sessions s
@@ -38,7 +38,7 @@ router.get('/mine', requireAuth, (req, res) => {
     try {
         const db = getDb();
         const sessions = db.prepare(`
-            SELECT s.id, s.name, s.is_public, s.max_users, s.project_id, s.created_at,
+            SELECT s.id, s.name, s.is_public, s.is_locked, s.max_users, s.project_id, s.created_at,
                    p.name as project_name, u.username as owner_username,
                    (SELECT COUNT(*) FROM session_participants sp WHERE sp.session_id = s.id) as participant_count
             FROM sessions s
@@ -120,15 +120,16 @@ router.put('/:id', requireAuth, (req, res) => {
         if (!session) return res.status(404).json({ error: 'Session not found' });
         if (session.owner_id !== req.user.userId) return res.status(403).json({ error: 'Not authorized' });
 
-        const { name, isPublic, maxUsers } = req.body;
+        const { name, isPublic, maxUsers, isLocked } = req.body;
         db.prepare(`
             UPDATE sessions SET
                 name = COALESCE(?, name),
                 is_public = COALESCE(?, is_public),
+                is_locked = COALESCE(?, is_locked),
                 max_users = COALESCE(?, max_users),
                 updated_at = datetime('now')
             WHERE id = ?
-        `).run(name || null, isPublic !== undefined ? (isPublic ? 1 : 0) : null, maxUsers || null, req.params.id);
+        `).run(name || null, isPublic !== undefined ? (isPublic ? 1 : 0) : null, isLocked !== undefined ? (isLocked ? 1 : 0) : null, maxUsers || null, req.params.id);
 
         const updated = db.prepare('SELECT * FROM sessions WHERE id = ?').get(req.params.id);
         res.json({ session: updated });
@@ -206,6 +207,7 @@ router.post('/:id/join', optionalAuth, (req, res) => {
             participantNumber,
             sessionName: session.name,
             maxUsers: session.max_users,
+            sessionLocked: session.is_locked ? true : false,
         };
 
         // If this is the first participant, send CRDT data
@@ -287,6 +289,12 @@ router.post('/:id/save', (req, res) => {
         // Special handling for public-sandbox: don't persist to DB
         if (req.params.id === 'public-sandbox') {
             return res.json({ message: 'Saved (public sandbox - not persisted to DB)' });
+        }
+
+        // Check if session is locked: don't persist to DB
+        const sessionLock = db.prepare('SELECT is_locked FROM sessions WHERE id = ?').get(req.params.id);
+        if (sessionLock?.is_locked) {
+            return res.json({ message: 'Saved (session locked - not persisted to DB)' });
         }
 
         // Data loss protection

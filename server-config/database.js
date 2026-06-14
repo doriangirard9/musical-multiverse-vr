@@ -56,6 +56,7 @@ function initDatabase() {
             project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
             name TEXT NOT NULL,
             is_public INTEGER DEFAULT 1,
+            is_locked INTEGER DEFAULT 0,
             max_users INTEGER DEFAULT 32,
             share_token TEXT UNIQUE,
             crdt_data TEXT,
@@ -78,6 +79,20 @@ function initDatabase() {
             connected_at TEXT DEFAULT (datetime('now'))
         );
     `);
+
+    // Run migrations (add columns that might not exist in older databases)
+    try {
+        const sessionsInfo = db.prepare('PRAGMA table_info(sessions)').all();
+        const hasIsLocked = sessionsInfo.some(col => col.name === 'is_locked');
+        if (!hasIsLocked) {
+            db.prepare('ALTER TABLE sessions ADD COLUMN is_locked INTEGER DEFAULT 0').run();
+            console.log('[Database] Added is_locked column to sessions table');
+        }
+    } catch (e) {
+        if (!e.message.includes('duplicate column name')) {
+            console.warn('[Database] Migration error (non-critical):', e.message);
+        }
+    }
 
     // Create indexes for performance
     db.exec(`
