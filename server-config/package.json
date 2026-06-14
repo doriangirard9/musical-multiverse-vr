@@ -1,7 +1,7 @@
 {
   "name": "server",
   "version": "1.0.0",
-  "description": "WamJam Party API Server",
+  "description": "WAM Jam Party API Server",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

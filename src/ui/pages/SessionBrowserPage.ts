@@ -38,7 +38,7 @@ export class SessionBrowserPage {
         el.innerHTML = `
             <div class="wj-container wj-container-wide">
                 <div class="wj-toolbar">
-                    <h1 class="wj-title" style="text-align:left;margin:0;">🎵 WamJam Party</h1>
+                    <h1 class="wj-title" style="text-align:left;margin:0;">🎵 WAM Jam Party</h1>
                     <div class="wj-toolbar-actions">
                         ${user ? `
                             <div class="wj-user-info">

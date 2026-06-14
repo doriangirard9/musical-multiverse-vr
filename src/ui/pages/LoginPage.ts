@@ -23,7 +23,7 @@ export class LoginPage {
         el.innerHTML = `
             <div class="wj-container">
                 <div class="wj-card">
-                    <h1 class="wj-title">🎵 WamJam Party</h1>
+                    <h1 class="wj-title">🎵 WAM Jam Party</h1>
                     <p class="wj-subtitle">Collaborative music creation in VR</p>
 
                     <div id="wj-login-error" class="wj-error"></div>
