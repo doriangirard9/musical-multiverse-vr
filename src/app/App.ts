@@ -222,8 +222,7 @@ export class App {
 
     /**
      * Request screen wake lock to prevent device sleep during session.
-     * Supported in Chrome and other modern browsers with WebXR support.
-     */
+=     */
     private async requestWakeLock(): Promise<void> {
         if ('wakeLock' in navigator) {
             try {
@@ -239,7 +238,6 @@ export class App {
 
     /**
      * Handle AudioContext state changes and auto-resume when suspended.
-     * This prevents audio artifacts when switching between foreground/background.
      */
     private setupAudioContextStateHandling(audioContext: AudioContext): void {
         audioContext.addEventListener('statechange', () => {

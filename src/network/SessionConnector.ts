@@ -1,5 +1,5 @@
 import * as Y from 'yjs';
-import { SessionAPIClient, JoinResponse } from './SessionAPIClient.ts';
+import { SessionAPIClient } from './SessionAPIClient.ts';
 import { Serialization } from '../app/Serialization.ts';
 import { Node3DInstance } from '../node3d/instance/Node3DInstance.ts';
 import { NetworkManager } from './NetworkManager.ts';
@@ -19,6 +19,7 @@ export class SessionConnector {
     private heartbeatInterval: ReturnType<typeof setInterval> | null = null;
     private saveInterval: ReturnType<typeof setInterval> | null = null;
     private isConnected = false;
+    private sessionLocked = false;
 
     constructor(
         private readonly sessionId: string,
@@ -37,20 +38,20 @@ export class SessionConnector {
      * Executes the API connection protocol.
      * Returns connection info. Does NOT initialize the CRDT state yet.
      */
-    async connect(): Promise<SessionConnectionInfo & { crdtData?: string }> {
-        this.updateLoadingText('Joining session...');
-
+    async connect(): Promise<SessionConnectionInfo & { crdtData?: string; sessionLocked?: boolean }> {
         // 1. Join API call
         const joinInfo = await this.api.joinSession(this.sessionId, this.shareToken);
         this.participantId = joinInfo.participantId;
         this.isConnected = true;
+        this.sessionLocked = joinInfo.sessionLocked || false;
 
         return {
             participantId: this.participantId,
             sessionName: joinInfo.sessionName,
             maxUsers: joinInfo.maxUsers,
             participantNumber: joinInfo.participantNumber,
-            crdtData: joinInfo.crdtData
+            crdtData: joinInfo.crdtData,
+            sessionLocked: this.sessionLocked
         };
     }
 
@@ -82,18 +83,20 @@ export class SessionConnector {
                         sessionState.set('status', 'ready');
                     });
                     console.log('[SessionConnector] session_state status set to "ready".');
+                    this.showXRButton();
                 } catch (e) {
                     console.error('[SessionConnector] Failed to parse/load CRDT data:', e);
                     sessionState.set('status', 'ready'); // Still mark ready so others can join
+                    this.showXRButton();
                 }
             } else {
                 // Empty session
-                console.log('[SessionConnector] No CRDT data provided by server. Starting with an empty session.');
                 sessionState.set('status', 'ready');
+                this.showXRButton();
             }
         } else {
             console.log(`[SessionConnector] We are participant #${participantNumber}. Waiting for leader to set ready state...`);
-            this.updateLoadingText('Synchronizing with peers...');
+            this.updateLoadingText('Please wait, synchronizing with peers...');
             
             // We are NOT the first. Wait for session_state == 'ready'.
             await this.waitForReady(sessionState);
@@ -176,6 +179,12 @@ export class SessionConnector {
             return;
         }
 
+        // Skip auto-save for locked sessions
+        if (this.sessionLocked) {
+            console.log('[SessionConnector] Skipping auto-save for locked session');
+            return;
+        }
+
         // Save every 30 seconds
         this.saveInterval = setInterval(async () => {
             if (!this.isConnected || !this.participantId) return;
@@ -200,5 +209,15 @@ export class SessionConnector {
                 console.error('[SessionConnector] Auto-save failed:', e);
             }
         }, 10000);
+    }
+
+    /**
+     * Show the XR button overlay when session is ready.
+     */
+    private showXRButton(): void {
+        const xrButton = document.querySelector('.xr-button-overlay') as HTMLElement;
+        if (xrButton) {
+            xrButton.classList.add('ready');
+        }
     }
 }

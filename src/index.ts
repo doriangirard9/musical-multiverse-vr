@@ -160,17 +160,36 @@ let onload = async() => {
 
                         const connectionInfo = await activeConnector.connect();
                         
-                        loadingOverlay.updateText('Loading 3D Environment...');
+                        loadingOverlay.show(appRoot!, 'Click anywhere on the page to start', false);
 
                         const newApp = new App();
                         await newApp.start(connectionInfo.participantId, sessionId, doc);
                         appStarted = true;
 
-                        // Now that Node3dManager is initialized, we can hydrate the CRDT state
-                        await activeConnector.initCRDTState(connectionInfo.participantNumber, connectionInfo.crdtData);
+                        // Show the leave button and prepare for sync
+                        // First, lower the loading overlay z-index so the sessionHud can be interacted with
+                        const overlay = document.getElementById('wj-loading-overlay');
+                        if (overlay) {
+                            overlay.style.zIndex = '100';
+                            overlay.style.backgroundColor = 'transparent';
+                            overlay.style.backdropFilter = 'none';
+                            (overlay.style as any).WebkitBackdropFilter = 'none';
+                            overlay.style.pointerEvents = 'none';
+                        }
+                        
+                        sessionHud.show(appRoot!, sessionId, connectionInfo.sessionName, connectionInfo.maxUsers, connectionInfo.participantNumber);
 
-                        loadingOverlay.hide();
-                        sessionHud.show(appRoot!, sessionId, connectionInfo.sessionName, connectionInfo.maxUsers, connectionInfo.participantNumber); // approximate count
+                        // Now that Node3dManager is initialized, we can hydrate the CRDT state
+                        loadingOverlay.show(appRoot!, 'Please wait, synchronizing with peers...', true);
+                        await activeConnector.initCRDTState(connectionInfo.participantNumber, connectionInfo.crdtData);
+                        loadingOverlay.show(appRoot!, 'Session ready ! Click on the headset icon below to enter VR.', false);
+
+                        
+                        // Remove spinner if it exists
+                        const spinner = overlay?.querySelector('.wj-spinner');
+                        if (spinner) {
+                            spinner.remove();
+                        }
 
                     } catch (e: any) {
                         console.error('Failed to start app:', e);
