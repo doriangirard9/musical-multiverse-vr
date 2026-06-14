@@ -1,3 +1,7 @@
 allowBuilds:
   esbuild: true
   wam3dgenerator: true
+onlyBuiltDependencies:
+  - esbuild
+ignoredBuiltDependencies:
+  - wam3dgenerator

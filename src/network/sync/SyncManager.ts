@@ -54,6 +54,42 @@ export class SyncManager<
 
     private instances = new Map<string, T>()
     private reverse_instances = new Map<T,string>()
+    private _suppressNetworkAdd = true  // Start suppressed — require explicit allowNetworkAdds()
+    private _pendingCreation = new Set<string>()
+
+    /** Suppress add_from_network (used during leader DB load to prevent stale peer sync) */
+    public suppressNetworkAdds() { this._suppressNetworkAdd = true }
+    public allowNetworkAdds() { this._suppressNetworkAdd = false }
+
+    /** Process any Y.js entries that exist but don't have local instances (missed while suppressed) */
+    public async processExistingEntries() {
+        const entries = [...this.shared_data.entries()]
+        const missing = entries.filter(([id]) => !this.instances.has(id) && !this._pendingCreation.has(id))
+        if (missing.length === 0) return
+        console.log(`[SyncManager] Processing ${missing.length} existing Y.js entries that were missed while suppressed`)
+        await Promise.all(missing.map(async ([id, shared]) => {
+            if (this.instances.has(id) || this._pendingCreation.has(id)) return
+            this._pendingCreation.add(id)
+            try {
+                const state = this.shared_state.get(id)
+                if (!state) {
+                    console.warn(`[SyncManager] No shared_state for existing entry ${id}, skipping`)
+                    return
+                }
+                const instance = await this.create(id, state, shared.data)
+                this.instances.set(id, instance)
+                this.reverse_instances.set(instance, id)
+                await this.initialize(id, instance, state)
+                await Promise.all([...state.entries()].map(([key, value]) => {
+                    return instance.setState(key as string, value as SyncSerializable)
+                }))
+                const resolve = this.get_resolver(id)
+                resolve(instance)
+            } finally {
+                this._pendingCreation.delete(id)
+            }
+        }))
+    }
 
     /**
      * Add a new instance to the registry.
@@ -249,6 +285,10 @@ export class SyncManager<
     //// From Network ////
     private async add_from_network(event: Y.YMapEvent<{data:D}>){
         if(event.transaction.origin==this)return
+        if(this._suppressNetworkAdd) {
+            console.log(`[SyncManager] Suppressed add_from_network (leader loading from DB)`);
+            return;
+        }
 
         // Sort by add and delete
         let deletes = [...event.keys] .filter(it=>it[1].action=="delete")
@@ -256,19 +296,31 @@ export class SyncManager<
 
         // Add
         await Promise.all(adds.map(async([id,{}])=>{
-            const new_shared_state = this.shared_state.get(id)!!
-            const new_shared = this.shared_data.get(id)!!
+            // Guard: skip if this instance already exists or is being created (prevents duplication from concurrent events)
+            if(this.instances.has(id) || this._pendingCreation.has(id)){
+                console.log(`[SyncManager] Skipping add_from_network for ${id}: already exists or pending`)
+                return
+            }
+            // Mark as pending BEFORE any async work
+            this._pendingCreation.add(id)
 
-            // Create instance
-            const instance = await this.create(id, new_shared_state, new_shared.data)
-            this.instances.set(id,instance)
-            this.reverse_instances.set(instance,id)
-            await this.initialize(id,instance,new_shared_state)
-            await Promise.all([...new_shared_state.entries()].map(([key,value])=>{
-                return instance.setState(key as string,value as SyncSerializable)
-            }))
-            const resolve = this.get_resolver(id)
-            resolve(instance)
+            try {
+                const new_shared_state = this.shared_state.get(id)!!
+                const new_shared = this.shared_data.get(id)!!
+
+                // Create instance
+                const instance = await this.create(id, new_shared_state, new_shared.data)
+                this.instances.set(id,instance)
+                this.reverse_instances.set(instance,id)
+                await this.initialize(id,instance,new_shared_state)
+                await Promise.all([...new_shared_state.entries()].map(([key,value])=>{
+                    return instance.setState(key as string,value as SyncSerializable)
+                }))
+                const resolve = this.get_resolver(id)
+                resolve(instance)
+            } finally {
+                this._pendingCreation.delete(id)
+            }
         }))
 
         // Delete

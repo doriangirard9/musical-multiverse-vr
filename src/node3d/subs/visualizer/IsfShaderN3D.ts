@@ -14,6 +14,8 @@ export class IsfShaderN3DGUI implements Node3DGUI {
     automationInput
     menuButton
     params: any[] = []
+    labelPlane: any
+    labelTexture: any
 
     get worldSize() { return 1.0 }
 
@@ -66,6 +68,84 @@ export class IsfShaderN3DGUI implements Node3DGUI {
             T.MeshUtils.setColor(param, new B.Color4(0.5, 0.5, 0.5, 1));
             this.params.push(param);
         }
+
+        // Shader name label — standing upright on the XY plane, above the box
+        this.labelPlane = B.CreatePlane("shader label", { width: 2.0, height: 0.6 }, scene);
+        this.labelPlane.parent = this.root;
+        this.labelPlane.position.set(0, 0.50, 1.25);   // above the box, at z = depth/2
+        this.labelPlane.isPickable = false;
+
+        this.labelTexture = new B.DynamicTexture("shaderLabelDT", { width: 1024, height: 256 }, scene, true);
+        const mat = new B.StandardMaterial("shaderLabelMat", scene);
+        mat.diffuseTexture = this.labelTexture;
+        mat.emissiveTexture = this.labelTexture;
+        mat.disableLighting = true;
+        mat.backFaceCulling = false;
+        mat.useAlphaFromDiffuseTexture = true;
+        this.labelPlane.material = mat;
+
+        this._scene = scene;
+        this.updateLabel("ISF Shader");
+    }
+
+    private _scene: any;
+    private _scrollOffset = 0;
+    private _scrollObserver: any = null;
+    private _labelText = "";
+    private _labelColor = "#00DDFF";
+    private _textWidth = 0;
+
+    updateLabel(text: string) {
+        this._labelText = text;
+        this._scrollOffset = 0;
+
+        // Measure text width
+        const ctx = this.labelTexture.getContext();
+        ctx.font = "bold 80px Arial";
+        this._textWidth = ctx.measureText(text).width;
+        const canvasWidth = this.labelTexture.getSize().width;
+
+        // Remove previous scroll observer
+        if (this._scrollObserver) {
+            this._scene.onBeforeRenderObservable.remove(this._scrollObserver);
+            this._scrollObserver = null;
+        }
+
+        if (this._textWidth > canvasWidth - 40) {
+            // Text too wide — start scrolling
+            let frameCount = 0;
+            this._scrollObserver = this._scene.onBeforeRenderObservable.add(() => {
+                frameCount++;
+                if (frameCount % 3 !== 0) return;
+                this._scrollOffset -= 2;
+                const totalWidth = this._textWidth + 120;
+                if (this._scrollOffset < -totalWidth) this._scrollOffset = canvasWidth;
+                this._drawLabel();
+            });
+            this._scrollOffset = 20;
+        }
+
+        this._drawLabel();
+    }
+
+    private _drawLabel() {
+        const ctx = this.labelTexture.getContext();
+        const size = this.labelTexture.getSize();
+        ctx.clearRect(0, 0, size.width, size.height);
+        ctx.fillStyle = "rgba(0,0,0,0.7)";
+        ctx.roundRect(4, 4, size.width - 8, size.height - 8, 16);
+        ctx.fill();
+        ctx.font = "bold 80px Arial";
+        ctx.fillStyle = this._labelColor;
+        ctx.textBaseline = "middle";
+        if (this._scrollObserver) {
+            ctx.textAlign = "left";
+            ctx.fillText(this._labelText, this._scrollOffset, size.height / 2);
+        } else {
+            ctx.textAlign = "center";
+            ctx.fillText(this._labelText, size.width / 2, size.height / 2);
+        }
+        this.labelTexture.update();
     }
 
     async dispose() { }
@@ -75,11 +155,17 @@ export class IsfShaderN3D implements Node3D {
     private activeWamNode: any = null;
     private presets: string[] = [];
     private presetMap: Map<string, number> = new Map();
+    private selectedShader: string | null = null;
     private currentInputs: any[] = [];
     private paramValues: Record<string, number> = {};
     private currentPage = 0;
     private readonly itemsPerPage = 4;
-    private pendingScreen: any = null;
+    private pendingScreens: any[] = [];
+    private pendingInputId: string | null = null;
+
+    // Pending state: queued setState calls received before WAM is ready
+    private pendingState = new Map<string, any>();
+    private wamReady = false;
 
     constructor(private context: Node3DContext, private gui: IsfShaderN3DGUI) {
         const { tools: T, babylon: B } = context;
@@ -123,11 +209,11 @@ export class IsfShaderN3D implements Node3D {
                 if (target && typeof target.useRenderer === "function") {
                     const id = this.activeWamNode?.instanceId;
                     if (id) target.useRenderer(id);
-                    else this.pendingScreen = target;
+                    else this.pendingScreens.push(target);
                 }
             },
             disconnectAsInput: () => { },
-            disconnectAsOutput: () => { this.pendingScreen = null; }
+            disconnectAsOutput: () => { this.pendingScreens = []; }
         };
         context.createConnectable(videoOutput);
 
@@ -211,7 +297,8 @@ export class IsfShaderN3D implements Node3D {
         (async () => {
             try {
                 const instance = await WamInitializer.getInstance()
-                    .initWamInstance("https://sofiane949.github.io/DS4H-Project-2025-2026-S2/src/isf-video-wam/index.js");
+                    // Original: "https://sofiane949.github.io/DS4H-Project-2025-2026-S2/src/isf-video-wam/index.js"
+                    .initWamInstance(`${window.location.origin}/isf-video-wam/index.js`);
                 
                 if (instance?.audioNode) {
                     this.activeWamNode = instance.audioNode;
@@ -224,36 +311,54 @@ export class IsfShaderN3D implements Node3D {
                         videoExtension.setDelegate(id, this.activeWamNode.video);
                     }
 
-                    if (this.pendingScreen) {
-                        this.pendingScreen.useRenderer(id);
-                        this.pendingScreen = null;
+                    // Flush pending video input (Butterchurn → ISF before WAM ready)
+                    if (this.pendingInputId) {
+                        this.useRenderer(this.pendingInputId);
+                        this.pendingInputId = null;
                     }
+
+                    for (const screen of this.pendingScreens) {
+                        screen.useRenderer(id);
+                    }
+                    this.pendingScreens = [];
 
                     this.activeWamNode.addEventListener('shader-changed', () => this.rebuildParameters());
 
-                    const tryFetchPresets = async () => {
-                        try {
-                            const p = (this.activeWamNode.module as any)?.shaders || (this.activeWamNode as any).shaders;
-                            if (p && Array.isArray(p)) {
-                                this.presetMap.clear();
-                                this.presets = p.map((name, idx) => {
-                                    this.presetMap.set(name, idx);
-                                    return name;
-                                });
-                                this.rebuildParameters();
-                            } else {
-                                setTimeout(tryFetchPresets, 1000);
-                            }
-                        } catch (e) {
-                            console.error("[ISF] ERROR: Failed to fetch presets:", e);
-                        }
-                    };
-                    tryFetchPresets();
+                    // Wait for shaders to become available (awaitable with retries)
+                    await this.waitForShaders();
+
+                    // Mark WAM as ready and replay any queued state
+                    await this.flushPendingState();
                 }
             } catch (e) {
                 console.error("[ISF] ERROR: WAM load failed:", e);
             }
         })();
+    }
+
+    /**
+     * Awaitable shader list loading with retry logic.
+     * Replaces the old fire-and-forget tryFetchPresets pattern.
+     */
+    private async waitForShaders(maxRetries = 15): Promise<void> {
+        for (let i = 0; i < maxRetries; i++) {
+            try {
+                const p = (this.activeWamNode.module as any)?.shaders || (this.activeWamNode as any).shaders;
+                if (p && Array.isArray(p)) {
+                    this.presetMap.clear();
+                    this.presets = p.map((name: string, idx: number) => {
+                        this.presetMap.set(name, idx);
+                        return name;
+                    });
+                    this.rebuildParameters();
+                    return;
+                }
+            } catch (e) {
+                console.error("[ISF] ERROR: Failed to fetch shaders:", e);
+            }
+            await new Promise(r => setTimeout(r, 1000));
+        }
+        console.warn("[ISF] Shaders never became available after retries");
     }
 
     private rebuildParameters() {
@@ -315,22 +420,120 @@ export class IsfShaderN3D implements Node3D {
                     await this.activeWamNode.setState({ shaderSelect: index });
                 }
                 this.context.showMessage(`Active: ${name}`);
+                this.selectedShader = name;
+                this.gui.updateLabel(name);
+                this.context.notifyStateChange("selectedShader");
             }
             this.context.closeMenu();
         }
     }
 
     public useRenderer(instanceId: string) {
-        if (!this.activeWamNode || !instanceId) return;
+        console.log(`[ISF] useRenderer called with source ID: ${instanceId}, activeWamNode ID: ${this.activeWamNode?.instanceId}`);
+        if (!instanceId) return;
+        if (!this.activeWamNode) {
+            // WAM not ready yet — queue for later
+            console.log(`[ISF] WAM not ready, queuing input source: ${instanceId}`);
+            this.pendingInputId = instanceId;
+            return;
+        }
         const videoExtension = (window as any).WAMExtensions?.video;
         if (!videoExtension) return;
-        const renderer = videoExtension.getRenderer(this.context.scene, this.activeWamNode.instanceId, this.context.audioCtx);
+        const renderer = videoExtension.getRenderer(this.gui.root.getScene(), this.activeWamNode.instanceId, this.context.audioCtx);
+        console.log(`[ISF] getRenderer result:`, renderer ? 'found' : 'NULL — ID mismatch?');
         if (renderer) renderer.setInputSource(instanceId);
     }
 
-    async setState(key: string, value: any) { }
-    async getState(key: string) { return undefined; }
-    getStateKeys() { return []; }
+    //// State Synchronization ////
+
+    getStateKeys() { return ["selectedShader", "paramValues"]; }
+
+    async getState(key: string) {
+        if (key === "selectedShader") return this.selectedShader;
+        if (key === "paramValues") return { ...this.paramValues };
+        return undefined;
+    }
+
+    async setState(key: string, value: any) {
+        if (!this.wamReady) {
+            // WAM not ready yet — queue for later
+            this.pendingState.set(key, value);
+            return;
+        }
+        await this.applyState(key, value);
+    }
+
+    /**
+     * Apply a state change from the SyncManager (remote).
+     * IMPORTANT: Must NOT call notifyStateChange() to avoid sync loops.
+     * For ISF, the order matters:
+     * - "selectedShader" must be applied first (triggers rebuildParameters via shader-changed event)
+     * - "paramValues" must be applied after the shader is loaded
+     */
+    private async applyState(key: string, value: any) {
+        if (key === "selectedShader" && typeof value === "string") {
+            // Inline the shader selection WITHOUT notifyStateChange (avoids sync loop)
+            if (this.activeWamNode) {
+                const index = this.presetMap.get(value);
+                if (index !== undefined) {
+                    if (this.activeWamNode.setParameters) {
+                        await this.activeWamNode.setParameters({ shaderSelect: index });
+                    } else {
+                        await this.activeWamNode.setState({ shaderSelect: index });
+                    }
+                    this.selectedShader = value;
+                    this.gui.updateLabel(value);
+                }
+            }
+            // Wait for the shader-changed event + rebuildParameters to complete
+            await new Promise(r => setTimeout(r, 500));
+        }
+        if (key === "paramValues" && typeof value === "object" && value !== null) {
+            for (const [paramId, paramVal] of Object.entries(value)) {
+                if (typeof paramVal === "number") {
+                    this.paramValues[paramId] = paramVal;
+                    // Apply to WAM
+                    if (this.activeWamNode?.setParamsValues) {
+                        this.activeWamNode.setParamsValues({ [paramId]: paramVal });
+                    } else if (this.activeWamNode?.setParameters) {
+                        this.activeWamNode.setParameters({ [paramId]: paramVal });
+                    }
+                    // Update mesh rotation
+                    const idx = parseInt(paramId.replace("p", "")) - 1;
+                    if (idx >= 0 && idx < this.gui.params.length) {
+                        const mesh = this.gui.params[idx];
+                        if (mesh) mesh.rotation.y = paramVal * Math.PI * 2;
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Flush pending state in the correct order:
+     * 1. selectedShader first (loads the shader file, rebuilds parameters)
+     * 2. paramValues second (overrides the default values from rebuildParameters)
+     */
+    private async flushPendingState() {
+        this.wamReady = true;
+
+        // Apply selectedShader first if present
+        const shader = this.pendingState.get("selectedShader");
+        if (shader !== undefined) {
+            await this.applyState("selectedShader", shader);
+            this.context.notifyStateChange("selectedShader");
+            this.pendingState.delete("selectedShader");
+        }
+
+        // Then apply remaining state (paramValues, etc.)
+        for (const [key, value] of this.pendingState) {
+            await this.applyState(key, value);
+            // Notify SyncManager so Y.js gets the correct value
+            this.context.notifyStateChange(key);
+        }
+        this.pendingState.clear();
+    }
+
     async dispose() { }
 }
 

@@ -70,6 +70,10 @@ export class SessionConnector {
             console.log('[SessionConnector] We are participant #1 (Leader). Hydrating state...');
             
             // We are the first. Load CRDT data if it exists.
+            // NOTE: SyncManager starts in suppressed mode by default, so all Y.js
+            // add_from_network events are blocked until we explicitly call allowNetworkAdds().
+            // This prevents stale Y.js entries (from BroadcastChannel/WebRTC) creating duplicates
+            // while we load fresh state from the DB.
             if (crdtData) {
                 try {
                     const parsedData = JSON.parse(crdtData);
@@ -79,6 +83,11 @@ export class SessionConnector {
                     await Serialization.getInstance().load(parsedData);
                     console.log('[SessionConnector] Serialization.load() completed successfully.');
                     
+                    // Re-enable network adds now that our state is authoritative
+                    const network = NetworkManager.getInstance();
+                    network.node3d.nodes.allowNetworkAdds();
+                    network.node3d.connections.allowNetworkAdds();
+                    
                     this.doc.transact(() => {
                         sessionState.set('status', 'ready');
                     });
@@ -86,11 +95,17 @@ export class SessionConnector {
                     this.showXRButton();
                 } catch (e) {
                     console.error('[SessionConnector] Failed to parse/load CRDT data:', e);
+                    const network = NetworkManager.getInstance();
+                    network.node3d.nodes.allowNetworkAdds();
+                    network.node3d.connections.allowNetworkAdds();
                     sessionState.set('status', 'ready'); // Still mark ready so others can join
                     this.showXRButton();
                 }
             } else {
-                // Empty session
+                // Empty session — enable network adds and mark ready
+                const network = NetworkManager.getInstance();
+                network.node3d.nodes.allowNetworkAdds();
+                network.node3d.connections.allowNetworkAdds();
                 sessionState.set('status', 'ready');
                 this.showXRButton();
             }
@@ -101,6 +116,17 @@ export class SessionConnector {
             // We are NOT the first. Wait for session_state == 'ready'.
             await this.waitForReady(sessionState);
             console.log('[SessionConnector] Ready state confirmed! Proceeding with synchronization.');
+            
+            // Enable network adds — the leader's Y.js state will now sync correctly
+            const network = NetworkManager.getInstance();
+            network.node3d.nodes.allowNetworkAdds();
+            network.node3d.connections.allowNetworkAdds();
+            
+            // Process any Y.js entries that arrived while suppressed (nodes first, then connections)
+            await network.node3d.nodes.processExistingEntries();
+            await network.node3d.connections.processExistingEntries();
+            
+            this.showXRButton();
         }
 
         // 3. Start Heartbeat

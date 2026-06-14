@@ -1,0 +1,76 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ISF Video WAM Tester</title>
+    <style>
+        body { background: #111; color: white; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; }
+        canvas { border: 1px solid #444; background: black; max-width: 100%; }
+        #instrument-container { margin-top: 20px; }
+        #start-btn { padding: 10px 20px; font-size: 16px; cursor: pointer; background: #007bff; color: white; border: none; border-radius: 5px; margin: 20px; }
+    </style>
+</head>
+<body>
+    <h1>ISF Video WAM Tester</h1>
+    <button id="start-btn">START PLUGIN</button>
+    <canvas id="wam-video" width="640" height="480"></canvas>
+    <div id="instrument-container"></div>
+
+    <script type="module">
+        import VideoExtension from "./extensions/VideoExtension.js";
+        import { CanvasRenderer } from "../VideoWAMHost/js/extensions/videoExtensionHostSide.js";
+        import ISFVideoPlugin from "./index.js";
+
+        const startBtn = document.getElementById('start-btn');
+        const audioContext = new AudioContext();
+
+        startBtn.onclick = async () => {
+            startBtn.style.display = 'none';
+            await audioContext.resume();
+
+            // 1. Setup Host & Extension
+            window.WAMExtensions = { video: new VideoExtension() };
+            const canvas = document.getElementById('wam-video');
+            const renderer = new CanvasRenderer(canvas);
+
+            // 2. Load Plugin
+            const plugin = new ISFVideoPlugin("example", audioContext);
+            await plugin.initialize({});
+            const audioNode = await plugin.createAudioNode();
+            
+            // Connect Audio
+            const oscillator = audioContext.createOscillator();
+            const gain = audioContext.createGain();
+            oscillator.connect(gain);
+            gain.connect(audioNode);
+            audioNode.connect(audioContext.destination);
+            oscillator.start();
+
+            // 3. Setup GUI
+            const gui = await plugin.createGui();
+            document.getElementById('instrument-container').appendChild(gui);
+
+            // 4. Connect Video
+            const delegate = window.WAMExtensions.video.getDelegate(plugin.instanceId);
+            const videoOptions = { width: 640, height: 480, gl: renderer.gl };
+            delegate.connectVideo(videoOptions);
+
+            // 5. Render Loop
+            function mainloop() {
+                let inputs = [];
+                const result = delegate.render(inputs, audioContext.currentTime);
+                if (result && result.length > 0) {
+                    renderer.render(result[0]);
+                } else {
+                    // Si le shader n'a pas d'image en sortie mais dessine directement
+                    // on peut avoir besoin d'adapter le renderer.
+                }
+                requestAnimationFrame(mainloop);
+            }
+            mainloop();
+        };
+    </script>
+</body>
+</html>
