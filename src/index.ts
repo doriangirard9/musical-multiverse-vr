@@ -180,7 +180,7 @@ let onload = async() => {
                         sessionHud.show(appRoot!, sessionId, connectionInfo.sessionName, connectionInfo.maxUsers, connectionInfo.participantNumber);
 
                         // Now that Node3dManager is initialized, we can hydrate the CRDT state
-                        loadingOverlay.show(appRoot!, 'Please wait, synchronizing with peers...', true);
+                        loadingOverlay.show(appRoot!, 'Checking session state...', true);
                         await activeConnector.initCRDTState(connectionInfo.participantNumber, connectionInfo.crdtData);
                         loadingOverlay.show(appRoot!, 'Session ready ! Click on the headset icon below to enter VR.', false);
 
