@@ -95,7 +95,10 @@ export class ConnectionManager {
         const newid = id ?? RandomUtils.randomID()
         const connection = new N3DConnectionInstance( this.scene, this.network.nodes, this.network.connections, this.menus)
         connection.set(nodeA, nodeB)
-        if(!connection.isConnecting)connection.dispose()
+        if(!connection.isConnecting) {
+            connection.dispose()
+            return
+        }
         this.network.connections.add(newid, connection)
     }
 }
