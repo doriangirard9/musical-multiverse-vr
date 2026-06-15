@@ -517,28 +517,28 @@ export class AudioPlaqueN3D implements Node3D {
             release: () => {},
         });
 
-        // ── Cluster standard : ? · Presets · 🎲 · ↺ ───────────────────────────
-        // Pad simple : seul l'effectif de l'essaim est "réglable" ; l'aide est
-        // la vraie valeur ajoutée ici.
+        // ── Standard cluster: ? · Presets · 🎲 · ↺ ────────────────────────────
+        // Simple pad: only the swarm size is "tunable"; the help is the real
+        // value added here.
         setupInstrumentControls(context, {
             title: "Audio Plaque",
-            description: "Pavé XY : une boule suit le laser sur la surface. L'audio passe " +
-                "à travers ; les positions X/Y (0..1) + 5 métriques d'essaim sortent en " +
-                "automation, à câbler vers n'importe quel paramètre WAM.",
+            description: "XY pad: a ball follows the laser across the surface. Audio passes " +
+                "through; the ball's X/Y positions (0..1) + 5 swarm metrics come out as " +
+                "automation, to wire to any WAM parameter.",
             legend: [
-                { swatch: "🟥", name: "Sphère rouge (haut)", role: "Sortie X de la boule (0..1)" },
-                { swatch: "🟦", name: "Sphère bleue (bas)", role: "Sortie Y de la boule (0..1)" },
-                { swatch: "🟢", name: "Sphères vertes (côtés)", role: "Audio in / out (passe à travers)" },
-                { swatch: "🔵", name: "Disques haut-gauche", role: "Boids : on/off, +, −" },
-                { swatch: "🌸", name: "Sphères bas (rangée)", role: "Métriques d'essaim : centroïde X/Y, dispersion, alignement, vorticité" },
-                { swatch: "✋", name: "Cadre", role: "Saisir à deux mains = redimensionner ; secouer = supprimer" },
+                { swatch: "🟥", name: "Red sphere (top)", role: "Ball X output (0..1)" },
+                { swatch: "🟦", name: "Blue sphere (bottom)", role: "Ball Y output (0..1)" },
+                { swatch: "🟢", name: "Green spheres (sides)", role: "Audio in / out (passes through)" },
+                { swatch: "🔵", name: "Top-left discs", role: "Boids: on/off, +, −" },
+                { swatch: "🌸", name: "Bottom row spheres", role: "Swarm metrics: centroid X/Y, dispersion, alignment, vorticity" },
+                { swatch: "✋", name: "Frame", role: "Two-handed grab = resize; shake = delete" },
             ],
             presets: {
-                "Solo":         { boidCount: 0 },
-                "Petit groupe": { boidCount: 8 },
-                "Nuée":         { boidCount: 25 },
+                "Solo":        { boidCount: 0 },
+                "Small Group": { boidCount: 8 },
+                "Swarm":       { boidCount: 25 },
             },
-            defaultPreset: "Petit groupe",
+            defaultPreset: "Small Group",
             params: [{
                 name: "boidCount", min: 0, max: BOID_MAX,
                 getNorm: () => this.boidCount / BOID_MAX,

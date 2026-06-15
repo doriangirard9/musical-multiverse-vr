@@ -467,23 +467,23 @@ export class AIComposerN3D implements Node3D {
         // combine avec le BPM courant (rubato sans casser la pulsation).
         this.setupKnob("tempo", "Tempo ×", gui.tempoKnob, TEMPO_RANGE,
             () => this.tempo, (v) => { this.tempo = v; this.applyTransport(); }, true);
-        this.setupKnob("velocity", "Vélocité", gui.velKnob, VEL_RANGE,
+        this.setupKnob("velocity", "Velocity", gui.velKnob, VEL_RANGE,
             () => this.velocity, (v) => { this.velocity = v; this.scheduler.setVelocityScale(v); }, true);
         this.setupKnob("horizon", "Horizon", gui.horizonKnob, HORIZON_RANGE,
             () => this.horizon, (v) => { this.horizon = v; this.scheduler.setHorizonSec(v); }, true);
 
-        // ── Cluster standard : ? · Presets · 🎲 · ↺ (presets sonores par variante) ─
-        const hyp1 = this.hypSpecs[1]?.displayName ?? "Densité";
+        // ── Standard cluster: ? · Presets · 🎲 · ↺ (sound presets per variant) ─
+        const hyp1 = this.hypSpecs[1]?.displayName ?? "Density";
         setupInstrumentControls(context, {
             title: gui.factory.shortLabel,
             description: gui.factory.description,
             legend: [
-                { swatch: "🔵", name: "Gros potard gauche", role: "Température — chaos vs prévisibilité du tirage" },
-                { swatch: "🟣", name: "Gros potard droite", role: `${hyp1} — caractère du flux` },
-                { swatch: "⚪", name: "Petits potards (bas)", role: "Tempo (× du tempo hôte), Vélocité, Horizon (latence du buffer)" },
-                { swatch: "💗", name: "Cœur lumineux", role: "Play/Stop ; couleur = état ; pulse à chaque note ; suit le transport de l'hôte" },
-                { swatch: "🟢", name: "Sphère verte (flanc)", role: "Sortie MIDI — câbler vers un synthé (Pro54…)" },
-                { swatch: "✋", name: "Châssis", role: "Saisir à deux mains = redimensionner ; secouer = supprimer" },
+                { swatch: "🔵", name: "Big left knob", role: "Temperature — chaos vs predictability of the draw" },
+                { swatch: "🟣", name: "Big right knob", role: `${hyp1} — character of the stream` },
+                { swatch: "⚪", name: "Small knobs (bottom)", role: "Tempo (× host tempo), Velocity, Horizon (buffer latency)" },
+                { swatch: "💗", name: "Glowing core", role: "Play/Stop; color = state; pulses on each note; follows the host transport" },
+                { swatch: "🟢", name: "Green sphere (side)", role: "MIDI output — wire to a synth (Pro54…)" },
+                { swatch: "✋", name: "Chassis", role: "Two-handed grab = resize; shake = delete" },
             ],
             presets: gui.factory.presets,
             defaultPreset: gui.factory.defaultPreset,
@@ -496,7 +496,7 @@ export class AIComposerN3D implements Node3D {
 
         // Applique le tempo + la signature de l'hôte dès le départ.
         this.applyTransport();
-        this.gui.setStatus("Prêt — touche le cœur");
+        this.gui.setStatus("Ready — touch the core");
 
         // ── Boucle de feedback (pulse, anneau, halo, écran throttlé) ──────────
         const targetColor = new Color3();
@@ -588,7 +588,7 @@ export class AIComposerN3D implements Node3D {
             this.perf.stop();
             this.playing = false;
             this.coreState = "ready";
-            this.gui.setStatus("En pause — touche le cœur");
+            this.gui.setStatus("Paused — touch the core");
             console.log("[AIComposer] stop");
             return;
         }
@@ -597,7 +597,7 @@ export class AIComposerN3D implements Node3D {
             this.initializing = true;
             this.coreState = "loading";
             this.loadProgress = 0;
-            this.context.showMessage("Chargement du modèle IA (worker)…");
+            this.context.showMessage("Loading AI model (worker)…");
             try {
                 await this.adapter.init({
                     progressCallback: (p: number) => { this.loadProgress = p; },
@@ -606,9 +606,9 @@ export class AIComposerN3D implements Node3D {
                 console.log(`[AIComposer] adapter prêt (init ${this.adapter.stats.initTimeMs.toFixed(0)} ms, backend=${this.adapter.backend})`);
             } catch (e) {
                 console.error("[AIComposer] init échouée:", e);
-                this.context.showMessage("Échec du chargement du modèle.");
+                this.context.showMessage("Failed to load the model.");
                 this.coreState = "error";
-                this.gui.setStatus("✖ Échec du chargement");
+                this.gui.setStatus("✖ Load failed");
                 this.initializing = false;
                 return;
             }
@@ -657,7 +657,7 @@ export class AIComposerN3D implements Node3D {
             `${spec.displayName} ${fmt(spec, this.hypValues[spec.name] ?? spec.default)}`);
         this.gui.setValues(
             parts.join("  ·  "),
-            `Hôte ${Math.round(this.hostBpm)} BPM ${this.timeSig.numerator}/${this.timeSig.denominator}  ·  Tempo ×${this.tempo.toFixed(2)}  ·  Vél ×${this.velocity.toFixed(2)}`,
+            `Host ${Math.round(this.hostBpm)} BPM ${this.timeSig.numerator}/${this.timeSig.denominator}  ·  Tempo ×${this.tempo.toFixed(2)}  ·  Vel ×${this.velocity.toFixed(2)}`,
         );
     }
 
@@ -667,15 +667,15 @@ export class AIComposerN3D implements Node3D {
         const nConn = this.midiOutput?.connections.length ?? 0;
         switch (this.coreState) {
             case "loading":
-                this.gui.setStatus(`Chargement du modèle… ${Math.round(this.loadProgress * 100)} %`);
+                this.gui.setStatus(`Loading model… ${Math.round(this.loadProgress * 100)} %`);
                 break;
             case "playing": {
                 if (nConn === 0) {
-                    this.gui.setStatus("⚠ Sortie MIDI non câblée !");
+                    this.gui.setStatus("⚠ MIDI output not wired!");
                 } else {
-                    const late = stats.lateEvents > 0 ? `  ⚠${stats.lateEvents} retard` : "";
+                    const late = stats.lateEvents > 0 ? `  ⚠${stats.lateEvents} late` : "";
                     const resync = stats.gridResyncs > 0 ? `  ↻${stats.gridResyncs}` : "";
-                    this.gui.setStatus(`♪ En jeu →${nConn} — buffer ${stats.bufferDepthSec.toFixed(2)} s${late}${resync}`);
+                    this.gui.setStatus(`♪ Playing →${nConn} — buffer ${stats.bufferDepthSec.toFixed(2)} s${late}${resync}`);
                 }
                 break;
             }
@@ -747,22 +747,22 @@ export class AIComposerN3D implements Node3D {
 
 // ─── Factory ──────────────────────────────────────────────────────────────────
 
-// Presets sonores par famille (valeurs RÉELLES). Noms de params = les knobs
-// exposés : temperature + (density | morph) + tempo/velocity/horizon.
+// Sound presets per family (REAL values). Param names = the exposed knobs:
+// temperature + (density | morph) + tempo/velocity/horizon.
 const MELODIC_PRESETS: Record<string, Record<string, number>> = {
-    "Doux & tonal":  { temperature: 0.8, density: 6, tempo: 1.0, velocity: 1.0,  horizon: 2.0 },
-    "Aventureux":    { temperature: 1.3, density: 6, tempo: 1.0, velocity: 1.05, horizon: 2.0 },
-    "Nappe lente":   { temperature: 0.6, density: 2, tempo: 0.6, velocity: 0.9,  horizon: 2.5 },
-    "Lead virtuose": { temperature: 1.0, density: 8, tempo: 1.3, velocity: 1.2,  horizon: 1.5 },
+    "Soft & Tonal":  { temperature: 0.8, density: 6, tempo: 1.0, velocity: 1.0,  horizon: 2.0 },
+    "Adventurous":   { temperature: 1.3, density: 6, tempo: 1.0, velocity: 1.05, horizon: 2.0 },
+    "Slow Pad":      { temperature: 0.6, density: 2, tempo: 0.6, velocity: 0.9,  horizon: 2.5 },
+    "Virtuoso Lead": { temperature: 1.0, density: 8, tempo: 1.3, velocity: 1.2,  horizon: 1.5 },
 };
 const DRUM_PRESETS: Record<string, Record<string, number>> = {
-    "Groove":    { temperature: 0.9, density: 6, tempo: 1.0, velocity: 1.0,  horizon: 2.0 },
-    "Minimal":   { temperature: 0.8, density: 3, tempo: 1.0, velocity: 0.95, horizon: 2.0 },
-    "Chaotique": { temperature: 1.4, density: 8, tempo: 1.0, velocity: 1.1,  horizon: 1.5 },
+    "Groove":  { temperature: 0.9, density: 6, tempo: 1.0, velocity: 1.0,  horizon: 2.0 },
+    "Minimal": { temperature: 0.8, density: 3, tempo: 1.0, velocity: 0.95, horizon: 2.0 },
+    "Chaotic": { temperature: 1.4, density: 8, tempo: 1.0, velocity: 1.1,  horizon: 1.5 },
 };
 const VAE_PRESETS: Record<string, Record<string, number>> = {
     "Phrase A":    { temperature: 0.5, morph: 0.0, tempo: 1.0, velocity: 1.0, horizon: 2.0 },
-    "Entre-deux":  { temperature: 0.5, morph: 0.5, tempo: 1.0, velocity: 1.0, horizon: 2.0 },
+    "In Between":  { temperature: 0.5, morph: 0.5, tempo: 1.0, velocity: 1.0, horizon: 2.0 },
     "Phrase B":    { temperature: 0.5, morph: 1.0, tempo: 1.0, velocity: 1.0, horizon: 2.0 },
     "Exploration": { temperature: 1.0, morph: 0.5, tempo: 1.0, velocity: 1.0, horizon: 2.0 },
 };
@@ -792,58 +792,58 @@ export class AIComposerN3DFactory implements Node3DFactory<AIComposerN3DGUI, AIC
     }
 
     private static readonly COMMON_DESC =
-        " Sortie MIDI à câbler vers un instrument. Potards rotatifs directement " +
-        "manipulables (et câblables en automation) ; écran d'état embarqué ; " +
-        "le cœur lumineux = play/stop.";
+        " MIDI output to wire to an instrument. Rotary knobs you can turn directly " +
+        "(and wire as automation); embedded status screen; the glowing core = " +
+        "play/stop.";
 
     static MELODY = new AIComposerN3DFactory(
         "music_rnn", "melody_rnn",
-        "AI Composer — Mélodie",
-        "Compositeur IA mélodique (Magenta melody_rnn). Flux MIDI monophonique " +
-        "tonal et continu, dirigeable en temps réel. À câbler vers un synthé " +
-        "(Pro54)." + AIComposerN3DFactory.COMMON_DESC,
-        new Color3(0.20, 0.80, 1.00), "MÉLODIE",
-        MELODIC_PRESETS, "Doux & tonal",
+        "AI Composer — Melody",
+        "Melodic AI composer (Magenta melody_rnn). A continuous, tonal monophonic " +
+        "MIDI stream you can steer in real time. Wire to a synth (Pro54)." +
+        AIComposerN3DFactory.COMMON_DESC,
+        new Color3(0.20, 0.80, 1.00), "MELODY",
+        MELODIC_PRESETS, "Soft & Tonal",
     );
 
     static IMPROV = new AIComposerN3DFactory(
         "music_rnn", "chord_pitches_improv",
-        "AI Composer — Impro",
-        "Compositeur IA qui improvise une mélodie sur une grille d'accords " +
-        "(Magenta ImprovRNN, accord de Do par défaut). À câbler vers un synthé." +
+        "AI Composer — Improv",
+        "AI composer that improvises a melody over a chord grid (Magenta ImprovRNN, " +
+        "C chord by default). Wire to a synth." +
         AIComposerN3DFactory.COMMON_DESC,
-        new Color3(1.00, 0.60, 0.15), "IMPRO",
-        MELODIC_PRESETS, "Doux & tonal",
+        new Color3(1.00, 0.60, 0.15), "IMPROV",
+        MELODIC_PRESETS, "Soft & Tonal",
     );
 
     static DRUMS = new AIComposerN3DFactory(
         "music_rnn", "drum_kit_rnn",
-        "AI Composer — Batterie",
-        "Compositeur IA de patterns de batterie (Magenta DrumsRNN, polyphonique, " +
-        "canal MIDI 10). À câbler vers une boîte à rythmes / drum kit WAM." +
+        "AI Composer — Drums",
+        "AI composer for drum patterns (Magenta DrumsRNN, polyphonic, channel 0). " +
+        "Wire to a drum machine / drum-kit WAM." +
         AIComposerN3DFactory.COMMON_DESC,
-        new Color3(0.95, 0.30, 0.25), "BATTERIE",
+        new Color3(0.95, 0.30, 0.25), "DRUMS",
         DRUM_PRESETS, "Groove",
     );
 
     static BASIC = new AIComposerN3DFactory(
         "music_rnn", "basic_rnn",
-        "AI Composer — Mélodie simple",
-        "Compositeur IA mélodique basique (Magenta basic_rnn). Variante plus " +
-        "neutre que melody_rnn, utile comme point de comparaison." +
+        "AI Composer — Simple Melody",
+        "Basic melodic AI composer (Magenta basic_rnn). A more neutral variant than " +
+        "melody_rnn, handy as a baseline for comparison." +
         AIComposerN3DFactory.COMMON_DESC,
-        new Color3(0.55, 0.65, 0.90), "BASIQUE",
-        MELODIC_PRESETS, "Doux & tonal",
+        new Color3(0.55, 0.65, 0.90), "BASIC",
+        MELODIC_PRESETS, "Soft & Tonal",
     );
 
     static VAE = new AIComposerN3DFactory(
-        "music_vae", "melody_rnn",   // variant ignoré pour le VAE
+        "music_vae", "melody_rnn",   // variant ignored for the VAE
         "AI Composer — Latent (VAE)",
-        "Compositeur IA à espace latent (Magenta MusicVAE mel_2bar). Le potard " +
-        "MORPH interpole entre deux phrases-ancres → la musique morphe " +
-        "continûment. Potards : température + morph." +
+        "Latent-space AI composer (Magenta MusicVAE mel_2bar). The MORPH knob " +
+        "interpolates between two anchor phrases → the music morphs continuously. " +
+        "Knobs: temperature + morph." +
         AIComposerN3DFactory.COMMON_DESC,
         new Color3(0.72, 0.42, 1.00), "LATENT VAE",
-        VAE_PRESETS, "Entre-deux",
+        VAE_PRESETS, "In Between",
     );
 }

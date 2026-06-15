@@ -12,16 +12,16 @@ import { setupInstrumentControls, makeClusterButtons, OutputPulser, type Tunable
 // Redimensionnement désormais à deux mains (hôte) → plus de poignée par item.
 const BOID_MAX = 30;
 
-// Presets de formes (recettes de la superformule, valeurs RÉELLES).
+// Shape presets (superformula recipes, REAL values).
 const SF2D_PRESETS: Record<string, Record<string, number>> = {
-    "Étoile 5":    { m: 5,  n1: 1.5, n2: 1.5, n3: 1.5, scale: 0.40, speed: 1.5 },
-    // ⚠ n2=n3=2 donne |cos|²+|sin|²=1 (identité de Pythagore) = CERCLE parfait,
-    // quel que soit m. Pour un vrai triangle (3 côtés), n ≠ 2 : ici un triangle
-    // arrondi façon Gielis (m=3, n1 modéré, n2=n3 élevés → côtés droits).
-    "Triangle":    { m: 3,  n1: 5,   n2: 10,  n3: 10,  scale: 0.40, speed: 1.2 },
-    "Fleur 12":    { m: 12, n1: 1,   n2: 1,   n3: 1,   scale: 0.42, speed: 1.0 },
-    "Cristal":     { m: 4,  n1: 0.3, n2: 0.3, n3: 0.3, scale: 0.38, speed: 1.8 },
-    "Œil/Feuille": { m: 2,  n1: 4,   n2: 0.5, n3: 0.5, scale: 0.40, speed: 1.0 },
+    "5-point Star":   { m: 5,  n1: 1.5, n2: 1.5, n3: 1.5, scale: 0.40, speed: 1.5 },
+    // ⚠ n2=n3=2 gives |cos|²+|sin|²=1 (Pythagorean identity) = a PERFECT CIRCLE,
+    // whatever m is. For a real triangle (3 sides), n ≠ 2: here a Gielis-style
+    // rounded triangle (m=3, moderate n1, high n2=n3 → straight sides).
+    "Triangle":       { m: 3,  n1: 5,   n2: 10,  n3: 10,  scale: 0.40, speed: 1.2 },
+    "12-petal Flower":{ m: 12, n1: 1,   n2: 1,   n3: 1,   scale: 0.42, speed: 1.0 },
+    "Crystal":        { m: 4,  n1: 0.3, n2: 0.3, n3: 0.3, scale: 0.38, speed: 1.8 },
+    "Eye / Leaf":     { m: 2,  n1: 4,   n2: 0.5, n3: 0.5, scale: 0.40, speed: 1.0 },
 };
 
 // ─── Superformula math ────────────────────────────────────────────────────────
@@ -625,21 +625,21 @@ export class SuperformulaN3D implements Node3D {
             release: () => {},
         });
 
-        // ── Cluster standard : ? · Presets · 🎲 · ↺ (applique "Étoile 5" au spawn) ─
+        // ── Standard cluster: ? · Presets · 🎲 · ↺ (applies "5-point Star" on spawn) ─
         setupInstrumentControls(context, {
             title: "Superformula",
-            description: "Contrôleur basé sur la superformule de Gielis. Une boule parcourt " +
-                "une courbe paramétrique modifiable par 6 potards ; son mouvement produit " +
-                "8 métriques d'automation à câbler vers des paramètres WAM. Mode boids.",
+            description: "Controller based on the Gielis superformula. A ball travels along " +
+                "a parametric curve shaped by 6 knobs; its motion produces 8 automation " +
+                "metrics you can wire to any WAM parameter. Boids mode included.",
             legend: [
-                { swatch: "🟡", name: "Potards or (gauche)", role: "Forme : m (pétales), n1 (tranchant), n2 (largeur), n3 (hauteur)" },
-                { swatch: "🟠", name: "Potards orange (droite)", role: "Échelle et vitesse de la boule" },
-                { swatch: "🔵", name: "Disques haut-gauche", role: "Boids : on/off, +, −" },
-                { swatch: "🟢", name: "Sphères du bas", role: "Sorties d'automation : posX/Y, rayon, Δrayon, vitesses, accél., courbure (+ boids)" },
-                { swatch: "✋", name: "Cadre", role: "Saisir à deux mains = redimensionner ; secouer = supprimer" },
+                { swatch: "🟡", name: "Gold knobs (left)", role: "Shape: m (petals), n1 (sharpness), n2 (width), n3 (height)" },
+                { swatch: "🟠", name: "Orange knobs (right)", role: "Ball scale and speed" },
+                { swatch: "🔵", name: "Top-left discs", role: "Boids: on/off, +, −" },
+                { swatch: "🟢", name: "Bottom spheres", role: "Automation outputs: posX/Y, radius, Δradius, speeds, accel., curvature (+ boids)" },
+                { swatch: "✋", name: "Frame", role: "Two-handed grab = resize; shake = delete" },
             ],
             presets: SF2D_PRESETS,
-            defaultPreset: "Étoile 5",
+            defaultPreset: "5-point Star",
             params: tunables,
             helpBtn: gui.cluster.helpBtn,
             presetBtn: gui.cluster.presetBtn,

@@ -47,7 +47,7 @@ export class SessionConnector {
         this.isConnected = true;
         this.sessionLocked = joinInfo.sessionLocked || false;
         this.isTemporary = !!joinInfo.isTemporary;
-        if (this.isTemporary) console.log('[SessionConnector] Session TEMPORAIRE — aucune sauvegarde, état non persisté.');
+        if (this.isTemporary) console.log('[SessionConnector] TEMPORARY session — no saving, state not persisted.');
 
         return {
             participantId: this.participantId,

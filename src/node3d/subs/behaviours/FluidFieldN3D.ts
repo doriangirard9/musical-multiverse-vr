@@ -119,11 +119,11 @@ const BOID_DEFAULT = 30, BOID_STEP = 10, BOID_MAX = 80;
 
 // Presets de comportement (valeurs RÉELLES dans les plages de RANGES + boidCount).
 const FLUID_PRESETS: Record<string, Record<string, number>> = {
-    "Lac calme":   { noiseScale: 0.04, noiseSpeed: 0.001, viscosity: 0.95, vortexRadius: 100, vortexStrength: 3,  boidSpeed: 3,  splatStrength: 0.2, droneNote: 31, boidCount: 15 },
-    "Rivière":     { noiseScale: 0.05, noiseSpeed: 0.003, viscosity: 0.92, vortexRadius: 120, vortexStrength: 5,  boidSpeed: 6,  splatStrength: 0.5, droneNote: 31, boidCount: 30 },
-    "Tempête":     { noiseScale: 0.09, noiseSpeed: 0.012, viscosity: 0.85, vortexRadius: 160, vortexStrength: 9,  boidSpeed: 12, splatStrength: 1.2, droneNote: 28, boidCount: 50 },
-    "Tourbillons": { noiseScale: 0.12, noiseSpeed: 0.004, viscosity: 0.82, vortexRadius: 180, vortexStrength: 10, boidSpeed: 8,  splatStrength: 1.5, droneNote: 33, boidCount: 40 },
-    "Nuée dense":  { noiseScale: 0.06, noiseSpeed: 0.005, viscosity: 0.90, vortexRadius: 120, vortexStrength: 6,  boidSpeed: 14, splatStrength: 2,   droneNote: 31, boidCount: 80 },
+    "Calm Lake":   { noiseScale: 0.04, noiseSpeed: 0.001, viscosity: 0.95, vortexRadius: 100, vortexStrength: 3,  boidSpeed: 3,  splatStrength: 0.2, droneNote: 31, boidCount: 15 },
+    "River":       { noiseScale: 0.05, noiseSpeed: 0.003, viscosity: 0.92, vortexRadius: 120, vortexStrength: 5,  boidSpeed: 6,  splatStrength: 0.5, droneNote: 31, boidCount: 30 },
+    "Storm":       { noiseScale: 0.09, noiseSpeed: 0.012, viscosity: 0.85, vortexRadius: 160, vortexStrength: 9,  boidSpeed: 12, splatStrength: 1.2, droneNote: 28, boidCount: 50 },
+    "Whirlpools":  { noiseScale: 0.12, noiseSpeed: 0.004, viscosity: 0.82, vortexRadius: 180, vortexStrength: 10, boidSpeed: 8,  splatStrength: 1.5, droneNote: 33, boidCount: 40 },
+    "Dense Swarm": { noiseScale: 0.06, noiseSpeed: 0.005, viscosity: 0.90, vortexRadius: 120, vortexStrength: 6,  boidSpeed: 14, splatStrength: 2,   droneNote: 31, boidCount: 80 },
 };
 
 // Plaque locale : 1.6 × 1.0 (les helpers de projection clampent sur ces moitiés)
@@ -444,14 +444,14 @@ export class FluidFieldN3D implements Node3D {
 
         // ── Knobs ─────────────────────────────────────────────────────────────
         const knobLabels: Record<RangeKey, [string, number]> = {
-            noiseScale:     ["Échelle du bruit", 3],
-            noiseSpeed:     ["Évolution", 4],
-            viscosity:      ["Viscosité", 2],
-            vortexRadius:   ["Rayon du vortex", 0],
-            vortexStrength: ["Force du vortex", 1],
-            boidSpeed:      ["Vitesse boids", 1],
-            splatStrength:  ["Force du sillage", 2],
-            droneNote:      ["Note du drone", 0],
+            noiseScale:     ["Noise Scale", 3],
+            noiseSpeed:     ["Evolution", 4],
+            viscosity:      ["Viscosity", 2],
+            vortexRadius:   ["Vortex Radius", 0],
+            vortexStrength: ["Vortex Strength", 1],
+            boidSpeed:      ["Boid Speed", 1],
+            splatStrength:  ["Wake Strength", 2],
+            droneNote:      ["Drone Note", 0],
         };
         const tunables: TunableParam[] = [];
         for (const key of Object.keys(RANGES) as RangeKey[]) {
@@ -570,26 +570,26 @@ export class FluidFieldN3D implements Node3D {
         );
         gui.plaque.addBehavior(grab);
 
-        // ── Cluster standard : ? · Presets · 🎲 · ↺ (applique "Rivière" au spawn) ─
+        // ── Standard cluster: ? · Presets · 🎲 · ↺ (applies "River" on spawn) ─
         setupInstrumentControls(context, {
             title: "Fluid Field",
-            description: "Champ de fluide en bruit de Perlin. Les courants évoluent ; " +
-                "laser + gâchette injecte un vortex ; des boids suivent le flux et laissent " +
-                "des sillages. Sorties d'automation : Disturbance (énergie), Curl " +
-                "(tourbillons), Swarm X/Y. L'audio traverse un panner piloté par Swarm X. " +
-                "Le drone (bouton) envoie une note MIDI à câbler vers un synthé.",
+            description: "Perlin-noise fluid field. Currents evolve; laser + trigger " +
+                "injects a vortex; boids follow the flow and leave wakes. Automation " +
+                "outputs: Disturbance (energy), Curl (vortices), Swarm X/Y. Audio passes " +
+                "through a panner driven by Swarm X. The drone (button) sends a MIDI note " +
+                "to wire to a synth.",
             legend: [
-                { swatch: "🟦", name: "Potards sarcelle (gauche)", role: "Courants de base : échelle & évolution du bruit" },
-                { swatch: "🟥", name: "Potards rouges", role: "Physique : viscosité, rayon & force du vortex" },
-                { swatch: "🟧", name: "Potards orange", role: "Boids : vitesse, force du sillage" },
-                { swatch: "🟨", name: "Potard or", role: "Note du drone (hauteur du Sol grave)" },
-                { swatch: "🟢", name: "Disques haut-gauche", role: "± boids (par 10)" },
-                { swatch: "🟩", name: "Disque vert/rouge (droite)", role: "Drone on/off (sortie MIDI)" },
-                { swatch: "🔴", name: "Sphères du bas", role: "Sorties : Disturbance, Curl, Swarm X/Y" },
-                { swatch: "✋", name: "Cadre", role: "Saisir à deux mains = redimensionner ; secouer = supprimer" },
+                { swatch: "🟦", name: "Teal knobs (left)", role: "Base currents: noise scale & evolution" },
+                { swatch: "🟥", name: "Red knobs", role: "Physics: viscosity, vortex radius & strength" },
+                { swatch: "🟧", name: "Orange knobs", role: "Boids: speed, wake strength" },
+                { swatch: "🟨", name: "Gold knob", role: "Drone note (pitch of the low drone)" },
+                { swatch: "🟢", name: "Top-left discs", role: "± boids (by 10)" },
+                { swatch: "🟩", name: "Green/red disc (right)", role: "Drone on/off (MIDI output)" },
+                { swatch: "🔴", name: "Bottom spheres", role: "Outputs: Disturbance, Curl, Swarm X/Y" },
+                { swatch: "✋", name: "Frame", role: "Two-handed grab = resize; shake = delete" },
             ],
             presets: FLUID_PRESETS,
-            defaultPreset: "Rivière",
+            defaultPreset: "River",
             params: tunables,
             helpBtn: gui.cluster.helpBtn,
             presetBtn: gui.cluster.presetBtn,
@@ -907,15 +907,14 @@ export class FluidFieldN3DFactory implements Node3DFactory<FluidFieldN3DGUI, Flu
     static DEFAULT = new FluidFieldN3DFactory(
         5.0,
         "Fluid Field",
-        "Champ de fluide en bruit de Perlin (port du sketch p5). Grand canvas : " +
-        "des courants évoluent en continu ; pointer le laser + gâchette injecte " +
-        "un VORTEX ; des boids suivent le courant et laissent des sillages. " +
-        "Sorties d'automation : Disturbance (énergie du fluide — le sketch la " +
-        "mappait sur cutoff/overdrive), Curl (tourbillons — résonance/delay), " +
-        "Swarm X/Y (centre de masse). L'audio traverse un PANNER stéréo piloté " +
-        "par Swarm X. Bouton drone : Sol grave retriggé chaque seconde sur la " +
-        "sortie MIDI (câbler vers un synthé). 8 knobs : échelle/évolution du " +
-        "bruit, viscosité, rayon/force du vortex, vitesse des boids, force du " +
-        "sillage, note du drone. Boutons ±10 boids. Redimensionnement à deux mains.",
+        "Perlin-noise fluid field (port of the p5 sketch). Large canvas: currents " +
+        "evolve continuously; aiming the laser + trigger injects a VORTEX; boids " +
+        "follow the flow and leave wakes. Automation outputs: Disturbance (fluid " +
+        "energy — the sketch mapped it to cutoff/overdrive), Curl (vortices — " +
+        "resonance/delay), Swarm X/Y (center of mass). Audio passes through a stereo " +
+        "PANNER driven by Swarm X. Drone button: a low G retriggered every second on " +
+        "the MIDI output (wire to a synth). 8 knobs: noise scale/evolution, " +
+        "viscosity, vortex radius/strength, boid speed, wake strength, drone note. " +
+        "±10 boid buttons. Two-handed resize.",
     );
 }

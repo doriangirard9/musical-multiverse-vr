@@ -75,7 +75,7 @@ export function setupInstrumentControls(
             const p = byName.get(pname);
             if (p) p.setNorm(clamp01((real - p.min) / (p.max - p.min)));
         }
-        context.showMessage(`Preset : ${name}`);
+        context.showMessage(`Preset: ${name}`);
     };
 
     const mutate = () => {
@@ -87,7 +87,7 @@ export function setupInstrumentControls(
 
     const reset = () => {
         applyPreset(opts.defaultPreset);
-        context.showMessage("↺ Réglages par défaut");
+        context.showMessage("↺ Defaults");
     };
 
     // ── ? : aide → PANNEAU déroulant complet ───────────────────────────────
@@ -143,7 +143,7 @@ export function setupInstrumentControls(
         };
         addText(`◈ ${opts.title}`, 46, "#7fdfff", true);
         addText(opts.description, 30, "#e6f2f7");
-        addText("Contrôles :", 32, "#9fd8e8", true);
+        addText("Controls:", 32, "#9fd8e8", true);
         for (const e of opts.legend) addText(`${e.swatch}  ${e.name} — ${e.role}`, 27, "#cfe6ee");
 
         panel.setEnabled(false);
@@ -153,7 +153,7 @@ export function setupInstrumentControls(
     context.createButton({
         id: "help",
         meshes: [opts.helpBtn],
-        label: "Aide / ?",
+        label: "Help / ?",
         color: new Color3(0.2, 0.6, 1.0),
         press: () => {
             if (!helpPanel) buildHelpPanel();
@@ -181,7 +181,7 @@ export function setupInstrumentControls(
     context.createButton({
         id: "mutate",
         meshes: [opts.mutateBtn],
-        label: "🎲 Mutation",
+        label: "🎲 Mutate",
         color: new Color3(0.7, 0.4, 1.0),
         press: () => mutate(),
         release: () => {},
