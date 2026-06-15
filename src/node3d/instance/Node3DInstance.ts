@@ -250,7 +250,7 @@ export class Node3DInstance implements Synchronized {
         size.scaleInPlace(.5)
         this.bounding_mesh.position.subtractInPlace(bounds.min).subtractInPlace(size)
         //this.bounding_mesh.isVisible = false
-        this.bounding_mesh.visibility = 0.1
+        this.bounding_mesh.visibility = 0
         this.bounding_mesh.receiveShadows
         this.bounding_mesh.checkCollisions = false
         this.bounding_mesh.isPickable = false

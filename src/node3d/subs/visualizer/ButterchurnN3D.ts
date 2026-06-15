@@ -24,7 +24,11 @@ export class ButterchurnN3DGUI implements Node3DGUI {
         this.block = B.CreateBox("butterchurn box", { width: 1.8, height: 0.3, depth: 1.5 }, context.scene);
         this.block.parent = this.root;
         this.block.position.y = -0.15;
-        T.MeshUtils.setColor(this.block, new B.Color4(0.2, 0.2, 0.2, 1));
+        
+        const boxMat = new B.StandardMaterial("butterchurnMat", scene);
+        boxMat.diffuseTexture = new B.Texture("/textures/butterchurn/ButterchurnBody.png", scene);
+        boxMat.emissiveTexture = boxMat.diffuseTexture; // Make it pop more
+        this.block.material = boxMat;
 
         this.audioInput = T.ConnectableUtils.createInputMesh("audio input", 0.3, context.scene);
         this.audioInput.parent = this.root;
@@ -58,6 +62,30 @@ export class ButterchurnN3DGUI implements Node3DGUI {
 
         this._scene = scene;
         this.updateLabel("Butterchurn");
+
+        // Component Name Label on the front edge of the box
+        const namePlane = B.CreatePlane("name label", { width: 1.8, height: 0.3 }, scene);
+        namePlane.parent = this.block;
+        namePlane.position.set(0, 0, -0.751); // slightly in front of the front face
+        namePlane.isPickable = false;
+
+        const nameTexture = new B.DynamicTexture("nameDT", { width: 512, height: 128 }, scene, true);
+        const nameMat = new B.StandardMaterial("nameMat", scene);
+        nameMat.diffuseTexture = nameTexture;
+        nameMat.emissiveTexture = nameTexture;
+        nameMat.disableLighting = true;
+        nameMat.backFaceCulling = false;
+        nameMat.useAlphaFromDiffuseTexture = true;
+        namePlane.material = nameMat;
+
+        const nctx = nameTexture.getContext();
+        nctx.clearRect(0, 0, 512, 128);
+        nctx.font = "bold 60px Arial";
+        nctx.fillStyle = "white";
+        nctx.textAlign = "center";
+        nctx.textBaseline = "middle";
+        nctx.fillText("BUTTERCHURN", 256, 64);
+        nameTexture.update();
     }
 
     private _scene: any;
