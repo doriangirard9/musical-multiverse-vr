@@ -1,5 +1,5 @@
 import { CreatePlane, Mesh, Scene, Quaternion, Vector3, Observable } from "@babylonjs/core"
-import { AdvancedDynamicTexture, Control, Rectangle } from "@babylonjs/gui"
+import { AdvancedDynamicTexture, Control, Rectangle, ScrollViewer } from "@babylonjs/gui"
 import { InputToPointerBehavior } from "../xr/inputs/tools/InputToPointer"
 import { PointerInput } from "../xr/inputs/PointerInput"
 import { N3DText } from "../node3d/instance/utils/N3DText"
@@ -8,6 +8,19 @@ export class AbstractMenu {
     protected plane!: Mesh
     protected texture!: AdvancedDynamicTexture
     protected label?: N3DText
+
+    /** Subclasses set this to their scrollable content so thumbsticks can scroll it. */
+    public scrollViewer?: ScrollViewer
+
+    /** Scroll the menu by a fraction of its range (joystick scrolling). No-op if
+     *  the menu has no scroll or no overflow. dy>0 scrolls down, dy<0 scrolls up. */
+    public scrollByFraction(dy: number): void {
+        const bar = this.scrollViewer?.verticalBar
+        if (!bar) return
+        const min = bar.minimum ?? 0
+        const max = bar.maximum ?? 1
+        bar.value = Math.max(min, Math.min(max, bar.value + dy * (max - min)))
+    }
 
     constructor(
         protected scene: Scene,

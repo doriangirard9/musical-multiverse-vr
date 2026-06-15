@@ -29,6 +29,7 @@ export class ChoiceMenu extends AbstractMenu {
 
         const scroll = new ScrollViewer()
         scroll.background = "rgb(0,0,0,0.5)"
+        this.scrollViewer = scroll   // enable joystick scrolling
 
         const buttons = this.buttons = new StackPanel()
         buttons.isVertical = true

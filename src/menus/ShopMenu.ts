@@ -5,6 +5,11 @@ import { AbstractMenu } from "./AbstractMenu"
 
 export class ShopMenu extends AbstractMenu {
 
+    // Guard against double-spawn: the item button can receive pointer-up more
+    // than once (both controllers / event re-dispatch) → spawned the node twice.
+    // Allow at most one spawn per shop opening; reset in show().
+    private spawnedThisOpen = false
+
     constructor(
         scene: Scene,
         renderScene: Scene,
@@ -212,6 +217,7 @@ export class ShopMenu extends AbstractMenu {
         scroll.width = "100%"
         scroll.height = "100%"
         root.addControl(scroll)
+        this.scrollViewer = scroll   // enable joystick scrolling (latest item list)
 
         const stack = Array.from({ length: columns }, (_, i) => {
             const stack = new StackPanel()
@@ -268,6 +274,8 @@ export class ShopMenu extends AbstractMenu {
             this.label!.updatePosition()
         }
         container.pointerUpAnimation = () => {
+            if (this.spawnedThisOpen) return   // ignore duplicate pointer-up events
+            this.spawnedThisOpen = true
             this.hide()
             Node3dManager.getInstance().addNode3d(kind, this.plane.absolutePosition.clone())
         }
@@ -288,6 +296,7 @@ export class ShopMenu extends AbstractMenu {
 
     override show() {
         super.show()
+        this.spawnedThisOpen = false   // allow one spawn per opening
         this.updateClipboard()
     }
 
