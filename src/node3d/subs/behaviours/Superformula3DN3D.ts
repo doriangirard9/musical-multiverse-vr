@@ -7,6 +7,7 @@ import type { Node3DContext } from "../../Node3DContext";
 import type { Node3DGUIContext } from "../../Node3DGUIContext";
 import type { AutomationN3DConnectable } from "../../tools";
 import { BoidSwarm } from "./steering/Boid";
+import { setupInstrumentControls, makeClusterButtons, OutputPulser, type TunableParam, type ClusterButtons } from "./instrumentControls";
 
 // ─── Superformula3DN3D — supershape de Gielis en 3D ──────────────────────────
 //
@@ -73,6 +74,17 @@ const SHAPE_KEYS: RangeKey[] = ["mA", "n1A", "n2A", "n3A", "mB", "n1B", "n2B", "
 
 const BOID_MAX = 30;
 
+// Presets de formes (valeurs RÉELLES dans les plages de RANGES). Le lissage du
+// morphing rend les transitions entre presets fluides.
+const SF3D_PRESETS: Record<string, Record<string, number>> = {
+    "Sphère":    { mA: 8,  n1A: 8,   n2A: 8,   n3A: 8,   mB: 8,  n1B: 8,   n2B: 8,   n3B: 8,   scale: 0.34, speed: 0.5 },
+    "Fleur":     { mA: 6,  n1A: 1,   n2A: 1.7, n3A: 1.7, mB: 3,  n1B: 1,   n2B: 1.5, n3B: 1.5, scale: 0.32, speed: 0.6 },
+    "Étoile":    { mA: 7,  n1A: 0.3, n2A: 0.4, n3A: 0.4, mB: 7,  n1B: 0.3, n2B: 0.4, n3B: 0.4, scale: 0.30, speed: 0.8 },
+    "Cristal":   { mA: 3,  n1A: 0.4, n2A: 0.5, n3A: 0.5, mB: 4,  n1B: 0.4, n2B: 0.5, n3B: 0.5, scale: 0.30, speed: 1.0 },
+    "Astéroïde": { mA: 5,  n1A: 1.2, n2A: 2.5, n3A: 0.6, mB: 6,  n1B: 1.5, n2B: 0.6, n3B: 2.2, scale: 0.30, speed: 0.4 },
+    "Galaxie":   { mA: 12, n1A: 0.6, n2A: 1,   n3A: 1,   mB: 2,  n1B: 2,   n2B: 1,   n3B: 1,   scale: 0.36, speed: 2.5 },
+};
+
 const norm   = (key: RangeKey, v: number) => (v - RANGES[key].min) / (RANGES[key].max - RANGES[key].min);
 const denorm = (key: RangeKey, t: number) => RANGES[key].min + Math.max(0, Math.min(1, t)) * (RANGES[key].max - RANGES[key].min);
 
@@ -127,6 +139,9 @@ export class Superformula3DN3DGUI implements Node3DGUI {
     boidToggleMat!: StandardMaterial;
     outBoidCx!: AbstractMesh;  outBoidCy!: AbstractMesh;  outBoidCz!: AbstractMesh;
     outBoidDisp!: AbstractMesh; outBoidAlign!: AbstractMesh; outBoidVort!: AbstractMesh;
+
+    // Cluster standard : ? · Presets · 🎲 · ↺
+    cluster!: ClusterButtons;
 
     // Buffers réutilisés du mesh (positions/normales/couleurs ; indices fixes)
     private positions!: Float32Array;
@@ -364,6 +379,9 @@ export class Superformula3DN3DGUI implements Node3DGUI {
         this.btnBoidRemove = mkDisc("sf3d_boid_remove", 0.08, new Color3(0.85, 0.2, 0.3));
         this.btnBoidRemove.position.set(-0.22, 0.70, 0);
 
+        // Cluster standard ? · Presets · 🎲 · ↺ — au-dessus de la cage, centré
+        this.cluster = makeClusterButtons(B, scene, this.root, { x: -0.24, y: 0.86, z: 0 });
+
         // L'essaim vit dans l'espace de la forme (suit sa rotation, comme la boule)
         this.boidContainer = new B.TransformNode("sf3d_boid_container", scene);
         this.boidContainer.parent = this.shapeRoot;
@@ -552,23 +570,30 @@ export class Superformula3DN3D implements Node3D {
             ["ballY", "Boule Y",         2],
             ["ballZ", "Boule Z",         2],
         ];
+        // Paramètres pilotables par le cluster (presets/mutation) : la FORME
+        // uniquement (on exclut ballX/Y/Z qui sont de la performance live).
+        const tunables: TunableParam[] = [];
         for (const [key, label, decimals] of knobDefs) {
             const mesh = gui.knobs[key];
             const updateVisual = () => mesh.scaling.setAll(0.6 + norm(key, this.target[key]) * 0.6);
             updateVisual();
+            const setNorm = (v01: number) => {
+                this.target[key] = denorm(key, v01);
+                updateVisual();
+                context.notifyStateChange(key);
+            };
             context.createParameter({
                 id: key,
                 meshes: [mesh],
                 getLabel: () => label,
                 getStepCount: () => 0,
                 getValue: () => norm(key, this.target[key]),
-                setValue: (v01: number) => {
-                    this.target[key] = denorm(key, v01);
-                    updateVisual();
-                    context.notifyStateChange(key);
-                },
+                setValue: setNorm,
                 stringify: (v01: number) => `${label}: ${denorm(key, v01).toFixed(decimals)}`,
             });
+            if (key !== "ballX" && key !== "ballY" && key !== "ballZ") {
+                tunables.push({ name: key, min: RANGES[key].min, max: RANGES[key].max, getNorm: () => norm(key, this.target[key]), setNorm });
+            }
         }
 
         // (Redimensionnement à deux mains géré par l'hôte → pas de userScale.)
@@ -631,6 +656,37 @@ export class Superformula3DN3D implements Node3D {
             this.boidOuts[id] = out;
             context.createConnectable(out);
         }
+
+        // ── Cluster standard : ? · Presets · 🎲 · ↺ (applique "Fleur" au spawn) ─
+        setupInstrumentControls(context, {
+            title: "Superformula 3D",
+            description: "Supershape de Gielis 3D. Les 8 potards sculptent la surface " +
+                "(2 profils A/B) ; elle morphe en douceur. Une boule parcourt la surface, " +
+                "ses métriques de mouvement 3D sortent en automation. Boule X/Y/Z visent " +
+                "un point (centrés = spirale auto). Mode boids 3D.",
+            legend: [
+                { swatch: "🟡", name: "Potards or (gauche)", role: "Profil A : m, n1, n2, n3 (forme de l'équateur)" },
+                { swatch: "🟣", name: "Potards magenta (droite)", role: "Profil B : m, n1, n2, n3 (forme du méridien)" },
+                { swatch: "🟠", name: "Potards orange (bas)", role: "Échelle et vitesse de la boule" },
+                { swatch: "🌸", name: "Potards roses", role: "Boule X/Y/Z — visent un point de la surface ; centrés = spirale auto" },
+                { swatch: "🔵", name: "Disques haut-gauche", role: "Boids 3D : on/off, +, −" },
+                { swatch: "🟢", name: "Sphères du bas", role: "Sorties d'automation : posX/Y/Z, rayon, vitesse, accél., courbure (+ métriques boids)" },
+                { swatch: "✋", name: "Cage", role: "Saisir à deux mains = redimensionner ; secouer = supprimer" },
+            ],
+            presets: SF3D_PRESETS,
+            defaultPreset: "Fleur",
+            params: tunables,
+            helpBtn: gui.cluster.helpBtn,
+            presetBtn: gui.cluster.presetBtn,
+            mutateBtn: gui.cluster.mutateBtn,
+            resetBtn: gui.cluster.resetBtn,
+        });
+
+        // Pulse des 8 sorties motion ∝ valeur (on voit l'activité d'un coup d'œil)
+        const pulser = new OutputPulser([
+            gui.outPosX, gui.outPosY, gui.outPosZ, gui.outRadius,
+            gui.outRadiusDelta, gui.outSpeed, gui.outAcceleration, gui.outCurvature,
+        ]);
 
         console.log("[Superformula3D] SPAWNED");
 
@@ -750,6 +806,10 @@ export class Superformula3DN3D implements Node3D {
             this.outs.speed.value       = c01(speedMag / 8.0);
             this.outs.accel.value       = c01(accMag / 50.0);
             this.outs.curvature.value   = c01(curvature / (Math.PI / 2));
+            pulser.update([
+                this.outs.posX.value, this.outs.posY.value, this.outs.posZ.value, this.outs.radius.value,
+                this.outs.radiusDelta.value, this.outs.speed.value, this.outs.accel.value, this.outs.curvature.value,
+            ], dt);
 
             // 4. Boids : l'essaim chasse la boule (no-op si désactivé) puis
             //    ses métriques agrégées partent en automation.

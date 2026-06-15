@@ -6,6 +6,7 @@ import type { Node3DGUIContext } from "../../Node3DGUIContext";
 import type { AutomationN3DConnectable } from "../../tools";
 import type { PointerInput } from "../../../xr/inputs/PointerInput";
 import { BoidSwarm } from "./steering/Boid";
+import { setupInstrumentControls, makeClusterButtons, OutputPulser, type ClusterButtons } from "./instrumentControls";
 
 // Le redimensionnement se fait désormais à DEUX MAINS (TwoPointerHoldBehaviour
 // au niveau de l'hôte) → plus de poignée de resize par instrument.
@@ -52,6 +53,7 @@ export class AudioPlaqueN3DGUI implements Node3DGUI {
 
     // Parent for boid meshes so they scale with the plaque
     boidContainer!: TransformNode;
+    cluster!: ClusterButtons;
 
     constructor(public factory: AudioPlaqueN3DFactory) { }
 
@@ -251,6 +253,9 @@ export class AudioPlaqueN3DGUI implements Node3DGUI {
         // plaque local space so they scale with gui.root.
         this.boidContainer = new B.TransformNode("boid_container", context.scene);
         this.boidContainer.parent = this.root;
+
+        // Cluster standard ? · Presets · 🎲 · ↺ — haut-droite (à droite de X out)
+        this.cluster = makeClusterButtons(B, context.scene, this.root, { x: 0.28, y: 0.65, z: 0 }, 0.14);
     }
 
     /**
@@ -512,6 +517,44 @@ export class AudioPlaqueN3D implements Node3D {
             release: () => {},
         });
 
+        // ── Cluster standard : ? · Presets · 🎲 · ↺ ───────────────────────────
+        // Pad simple : seul l'effectif de l'essaim est "réglable" ; l'aide est
+        // la vraie valeur ajoutée ici.
+        setupInstrumentControls(context, {
+            title: "Audio Plaque",
+            description: "Pavé XY : une boule suit le laser sur la surface. L'audio passe " +
+                "à travers ; les positions X/Y (0..1) + 5 métriques d'essaim sortent en " +
+                "automation, à câbler vers n'importe quel paramètre WAM.",
+            legend: [
+                { swatch: "🟥", name: "Sphère rouge (haut)", role: "Sortie X de la boule (0..1)" },
+                { swatch: "🟦", name: "Sphère bleue (bas)", role: "Sortie Y de la boule (0..1)" },
+                { swatch: "🟢", name: "Sphères vertes (côtés)", role: "Audio in / out (passe à travers)" },
+                { swatch: "🔵", name: "Disques haut-gauche", role: "Boids : on/off, +, −" },
+                { swatch: "🌸", name: "Sphères bas (rangée)", role: "Métriques d'essaim : centroïde X/Y, dispersion, alignement, vorticité" },
+                { swatch: "✋", name: "Cadre", role: "Saisir à deux mains = redimensionner ; secouer = supprimer" },
+            ],
+            presets: {
+                "Solo":         { boidCount: 0 },
+                "Petit groupe": { boidCount: 8 },
+                "Nuée":         { boidCount: 25 },
+            },
+            defaultPreset: "Petit groupe",
+            params: [{
+                name: "boidCount", min: 0, max: BOID_MAX,
+                getNorm: () => this.boidCount / BOID_MAX,
+                setNorm: (v01: number) => {
+                    this.boidCount = Math.round(Math.max(0, Math.min(1, v01)) * BOID_MAX);
+                    this.swarm.setCount(this.boidCount);
+                    context.notifyStateChange("boidCount");
+                },
+            }],
+            helpBtn: gui.cluster.helpBtn,
+            presetBtn: gui.cluster.presetBtn,
+            mutateBtn: gui.cluster.mutateBtn,
+            resetBtn: gui.cluster.resetBtn,
+        });
+        const pulser = new OutputPulser([gui.xOutput, gui.yOutput]);
+
         // ── Helper: pointer → plaque-local target ─────────────────────────────
         //
         //   Two paths, both ending in projectOntoPlaque() for the final
@@ -640,6 +683,7 @@ export class AudioPlaqueN3D implements Node3D {
             const ny = bp.y + 0.5;   // 0 .. 1
             if (Math.abs(nx - lastX) > VALUE_EPS) { this.xOut.value = nx; lastX = nx; }
             if (Math.abs(ny - lastY) > VALUE_EPS) { this.yOut.value = ny; lastY = ny; }
+            pulser.update([nx, ny], dt);
 
             // 3. Boid swarm — chase the ball (no-op when boidMode is OFF)
             this.swarm.update(bp, dt);

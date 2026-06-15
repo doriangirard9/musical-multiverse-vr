@@ -1,5 +1,5 @@
 import * as Y from 'yjs';
-import { SessionAPIClient, JoinResponse } from './SessionAPIClient.ts';
+import { SessionAPIClient } from './SessionAPIClient.ts';
 import { Serialization } from '../app/Serialization.ts';
 import { Node3DInstance } from '../node3d/instance/Node3DInstance.ts';
 import { NetworkManager } from './NetworkManager.ts';
@@ -19,6 +19,8 @@ export class SessionConnector {
     private heartbeatInterval: ReturnType<typeof setInterval> | null = null;
     private saveInterval: ReturnType<typeof setInterval> | null = null;
     private isConnected = false;
+    /** Session temporaire (éphémère) → aucune sauvegarde, état jamais persisté. */
+    private isTemporary = false;
 
     constructor(
         private readonly sessionId: string,
@@ -44,6 +46,8 @@ export class SessionConnector {
         const joinInfo = await this.api.joinSession(this.sessionId, this.shareToken);
         this.participantId = joinInfo.participantId;
         this.isConnected = true;
+        this.isTemporary = !!joinInfo.isTemporary;
+        if (this.isTemporary) console.log('[SessionConnector] Session TEMPORAIRE — aucune sauvegarde, état non persisté.');
 
         return {
             participantId: this.participantId,
@@ -103,8 +107,10 @@ export class SessionConnector {
         // 3. Start Heartbeat
         this.startHeartbeat();
 
-        // 4. Start auto-save
-        this.startAutoSave();
+        // 4. Start auto-save — SAUF si la session est temporaire (jamais persistée).
+        if (!this.isTemporary) {
+            this.startAutoSave();
+        }
     }
 
     /**

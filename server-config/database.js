@@ -59,6 +59,7 @@ function initDatabase() {
             max_users INTEGER DEFAULT 32,
             share_token TEXT UNIQUE,
             crdt_data TEXT,
+            is_temporary INTEGER DEFAULT 0,
             created_at TEXT DEFAULT (datetime('now')),
             updated_at TEXT DEFAULT (datetime('now'))
         );
@@ -89,6 +90,22 @@ function initDatabase() {
         CREATE INDEX IF NOT EXISTS idx_session_participants_heartbeat ON session_participants(last_heartbeat);
         CREATE INDEX IF NOT EXISTS idx_authorized_users_user_id ON authorized_users(user_id);
     `);
+
+    // ── Migration : ajoute sessions.is_temporary sur les bases existantes ────
+    const sessionCols = db.prepare("PRAGMA table_info(sessions)").all();
+    if (!sessionCols.some(c => c.name === 'is_temporary')) {
+        db.exec("ALTER TABLE sessions ADD COLUMN is_temporary INTEGER DEFAULT 0");
+        console.log('[Database] Migration : colonne sessions.is_temporary ajoutée');
+    }
+
+    // ── Utilisateur système + projet éphémère pour les sessions temporaires ──
+    // Les sessions temporaires référencent ce projet réservé : aucune session
+    // jetable ne pollue les projets des utilisateurs, et la contrainte FK
+    // project_id NOT NULL reste satisfaite. Le mot de passe '!' est inutilisable.
+    db.prepare("INSERT OR IGNORE INTO users (id, username, password_hash) VALUES (?, ?, ?)")
+        .run('__system__', '__system__', '!');
+    db.prepare("INSERT OR IGNORE INTO projects (id, name, owner_id) VALUES (?, ?, ?)")
+        .run('__ephemeral__', 'Sessions temporaires', '__system__');
 
     console.log('[Database] SQLite initialized at', DB_PATH);
     return db;

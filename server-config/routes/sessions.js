@@ -111,6 +111,37 @@ router.post('/', requireAuth, (req, res) => {
 });
 
 /**
+ * POST /api/sessions/temporary
+ * Crée une session 100% NON PERSISTANTE (éphémère). Pas de projet requis
+ * (référence le projet réservé __ephemeral__), accessible aux invités
+ * (optionalAuth). Son crdt_data n'est jamais écrit (cf. /save) et elle est
+ * supprimée dès qu'elle se vide (cf. heartbeat).
+ * Body: { name?, maxUsers? }
+ */
+router.post('/temporary', optionalAuth, (req, res) => {
+    try {
+        const { name, maxUsers = 32 } = req.body || {};
+        const db = getDb();
+
+        const id = uuidv4();
+        const shareToken = crypto.randomBytes(16).toString('hex');
+        const sessionName = (name && name.trim())
+            || `Session temporaire ${new Date().toISOString().slice(11, 19)}`;
+
+        db.prepare(`
+            INSERT INTO sessions (id, project_id, name, is_public, max_users, share_token, is_temporary)
+            VALUES (?, '__ephemeral__', ?, 1, ?, ?, 1)
+        `).run(id, sessionName, maxUsers, shareToken);
+
+        const session = db.prepare('SELECT * FROM sessions WHERE id = ?').get(id);
+        res.status(201).json({ session });
+    } catch (error) {
+        console.error('[Sessions] Create temporary error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+/**
  * PUT /api/sessions/:id
  */
 router.put('/:id', requireAuth, (req, res) => {
@@ -206,6 +237,7 @@ router.post('/:id/join', optionalAuth, (req, res) => {
             participantNumber,
             sessionName: session.name,
             maxUsers: session.max_users,
+            isTemporary: !!session.is_temporary,
         };
 
         // If this is the first participant, send CRDT data
@@ -282,6 +314,12 @@ router.post('/:id/save', (req, res) => {
         // Verify participant exists
         const participant = db.prepare('SELECT * FROM session_participants WHERE participant_id = ? AND session_id = ?').get(participantId, req.params.id);
         if (!participant) return res.status(403).json({ error: 'Not a participant of this session' });
+
+        // Session TEMPORAIRE → on ne persiste jamais l'état (no-op silencieux).
+        const meta = db.prepare('SELECT is_temporary FROM sessions WHERE id = ?').get(req.params.id);
+        if (meta?.is_temporary) {
+            return res.json({ message: 'Temporary session — not persisted' });
+        }
 
         // Data loss protection
         const session = db.prepare('SELECT crdt_data FROM sessions WHERE id = ?').get(req.params.id);

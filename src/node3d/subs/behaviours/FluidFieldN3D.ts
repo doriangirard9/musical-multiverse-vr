@@ -7,6 +7,7 @@ import type { Node3DContext } from "../../Node3DContext";
 import type { Node3DGUIContext } from "../../Node3DGUIContext";
 import type { AutomationN3DConnectable, MidiN3DConnectable } from "../../tools";
 import type { PointerInput } from "../../../xr/inputs/PointerInput";
+import { setupInstrumentControls, makeClusterButtons, OutputPulser, type TunableParam, type ClusterButtons } from "./instrumentControls";
 
 // ─── FluidFieldN3D — champ de fluide Perlin réactif ──────────────────────────
 //
@@ -116,6 +117,15 @@ const ROWS = Math.floor(TEX_H / CELL) + 1;   // 26
 const SIM_STEP = 1 / 60;               // pas fixe : les constantes p5 restent valides
 const BOID_DEFAULT = 30, BOID_STEP = 10, BOID_MAX = 80;
 
+// Presets de comportement (valeurs RÉELLES dans les plages de RANGES + boidCount).
+const FLUID_PRESETS: Record<string, Record<string, number>> = {
+    "Lac calme":   { noiseScale: 0.04, noiseSpeed: 0.001, viscosity: 0.95, vortexRadius: 100, vortexStrength: 3,  boidSpeed: 3,  splatStrength: 0.2, droneNote: 31, boidCount: 15 },
+    "Rivière":     { noiseScale: 0.05, noiseSpeed: 0.003, viscosity: 0.92, vortexRadius: 120, vortexStrength: 5,  boidSpeed: 6,  splatStrength: 0.5, droneNote: 31, boidCount: 30 },
+    "Tempête":     { noiseScale: 0.09, noiseSpeed: 0.012, viscosity: 0.85, vortexRadius: 160, vortexStrength: 9,  boidSpeed: 12, splatStrength: 1.2, droneNote: 28, boidCount: 50 },
+    "Tourbillons": { noiseScale: 0.12, noiseSpeed: 0.004, viscosity: 0.82, vortexRadius: 180, vortexStrength: 10, boidSpeed: 8,  splatStrength: 1.5, droneNote: 33, boidCount: 40 },
+    "Nuée dense":  { noiseScale: 0.06, noiseSpeed: 0.005, viscosity: 0.90, vortexRadius: 120, vortexStrength: 6,  boidSpeed: 14, splatStrength: 2,   droneNote: 31, boidCount: 80 },
+};
+
 // Plaque locale : 1.6 × 1.0 (les helpers de projection clampent sur ces moitiés)
 const HALF_W = 0.8, HALF_H = 0.5;
 
@@ -157,6 +167,7 @@ export class FluidFieldN3DGUI implements Node3DGUI {
     btnBoidRemove!: AbstractMesh;
     btnDrone!: AbstractMesh;
     droneMat!: StandardMaterial;
+    cluster!: ClusterButtons;
 
     outDisturbance!: AbstractMesh;
     outCurl!: AbstractMesh;
@@ -309,7 +320,8 @@ export class FluidFieldN3DGUI implements Node3DGUI {
         this.outSwarmX      = mkOut("fluid_out_swarmx",  0.15, new Color4(1.00, 0.40, 0.70, 1));  // rose
         this.outSwarmY      = mkOut("fluid_out_swarmy",  0.45, new Color4(0.40, 0.70, 1.00, 1));  // bleu clair
 
-        // (Plus de poignée de resize : redimensionnement à deux mains via l'hôte.)
+        // Cluster standard ? · Presets · 🎲 · ↺ — haut-centre (entre boids et drone)
+        this.cluster = makeClusterButtons(B, scene, this.root, { x: -0.24, y: 0.62, z: 0 });
     }
 
     // ── Projection monde → local plaque (copie de l'AudioPlaque, clamps 1.6×1) ─
@@ -441,25 +453,38 @@ export class FluidFieldN3D implements Node3D {
             splatStrength:  ["Force du sillage", 2],
             droneNote:      ["Note du drone", 0],
         };
+        const tunables: TunableParam[] = [];
         for (const key of Object.keys(RANGES) as RangeKey[]) {
             const [label, decimals] = knobLabels[key];
             const mesh = gui.knobs[key];
             const updateVisual = () => mesh.scaling.setAll(0.6 + norm(key, this.vals[key]) * 0.6);
             updateVisual();
+            const setNorm = (v01: number) => {
+                this.vals[key] = denorm(key, v01);
+                updateVisual();
+                context.notifyStateChange(key);
+            };
             context.createParameter({
                 id: key,
                 meshes: [mesh],
                 getLabel: () => label,
                 getStepCount: () => key === "droneNote" ? (RANGES.droneNote.max - RANGES.droneNote.min + 1) : 0,
                 getValue: () => norm(key, this.vals[key]),
-                setValue: (v01: number) => {
-                    this.vals[key] = denorm(key, v01);
-                    updateVisual();
-                    context.notifyStateChange(key);
-                },
+                setValue: setNorm,
                 stringify: (v01: number) => `${label}: ${denorm(key, v01).toFixed(decimals)}`,
             });
+            tunables.push({ name: key, min: RANGES[key].min, max: RANGES[key].max, getNorm: () => norm(key, this.vals[key]), setNorm });
         }
+        // boidCount aussi pilotable par les presets/mutation (ex. "Nuée dense")
+        tunables.push({
+            name: "boidCount", min: 0, max: BOID_MAX,
+            getNorm: () => this.boidCount / BOID_MAX,
+            setNorm: (v01: number) => {
+                this.boidCount = Math.round(Math.max(0, Math.min(1, v01)) * BOID_MAX);
+                this.syncBoidPool();
+                context.notifyStateChange("boidCount");
+            },
+        });
 
         // ── Boutons boids ± (par 10, comme l'esprit du sketch) ────────────────
         context.createButton({
@@ -545,6 +570,36 @@ export class FluidFieldN3D implements Node3D {
         );
         gui.plaque.addBehavior(grab);
 
+        // ── Cluster standard : ? · Presets · 🎲 · ↺ (applique "Rivière" au spawn) ─
+        setupInstrumentControls(context, {
+            title: "Fluid Field",
+            description: "Champ de fluide en bruit de Perlin. Les courants évoluent ; " +
+                "laser + gâchette injecte un vortex ; des boids suivent le flux et laissent " +
+                "des sillages. Sorties d'automation : Disturbance (énergie), Curl " +
+                "(tourbillons), Swarm X/Y. L'audio traverse un panner piloté par Swarm X. " +
+                "Le drone (bouton) envoie une note MIDI à câbler vers un synthé.",
+            legend: [
+                { swatch: "🟦", name: "Potards sarcelle (gauche)", role: "Courants de base : échelle & évolution du bruit" },
+                { swatch: "🟥", name: "Potards rouges", role: "Physique : viscosité, rayon & force du vortex" },
+                { swatch: "🟧", name: "Potards orange", role: "Boids : vitesse, force du sillage" },
+                { swatch: "🟨", name: "Potard or", role: "Note du drone (hauteur du Sol grave)" },
+                { swatch: "🟢", name: "Disques haut-gauche", role: "± boids (par 10)" },
+                { swatch: "🟩", name: "Disque vert/rouge (droite)", role: "Drone on/off (sortie MIDI)" },
+                { swatch: "🔴", name: "Sphères du bas", role: "Sorties : Disturbance, Curl, Swarm X/Y" },
+                { swatch: "✋", name: "Cadre", role: "Saisir à deux mains = redimensionner ; secouer = supprimer" },
+            ],
+            presets: FLUID_PRESETS,
+            defaultPreset: "Rivière",
+            params: tunables,
+            helpBtn: gui.cluster.helpBtn,
+            presetBtn: gui.cluster.presetBtn,
+            mutateBtn: gui.cluster.mutateBtn,
+            resetBtn: gui.cluster.resetBtn,
+        });
+
+        // Pulse des 4 sorties d'automation ∝ valeur
+        const pulser = new OutputPulser([gui.outDisturbance, gui.outCurl, gui.outSwarmX, gui.outSwarmY], 1);
+
         // ── Init : boids + premier rendu ──────────────────────────────────────
         this.syncBoidPool();
         console.log(`[FluidField] SPAWNED (grille ${COLS}×${ROWS}, canvas ${TEX_W}×${TEX_H})`);
@@ -567,6 +622,7 @@ export class FluidFieldN3D implements Node3D {
             this.outs.curl.value        = this.curl01;
             this.outs.swarmX.value      = this.comX01;
             this.outs.swarmY.value      = this.comY01;
+            pulser.update([this.dist01, this.curl01, this.comX01, this.comY01], dt);
 
             // Mapping C du sketch : centre de masse → panoramique réel
             this.panner.pan.value = Math.max(-1, Math.min(1, this.comX01 * 2 - 1));

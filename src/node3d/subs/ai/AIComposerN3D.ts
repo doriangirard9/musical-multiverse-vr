@@ -9,6 +9,7 @@ import { WebWorkerAdapter, WorkerModelType } from "../../../ai/adapters/WebWorke
 import { PerfMonitor } from "../../../ai/perf/PerfMonitor";
 import type { MidiEvent, HyperparamSpec } from "../../../ai/types";
 import { WamTransportManager } from "../../../app/WamTransportManager";
+import { setupInstrumentControls, makeClusterButtons, type TunableParam, type ClusterButtons } from "../behaviours/instrumentControls";
 
 // ─── AIComposerN3D ───────────────────────────────────────────────────────────
 //
@@ -85,6 +86,7 @@ export class AIComposerN3DGUI implements Node3DGUI {
     tempoKnob!: Knob;           // 3 petits potards post-gen
     velKnob!: Knob;
     horizonKnob!: Knob;
+    cluster!: ClusterButtons;   // ? · Presets · 🎲 · ↺
 
     core!: AbstractMesh;        // cœur IA = bouton play/stop
     coreMat!: StandardMaterial;
@@ -323,6 +325,9 @@ export class AIComposerN3DGUI implements Node3DGUI {
         this.midiOut.parent = this.root;
         this.midiOut.position.set(0.76, 0, 0.05);
         MeshUtils.setColor(this.midiOut, MidiN3DConnectable.Color.toColor4());
+
+        // ── Cluster standard ? · Presets · 🎲 · ↺ — bande sous les potards ────
+        this.cluster = makeClusterButtons(B, scene, this.root, { x: -0.225, y: -0.60, z: -0.20 }, 0.15, 0.09);
     }
 
     // ── Setters écran (appelés par la logique, throttlés côté logique) ────────
@@ -378,6 +383,9 @@ export class AIComposerN3D implements Node3D {
 
     // Visuels des potards par id (pour resynchroniser après setState réseau)
     private knobVisuals = new Map<string, () => void>();
+
+    // Paramètres pilotables par le cluster (presets / mutation), remplis par setupKnob
+    private tunables: TunableParam[] = [];
 
     constructor(
         private context: Node3DContext,
@@ -463,6 +471,28 @@ export class AIComposerN3D implements Node3D {
             () => this.velocity, (v) => { this.velocity = v; this.scheduler.setVelocityScale(v); }, true);
         this.setupKnob("horizon", "Horizon", gui.horizonKnob, HORIZON_RANGE,
             () => this.horizon, (v) => { this.horizon = v; this.scheduler.setHorizonSec(v); }, true);
+
+        // ── Cluster standard : ? · Presets · 🎲 · ↺ (presets sonores par variante) ─
+        const hyp1 = this.hypSpecs[1]?.displayName ?? "Densité";
+        setupInstrumentControls(context, {
+            title: gui.factory.shortLabel,
+            description: gui.factory.description,
+            legend: [
+                { swatch: "🔵", name: "Gros potard gauche", role: "Température — chaos vs prévisibilité du tirage" },
+                { swatch: "🟣", name: "Gros potard droite", role: `${hyp1} — caractère du flux` },
+                { swatch: "⚪", name: "Petits potards (bas)", role: "Tempo (× du tempo hôte), Vélocité, Horizon (latence du buffer)" },
+                { swatch: "💗", name: "Cœur lumineux", role: "Play/Stop ; couleur = état ; pulse à chaque note ; suit le transport de l'hôte" },
+                { swatch: "🟢", name: "Sphère verte (flanc)", role: "Sortie MIDI — câbler vers un synthé (Pro54…)" },
+                { swatch: "✋", name: "Châssis", role: "Saisir à deux mains = redimensionner ; secouer = supprimer" },
+            ],
+            presets: gui.factory.presets,
+            defaultPreset: gui.factory.defaultPreset,
+            params: this.tunables,
+            helpBtn: gui.cluster.helpBtn,
+            presetBtn: gui.cluster.presetBtn,
+            mutateBtn: gui.cluster.mutateBtn,
+            resetBtn: gui.cluster.resetBtn,
+        });
 
         // Applique le tempo + la signature de l'hôte dès le départ.
         this.applyTransport();
@@ -665,20 +695,23 @@ export class AIComposerN3D implements Node3D {
         const updateVisual = () => knob.set(invlerp(range, getter()));
         updateVisual();
         this.knobVisuals.set(id, updateVisual);
+        const setNorm = (v01: number) => {
+            setter(range.min + v01 * (range.max - range.min));
+            updateVisual();
+            if (notifyNodeState) this.context.notifyStateChange(id);
+            this.refreshValues();
+        };
         this.context.createParameter({
             id,
             meshes: [knob.mesh],
             getLabel: () => label,
             getStepCount: () => 0,
             getValue: () => invlerp(range, getter()),
-            setValue: (v01: number) => {
-                setter(range.min + v01 * (range.max - range.min));
-                updateVisual();
-                if (notifyNodeState) this.context.notifyStateChange(id);
-                this.refreshValues();
-            },
+            setValue: setNorm,
             stringify: (v01: number) => `${label}: ${(range.min + v01 * (range.max - range.min)).toFixed(2)}`,
         });
+        // Pilotable par le cluster (presets / mutation).
+        this.tunables.push({ name: id, min: range.min, max: range.max, getNorm: () => invlerp(range, getter()), setNorm });
     }
 
     async dispose() {
@@ -714,6 +747,26 @@ export class AIComposerN3D implements Node3D {
 
 // ─── Factory ──────────────────────────────────────────────────────────────────
 
+// Presets sonores par famille (valeurs RÉELLES). Noms de params = les knobs
+// exposés : temperature + (density | morph) + tempo/velocity/horizon.
+const MELODIC_PRESETS: Record<string, Record<string, number>> = {
+    "Doux & tonal":  { temperature: 0.8, density: 6, tempo: 1.0, velocity: 1.0,  horizon: 2.0 },
+    "Aventureux":    { temperature: 1.3, density: 6, tempo: 1.0, velocity: 1.05, horizon: 2.0 },
+    "Nappe lente":   { temperature: 0.6, density: 2, tempo: 0.6, velocity: 0.9,  horizon: 2.5 },
+    "Lead virtuose": { temperature: 1.0, density: 8, tempo: 1.3, velocity: 1.2,  horizon: 1.5 },
+};
+const DRUM_PRESETS: Record<string, Record<string, number>> = {
+    "Groove":    { temperature: 0.9, density: 6, tempo: 1.0, velocity: 1.0,  horizon: 2.0 },
+    "Minimal":   { temperature: 0.8, density: 3, tempo: 1.0, velocity: 0.95, horizon: 2.0 },
+    "Chaotique": { temperature: 1.4, density: 8, tempo: 1.0, velocity: 1.1,  horizon: 1.5 },
+};
+const VAE_PRESETS: Record<string, Record<string, number>> = {
+    "Phrase A":    { temperature: 0.5, morph: 0.0, tempo: 1.0, velocity: 1.0, horizon: 2.0 },
+    "Entre-deux":  { temperature: 0.5, morph: 0.5, tempo: 1.0, velocity: 1.0, horizon: 2.0 },
+    "Phrase B":    { temperature: 0.5, morph: 1.0, tempo: 1.0, velocity: 1.0, horizon: 2.0 },
+    "Exploration": { temperature: 1.0, morph: 0.5, tempo: 1.0, velocity: 1.0, horizon: 2.0 },
+};
+
 export class AIComposerN3DFactory implements Node3DFactory<AIComposerN3DGUI, AIComposerN3D> {
     constructor(
         public modelType: WorkerModelType,
@@ -722,6 +775,8 @@ export class AIComposerN3DFactory implements Node3DFactory<AIComposerN3DGUI, AIC
         public description: string,
         public accent: Color3,
         public shortLabel: string,
+        public presets: Record<string, Record<string, number>>,
+        public defaultPreset: string,
     ) {}
 
     tags = ["ai", "generator", "midi", "composer"];
@@ -748,6 +803,7 @@ export class AIComposerN3DFactory implements Node3DFactory<AIComposerN3DGUI, AIC
         "tonal et continu, dirigeable en temps réel. À câbler vers un synthé " +
         "(Pro54)." + AIComposerN3DFactory.COMMON_DESC,
         new Color3(0.20, 0.80, 1.00), "MÉLODIE",
+        MELODIC_PRESETS, "Doux & tonal",
     );
 
     static IMPROV = new AIComposerN3DFactory(
@@ -757,6 +813,7 @@ export class AIComposerN3DFactory implements Node3DFactory<AIComposerN3DGUI, AIC
         "(Magenta ImprovRNN, accord de Do par défaut). À câbler vers un synthé." +
         AIComposerN3DFactory.COMMON_DESC,
         new Color3(1.00, 0.60, 0.15), "IMPRO",
+        MELODIC_PRESETS, "Doux & tonal",
     );
 
     static DRUMS = new AIComposerN3DFactory(
@@ -766,6 +823,7 @@ export class AIComposerN3DFactory implements Node3DFactory<AIComposerN3DGUI, AIC
         "canal MIDI 10). À câbler vers une boîte à rythmes / drum kit WAM." +
         AIComposerN3DFactory.COMMON_DESC,
         new Color3(0.95, 0.30, 0.25), "BATTERIE",
+        DRUM_PRESETS, "Groove",
     );
 
     static BASIC = new AIComposerN3DFactory(
@@ -775,6 +833,7 @@ export class AIComposerN3DFactory implements Node3DFactory<AIComposerN3DGUI, AIC
         "neutre que melody_rnn, utile comme point de comparaison." +
         AIComposerN3DFactory.COMMON_DESC,
         new Color3(0.55, 0.65, 0.90), "BASIQUE",
+        MELODIC_PRESETS, "Doux & tonal",
     );
 
     static VAE = new AIComposerN3DFactory(
@@ -785,5 +844,6 @@ export class AIComposerN3DFactory implements Node3DFactory<AIComposerN3DGUI, AIC
         "continûment. Potards : température + morph." +
         AIComposerN3DFactory.COMMON_DESC,
         new Color3(0.72, 0.42, 1.00), "LATENT VAE",
+        VAE_PRESETS, "Entre-deux",
     );
 }

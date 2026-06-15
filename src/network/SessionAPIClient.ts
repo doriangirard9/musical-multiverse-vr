@@ -6,6 +6,17 @@ export interface JoinResponse {
     sessionName: string;
     maxUsers: number;
     crdtData?: string;
+    /** Session 100% non persistante (éphémère) → le client ne sauvegarde pas. */
+    isTemporary?: boolean;
+}
+
+export interface SessionSummary {
+    id: string;
+    name: string;
+    is_public?: number;
+    max_users?: number;
+    share_token?: string;
+    is_temporary?: number;
 }
 
 /**
@@ -17,6 +28,14 @@ export class SessionAPIClient {
     async joinSession(sessionId: string, shareToken?: string): Promise<JoinResponse> {
         const body = shareToken ? { shareToken } : undefined;
         return this.api.request<JoinResponse>('POST', `/sessions/${sessionId}/join`, body);
+    }
+
+    /**
+     * Crée une session TEMPORAIRE (100% non persistante, éphémère). Accessible
+     * aux invités. Renvoie la session créée (id, share_token…).
+     */
+    async createTemporary(name?: string): Promise<{ session: SessionSummary }> {
+        return this.api.request<{ session: SessionSummary }>('POST', `/sessions/temporary`, name ? { name } : {});
     }
 
     async leaveSession(sessionId: string, participantId: string): Promise<void> {
