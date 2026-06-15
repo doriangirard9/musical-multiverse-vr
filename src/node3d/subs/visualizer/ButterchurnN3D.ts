@@ -222,7 +222,6 @@ export class ButterchurnN3D implements Node3D {
                 if (instance?.audioNode) {
                     this.activeWamNode = instance.audioNode;
                     audioInput.audioNode = this.activeWamNode;
-                    this.activeWamNode.connect(this.context.audioCtx.destination);
 
                     const id = this.activeWamNode.instanceId;
                     const videoExtension = (window as any).WAMExtensions?.video;
