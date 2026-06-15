@@ -30,6 +30,8 @@
     "@babylonjs/inspector": "^8.24.0",
     "@babylonjs/loaders": "^8.24.0",
     "@babylonjs/materials": "^8.24.0",
+    "@magenta/music": "^1.23.1",
+    "@tensorflow/tfjs-backend-wasm": "^2.8.6",
     "@webaudiomodules/sdk": "^0.0.12",
     "concurrently": "^9.2.1",
     "tone": "^15.0.4",

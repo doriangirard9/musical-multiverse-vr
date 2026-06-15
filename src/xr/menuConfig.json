@@ -24,8 +24,14 @@
     {
       "name": "Instruments",
         "plugins": [
-          { "name": "Swarm Theremin", "kind": "swarmtheremin" },
           { "name": "Audio Plaque", "kind": "audio_plaque" },
+          { "name": "Superformula", "kind": "superformula" },
+          { "name": "Superformula 3D", "kind": "superformula3d" },
+          { "name": "Fluid Field", "kind": "fluid_field" },
+          { "name": "AI Composer — Mélodie", "kind": "ai_composer" },
+          { "name": "AI Composer — Impro", "kind": "ai_composer_improv" },
+          { "name": "AI Composer — Batterie", "kind": "ai_composer_drums" },
+          { "name": "AI Composer — Latent (VAE)", "kind": "ai_composer_vae" },
           { "name": "Flute", "kind": "wam3d-Faust Flute" },
           { "name": "Guitar", "kind": "wam3d-FAUST Guitar" },
           { "name": "Modal", "kind": "wam3d-Modal" },
