@@ -636,7 +636,7 @@ export class SuperformulaN3D implements Node3D {
                 { swatch: "🟠", name: "Orange knobs (right)", role: "Ball scale and speed" },
                 { swatch: "🔵", name: "Top-left discs", role: "Boids: on/off, +, −" },
                 { swatch: "🟢", name: "Bottom spheres", role: "Automation outputs: posX/Y, radius, Δradius, speeds, accel., curvature (+ boids)" },
-                { swatch: "✋", name: "Frame", role: "Two-handed grab = resize; shake = delete" },
+                { swatch: "✋", name: "Frame", role: "Two-handed grab = resize; top-right bin button = delete" },
             ],
             presets: SF2D_PRESETS,
             defaultPreset: "5-point Star",

@@ -671,7 +671,7 @@ export class Superformula3DN3D implements Node3D {
                 { swatch: "🌸", name: "Pink knobs", role: "Ball X/Y/Z — aim at a surface point; centered = auto spiral" },
                 { swatch: "🔵", name: "Top-left discs", role: "3D boids: on/off, +, −" },
                 { swatch: "🟢", name: "Bottom spheres", role: "Automation outputs: posX/Y/Z, radius, speed, accel., curvature (+ boid metrics)" },
-                { swatch: "✋", name: "Cage", role: "Two-handed grab = resize; shake = delete" },
+                { swatch: "✋", name: "Cage", role: "Two-handed grab = resize; top-right bin button = delete" },
             ],
             presets: SF3D_PRESETS,
             defaultPreset: "Flower",

@@ -483,7 +483,7 @@ export class AIComposerN3D implements Node3D {
                 { swatch: "⚪", name: "Small knobs (bottom)", role: "Tempo (× host tempo), Velocity, Horizon (buffer latency)" },
                 { swatch: "💗", name: "Glowing core", role: "Play/Stop; color = state; pulses on each note; follows the host transport" },
                 { swatch: "🟢", name: "Green sphere (side)", role: "MIDI output — wire to a synth (Pro54…)" },
-                { swatch: "✋", name: "Chassis", role: "Two-handed grab = resize; shake = delete" },
+                { swatch: "✋", name: "Chassis", role: "Two-handed grab = resize; top-right bin button = delete" },
             ],
             presets: gui.factory.presets,
             defaultPreset: gui.factory.defaultPreset,

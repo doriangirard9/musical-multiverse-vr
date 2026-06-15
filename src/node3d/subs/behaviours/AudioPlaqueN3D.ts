@@ -531,7 +531,7 @@ export class AudioPlaqueN3D implements Node3D {
                 { swatch: "🟢", name: "Green spheres (sides)", role: "Audio in / out (passes through)" },
                 { swatch: "🔵", name: "Top-left discs", role: "Boids: on/off, +, −" },
                 { swatch: "🌸", name: "Bottom row spheres", role: "Swarm metrics: centroid X/Y, dispersion, alignment, vorticity" },
-                { swatch: "✋", name: "Frame", role: "Two-handed grab = resize; shake = delete" },
+                { swatch: "✋", name: "Frame", role: "Two-handed grab = resize; top-right bin button = delete" },
             ],
             presets: {
                 "Solo":        { boidCount: 0 },
