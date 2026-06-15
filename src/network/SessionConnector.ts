@@ -113,9 +113,33 @@ export class SessionConnector {
             console.log(`[SessionConnector] We are participant #${participantNumber}. Waiting for leader to set ready state...`);
             this.updateLoadingText('Please wait, synchronizing with peers...');
             
-            // We are NOT the first. Wait for session_state == 'ready'.
-            await this.waitForReady(sessionState);
-            console.log('[SessionConnector] Ready state confirmed! Proceeding with synchronization.');
+            // We are NOT the first. Wait for session_state == 'ready' with failover.
+            const rejoinNeeded = await this.waitForReadyWithFailover(sessionState, crdtData === undefined);
+            
+            if (rejoinNeeded) {
+                console.log('[SessionConnector] Leader was dead and no data received. Re-joining as potential new leader...');
+                // Leave first to clean up the old participant record from the database
+                await this.leave();
+                console.log('[SessionConnector] Left old session. Now re-joining...');
+                // Re-join to get a new participant number
+                const newJoinInfo = await this.api.joinSession(this.sessionId, this.shareToken);
+                console.log(`[SessionConnector] Re-joined. New participant #${newJoinInfo.participantNumber}`);
+                
+                // Update our participant ID with the new one
+                this.participantId = newJoinInfo.participantId;
+                
+                // If we became participant #1 this time, load the CRDT data
+                if (newJoinInfo.participantNumber === 1 && newJoinInfo.crdtData) {
+                    console.log('[SessionConnector] Re-enrollment successful! Now participant #1. Loading CRDT data...');
+                    await this.initCRDTState(1, newJoinInfo.crdtData);
+                    return;
+                } else {
+                    // We didn't become #1, so wait again for the new leader
+                    await this.waitForReadyWithFailover(sessionState, true);
+                }
+            } else {
+                console.log('[SessionConnector] Ready state confirmed! Proceeding with synchronization.');
+            }
             
             // Process any node3d Y.js entries that arrived during waitForReady
             // (add_from_network fires normally since default is not suppressed,
@@ -151,35 +175,49 @@ export class SessionConnector {
         navigator.sendBeacon(`/api/sessions/${this.sessionId}/leave`, data);
     }
 
-    private async waitForReady(sessionState: Y.Map<unknown>): Promise<void> {
-        if (sessionState.get('status') === 'ready') return;
+    private async waitForReadyWithFailover(sessionState: any, noDataReceived: boolean): Promise<boolean> {
+        if (sessionState.get('status') === 'ready') return false; // Already ready, no failover needed
 
-        return new Promise<void>((resolve) => {
+        return new Promise<boolean>((resolve) => {
+            let failoverTriggered = false;
+
             const observer = () => {
                 if (sessionState.get('status') === 'ready') {
                     sessionState.unobserve(observer);
-                    clearInterval(recheckInterval);
-                    resolve();
+                    clearInterval(leaderCheckInterval);
+                    resolve(failoverTriggered);
                 }
             };
             sessionState.observe(observer);
 
-            // Re-check protocol: if the first user crashes before setting ready,
-            // we re-join after 10s to see if we became participant #1.
-            const recheckInterval = setInterval(async () => {
+            // Check if leader is alive every 10 seconds
+            const leaderCheckInterval = setInterval(async () => {
                 if (sessionState.get('status') === 'ready') {
-                    clearInterval(recheckInterval);
+                    clearInterval(leaderCheckInterval);
+                    return;
+                }
+
+                // Only trigger failover if no CRDT data was received from leader
+                if (!noDataReceived) {
+                    console.log('[SessionConnector] Data has been received, waiting for leader normally...');
                     return;
                 }
 
                 try {
-                    // Re-join to get new participant number (using same participantId is better, but join API creates a new one currently. Let's just do a manual count check)
-                    // Actually, the API says "if participantNumber == 0 charge le contenu".
-                    // If we re-join, we might get a new ID. Instead, we should have a custom recheck logic.
-                    // For now, if we wait too long, we can trigger a hard reload.
-                    console.warn('[SessionConnector] Still waiting for ready state...');
+                    const response = await fetch(`/api/sessions/${this.sessionId}/leader-status`);
+                    const leaderStatus = await response.json();
+
+                    if (!leaderStatus.isAlive) {
+                        console.warn('[SessionConnector] Leader is unreachable (no heartbeat in 30s). Triggering failover...');
+                        sessionState.unobserve(observer);
+                        clearInterval(leaderCheckInterval);
+                        failoverTriggered = true;
+                        resolve(true);
+                    } else {
+                        console.log(`[SessionConnector] Leader is alive (heartbeat ${leaderStatus.secondsSinceHeartbeat}s ago). Continuing to wait...`);
+                    }
                 } catch (e) {
-                    // ignore
+                    console.error('[SessionConnector] Failed to check leader status:', e);
                 }
             }, 10000);
         });

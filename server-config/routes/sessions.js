@@ -184,23 +184,53 @@ router.post('/:id/join', optionalAuth, (req, res) => {
             }
         }
 
-        // Check max users
-        const currentCount = db.prepare('SELECT COUNT(*) as count FROM session_participants WHERE session_id = ?').get(req.params.id).count;
-        if (currentCount >= session.max_users) {
-            return res.status(409).json({ error: 'Session is full' });
-        }
-
-        // Create participant
+        // Atomically check capacity and insert participant
         const participantId = uuidv4();
         const userId = req.user?.userId || null;
+        let participantNumber = 0;
 
-        db.prepare(`
-            INSERT INTO session_participants (participant_id, session_id, user_id)
-            VALUES (?, ?, ?)
-        `).run(participantId, req.params.id, userId);
+        try {
+            // Start transaction
+            db.exec('BEGIN');
+            
+            try {
+                // Clean up dead participants (no heartbeat in >15 seconds) before counting
+                // Heartbeats are sent every 5 seconds, so 15s threshold = 3 missed heartbeats
+                const cleaned = db.prepare(`
+                    DELETE FROM session_participants 
+                    WHERE session_id = ? 
+                    AND datetime('now', '-15 seconds') > datetime(last_heartbeat)
+                `).run(req.params.id);
+                if (cleaned.changes > 0) {
+                    console.log(`[Sessions] Cleaned up ${cleaned.changes} dead participant(s) for session ${req.params.id}`);
+                }
 
-        // Count participants (after adding this one)
-        const participantNumber = db.prepare('SELECT COUNT(*) as count FROM session_participants WHERE session_id = ?').get(req.params.id).count;
+                // Check max users (inside transaction to prevent race)
+                const currentCount = db.prepare('SELECT COUNT(*) as count FROM session_participants WHERE session_id = ?').get(req.params.id).count;
+                if (currentCount >= session.max_users) {
+                    db.exec('ROLLBACK');
+                    return res.status(409).json({ error: 'Session is full' });
+                }
+
+                // Insert participant
+                db.prepare(`
+                    INSERT INTO session_participants (participant_id, session_id, user_id)
+                    VALUES (?, ?, ?)
+                `).run(participantId, req.params.id, userId);
+
+                // Count participants after insert (atomically within same transaction)
+                participantNumber = db.prepare('SELECT COUNT(*) as count FROM session_participants WHERE session_id = ?').get(req.params.id).count;
+
+                // Commit transaction
+                db.exec('COMMIT');
+            } catch (error) {
+                db.exec('ROLLBACK');
+                throw error;
+            }
+        } catch (error) {
+            console.error('[Sessions] Transaction error during join:', error);
+            return res.status(500).json({ error: 'Internal server error' });
+        }
 
         const response = {
             participantId,
@@ -246,6 +276,47 @@ router.post('/:id/heartbeat', (req, res) => {
         res.json({ participantCount: count });
     } catch (error) {
         console.error('[Sessions] Heartbeat error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+/**
+ * GET /api/sessions/:id/leader-status
+ * Check if the first participant (leader) is alive
+ * Returns the first participant's ID if alive, null if dead or doesn't exist
+ */
+router.get('/:id/leader-status', (req, res) => {
+    try {
+        const db = getDb();
+        const session = db.prepare('SELECT * FROM sessions WHERE id = ?').get(req.params.id);
+        if (!session) return res.status(404).json({ error: 'Session not found' });
+
+        // Get first participant ordered by creation time
+        const leader = db.prepare(`
+            SELECT participant_id, last_heartbeat 
+            FROM session_participants 
+            WHERE session_id = ? 
+            ORDER BY connected_at ASC 
+            LIMIT 1
+        `).get(req.params.id);
+
+        if (!leader) {
+            return res.json({ isAlive: false, leaderId: null });
+        }
+
+        // Check if leader's heartbeat is recent (within 30 seconds)
+        const lastHeartbeat = new Date(leader.last_heartbeat);
+        const now = new Date();
+        const secondsSinceHeartbeat = (now - lastHeartbeat) / 1000;
+        const isAlive = secondsSinceHeartbeat < 30;
+
+        res.json({ 
+            isAlive, 
+            leaderId: leader.participant_id,
+            secondsSinceHeartbeat: Math.round(secondsSinceHeartbeat)
+        });
+    } catch (error) {
+        console.error('[Sessions] Leader status check error:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 });
