@@ -185,12 +185,20 @@ export class ShopMenu extends AbstractMenu {
         const container = new Rectangle()
         this.updateClipboard = async () => {
             container.clearControls()
-            const kind = await navigator.clipboard.readText()
-            const item = await this.createItem(kind)
-            if (item) {
-                item.width = "300px"
-                item.height = "300px"
-                container.addControl(item)
+            try {
+                const kind = await navigator.clipboard.readText()
+                const item = await this.createItem(kind)
+                if (item) {
+                    item.width = "300px"
+                    item.height = "300px"
+                    container.addControl(item)
+                }
+            } catch (error) {
+                console.warn('[ShopMenu] Clipboard access denied:', error)
+                const errorText = new TextBlock("clipboard_error", "Clipboard access not available")
+                errorText.color = "white"
+                errorText.fontSize = 18
+                container.addControl(errorText)
             }
         }
         this.updateClipboard()

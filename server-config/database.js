@@ -56,6 +56,7 @@ function initDatabase() {
             project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
             name TEXT NOT NULL,
             is_public INTEGER DEFAULT 1,
+            is_locked INTEGER DEFAULT 0,
             max_users INTEGER DEFAULT 32,
             share_token TEXT UNIQUE,
             crdt_data TEXT,
@@ -80,6 +81,20 @@ function initDatabase() {
         );
     `);
 
+    // Run migrations (add columns that might not exist in older databases)
+    try {
+        const sessionsInfo = db.prepare('PRAGMA table_info(sessions)').all();
+        const hasIsLocked = sessionsInfo.some(col => col.name === 'is_locked');
+        if (!hasIsLocked) {
+            db.prepare('ALTER TABLE sessions ADD COLUMN is_locked INTEGER DEFAULT 0').run();
+            console.log('[Database] Added is_locked column to sessions table');
+        }
+    } catch (e) {
+        if (!e.message.includes('duplicate column name')) {
+            console.warn('[Database] Migration error (non-critical):', e.message);
+        }
+    }
+
     // Create indexes for performance
     db.exec(`
         CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user_id ON refresh_tokens(user_id);
@@ -91,21 +106,65 @@ function initDatabase() {
         CREATE INDEX IF NOT EXISTS idx_authorized_users_user_id ON authorized_users(user_id);
     `);
 
-    // ── Migration : ajoute sessions.is_temporary sur les bases existantes ────
-    const sessionCols = db.prepare("PRAGMA table_info(sessions)").all();
-    if (!sessionCols.some(c => c.name === 'is_temporary')) {
-        db.exec("ALTER TABLE sessions ADD COLUMN is_temporary INTEGER DEFAULT 0");
-        console.log('[Database] Migration : colonne sessions.is_temporary ajoutée');
+    // Migration : is_temporary pour les bases existantes (même idiome que is_locked)
+    try {
+        const cols = db.prepare('PRAGMA table_info(sessions)').all();
+        if (!cols.some(col => col.name === 'is_temporary')) {
+            db.prepare('ALTER TABLE sessions ADD COLUMN is_temporary INTEGER DEFAULT 0').run();
+            console.log('[Database] Added is_temporary column to sessions table');
+        }
+    } catch (e) {
+        if (!e.message.includes('duplicate column name')) {
+            console.warn('[Database] Migration error (non-critical):', e.message);
+        }
     }
 
-    // ── Utilisateur système + projet éphémère pour les sessions temporaires ──
-    // Les sessions temporaires référencent ce projet réservé : aucune session
-    // jetable ne pollue les projets des utilisateurs, et la contrainte FK
-    // project_id NOT NULL reste satisfaite. Le mot de passe '!' est inutilisable.
-    db.prepare("INSERT OR IGNORE INTO users (id, username, password_hash) VALUES (?, ?, ?)")
-        .run('__system__', '__system__', '!');
-    db.prepare("INSERT OR IGNORE INTO projects (id, name, owner_id) VALUES (?, ?, ?)")
-        .run('__ephemeral__', 'Sessions temporaires', '__system__');
+    // Initialize system user and public sandbox session (version de main).
+    // Les sessions TEMPORAIRES réutilisent ce 'system-project' réservé (cf.
+    // routes/sessions.js) → pas de projet jetable supplémentaire à créer.
+    try {
+        const crypto = require('crypto');
+        const bcrypt = require('bcrypt');
+
+        const systemUserId = 'system-user';
+        const systemProjectId = 'system-project';
+        const publicSandboxSessionId = 'public-sandbox';
+
+        // Check if system user exists
+        const existingUser = db.prepare('SELECT id FROM users WHERE id = ?').get(systemUserId);
+        if (!existingUser) {
+            // Create system user with a random password (not used)
+            const randomPassword = crypto.randomBytes(16).toString('hex');
+            const passwordHash = bcrypt.hashSync(randomPassword, 10);
+            db.prepare(`
+                INSERT INTO users (id, username, email, password_hash)
+                VALUES (?, ?, ?, ?)
+            `).run(systemUserId, 'system', 'system@wamjam.local', passwordHash);
+            console.log('[Database] Created system user');
+        }
+
+        // Check if system project exists
+        const existingProject = db.prepare('SELECT id FROM projects WHERE id = ?').get(systemProjectId);
+        if (!existingProject) {
+            db.prepare(`
+                INSERT INTO projects (id, name, description, owner_id)
+                VALUES (?, ?, ?, ?)
+            `).run(systemProjectId, 'System', 'System-managed projects', systemUserId);
+            console.log('[Database] Created system project');
+        }
+
+        // Check if public sandbox session exists
+        const existingSession = db.prepare('SELECT id FROM sessions WHERE id = ?').get(publicSandboxSessionId);
+        if (!existingSession) {
+            db.prepare(`
+                INSERT INTO sessions (id, project_id, name, is_public, max_users, share_token)
+                VALUES (?, ?, ?, ?, ?, ?)
+            `).run(publicSandboxSessionId, systemProjectId, 'Public Sandbox', 1, 1000, null);
+            console.log('[Database] Created public sandbox session');
+        }
+    } catch (e) {
+        console.error('[Database] Error initializing system data:', e);
+    }
 
     console.log('[Database] SQLite initialized at', DB_PATH);
     return db;

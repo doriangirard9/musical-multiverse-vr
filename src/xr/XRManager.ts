@@ -73,6 +73,14 @@ export class XRManager {
                         
                         // Besoin d'attendre qu'on soit en VR avant d'initialiser les contrôleurs
                         this._initControllersAfterXREntry();
+
+                        // Offset spawn position if another avatar is already at our location
+                        try {
+                            // Dynamic import to avoid circular dependency
+                            import("../app/AvatarSystem").then(({ AvatarSystem }) => {
+                                AvatarSystem.getInstance().offsetSpawnIfNeeded();
+                            });
+                        } catch (_) { /* AvatarSystem not yet initialized */ }
                         break;
                     case B.WebXRState.EXITING_XR:
                         console.log("[*] XR STATE - Exiting XR...");

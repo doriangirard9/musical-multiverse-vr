@@ -5,6 +5,8 @@ import type { Node3DGUIContext } from "../../Node3DGUIContext";
 import XRDrumKit from "./XRDrumKit/XRDrumKit";
 import { XRManager } from "../../../xr/XRManager";
 
+const rescaleFactor = 0.5 / 0.2;
+const SIZE = 5 * (rescaleFactor);
 /**
  * GUI component for the VR Drum Kit Node3D
  * Wraps the existing XRDrumKit from Batterie_VR_Musical_Metaverse
@@ -14,34 +16,34 @@ export class DrumKitN3DGUI implements Node3DGUI {
     midiOutputMesh!: AbstractMesh;
     drumKit!: XRDrumKit;
     baseMesh!: AbstractMesh; // For Node3D system to use
-    
+
     // Store context for later initialization
     private context!: Node3DGUIContext;
-    
-    get worldSize() { return 5; } // Large size for the drumkit
+
+    get worldSize() { return SIZE; } // Large size for the drumkit
 
     constructor(context: Node3DGUIContext) {
         const { babylon: B, tools: T, scene } = context;
         this.context = context;
-        
+
         // Create the root
         this.root = new B.TransformNode("drumkit-root", scene);
-        
+
         // Create a base plate for the drumkit
-        this.baseMesh = B.CreateBox("drumkit-baseplate", { size: 1.5, depth:.1 }, scene);
+        this.baseMesh = B.CreateBox("drumkit-baseplate", { size: 1.5, depth: .1 }, scene);
         this.baseMesh.parent = this.root;
         this.baseMesh.position.z = -0.1; // Center it at drum height
-        
+
         // Create MIDI output sphere
         this.midiOutputMesh = T.ConnectableUtils.createOutputMesh(
-            "drumkit-midi-output", 
-            0.3, 
+            "drumkit-midi-output",
+            0.3,
             scene
         );
 
         this.midiOutputMesh.parent = this.root;
         this.midiOutputMesh.position.set(.83, -0.05, 0);
-        
+
         T.MeshUtils.setColor(this.midiOutputMesh, T.MidiN3DConnectable.Color.toColor4());
     }
 
@@ -49,7 +51,7 @@ export class DrumKitN3DGUI implements Node3DGUI {
      * Initialize the actual drumkit (called from Node3D constructor with audioContext)
      */
     async initDrumKit(scene: Scene) {
-        
+
         // CRITICAL: Wait for physics to be ready
         const sceneManager = (await import('../../../app/SceneManager')).SceneManager.getInstance();
         let attempts = 0;
@@ -58,7 +60,7 @@ export class DrumKitN3DGUI implements Node3DGUI {
             await new Promise(resolve => setTimeout(resolve, 100));
             attempts++;
         }
-        
+
         if (!sceneManager.isPhysicsReady()) {
             console.error("[DrumKitN3DGUI] Physics engine failed to initialize!");
             throw new Error("Physics engine not available - cannot create drumkit");
@@ -68,10 +70,10 @@ export class DrumKitN3DGUI implements Node3DGUI {
         // Get XR instance from XRManager
         const xrManager = XRManager.getInstance();
         const xr = xrManager.xrHelper;
-        
+
         // Get physics plugin
         let hk = scene.getPhysicsEngine()?.getPhysicsPlugin();
-        
+
         // Calculate eventMask for collision events
         let eventMask = 0;
         if (hk && (hk as any)._hknp) {
@@ -83,10 +85,10 @@ export class DrumKitN3DGUI implements Node3DGUI {
         } else {
             console.warn("[DrumKitN3DGUI] Could not calculate eventMask - hk._hknp not available");
         }
-        
+
         // Create AssetsManager for loading drum models
         const assetsManager = new AssetsManager(scene);
-        
+
         // Initialize the drumkit
         console.log("[DrumKitN3DGUI] Initializing XRDrumKit...");
         this.drumKit = new XRDrumKit(
@@ -96,14 +98,14 @@ export class DrumKitN3DGUI implements Node3DGUI {
             hk,
             assetsManager
         );
-        
+
         console.log("[DrumKitN3DGUI] Physics engine ready, initializing drumkit...");
 
         await this.drumKit.loadMesh();
-        
+
         this.drumKit.drumContainer.parent = this.root;
         this.drumKit.drumContainer.position.setAll(0)
-        this.drumKit.drumContainer.rotation.set(Math.PI/2, 0, 0);
+        this.drumKit.drumContainer.rotation.set(Math.PI / 2, 0, 0);
         this.drumKit.drumContainer.scaling.setAll(.3)
 
         console.log("[DrumKitN3DGUI] Fully initialized with MIDI output");
@@ -128,17 +130,17 @@ export class DrumKitN3D implements Node3D {
     private midiInterceptionSetup = false;
 
     constructor(
-        context: Node3DContext, 
+        context: Node3DContext,
         private gui: DrumKitN3DGUI
     ) {
         const { tools: T } = context;
-            
+
         this.drumKit = gui.drumKit;
         this.setupMidiRouting();
 
         // Add the bounding box to the Node3D system for dragging
-       context.addToBoundingBox(this.gui.baseMesh);
-        
+        context.addToBoundingBox(this.gui.baseMesh);
+
         // Create MIDI output connectable
         this.midiOutput = new T.MidiN3DConnectable.ListOutput(
             "drumkit-midi-output",
@@ -161,9 +163,9 @@ export class DrumKitN3D implements Node3D {
 
         this.drumKit.drumContainer.parent = this.gui.root;
         this.drumKit.drumContainer.position.setAll(0)
-        this.drumKit.drumContainer.rotation.set(Math.PI/2, 0, 0);
+        this.drumKit.drumContainer.rotation.set(Math.PI / 2, 0, 0);
         this.drumKit.drumContainer.scaling.setAll(.3)
-        
+
         await gui.drumKit.initializeWAMPlugin(ctx.audioCtx)
         return this;
     }
@@ -182,9 +184,9 @@ export class DrumKitN3D implements Node3D {
             }, 500);
             return;
         }
-        
+
         const drumKit = this.drumKit; // Capture for type narrowing
-        
+
         // Check if WAM instance is ready
         if (!drumKit.wamInstance) {
             console.log("[DrumKitN3D] WAM instance not ready, will retry...");

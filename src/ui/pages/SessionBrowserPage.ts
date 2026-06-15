@@ -7,6 +7,7 @@ interface SessionInfo {
     id: string;
     name: string;
     is_public: number;
+    is_locked?: number;
     max_users: number;
     project_name: string;
     owner_username: string;
@@ -38,7 +39,7 @@ export class SessionBrowserPage {
         el.innerHTML = `
             <div class="wj-container wj-container-wide">
                 <div class="wj-toolbar">
-                    <h1 class="wj-title" style="text-align:left;margin:0;">🎵 WamJam Party</h1>
+                    <h1 class="wj-title" style="text-align:left;margin:0;">🎵 WAM Jam Party</h1>
                     <div class="wj-toolbar-actions">
                         <button class="wj-btn wj-btn-primary wj-hud-btn" id="wj-new-temp" title="Session jouable tout de suite, jamais sauvegardée, qui disparaît quand tout le monde part">⚡ Session temporaire</button>
                         ${user ? `
@@ -167,6 +168,7 @@ export class SessionBrowserPage {
                                 ${s.is_public ? '🌐 Public' : '🔒 Private'}
                             </span>
                             <span>${this.escapeHtml(s.project_name)} · ${this.escapeHtml(s.owner_username)}</span>
+                            ${s.is_locked ? '<span style="color:#ff6b6b; font-weight:500;">Locked</span>' : ''}
                         </div>
                     </div>
                     <div class="wj-participants">

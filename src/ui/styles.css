@@ -588,6 +588,16 @@
     background: var(--border);
 }
 
+/* ========== XR Button Overlay ========== */
+/* Hide XR button until session is ready */
+.xr-button-overlay {
+    display: none !important;
+}
+
+.xr-button-overlay.ready {
+    display: block !important;
+}
+
 /* ========== Responsive ========== */
 @media (max-width: 600px) {
     .wj-container {

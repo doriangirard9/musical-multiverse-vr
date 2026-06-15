@@ -6,6 +6,7 @@ export interface JoinResponse {
     sessionName: string;
     maxUsers: number;
     crdtData?: string;
+    sessionLocked?: boolean;
     /** Session 100% non persistante (éphémère) → le client ne sauvegarde pas. */
     isTemporary?: boolean;
 }

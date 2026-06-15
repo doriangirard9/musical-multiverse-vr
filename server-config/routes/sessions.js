@@ -14,7 +14,7 @@ router.get('/public', (req, res) => {
     try {
         const db = getDb();
         const sessions = db.prepare(`
-            SELECT s.id, s.name, s.is_public, s.max_users, s.project_id, s.created_at,
+            SELECT s.id, s.name, s.is_public, s.is_locked, s.max_users, s.project_id, s.created_at,
                    p.name as project_name, u.username as owner_username,
                    (SELECT COUNT(*) FROM session_participants sp WHERE sp.session_id = s.id) as participant_count
             FROM sessions s
@@ -38,7 +38,7 @@ router.get('/mine', requireAuth, (req, res) => {
     try {
         const db = getDb();
         const sessions = db.prepare(`
-            SELECT s.id, s.name, s.is_public, s.max_users, s.project_id, s.created_at,
+            SELECT s.id, s.name, s.is_public, s.is_locked, s.max_users, s.project_id, s.created_at,
                    p.name as project_name, u.username as owner_username,
                    (SELECT COUNT(*) FROM session_participants sp WHERE sp.session_id = s.id) as participant_count
             FROM sessions s
@@ -113,7 +113,7 @@ router.post('/', requireAuth, (req, res) => {
 /**
  * POST /api/sessions/temporary
  * Crée une session 100% NON PERSISTANTE (éphémère). Pas de projet requis
- * (référence le projet réservé __ephemeral__), accessible aux invités
+ * (référence le projet système réservé 'system-project'), accessible aux invités
  * (optionalAuth). Son crdt_data n'est jamais écrit (cf. /save) et elle est
  * supprimée dès qu'elle se vide (cf. heartbeat).
  * Body: { name?, maxUsers? }
@@ -130,7 +130,7 @@ router.post('/temporary', optionalAuth, (req, res) => {
 
         db.prepare(`
             INSERT INTO sessions (id, project_id, name, is_public, max_users, share_token, is_temporary)
-            VALUES (?, '__ephemeral__', ?, 1, ?, ?, 1)
+            VALUES (?, 'system-project', ?, 1, ?, ?, 1)
         `).run(id, sessionName, maxUsers, shareToken);
 
         const session = db.prepare('SELECT * FROM sessions WHERE id = ?').get(id);
@@ -151,15 +151,16 @@ router.put('/:id', requireAuth, (req, res) => {
         if (!session) return res.status(404).json({ error: 'Session not found' });
         if (session.owner_id !== req.user.userId) return res.status(403).json({ error: 'Not authorized' });
 
-        const { name, isPublic, maxUsers } = req.body;
+        const { name, isPublic, maxUsers, isLocked } = req.body;
         db.prepare(`
             UPDATE sessions SET
                 name = COALESCE(?, name),
                 is_public = COALESCE(?, is_public),
+                is_locked = COALESCE(?, is_locked),
                 max_users = COALESCE(?, max_users),
                 updated_at = datetime('now')
             WHERE id = ?
-        `).run(name || null, isPublic !== undefined ? (isPublic ? 1 : 0) : null, maxUsers || null, req.params.id);
+        `).run(name || null, isPublic !== undefined ? (isPublic ? 1 : 0) : null, isLocked !== undefined ? (isLocked ? 1 : 0) : null, maxUsers || null, req.params.id);
 
         const updated = db.prepare('SELECT * FROM sessions WHERE id = ?').get(req.params.id);
         res.json({ session: updated });
@@ -214,29 +215,60 @@ router.post('/:id/join', optionalAuth, (req, res) => {
             }
         }
 
-        // Check max users
-        const currentCount = db.prepare('SELECT COUNT(*) as count FROM session_participants WHERE session_id = ?').get(req.params.id).count;
-        if (currentCount >= session.max_users) {
-            return res.status(409).json({ error: 'Session is full' });
-        }
-
-        // Create participant
+        // Atomically check capacity and insert participant
         const participantId = uuidv4();
         const userId = req.user?.userId || null;
+        let participantNumber = 0;
 
-        db.prepare(`
-            INSERT INTO session_participants (participant_id, session_id, user_id)
-            VALUES (?, ?, ?)
-        `).run(participantId, req.params.id, userId);
+        try {
+            // Start transaction
+            db.exec('BEGIN');
+            
+            try {
+                // Clean up dead participants (no heartbeat in >15 seconds) before counting
+                // Heartbeats are sent every 5 seconds, so 15s threshold = 3 missed heartbeats
+                const cleaned = db.prepare(`
+                    DELETE FROM session_participants 
+                    WHERE session_id = ? 
+                    AND datetime('now', '-15 seconds') > datetime(last_heartbeat)
+                `).run(req.params.id);
+                if (cleaned.changes > 0) {
+                    console.log(`[Sessions] Cleaned up ${cleaned.changes} dead participant(s) for session ${req.params.id}`);
+                }
 
-        // Count participants (after adding this one)
-        const participantNumber = db.prepare('SELECT COUNT(*) as count FROM session_participants WHERE session_id = ?').get(req.params.id).count;
+                // Check max users (inside transaction to prevent race)
+                const currentCount = db.prepare('SELECT COUNT(*) as count FROM session_participants WHERE session_id = ?').get(req.params.id).count;
+                if (currentCount >= session.max_users) {
+                    db.exec('ROLLBACK');
+                    return res.status(409).json({ error: 'Session is full' });
+                }
+
+                // Insert participant
+                db.prepare(`
+                    INSERT INTO session_participants (participant_id, session_id, user_id)
+                    VALUES (?, ?, ?)
+                `).run(participantId, req.params.id, userId);
+
+                // Count participants after insert (atomically within same transaction)
+                participantNumber = db.prepare('SELECT COUNT(*) as count FROM session_participants WHERE session_id = ?').get(req.params.id).count;
+
+                // Commit transaction
+                db.exec('COMMIT');
+            } catch (error) {
+                db.exec('ROLLBACK');
+                throw error;
+            }
+        } catch (error) {
+            console.error('[Sessions] Transaction error during join:', error);
+            return res.status(500).json({ error: 'Internal server error' });
+        }
 
         const response = {
             participantId,
             participantNumber,
             sessionName: session.name,
             maxUsers: session.max_users,
+            sessionLocked: session.is_locked ? true : false,
             isTemporary: !!session.is_temporary,
         };
 
@@ -281,6 +313,47 @@ router.post('/:id/heartbeat', (req, res) => {
 });
 
 /**
+ * GET /api/sessions/:id/leader-status
+ * Check if the first participant (leader) is alive
+ * Returns the first participant's ID if alive, null if dead or doesn't exist
+ */
+router.get('/:id/leader-status', (req, res) => {
+    try {
+        const db = getDb();
+        const session = db.prepare('SELECT * FROM sessions WHERE id = ?').get(req.params.id);
+        if (!session) return res.status(404).json({ error: 'Session not found' });
+
+        // Get first participant ordered by creation time
+        const leader = db.prepare(`
+            SELECT participant_id, last_heartbeat 
+            FROM session_participants 
+            WHERE session_id = ? 
+            ORDER BY connected_at ASC 
+            LIMIT 1
+        `).get(req.params.id);
+
+        if (!leader) {
+            return res.json({ isAlive: false, leaderId: null });
+        }
+
+        // Check if leader's heartbeat is recent (within 30 seconds)
+        const lastHeartbeat = new Date(leader.last_heartbeat);
+        const now = new Date();
+        const secondsSinceHeartbeat = (now - lastHeartbeat) / 1000;
+        const isAlive = secondsSinceHeartbeat < 30;
+
+        res.json({ 
+            isAlive, 
+            leaderId: leader.participant_id,
+            secondsSinceHeartbeat: Math.round(secondsSinceHeartbeat)
+        });
+    } catch (error) {
+        console.error('[Sessions] Leader status check error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+/**
  * POST /api/sessions/:id/leave
  * Remove a participant from a session
  * Body: { participantId: string }
@@ -303,6 +376,7 @@ router.post('/:id/leave', (req, res) => {
  * POST /api/sessions/:id/save
  * Save CRDT data for a session (with data loss protection)
  * Body: { participantId: string, crdtData: string (JSON) }
+ * Note: public-sandbox session does not persist to DB (Yjs-only state)
  */
 router.post('/:id/save', (req, res) => {
     try {
@@ -315,10 +389,18 @@ router.post('/:id/save', (req, res) => {
         const participant = db.prepare('SELECT * FROM session_participants WHERE participant_id = ? AND session_id = ?').get(participantId, req.params.id);
         if (!participant) return res.status(403).json({ error: 'Not a participant of this session' });
 
-        // Session TEMPORAIRE → on ne persiste jamais l'état (no-op silencieux).
-        const meta = db.prepare('SELECT is_temporary FROM sessions WHERE id = ?').get(req.params.id);
+        // Special handling for public-sandbox: don't persist to DB (main)
+        if (req.params.id === 'public-sandbox') {
+            return res.json({ message: 'Saved (public sandbox - not persisted to DB)' });
+        }
+
+        // Sessions VERROUILLÉES (main) ou TEMPORAIRES (nous) → jamais persistées.
+        const meta = db.prepare('SELECT is_locked, is_temporary FROM sessions WHERE id = ?').get(req.params.id);
         if (meta?.is_temporary) {
             return res.json({ message: 'Temporary session — not persisted' });
+        }
+        if (meta?.is_locked) {
+            return res.json({ message: 'Saved (session locked - not persisted to DB)' });
         }
 
         // Data loss protection

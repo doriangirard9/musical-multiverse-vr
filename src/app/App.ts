@@ -29,6 +29,7 @@ let _app: App
 export class App {
     private static readonly DEBUG_LOG = false;
     private controlsUI?: ControlsUISystem;
+    private wakeLock: any = null; // Screen wake lock to prevent device sleep
 
     constructor() {
         _app = this
@@ -67,7 +68,10 @@ export class App {
         await audioEngine.unlockAsync()
 
 
-        // Initialization of App Parts
+        // Request wake lock and setup audio context state handling
+        this.requestWakeLock()
+        this.setupAudioContextStateHandling(audioContext)
+        this.setupVisibilityHandling(audioContext)
 
         BabylonsJSFix.fix()
 
@@ -214,6 +218,60 @@ export class App {
 
         MenuSystem.getInstance().showMessage("Welcome to the Musical Multiverse VR!", "white")
 
+    }
+
+    /**
+     * Request screen wake lock to prevent device sleep during session.
+=     */
+    private async requestWakeLock(): Promise<void> {
+        if ('wakeLock' in navigator) {
+            try {
+                this.wakeLock = await (navigator as any).wakeLock.request('screen');
+                console.log('[App] Screen wake lock acquired - device will stay awake');
+            } catch (err) {
+                console.warn('[App] Wake lock request failed:', err);
+            }
+        } else {
+            console.warn('[App] Screen Wake Lock API not supported on this browser');
+        }
+    }
+
+    /**
+     * Handle AudioContext state changes and auto-resume when suspended.
+     */
+    private setupAudioContextStateHandling(audioContext: AudioContext): void {
+        audioContext.addEventListener('statechange', () => {
+            console.log(`[App] AudioContext state changed to: ${audioContext.state}`);
+            
+            if (audioContext.state === 'suspended') {
+                console.warn('[App] AudioContext suspended - attempting to resume');
+                audioContext.resume().catch(e => 
+                    console.error('[App] Failed to resume AudioContext:', e)
+                );
+            }
+        });
+    }
+
+    /**
+     * Handle document visibility changes (headset sleep/wake).
+     * Resume AudioContext when document becomes visible again.
+     */
+    private setupVisibilityHandling(audioContext: AudioContext): void {
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                console.log('[App] Document hidden (headset/tab backgrounded)');
+                // AudioContext will auto-suspend; will resume when visible again
+            } else {
+                console.log('[App] Document visible (headset/tab foregrounded)');
+                // Attempt to resume AudioContext
+                if (audioContext.state === 'suspended') {
+                    console.log('[App] Resuming AudioContext on visibility');
+                    audioContext.resume().catch(e => 
+                        console.error('[App] Failed to resume on visibility change:', e)
+                    );
+                }
+            }
+        });
     }
 
 }
