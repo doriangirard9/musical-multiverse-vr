@@ -31,6 +31,9 @@ import { BoxWave } from "../../world/BoxWave.ts";
 import { MenuSystem } from "../../app/MenuSystem.ts";
 import { AbstractMenu } from "../../menus/AbstractMenu.ts";
 import { ChoiceMenu } from "../../menus/ChoiceMenu.ts";
+import * as GUI from "@babylonjs/gui";
+import { InputGrabBehavior } from "../../xr/inputs/tools/InputGrabBehavior.ts";
+import { InputHoverBehavior } from "../../xr/inputs/tools/InputHoverBehavior.ts";
 
 export class Node3DInstance implements Synchronized {
 
@@ -224,11 +227,17 @@ export class Node3DInstance implements Synchronized {
     private bounding_mesh = null as null | Mesh
     private bounding_box = null as null | BoundingBox
     private doUpdateBoundingBox = false
+    private delete_button = null as null | { dispose(): void }
 
     get boundingBoxMesh() { return this.bounding_box!!.boundingBox }
 
     private updateBoundingBoxNow() {
         if (this.disposed) return
+
+        // Dispose the corner delete button BEFORE its parent bounding_mesh, so we
+        // free its texture cleanly (mesh.dispose() recurse wouldn't free the ADT).
+        this.delete_button?.dispose()
+        this.delete_button = null
 
         if (this.bounding_mesh) this.shared.shadowGenerator.removeShadowCaster(this.bounding_mesh)
         this.bounding_box?.dispose()
@@ -338,6 +347,85 @@ export class Node3DInstance implements Synchronized {
 
         // Shadow Generator
         this.shared.shadowGenerator.addShadowCaster(this.bounding_mesh, false)
+
+        // Per-node delete button (top-right corner, recycle-bin icon).
+        this.createDeleteButton()
+    }
+
+    /**
+     * A small billboarded 🗑 button pinned to the top-right-front corner of the
+     * node. Pointing + trigger asks for confirmation (ChoiceMenu) before the
+     * node is removed network-wide. Rebuilt on every bounding-box update since
+     * it parents to the (recreated) bounding_mesh.
+     */
+    private createDeleteButton() {
+        this.delete_button?.dispose()
+        this.delete_button = null
+        if (!this.bounding_mesh) return
+
+        const scene = this.shared.scene
+        const ext = this.bounding_mesh.getBoundingInfo().boundingBox.extendSize  // half-extents (local)
+        const SIZE = 0.14
+
+        const plane = MeshBuilder.CreatePlane("node3d_delete_btn", { size: SIZE }, scene)
+        plane.parent = this.bounding_mesh
+        // Top-right-front corner, nudged outward so it reads as "in the corner".
+        plane.position.set(ext.x + SIZE * 0.4, ext.y + SIZE * 0.4, -ext.z - 0.01)
+        plane.billboardMode = AbstractMesh.BILLBOARDMODE_ALL
+        plane.isPickable = true
+        plane.renderingGroupId = 1   // draw above the node so it's never occluded
+
+        const tex = GUI.AdvancedDynamicTexture.CreateForMesh(plane, 256, 256)
+        const circle = new GUI.Ellipse()
+        circle.width = "100%"; circle.height = "100%"
+        circle.background = "#c0392b"
+        circle.color = "#ffffff"
+        circle.thickness = 14
+        tex.addControl(circle)
+        const icon = new GUI.TextBlock()
+        icon.text = "🗑"
+        icon.fontSize = 130
+        icon.color = "#ffffff"
+        circle.addControl(icon)
+
+        const hover = new InputHoverBehavior(
+            () => { circle.background = "#e74c3c"; plane.scaling.setAll(1.18) },
+            () => { circle.background = "#c0392b"; plane.scaling.setAll(1) },
+        )
+        const press = new InputGrabBehavior(
+            () => this.confirmDelete(),
+            () => {},
+        )
+        plane.addBehavior(hover)
+        plane.addBehavior(press)
+
+        this.delete_button = {
+            dispose() {
+                if (plane.isDisposed()) return
+                plane.removeBehavior(hover)
+                plane.removeBehavior(press)
+                tex.dispose()
+                plane.dispose()
+            }
+        }
+    }
+
+    /** Confirmation dialog before deleting this node. */
+    private confirmDelete() {
+        const menus = MenuSystem.getInstance()
+        const menu = new ChoiceMenu(
+            this.shared.scene,
+            this.shared.utilityLayer.utilityLayerScene,
+            [
+                { label: "Delete this instrument?", color: "#ffffff" },
+                { label: "🗑 Delete", color: "#ff5555", click: () => {
+                    menus.close()
+                    NetworkManager.getInstance().node3d.nodes.remove(this)
+                }},
+                { label: "Cancel", color: "#aaaaaa", click: () => menus.close() },
+            ],
+        )
+        menus.open(menu, true)
     }
 
     private updateBoundingBox() {
@@ -412,6 +500,7 @@ export class Node3DInstance implements Synchronized {
         this.disposed = true
         this.set_state("delete")
         this.highlighter.dispose()
+        this.delete_button?.dispose()
         this.bounding_box?.dispose()
         this.bounding_mesh?.dispose()
         this.parameters.forEach(it => it.dispose())
