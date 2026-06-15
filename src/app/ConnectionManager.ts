@@ -6,6 +6,7 @@ import { N3DConnectionInstance } from "../node3d/instance/N3DConnectionInstance.
 import { SceneManager } from "./SceneManager.ts";
 import { VisualTube } from "../visual/VisualTube.ts";
 import { MenuSystem } from "./MenuSystem.ts";
+import { AbstractPointerInput } from "../xr/inputs/AbstractPointerInput.ts";
 
 /**
  * Manager responsible of connecting two connectable nodes together.
@@ -52,6 +53,7 @@ export class ConnectionManager {
         this.disposePreview?.()
         this.disposePreview = null
         this.currentPort = null
+        AbstractPointerInput.PickPredicate = null
     }
 
     private connectHandler(data: IOEventPayload['IO_CONNECT']) {
@@ -62,6 +64,9 @@ export class ConnectionManager {
             case "down":
                 this.currentPort = data.connectable
                 
+                // Restrict picking to connection ports only during drag
+                AbstractPointerInput.PickPredicate = (mesh) => !!mesh.metadata?.isConnectablePort
+
                 // Preview
                 const tube = new VisualTube(this.scene, NetworkManager.getInstance().visual.tubes, (mesh)=>{
                     mesh.isPickable = false
