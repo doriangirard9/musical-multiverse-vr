@@ -34,6 +34,7 @@ import { ChoiceMenu } from "../../menus/ChoiceMenu.ts";
 import * as GUI from "@babylonjs/gui";
 import { InputGrabBehavior } from "../../xr/inputs/tools/InputGrabBehavior.ts";
 import { InputHoverBehavior } from "../../xr/inputs/tools/InputHoverBehavior.ts";
+import type { N3DConnectionInstance } from "./N3DConnectionInstance.ts";
 
 export class Node3DInstance implements Synchronized {
 
@@ -228,6 +229,7 @@ export class Node3DInstance implements Synchronized {
     private bounding_box = null as null | BoundingBox
     private doUpdateBoundingBox = false
     private delete_button = null as null | { dispose(): void }
+    private _deleteMenu = null as null | ChoiceMenu
 
     get boundingBoxMesh() { return this.bounding_box!!.boundingBox }
 
@@ -393,7 +395,7 @@ export class Node3DInstance implements Synchronized {
             () => { circle.background = "#c0392b"; plane.scaling.setAll(1) },
         )
         const press = new InputGrabBehavior(
-            () => this.confirmDelete(),
+            () => this.openDeleteMenu(),
             () => {},
         )
         plane.addBehavior(hover)
@@ -410,22 +412,89 @@ export class Node3DInstance implements Synchronized {
         }
     }
 
-    /** Confirmation dialog before deleting this node. */
-    private confirmDelete() {
+    /** Human-readable name of this node (e.g. "Fluid Field"), derived from its root. */
+    public get displayName() {
+        return this.root_transform?.name?.replace(/ root$/, "") ?? "node"
+    }
+
+    /** Every connection touching this node (deduplicated across all its ports). */
+    private collectConnections(): N3DConnectionInstance[] {
+        const set = new Set<N3DConnectionInstance>()
+        for (const c of this.connectables.values()) for (const conn of c.connections) set.add(conn)
+        return [...set]
+    }
+
+    /** Short label for a connection, from this node's point of view (signal flows output → input). */
+    private connectionLabel(conn: N3DConnectionInstance): string {
+        const out = conn.outputConnectable
+        const inp = conn.inputConnectable
+        const portName = (c: typeof out) => (c?.config.label || c?.config.id || "port")
+        if (!out || !inp) return "incomplete connection"
+        const local  = out.instance === this ? out : inp
+        const remote = out.instance === this ? inp : out
+        const flow   = out.instance === this ? "→" : "←"   // → = signal leaves this node
+        return `${portName(local)} ${flow} ${remote.instance.displayName}:${portName(remote)}`
+    }
+
+    /**
+     * Open/replace the per-node delete ChoiceMenu showing the given choices.
+     * Reuses the same menu instance across navigation (mirrors openMenu) so we
+     * never dispose the menu mid-click while swapping screens.
+     */
+    private showDeleteChoice(choices: { label: string; color?: string; click?: () => void }[]) {
         const menus = MenuSystem.getInstance()
-        const menu = new ChoiceMenu(
-            this.shared.scene,
-            this.shared.utilityLayer.utilityLayerScene,
-            [
-                { label: "Delete this instrument?", color: "#ffffff" },
-                { label: "🗑 Delete", color: "#ff5555", click: () => {
-                    menus.close()
-                    NetworkManager.getInstance().node3d.nodes.remove(this)
-                }},
-                { label: "Cancel", color: "#aaaaaa", click: () => menus.close() },
-            ],
-        )
-        menus.open(menu, true)
+        if (this._deleteMenu && menus.current_menu === this._deleteMenu) {
+            this._deleteMenu.set(choices)
+        } else {
+            const menu = new ChoiceMenu(this.shared.scene, this.shared.utilityLayer.utilityLayerScene, choices)
+            this._deleteMenu = menu
+            menu.onHide.addOnce(() => { if (this._deleteMenu === menu) this._deleteMenu = null })
+            menus.open(menu, true)
+        }
+    }
+
+    /** Generic confirm screen: a message, then ✔ Confirm / ✖ Cancel. */
+    private confirmDeleteChoice(message: string, onConfirm: () => void) {
+        this.showDeleteChoice([
+            { label: message, color: "#ffffff" },
+            { label: "✔ Confirm", color: "#ff5555", click: () => { MenuSystem.getInstance().close(); onConfirm() } },
+            { label: "✖ Cancel", color: "#aaaaaa", click: () => MenuSystem.getInstance().close() },
+        ])
+    }
+
+    /** Top menu shown when the 🗑 corner button is pressed. */
+    private openDeleteMenu() {
+        this.showDeleteChoice([
+            { label: "What to delete?", color: "#ffffff" },
+            { label: "🗑 Delete object", color: "#ff5555", click: () =>
+                this.confirmDeleteChoice("Delete this whole instrument?", () =>
+                    NetworkManager.getInstance().node3d.nodes.remove(this)) },
+            { label: "✂ Delete all connections", color: "#ffaa55", click: () => {
+                const conns = this.collectConnections()
+                if (conns.length === 0) { MenuSystem.getInstance().showMessage("No connections to delete"); return }
+                this.confirmDeleteChoice(`Delete all ${conns.length} connection(s)?`, () => {
+                    for (const c of conns) c.remove()
+                })
+            } },
+            { label: "✂ Delete a specific connection…", color: "#ffcc55", click: () => this.openSpecificConnectionMenu() },
+            { label: "✖ Cancel", color: "#aaaaaa", click: () => MenuSystem.getInstance().close() },
+        ])
+    }
+
+    /** Lists this node's connections; picking one asks to confirm its deletion. */
+    private openSpecificConnectionMenu() {
+        const conns = this.collectConnections()
+        if (conns.length === 0) { MenuSystem.getInstance().showMessage("No connections to delete"); return }
+        const choices: { label: string; color?: string; click?: () => void }[] = [
+            { label: "Pick a connection to delete:", color: "#ffffff" },
+        ]
+        for (const c of conns) {
+            const label = this.connectionLabel(c)
+            choices.push({ label, color: "#ffcc55", click: () =>
+                this.confirmDeleteChoice(`Delete connection?\n${label}`, () => c.remove()) })
+        }
+        choices.push({ label: "← Back", color: "#aaaaaa", click: () => this.openDeleteMenu() })
+        this.showDeleteChoice(choices)
     }
 
     private updateBoundingBox() {
