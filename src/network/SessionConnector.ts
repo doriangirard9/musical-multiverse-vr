@@ -70,21 +70,24 @@ export class SessionConnector {
             console.log('[SessionConnector] We are participant #1 (Leader). Hydrating state...');
             
             // We are the first. Load CRDT data if it exists.
-            // NOTE: SyncManager starts in suppressed mode by default, so all Y.js
-            // add_from_network events are blocked until we explicitly call allowNetworkAdds().
-            // This prevents stale Y.js entries (from BroadcastChannel/WebRTC) creating duplicates
-            // while we load fresh state from the DB.
+            // Suppress node3d add_from_network while loading from DB to prevent
+            // stale Y.js entries (from BroadcastChannel/WebRTC) creating duplicates.
+            // Only node3d.nodes and connections are suppressed — avatars/tubes/curves stay active.
             if (crdtData) {
                 try {
                     const parsedData = JSON.parse(crdtData);
                     console.log(`[SessionConnector] CRDT data parsed successfully. Nodes: ${parsedData.nodes?.length || 0}, Connections: ${parsedData.connections?.length || 0}`);
+                    
+                    // Suppress ONLY node3d sync during DB load
+                    const network = NetworkManager.getInstance();
+                    network.node3d.nodes.suppressNetworkAdds();
+                    network.node3d.connections.suppressNetworkAdds();
                     
                     // Await the load, then perform the state change in a synchronous transaction
                     await Serialization.getInstance().load(parsedData);
                     console.log('[SessionConnector] Serialization.load() completed successfully.');
                     
                     // Re-enable network adds now that our state is authoritative
-                    const network = NetworkManager.getInstance();
                     network.node3d.nodes.allowNetworkAdds();
                     network.node3d.connections.allowNetworkAdds();
                     
@@ -102,10 +105,7 @@ export class SessionConnector {
                     this.showXRButton();
                 }
             } else {
-                // Empty session — enable network adds and mark ready
-                const network = NetworkManager.getInstance();
-                network.node3d.nodes.allowNetworkAdds();
-                network.node3d.connections.allowNetworkAdds();
+                // Empty session — mark ready
                 sessionState.set('status', 'ready');
                 this.showXRButton();
             }
@@ -117,12 +117,10 @@ export class SessionConnector {
             await this.waitForReady(sessionState);
             console.log('[SessionConnector] Ready state confirmed! Proceeding with synchronization.');
             
-            // Enable network adds — the leader's Y.js state will now sync correctly
+            // Process any node3d Y.js entries that arrived during waitForReady
+            // (add_from_network fires normally since default is not suppressed,
+            //  but processExisting catches any edge cases)
             const network = NetworkManager.getInstance();
-            network.node3d.nodes.allowNetworkAdds();
-            network.node3d.connections.allowNetworkAdds();
-            
-            // Process any Y.js entries that arrived while suppressed (nodes first, then connections)
             await network.node3d.nodes.processExistingEntries();
             await network.node3d.connections.processExistingEntries();
             

@@ -40,7 +40,7 @@ export class InputToPointerBehavior implements Behavior<AbstractMesh> {
                 this.grabbingStack.push(pointer)
                 this.updateCurrentMovingPointer()
                 if(this.grabbingStack.length === 1){
-                    const info = scene.pickWithRay(new Ray(pointer.origin, pointer.forward))
+                    const info = scene.pickWithRay(new Ray(pointer.origin, pointer.forward), (mesh) => mesh.isPickable)
                     if(info) scene._inputManager.simulatePointerDown(info, PT)
                 }
             },
@@ -48,7 +48,7 @@ export class InputToPointerBehavior implements Behavior<AbstractMesh> {
                 this.grabbingStack = this.grabbingStack.filter(it=> it !== pointer)
                 this.updateCurrentMovingPointer()
                 if(this.grabbingStack.length === 0){
-                    const info = scene.pickWithRay(new Ray(pointer.origin, pointer.forward))
+                    const info = scene.pickWithRay(new Ray(pointer.origin, pointer.forward), (mesh) => mesh.isPickable)
                     if(info) scene._inputManager.simulatePointerUp(info, PT)
                 }
             }
@@ -91,7 +91,7 @@ export class InputToPointerBehavior implements Behavior<AbstractMesh> {
         // Add observers
         if(this.current_moving_pointer!=null){
             const o = this.current_moving_pointer.onMove.add(pointer=>{
-                const info = scene.pickWithRay(new Ray(pointer.origin, pointer.forward))
+                const info = scene.pickWithRay(new Ray(pointer.origin, pointer.forward), (mesh) => mesh.isPickable)
                 if(info) scene._inputManager.simulatePointerMove(info, PT)
             })
 

@@ -52,10 +52,10 @@ export class IsfShaderN3DGUI implements Node3DGUI {
         this.automationInput.position.set(0.8, 0, 1.0);
         T.MeshUtils.setColor(this.automationInput, new B.Color4(0.2, 0.8, 0.8, 1));
 
-        // Menu Button
+        // Menu Button — centered between video input/output connectors on the front face
         this.menuButton = B.CreateSphere("menu button", { diameter: 0.25 }, context.scene);
         this.menuButton.parent = this.root;
-        this.menuButton.position.set(0, 0.1, 0.8);
+        this.menuButton.position.set(0, 0, -1.0);
         T.MeshUtils.setColor(this.menuButton, new B.Color4(1, 1, 0, 1));
 
         // 15 Parameter Rotators
@@ -407,6 +407,7 @@ export class IsfShaderN3D implements Node3D {
         if (end < this.presets.length) {
             choices.push({ label: "[ NEXT ]", click: () => { this.currentPage++; this.openShaderMenu(); } });
         }
+        choices.push({ label: "❌ Cancel", click: () => this.context.closeMenu() });
         this.context.openMenu(choices);
     }
 

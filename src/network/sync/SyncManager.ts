@@ -54,7 +54,7 @@ export class SyncManager<
 
     private instances = new Map<string, T>()
     private reverse_instances = new Map<T,string>()
-    private _suppressNetworkAdd = true  // Start suppressed — require explicit allowNetworkAdds()
+    private _suppressNetworkAdd = false  // Only suppress explicitly for node3d during session load
     private _pendingCreation = new Set<string>()
 
     /** Suppress add_from_network (used during leader DB load to prevent stale peer sync) */

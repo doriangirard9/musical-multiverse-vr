@@ -255,6 +255,7 @@ export class ButterchurnN3D implements Node3D {
         if (end < this.presets.length) {
             choices.push({ label: "[ NEXT ]", click: () => { this.currentPage++; this.openShaderMenu(); } });
         }
+        choices.push({ label: "❌ Cancel", click: () => this.context.closeMenu() });
         this.context.openMenu(choices);
     }
 
