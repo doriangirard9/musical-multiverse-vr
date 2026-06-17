@@ -21,13 +21,12 @@ import { SessionHUD } from "./ui/pages/SessionHUD.ts";
 import { SessionConnector } from "./network/SessionConnector.ts";
 import { SessionAPIClient } from "./network/SessionAPIClient.ts";
 import * as Y from 'yjs';
+import { installConsoleFilter } from "./utils/logger.ts";
 
-// Filter out spammy wam3dgenerator console logs (memory allocation logs)
-const originalConsoleLog = console.log;
-console.log = function(...args: any[]) {
-    if (args.length === 1 && typeof args[0] === 'number') return;
-    originalConsoleLog.apply(console, args);
-};
+// Level-gated console: console.log/info/debug are quiet by default (level "warn")
+// and also drop the wam3dgenerator memory spam. warn/error always pass. Raise
+// verbosity at runtime with `wamjamLog.setLevel("debug")` in the devtools console.
+installConsoleFilter();
 
 let appStarted = false;
 /**

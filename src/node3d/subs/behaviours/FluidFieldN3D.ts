@@ -586,7 +586,7 @@ export class FluidFieldN3D implements Node3D {
                 { swatch: "🟢", name: "Top-left discs", role: "± boids (by 10)" },
                 { swatch: "🟩", name: "Green/red disc (right)", role: "Drone on/off (MIDI output)" },
                 { swatch: "🔴", name: "Bottom spheres", role: "Outputs: Disturbance, Curl, Swarm X/Y" },
-                { swatch: "✋", name: "Frame", role: "Two-handed grab = resize; top-right bin button = delete" },
+                { swatch: "✋", name: "Frame", role: "Two-handed grab = resize; bin button or vigorous shake = delete" },
             ],
             presets: FLUID_PRESETS,
             defaultPreset: "River",

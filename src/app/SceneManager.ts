@@ -14,6 +14,9 @@ import { SoundwaveEmitter } from "../world/soundwave/SoundwaveEmitter.ts";
 export class SceneManager {
     private static _instance: SceneManager | null = null
 
+    /** How many times EngineStore.LastCreatedScene was read (see the getter below). */
+    static lastCreatedSceneAccesses = 0
+
     private readonly canvas
     private readonly engine: B.Engine
     private readonly scene
@@ -56,12 +59,22 @@ export class SceneManager {
             }
         });
 
-        // Detect and prevent usage of EngineStore.LastCreatedScene
-        B.EngineStore.LastCreatedScene
+        // Detect usage of EngineStore.LastCreatedScene (a scene should be passed
+        // to constructors instead). It's mostly hit by the third-party
+        // wam3dgenerator texture/thumbnail loader, which we can't fix upstream and
+        // which reads it many times per render — so we warn ONCE and suppress the
+        // rest to keep the console clean. The running total is kept on
+        // SceneManager.lastCreatedSceneAccesses for debugging.
         const oldLastCreatedScene = Object.getOwnPropertyDescriptor(B.EngineStore, "LastCreatedScene");
         Object.defineProperty(B.EngineStore, "LastCreatedScene", {
             get: function () {
-                console.warn("Use EngineStore.LastCreatedScene is prohibited. Pass a scene to the constructor.")
+                SceneManager.lastCreatedSceneAccesses++
+                if (SceneManager.lastCreatedSceneAccesses === 1) {
+                    console.warn(
+                        "EngineStore.LastCreatedScene was read (a scene should be passed to the constructor). " +
+                        "Usually the wam3dgenerator thumbnail/texture loader; further identical warnings are suppressed."
+                    )
+                }
                 return oldLastCreatedScene?.get?.apply(B.EngineStore) ?? null
             },
         })

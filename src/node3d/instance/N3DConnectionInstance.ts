@@ -5,6 +5,7 @@ import { Node3DInstance } from "./Node3DInstance"
 import { SyncSerializable } from "../../network/sync/SyncSerializable"
 import { Doc } from "yjs"
 import { MeshUtils } from "../tools"
+import { ShakeBehavior } from "../../behaviours/ShakeBehavior"
 import { SceneManager } from "../../app/SceneManager"
 import { MenuSystem } from "../../app"
 
@@ -16,6 +17,7 @@ export class N3DConnectionInstance{
     private static readonly DEBUG_LOG = false;
 
     private _tube
+    private shake
     private arrow?: AbstractMesh
     public on_dispose = ()=>{}
 
@@ -33,8 +35,26 @@ export class N3DConnectionInstance{
 
         SceneManager.getInstance().getShadowGenerator().addShadowCaster(this._tube, false)
 
-        // (Shake-to-delete removed — connections are deleted from a node's
-        //  delete menu: "Delete all connections" / "Delete a specific connection".)
+        // Shake-to-delete a connection. Made stricter (on request) so a cable is
+        // never removed by accident: a stronger shake is required (threshold 5,
+        // was 3) and it must be sustained much longer (counter > 24, was 10).
+        // Deliberate deletion is still available from a node's delete menu.
+        this.shake = new ShakeBehavior()
+        this.shake.shake_threshold = 5
+        this._tube.addBehavior(this.shake)
+        this.shake.on_shake = (power, counter) => {
+            this._tube.visibility = Math.max(0, 1 - power / 12)
+            if(counter>24) connections.remove(this)
+        }
+        this.shake.on_stop = (_, __) => {
+            this._tube.visibility = .8
+        }
+        this.shake.on_pick = () => {
+            this._tube.visibility = .8
+        }
+        this.shake.on_drop = () => {
+            this._tube.visibility = 1
+        }
     }
 
     // Public API

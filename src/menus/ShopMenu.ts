@@ -1,5 +1,5 @@
 import { Scene } from "@babylonjs/core"
-import { Button, Container, Image, Rectangle, ScrollViewer, StackPanel, TextBlock } from "@babylonjs/gui"
+import { Button, Container, Image, InputText, Rectangle, ScrollViewer, StackPanel, TextBlock, VirtualKeyboard } from "@babylonjs/gui"
 import { Node3dManager } from "../app/Node3dManager"
 import { AbstractMenu } from "./AbstractMenu"
 
@@ -20,7 +20,13 @@ export class ShopMenu extends AbstractMenu {
         this.initLabel("label")
         
         // Use arrow functions to capture 'this'
-        
+
+        // All [kind, factory] entries, populated once the factories load. Used
+        // by the search bar to filter across every category at once.
+        let allEntries: { kind: string; factory: { label: string; tags: string[] } }[] = []
+        // Kinds of the currently selected category, restored when search clears.
+        let categoryKinds: string[] = []
+
         // Item List
         const items = new Container()
 
@@ -30,6 +36,78 @@ export class ShopMenu extends AbstractMenu {
             this.place(list, 0, 0, 100, 100)
             items.addControl(list)
         }
+
+        // ── Search: filter all kinds by label / kind / tag as the user types ──
+        const search = new InputText()
+        search.color = "white"
+        search.background = "rgb(0,0,0,0.6)"
+        search.focusedBackground = "rgb(0,0,0,0.85)"
+        search.placeholderText = "Search instruments…"
+        search.placeholderColor = "#9fb4bd"
+        search.fontSize = 26
+        search.text = ""
+
+        const runSearch = (raw: string) => {
+            const q = raw.trim().toLowerCase()
+            if (!q) { setItems(categoryKinds); return }
+            const matches = allEntries
+                .filter(({ kind, factory }) =>
+                    factory.label?.toLowerCase().includes(q) ||
+                    kind.toLowerCase().includes(q) ||
+                    factory.tags.some(t => t.toLowerCase().includes(q)))
+                .map(e => e.kind)
+            setItems(matches)
+        }
+
+        // Overlay virtual keyboard (VR has no system keyboard for canvas inputs).
+        const keyboard = VirtualKeyboard.CreateDefaultLayout()
+        keyboard.width = "100%"
+        keyboard.connect(search)
+
+        // Keyboard is shown while editing, hidden once the search is "submitted"
+        // (Enter or the Done button) so the results fill the panel. Tapping the
+        // field again brings it back. `kbDismissed` lets a non-empty query keep
+        // the keyboard hidden after submit, while still guarding against a
+        // virtual key-press momentarily blurring the field mid-typing.
+        let searchFocused = false
+        let kbDismissed = false
+        const kbRow = new Rectangle()
+        kbRow.background = "rgb(8,12,16,0.96)"
+        kbRow.thickness = 0
+        kbRow.isVisible = false
+        const updateKbVisible = () => {
+            kbRow.isVisible = (searchFocused || search.text.length > 0) && !kbDismissed
+        }
+        const dismissKeyboard = () => { kbDismissed = true; updateKbVisible() }
+
+        search.onFocusObservable.add(() => { searchFocused = true; kbDismissed = false; updateKbVisible() })
+        search.onBlurObservable.add(() => { searchFocused = false; updateKbVisible() })
+        // Tapping the field re-opens the keyboard even if it was dismissed.
+        search.onPointerDownObservable.add(() => { kbDismissed = false; updateKbVisible() })
+        // Enter (hardware keyboard / desktop) submits → hide keyboard, keep query.
+        search.onKeyboardEventProcessedObservable.add((evt) => {
+            if (evt.key === "Enter") dismissKeyboard()
+        })
+
+        // Debounce the actual filtering so fast typing doesn't rebuild the grid
+        // (and lazily render thumbnails) on every keystroke.
+        let searchTimer: ReturnType<typeof setTimeout> | undefined
+        search.onTextChangedObservable.add(() => {
+            updateKbVisible()
+            clearTimeout(searchTimer)
+            searchTimer = setTimeout(() => runSearch(search.text), 140)
+        })
+
+        // Done: hide the keyboard without clearing the query (VR has no Enter key).
+        const doneBtn = Button.CreateSimpleButton("search_done", "Done")
+        doneBtn.color = "white"
+        doneBtn.background = "rgb(20,70,40,0.7)"
+        doneBtn.onPointerUpObservable.add(() => dismissKeyboard())
+
+        const clearBtn = Button.CreateSimpleButton("search_clear", "✕")
+        clearBtn.color = "white"
+        clearBtn.background = "rgb(90,20,20,0.7)"
+        clearBtn.onPointerUpObservable.add(() => { search.text = "" })
 
 
         // Sub menu
@@ -46,11 +124,13 @@ export class ShopMenu extends AbstractMenu {
                     selected: label === selection,
                     action: () => {
                         setSubMenu(label, submenus)
+                        categoryKinds = kinds
+                        if (search.text) search.text = ""   // leave search mode
                         setItems(kinds)
                     }
                 }))
             )
-            if (options.length === 1) setItems(options[0][1])
+            if (options.length === 1) { categoryKinds = options[0][1]; setItems(options[0][1]) }
             submenu.addControl(buttons)
             buttons.horizontalAlignment = StackPanel.HORIZONTAL_ALIGNMENT_CENTER
             buttons.height = "100%"
@@ -82,12 +162,25 @@ export class ShopMenu extends AbstractMenu {
         // Clipboard
         const clipboard = this.createClipboard()
 
+        // ── Layout ─────────────────────────────────────────────────────────────
+        // Search row (input + clear), category bar, item body, then the keyboard
+        // as an overlay over the lower body (only visible while searching).
+        const searchRow = this.rect()
+        this.place(searchRow, 0, 0, 100, 9)
+        this.texture.addControl(searchRow)
+        searchRow.addControl(search)
+        this.place(search, 1, 0, 72, 100)
+        searchRow.addControl(doneBtn)
+        this.place(doneBtn, 74, 0, 12, 100)
+        searchRow.addControl(clearBtn)
+        this.place(clearBtn, 87, 0, 12, 100)
+
         const topbar = this.rect()
-        this.place(topbar, 0, 0, 100, 15)
+        this.place(topbar, 0, 9, 100, 14)
         this.texture.addControl(topbar)
 
         const body = this.rect()
-        this.place(body, 0, 15, 100, 85)
+        this.place(body, 0, 23, 100, 77)
         this.texture.addControl(body)
 
         body.addControl(items)
@@ -102,6 +195,12 @@ export class ShopMenu extends AbstractMenu {
         topbar.addControl(submenu)
         this.place(submenu, 0, 50, 100, 50)
 
+        // Keyboard overlay — added last so it renders on top of the body.
+        this.texture.addControl(kbRow)
+        this.place(kbRow, 0, 52, 100, 48)
+        kbRow.addControl(keyboard)
+        this.place(keyboard, 1, 2, 98, 96)
+
             // Init menu
             ; (async () => {
                 const builder = Node3dManager.getInstance().builder
@@ -112,6 +211,8 @@ export class ShopMenu extends AbstractMenu {
                     else return [kind, factory] as const
                 })))
                     .filter(it => it != null)
+
+                allEntries = factories.map(([kind, factory]) => ({ kind, factory }))
 
                 const menus = {
                     Video: {

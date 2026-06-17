@@ -56,6 +56,30 @@ export interface InstrumentControlsOpts {
 
 const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
 
+// ─── Custom (user-saved) presets — persisted per instrument in localStorage ──
+//
+//   "Save current configuration" captures the live value of every tunable
+//   parameter as a named preset, stored under the instrument's title. They show
+//   up in the Presets menu (prefixed ★) on this and future sessions on the same
+//   device. Per-user / per-device by design (not synced across peers).
+
+type PresetMap = Record<string, Record<string, number>>;
+
+const customKey = (title: string) =>
+    `wamjam.presets.${title.replace(/[^a-z0-9]+/gi, "_").toLowerCase()}`;
+
+function loadCustomPresets(title: string): PresetMap {
+    try {
+        const raw = localStorage.getItem(customKey(title));
+        if (raw) return JSON.parse(raw) as PresetMap;
+    } catch { /* ignore */ }
+    return {};
+}
+
+function saveCustomPresets(title: string, presets: PresetMap): void {
+    try { localStorage.setItem(customKey(title), JSON.stringify(presets)); } catch { /* ignore */ }
+}
+
 export interface InstrumentControls {
     applyPreset(name: string): void;
     mutate(): void;
@@ -68,14 +92,53 @@ export function setupInstrumentControls(
     const byName = new Map(opts.params.map(p => [p.name, p]));
     const amount = opts.mutateAmount ?? 0.18;
 
+    // User-saved presets for this instrument, kept alongside the built-in ones.
+    let customPresets = loadCustomPresets(opts.title);
+
     const applyPreset = (name: string) => {
-        const preset = opts.presets[name];
+        const preset = opts.presets[name] ?? customPresets[name];
         if (!preset) return;
         for (const [pname, real] of Object.entries(preset)) {
             const p = byName.get(pname);
             if (p) p.setNorm(clamp01((real - p.min) / (p.max - p.min)));
         }
         context.showMessage(`Preset: ${name}`);
+    };
+
+    // Capture the current value of every tunable parameter as a new named preset.
+    const saveCurrentAsPreset = () => {
+        const snapshot: Record<string, number> = {};
+        for (const p of opts.params) snapshot[p.name] = p.min + p.getNorm() * (p.max - p.min);
+        let n = 1;
+        while (customPresets[`My Preset ${n}`]) n++;
+        const name = `My Preset ${n}`;
+        customPresets = { ...customPresets, [name]: snapshot };
+        saveCustomPresets(opts.title, customPresets);
+        context.showMessage(`Saved: ${name}`);
+    };
+
+    const clearCustomPresets = () => {
+        customPresets = {};
+        saveCustomPresets(opts.title, customPresets);
+        context.showMessage("Custom presets cleared");
+    };
+
+    // Build/refresh the Presets menu: built-in presets, then ★ custom ones,
+    // then the save / clear actions. Re-opened after save/clear so changes show.
+    const openPresetsMenu = () => {
+        const choices: { label: string; click?: () => void }[] = [];
+        for (const name of Object.keys(opts.presets)) {
+            choices.push({ label: name, click: () => applyPreset(name) });
+        }
+        for (const name of Object.keys(customPresets)) {
+            choices.push({ label: `★ ${name}`, click: () => applyPreset(name) });
+        }
+        choices.push({ label: "＋ Save current configuration", click: () => { saveCurrentAsPreset(); openPresetsMenu(); } });
+        if (Object.keys(customPresets).length > 0) {
+            choices.push({ label: "🗑 Delete my presets", click: () => { clearCustomPresets(); openPresetsMenu(); } });
+        }
+        choices.push({ label: "✖ Close", click: () => context.closeMenu() });
+        context.openMenu(choices);
     };
 
     const mutate = () => {
@@ -168,12 +231,7 @@ export function setupInstrumentControls(
         meshes: [opts.presetBtn],
         label: "Presets",
         color: new Color3(0.1, 0.75, 0.7),
-        press: () => {
-            context.openMenu(Object.keys(opts.presets).map(name => ({
-                label: name,
-                click: () => applyPreset(name),
-            })));
-        },
+        press: () => openPresetsMenu(),
         release: () => {},
     });
 
