@@ -22,7 +22,7 @@ import { Doc } from "yjs";
 import { Synchronized } from "../../network/sync/Synchronized";
 import { N3DHighlighter } from "./utils/N3DHighlighter";
 import { N3DShared } from "./N3DShared";
-import { AutomationN3DConnectable } from "../tools";
+import { AutomationN3DConnectable, MeshUtils } from "../tools";
 import { NetworkManager } from "../../network/NetworkManager.ts";
 import { N3DButtonInstance } from "./N3DButtonInstance.ts";
 import { SceneManager } from "../../app/SceneManager.ts";
@@ -269,8 +269,78 @@ export class Node3DInstance implements Synchronized {
 
         this.bounding_box = new BoundingBox(this.bounding_mesh)
 
-        // (Shake-to-delete removed — deletion is now handled by the per-node
-        //  delete button / menu created below.)
+
+        // Shake-to-delete — detection based on the REAL movement of the held box
+        // (HoldableBehaviour observables), not the pointer ray: ShakeBehavior
+        // listened to pointer.onMove, a path that doesn't fire in VR while
+        // FullHoldBehaviour holds the box. If dragging works, this works.
+        //
+        // DELIBERATELY HARD TO TRIGGER (made stricter on request) so an item is
+        // never deleted by accident while repositioning it:
+        //   • a swing only counts if it exceeds SWING_MIN (big gestures only),
+        //   • REVERSALS_TO_DELETE direction reversals are required,
+        //   • any pause > RESET_MS between two reversals resets the counter →
+        //     a slow / hesitant move never accumulates anything.
+        // Progressive feedback: colour white→red + a percentage message.
+        const SWING_MIN = 0.13            // m : minimum amplitude of a real swing (was 0.07)
+        const REVERSALS_TO_DELETE = 18    // ≈ 9 sustained back-and-forths (was 10)
+        const RESET_MS = 550              // max pause between two reversals (was 700)
+
+        const box = this.bounding_box.boundingBox
+        const holdable = this.bounding_box.holdable
+        const lastPos = new Vector3()
+        const delta = new Vector3()
+        const lastDelta = new Vector3()
+        let swingDist = 0
+        let reversals = 0
+        let lastReversalAt = 0
+        let deleting = false
+
+        const resetShakeFeedback = () => {
+            reversals = 0
+            swingDist = 0
+            if (!box.isDisposed()) MeshUtils.setColor(box, Color3.White().toColor4())
+        }
+
+        holdable.onGrabObservable.add(() => {
+            lastPos.copyFrom(box.absolutePosition)
+            lastDelta.setAll(0)
+            resetShakeFeedback()
+        })
+
+        holdable.onMoveObservable.add(() => {
+            if (this.disposed || deleting || box.isDisposed()) return
+            box.absolutePosition.subtractToRef(lastPos, delta)
+            if (delta.length() < 0.003) return   // tracking noise
+            const now = performance.now()
+            if (reversals > 0 && now - lastReversalAt > RESET_MS) resetShakeFeedback()
+            if (Vector3.Dot(delta, lastDelta) < 0) {
+                // Direction reversal: only counts if the swing was a real one
+                if (swingDist >= SWING_MIN) {
+                    reversals++
+                    lastReversalAt = now
+                    const progress = reversals / REVERSALS_TO_DELETE
+                    if (reversals >= REVERSALS_TO_DELETE) {
+                        deleting = true
+                        MenuSystem.getInstance().showMessage("Instrument deleted")
+                        NetworkManager.getInstance().node3d.nodes.remove(this)
+                        return
+                    }
+                    MeshUtils.setColor(box, Color3.Lerp(Color3.White(), Color3.Red(), progress).toColor4())
+                    MenuSystem.getInstance().showMessage(`Shake to delete… ${Math.round(progress * 100)} %`)
+                }
+                swingDist = 0
+            } else {
+                swingDist += delta.length()
+            }
+            lastDelta.copyFrom(delta)
+            lastPos.copyFrom(box.absolutePosition)
+        })
+
+        holdable.onReleaseObservable.add(() => {
+            if (!this.disposed && !deleting) resetShakeFeedback()
+        })
+
 
         // On position change
         this.set_state("position")

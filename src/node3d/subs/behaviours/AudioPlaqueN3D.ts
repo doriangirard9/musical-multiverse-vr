@@ -7,6 +7,9 @@ import type { AutomationN3DConnectable } from "../../tools";
 import type { PointerInput } from "../../../xr/inputs/PointerInput";
 import { BoidSwarm } from "./steering/Boid";
 import { setupInstrumentControls, makeClusterButtons, OutputPulser, type ClusterButtons } from "./instrumentControls";
+import { Logger } from "../../../utils/logger";
+
+const log = Logger.get("AudioPlaque");
 
 // Le redimensionnement se fait désormais à DEUX MAINS (TwoPointerHoldBehaviour
 // au niveau de l'hôte) → plus de poignée de resize par instrument.
@@ -370,8 +373,8 @@ export class AudioPlaqueN3D implements Node3D {
             p.rotation.set(0, 0, 0);
             p.rotationQuaternion = Quaternion.Identity();
 
-            console.log(
-                "[AudioPlaque] Bounding box flattened",
+            log.debug(
+                "Bounding box flattened",
                 "\n  BB name        :", p.name,
                 "\n  BB rotation    : (0, 0, 0)  identity",
             );
@@ -387,8 +390,8 @@ export class AudioPlaqueN3D implements Node3D {
             `(${v.x.toFixed(3)}, ${v.y.toFixed(3)}, ${v.z.toFixed(3)})`;
 
         const spawnPos = context.getPosition();
-        console.log(
-            "[AudioPlaque] SPAWNED",
+        log.debug(
+            "SPAWNED",
             "\n  world position :", fmt(spawnPos.position),
             "\n  world rotation :", `(x:${spawnPos.rotation.x.toFixed(3)} y:${spawnPos.rotation.y.toFixed(3)} z:${spawnPos.rotation.z.toFixed(3)} w:${spawnPos.rotation.w.toFixed(3)})`,
             "\n  plaque local   :", fmt(gui.root.position),
@@ -483,7 +486,7 @@ export class AudioPlaqueN3D implements Node3D {
                 this.swarm.setEnabled(this.boidMode);
                 refreshToggleColor();
                 context.notifyStateChange("boidMode");
-                console.log("[AudioPlaque] Boid mode:", this.boidMode ? "ON" : "OFF",
+                log.debug("Boid mode:", this.boidMode ? "ON" : "OFF",
                     "  count:", this.boidCount);
             },
             release: () => {},
@@ -498,7 +501,7 @@ export class AudioPlaqueN3D implements Node3D {
                 this.boidCount = Math.min(BOID_MAX, this.boidCount + 1);
                 this.swarm.setCount(this.boidCount);
                 context.notifyStateChange("boidCount");
-                console.log("[AudioPlaque] Boid count:", this.boidCount);
+                log.debug("Boid count:", this.boidCount);
             },
             release: () => {},
         });
@@ -512,7 +515,7 @@ export class AudioPlaqueN3D implements Node3D {
                 this.boidCount = Math.max(0, this.boidCount - 1);
                 this.swarm.setCount(this.boidCount);
                 context.notifyStateChange("boidCount");
-                console.log("[AudioPlaque] Boid count:", this.boidCount);
+                log.debug("Boid count:", this.boidCount);
             },
             release: () => {},
         });
@@ -531,7 +534,7 @@ export class AudioPlaqueN3D implements Node3D {
                 { swatch: "🟢", name: "Green spheres (sides)", role: "Audio in / out (passes through)" },
                 { swatch: "🔵", name: "Top-left discs", role: "Boids: on/off, +, −" },
                 { swatch: "🌸", name: "Bottom row spheres", role: "Swarm metrics: centroid X/Y, dispersion, alignment, vorticity" },
-                { swatch: "✋", name: "Frame", role: "Two-handed grab = resize; top-right bin button = delete" },
+                { swatch: "✋", name: "Frame", role: "Two-handed grab = resize; bin button or vigorous shake = delete" },
             ],
             presets: {
                 "Solo":        { boidCount: 0 },
@@ -603,8 +606,8 @@ export class AudioPlaqueN3D implements Node3D {
                 const right  = gui.plaque.getDirection(new Vector3(1, 0, 0));
                 const up     = gui.plaque.getDirection(new Vector3(0, 1, 0));
                 const normal = gui.plaqueNormal();
-                console.log(
-                    "[AudioPlaque] GRAB DOWN",
+                log.debug(
+                    "GRAB DOWN",
                     "\n  controller     :", pointer.controller.side,
                     "\n  pointer.origin :", fmt(pointer.origin),
                     "\n  pointer.hit    :", pointer.hit,
@@ -619,8 +622,8 @@ export class AudioPlaqueN3D implements Node3D {
             },
             // onUp
             (pointer) => {
-                console.log(
-                    "[AudioPlaque] GRAB UP",
+                log.debug(
+                    "GRAB UP",
                     "\n  controller     :", pointer.controller.side,
                     "\n  final targetPos:", fmt(this.targetPos),
                     "\n  ball local pos :", fmt(gui.ballRoot.position),
@@ -632,8 +635,8 @@ export class AudioPlaqueN3D implements Node3D {
                 const t = pointerToTarget(pointer);
                 if (t) {
                     this.targetPos.copyFrom(t);
-                    console.log(
-                        "[AudioPlaque] GRAB MOVE",
+                    log.debug(
+                        "GRAB MOVE",
                         "\n  controller     :", pointer.controller.side,
                         "\n  pointer.origin :", fmt(pointer.origin),
                         "\n  pointer.target :", pointer.hit ? fmt(pointer.target) : "(no hit)",
