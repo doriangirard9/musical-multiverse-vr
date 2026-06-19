@@ -11,6 +11,7 @@ export type IOEventPayload = {
 };
 export class IOEventBus extends BaseEventBus<IOEventPayload> {
     private static instance: IOEventBus;
+    private activeConnectionPointer: PointerInput | null = null;
 
     private constructor() {
         super();
@@ -21,5 +22,17 @@ export class IOEventBus extends BaseEventBus<IOEventPayload> {
             IOEventBus.instance = new IOEventBus();
         }
         return IOEventBus.instance;
+    }
+
+    public setActiveConnectionPointer(pointer: PointerInput | null): void {
+        this.activeConnectionPointer = pointer;
+    }
+
+    public getActiveConnectionPointer(): PointerInput | null {
+        return this.activeConnectionPointer;
+    }
+
+    public isConnectionDragActive(): boolean {
+        return this.activeConnectionPointer !== null;
     }
 }

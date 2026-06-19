@@ -93,7 +93,7 @@ export class TargetManagerController{
         
         // Node3DConnectionInstances
         for(const [_,connection] of this.targetManager.nodeManager.getRegistry().connections.entries())
-            if(pointed==connection.tube || pointed.isDescendantOf(connection.tube))
+            if(connection.containsTarget(pointed))
                 return {connection}
 
         return {}

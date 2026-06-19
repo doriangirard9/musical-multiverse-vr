@@ -1,6 +1,7 @@
 import { AbstractMesh, Behavior } from "@babylonjs/core";
 import { InputManager } from "../InputManager";
 import { PointerInput } from "../PointerInput";
+import { IOEventBus } from "../../../eventBus/IOEventBus";
 
 
 /**
@@ -63,6 +64,7 @@ export class InputMultiGrabBehavior implements Behavior<AbstractMesh> {
             inputs.onTriggerDown.add(e => {
                 const pointer = e.pressable.controller?.pointer;
                 if (!pointer) return;
+                if (IOEventBus.getInstance().isConnectionDragActive()) return;
                 if (pointer.targetMesh === target) {
                     this.add(pointer);
                 }
