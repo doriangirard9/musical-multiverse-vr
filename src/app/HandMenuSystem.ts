@@ -5,7 +5,7 @@ import { DrawingSystem } from "./DrawingSystem"
 import { Node3dManager } from "./Node3dManager"
 import { ShopMenuSystem } from "./ShopMenuSystem"
 import { Serialization } from "./Serialization"
-import { AbstractMesh, Color3, Matrix, Quaternion, Scene, Vector3 } from "@babylonjs/core"
+import { AbstractMesh, Color3, Matrix, Quaternion, Vector3 } from "@babylonjs/core"
 import { QuaternionUtils } from "../utils/quaternion"
 import { TargetManager } from "./TargetManager"
 import { BoxHighlight } from "../world/BoxHighlight"
@@ -90,18 +90,6 @@ export class HandMenuSystem {
         // Highlight
         this.initHighlight()
 
-        // Joystick scrolling: left thumbstick scrolls the left-hand menu; right
-        // thumbstick scrolls whatever modal menu is open (shop, settings…).
-        // scrollByFraction is a no-op when the menu doesn't overflow, so this
-        // doesn't interfere when there's nothing to scroll.
-        const SCROLL_RATE = 0.05
-        this.inputs.left.thumbstick.setPullInterval(50, (_x, y) => {
-            this.menu.scrollByFraction(-y * SCROLL_RATE)
-        })
-        this.inputs.right.thumbstick.setPullInterval(50, (_x, y) => {
-            this.shopMenu.menus.current_menu?.scrollByFraction(-y * SCROLL_RATE)
-        })
-
         this.updateMenu()
     }
 
@@ -109,13 +97,6 @@ export class HandMenuSystem {
         const target = this.selector.target
 
         const buttons = [] as ChoiceMenuButton[]
-
-        // Leave session → back to the sessions browser. Leaving the APP route
-        // triggers a full reload in index.ts (which fires SessionConnector.leave
-        // via beforeunload), so we just point the hash at the sessions route.
-        buttons.push({ label: "🚪 Leave session", color: "#ff9966", click: ()=>{
-            window.location.hash = buildHash(ROUTES.SESSIONS)
-        }})
 
         // Play/Stop
         if(this.wamTransport.isPlaying) buttons.push({ label: "⏸ Stop", color: "#FF6666", click: ()=>{
@@ -125,10 +106,13 @@ export class HandMenuSystem {
             this.wamTransport.start()
         }})
 
-        buttons.push({ label: `Open/Close settings`, color: "#66ccff", click: ()=>{
+        buttons.push({ label: `⚙ Open/Close settings`, color: "#66ccff", click: ()=>{
             this.shopMenu.menus.toggle(this.transportMenu.menu, false)
         }})
 
+        buttons.push({ label: "↩ Leave session", color: "#ff9966", click: ()=>{
+            window.location.hash = buildHash(ROUTES.SESSIONS)
+        }})
 
         // Open shop menu
         buttons.push({ label: "🛒 Open/Close shop menu", color: "#ffcc66", click: async()=>{

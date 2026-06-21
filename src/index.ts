@@ -23,9 +23,6 @@ import { SessionAPIClient } from "./network/SessionAPIClient.ts";
 import * as Y from 'yjs';
 import { installConsoleFilter } from "./utils/logger.ts";
 
-// Level-gated console: console.log/info/debug are quiet by default (level "warn")
-// and also drop the wam3dgenerator memory spam. warn/error always pass. Raise
-// verbosity at runtime with `wamjamLog.setLevel("debug")` in the devtools console.
 installConsoleFilter();
 
 let appStarted = false;

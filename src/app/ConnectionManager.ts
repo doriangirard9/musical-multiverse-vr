@@ -53,7 +53,6 @@ export class ConnectionManager {
         this.disposePreview?.()
         this.disposePreview = null
         this.currentPort = null
-        this.ioEventBus.setActiveConnectionPointer(null)
         AbstractPointerInput.PickPredicate = null
     }
 
@@ -92,7 +91,6 @@ export class ConnectionManager {
         switch (pickType) {
             case "down":
                 this.currentPort = data.connectable
-                this.ioEventBus.setActiveConnectionPointer(pointer)
                 
                 // Restrict picking to connection ports only during drag
                 AbstractPointerInput.PickPredicate = (mesh) => !!mesh.metadata?.isConnectablePort

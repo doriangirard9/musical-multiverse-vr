@@ -24,7 +24,7 @@ const ORDER: Record<LogLevelName, number> = {
 };
 
 const STORAGE_KEY = "wamjam.logLevel";
-const DEFAULT_LEVEL: LogLevelName = "warn";
+const DEFAULT_LEVEL: LogLevelName = "debug";
 
 function readStoredLevel(): LogLevelName {
     try {

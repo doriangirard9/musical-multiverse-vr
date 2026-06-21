@@ -38,16 +38,12 @@ export class N3DConnectionInstance{
 
         SceneManager.getInstance().getShadowGenerator().addShadowCaster(this._tube, false)
 
-        // Shake-to-delete a connection. Made stricter (on request) so a cable is
-        // never removed by accident: a stronger shake is required (threshold 5,
-        // was 3) and it must be sustained much longer (counter > 24, was 10).
-        // Deliberate deletion is still available from a node's delete menu.
         this.shake = new ShakeBehavior()
         this.shake.shake_threshold = 5
         this._tube.addBehavior(this.shake)
         this.shake.on_shake = (power, counter) => {
             this._tube.visibility = Math.max(0, 1 - power / 12)
-            if(counter>24) connections.remove(this)
+            if(counter>10) connections.remove(this)
         }
         this.shake.on_stop = (_, __) => {
             this._tube.visibility = .8
@@ -58,10 +54,10 @@ export class N3DConnectionInstance{
         this.shake.on_drop = () => {
             this._tube.visibility = 1
         }
+        
     }
 
     // Public API
-
     /**
      * Connect two connectable by this connections.
      * If this connections already connect two connectable the old connection is closed.
@@ -82,7 +78,7 @@ export class N3DConnectionInstance{
 
     get tube(){ return this._tube }
 
-    public containsTarget(mesh: AbstractMesh): boolean {
+    public contains(mesh: AbstractMesh): boolean {
         return mesh === this._tube
             || mesh.isDescendantOf(this._tube)
             || mesh === this.centerNode

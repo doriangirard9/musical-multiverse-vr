@@ -3,24 +3,13 @@ import { AdvancedDynamicTexture, Control, Rectangle, ScrollViewer } from "@babyl
 import { InputToPointerBehavior } from "../xr/inputs/tools/InputToPointer"
 import { PointerInput } from "../xr/inputs/PointerInput"
 import { N3DText } from "../node3d/instance/utils/N3DText"
+import { InputHoverBehavior, InputMultiHoverBehavior } from "../node3d/tools"
+import { InputManager } from "../xr/inputs"
 
 export class AbstractMenu {
     protected plane!: Mesh
     protected texture!: AdvancedDynamicTexture
     protected label?: N3DText
-
-    /** Subclasses set this to their scrollable content so thumbsticks can scroll it. */
-    public scrollViewer?: ScrollViewer
-
-    /** Scroll the menu by a fraction of its range (joystick scrolling). No-op if
-     *  the menu has no scroll or no overflow. dy>0 scrolls down, dy<0 scrolls up. */
-    public scrollByFraction(dy: number): void {
-        const bar = this.scrollViewer?.verticalBar
-        if (!bar) return
-        const min = bar.minimum ?? 0
-        const max = bar.maximum ?? 1
-        bar.value = Math.max(min, Math.min(max, bar.value + dy * (max - min)))
-    }
 
     constructor(
         protected scene: Scene,
@@ -41,7 +30,38 @@ export class AbstractMenu {
         this.plane = CreatePlane(name, { width, height }, this.renderScene)
 
         if(this.options.interactable ?? true){
-            this.plane.addBehavior(new InputToPointerBehavior())
+            // Inputs to pointer behavior
+            const pointer_controls = new InputToPointerBehavior()
+            this.plane.addBehavior(pointer_controls)
+
+            // Scroll
+            const SCROLL_RATE = 0.05
+
+            const inputs = InputManager.getInstance()
+
+            let scrollinterval: {remove():void}|null = null
+            let scrollinterval2: {remove():void}|null = null
+            const hover = new InputHoverBehavior(
+                ()=>{
+                    scrollinterval = inputs.right.thumbstick.setPullInterval(50, (_x,y)=>{
+                        this.scrollByFraction(-y * SCROLL_RATE)
+                    })
+                    scrollinterval2 = inputs.screen.thumbstick.setPullInterval(50, (_x,y)=>{
+                        this.scrollByFraction(-y * SCROLL_RATE)
+                    })
+                },
+                ()=>{
+                    if(scrollinterval){
+                        scrollinterval.remove()
+                        scrollinterval = null
+                    }
+                    if(scrollinterval2){
+                        scrollinterval2.remove()
+                        scrollinterval2 = null
+                    }
+                },
+            )
+            this.plane.addBehavior(hover)
         }
         else{
             this.plane.isPickable = false
@@ -222,6 +242,21 @@ export class AbstractMenu {
             }
         }
     }
+
+    // Scroll
+    /** Subclasses set this to their scrollable content so thumbsticks can scroll it. */
+    public scrollViewer?: ScrollViewer
+
+    /** Scroll the menu by a fraction of its range (joystick scrolling). No-op if
+     *  the menu has no scroll or no overflow. dy>0 scrolls down, dy<0 scrolls up. */
+    public scrollByFraction(dy: number): void {
+        const bar = this.scrollViewer?.verticalBar
+        if (!bar) return
+        const min = bar.minimum ?? 0
+        const max = bar.maximum ?? 1
+        bar.value = Math.max(min, Math.min(max, bar.value + dy * (max - min)))
+    }
+
 
     /**
      * Dispose all resources
