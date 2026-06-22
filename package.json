@@ -36,7 +36,7 @@
     "concurrently": "^9.2.1",
     "tone": "^15.0.4",
     "uuid": "^11.1.0",
-    "wam3dgenerator": "github:Jempasam/3d_wam_editor#semver:0.0.7",
+    "wam3dgenerator": "github:Jempasam/3d_wam_editor#semver:0.0.8",
     "ws": "^8.18.1",
     "y-utility": "^0.1.4",
     "y-webrtc": "^10.3.0",
