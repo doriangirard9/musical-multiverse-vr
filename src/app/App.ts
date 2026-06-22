@@ -22,7 +22,6 @@ import { TargetManager } from "./TargetManager.ts";
 import { BabylonsJSFix } from "./BabylonsJSFix.ts";
 import { PointerVisualSystem } from "./PointerVisualSystem.ts";
 import { MenuSystem } from "./MenuSystem.ts";
-import { MessageMenu } from "../menus/MessageMenu.ts";
 import { ContextMenuSystem } from "./ContextMenuSystem.ts";
 
 let _app: App
@@ -180,6 +179,9 @@ export class App {
             }
             else if(e.key=="i"){
                 scene.debugLayer.show()
+            }
+            else if(e.key=="o"){
+                NetworkManager.getInstance().doc
             }
             // else if(e.key=="q"){
             //     let prompt = window.prompt("Enter URL to import:")

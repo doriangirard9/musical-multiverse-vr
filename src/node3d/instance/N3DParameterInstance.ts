@@ -8,11 +8,6 @@ import { Node3DInstance } from "./Node3DInstance"
 
 const highlightColor = Color3.Blue()
 
-// Default drag mapping: value change per metre of WORLD vertical hand movement.
-// ~1/0.33 → a full 0..1 sweep over ≈ 33 cm of vertical travel. Tune to taste.
-const DEFAULT_VERTICAL_GAIN = 3.0
-
-
 
 /**
  * A simple parameter whose value is changed by dragging it.
@@ -108,6 +103,7 @@ export class N3DParameterInstance {
             const reverseMatrix = Matrix.Identity()
             const relativePosition = new Vector3()
             const relativeDirection = new Vector3()
+            const temp = new Vector3()
 
             const drag = new InputGrabBehavior(
                 input=>{
@@ -142,24 +138,22 @@ export class N3DParameterInstance {
                     // If stepCount is 2, do nothing on drag
                     if(stepSize==1)return
 
-                    let newvalue: number
-                    if(config.fromOffset){
-                        // Custom mapping (e.g. IsfShader) — keep the grab-frame offsets.
-                        Vector3.TransformCoordinatesToRef(input.origin, reverseMatrix, relativePosition)
-                        Vector3.TransformNormalToRef(input.forward, reverseMatrix, relativeDirection)
-                        const offset = config.fromOffset(relativePosition, relativeDirection)
-                        newvalue = startingValue + offset * changeFactor
-                    }
-                    else{
-                        // Default: WORLD vertical hand movement → raising increases the
-                        // value, lowering decreases it, consistently whatever the angle
-                        // the controller is tilted to reach the knob. (The old grab-frame
-                        // mapping flipped on tilted/low knobs — hence "certain knobs"
-                        // felt inverted.)
-                        const dy = input.origin.y - grabY
-                        newvalue = startingValue + dy * DEFAULT_VERTICAL_GAIN
-                    }
+                    // Get ray relative to the parameter
+                    Vector3.TransformCoordinatesToRef(input.origin, reverseMatrix, relativePosition)
+                    Vector3.TransformNormalToRef(input.forward, reverseMatrix, relativeDirection)
+                    
+                    const fromOffset = config.fromOffset ?? ((posOffset, dirOffset) => {
+                        // Project to ground plane
+                        const ground_length = Math.abs(Math.pow(dirOffset.x,2) + Math.pow(dirOffset.z,2))
+                        const corrected_length = Math.min(1/ground_length,10)
 
+                        temp.copyFrom(dirOffset).scaleInPlace(corrected_length).addInPlace(posOffset)
+                        return -temp.y
+                    })
+
+                    const offset = fromOffset(relativePosition, relativeDirection)
+
+                    let newvalue = (startingValue + offset * changeFactor)
                     newvalue = newvalue - newvalue % stepSize
                     newvalue = Math.max(0, Math.min(1, newvalue))
                     this.setValue(newvalue)

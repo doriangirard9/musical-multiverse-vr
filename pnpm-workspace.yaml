@@ -1,5 +1,7 @@
 allowBuilds:
+  core-js: false
   esbuild: true
+  protobufjs: false
   wam3dgenerator: true
 onlyBuiltDependencies:
   - esbuild

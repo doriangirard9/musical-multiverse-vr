@@ -1,4 +1,3 @@
-import { Observable } from "@babylonjs/core";
 import { Synchronized } from "./Synchronized";
 import { SyncSerializable } from "./SyncSerializable";
 import * as Y from "yjs";
