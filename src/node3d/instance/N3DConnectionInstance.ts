@@ -35,10 +35,9 @@ export class N3DConnectionInstance{
 
         SceneManager.getInstance().getShadowGenerator().addShadowCaster(this._tube, false)
 
-        // Shake-to-delete a connection. Made stricter (on request) so a cable is
-        // never removed by accident: a stronger shake is required (threshold 5,
-        // was 3) and it must be sustained much longer (counter > 24, was 10).
-        // Deliberate deletion is still available from a node's delete menu.
+        // Shake-to-delete a connection. Intentionally strict (threshold 5,
+        // sustain > 24) so a cable is never removed by accident; the node's
+        // delete menu remains the deliberate path.
         this.shake = new ShakeBehavior()
         this.shake.shake_threshold = 5
         this._tube.addBehavior(this.shake)

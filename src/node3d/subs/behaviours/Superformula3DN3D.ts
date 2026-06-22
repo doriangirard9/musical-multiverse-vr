@@ -9,34 +9,12 @@ import type { AutomationN3DConnectable } from "../../tools";
 import { BoidSwarm } from "./steering/Boid";
 import { setupInstrumentControls, makeClusterButtons, OutputPulser, type TunableParam, type ClusterButtons } from "./instrumentControls";
 
-// ─── Superformula3DN3D — supershape de Gielis en 3D ──────────────────────────
-//
-//   Même rôle que le SuperformulaN3D 2D (contrôleur d'automation : un playhead
-//   parcourt la forme, ses métriques de mouvement sortent en automation), mais
-//   la forme est le SUPERSHAPE 3D : produit sphérique de deux superformules.
-//
-//     r1 = sf(θ, mA, n1A, n2A, n3A)   — profil longitudinal (équateur)
-//     r2 = sf(φ, mB, n1B, n2B, n3B)   — profil latitudinal (méridien)
-//
-//     x = r1·cosθ · r2·cosφ
-//     y = r2·sinφ
-//     z = r1·sinθ · r2·cosφ
-//
-//   Feedback (le cœur de la demande) :
-//     • MORPHING LISSÉ : tourner un knob ne "saute" pas — les paramètres
-//       courants glissent vers la cible à chaque frame, la surface se déforme
-//       fluidement sous les yeux (mesh updatable, ~1 200 sommets).
-//     • COULEURS PAR RAYON : chaque sommet est coloré selon sa distance au
-//       centre (violet profond → cyan) — la "météo" de la forme se lit
-//       instantanément.
-//     • SURCOUCHE WIREFRAME lumineuse qui respire avec l'activité de morphing.
-//     • Playhead 3D en spirale sur la surface + traînée fondante + halo.
-//     • Cage 12 arêtes dont l'émissif pulse pendant le morphing.
-//     • Auto-rotation lente (accélère pendant le morphing).
-//
-//   BOUNDING BOX : même idiome que le 2D — seule une plaque-poignée à
-//   L'ARRIÈRE (z=+0.62, le joueur regarde depuis -z) va dans la bounding box,
-//   pour que les rayons atteignent directement knobs et connecteurs devant.
+// 3D Gielis supershape automation controller: a playhead spirals over the
+// surface and its motion metrics drive automation outputs. The shape is the
+// spherical product of two superformulas (r1 longitudinal, r2 latitudinal).
+// Knob changes morph the surface smoothly each frame (updatable mesh, ~1200
+// verts), vertices are coloured by radius, and a back handle plate is the only
+// bounding-box target so rays reach the knobs/connectors in front.
 
 function superformula(angle: number, m: number, n1: number, n2: number, n3: number): number {
     const p1 = Math.pow(Math.abs(Math.cos((m * angle) / 4)), n2);
@@ -45,7 +23,7 @@ function superformula(angle: number, m: number, n1: number, n2: number, n3: numb
     return Number.isFinite(r) ? r : 0;
 }
 
-// Plages des knobs — 2 profils × (m, n1, n2, n3) + scale + speed
+// Knob ranges — 2 profiles x (m, n1, n2, n3) + scale + speed
 const RANGES = {
     mA:  { min: 1.0,  max: 20.0, default: 6.0 },
     n1A: { min: 0.1,  max: 10.0, default: 1.0 },
@@ -57,19 +35,17 @@ const RANGES = {
     n3B: { min: 0.1,  max: 10.0, default: 1.5 },
     scale: { min: 0.10, max: 0.45, default: 0.32 },
     speed: { min: 0.10, max: 6.00, default: 1.20 },
-    // Pilotage de la boule (0.5 = centré). Déviés du centre, les trois potards
-    // définissent une DIRECTION : la boule glisse vers le point de la surface
-    // visé (elle ne quitte jamais la surface). Tous centrés → pilote
-    // automatique (spirale). Câblables en automation comme tout paramètre.
+    // Ball steering (0.5 = centred). Off-centre, the three knobs define a
+    // direction the ball glides toward on the surface; all centred → automatic
+    // spiral. Automatable like any parameter.
     ballX: { min: 0, max: 1, default: 0.5 },
     ballY: { min: 0, max: 1, default: 0.5 },
     ballZ: { min: 0, max: 1, default: 0.5 },
 } as const;
 type RangeKey = keyof typeof RANGES;
 
-// Seules ces clés déclenchent un rebuild de la surface. Les potards de boule
-// peuvent être modulés en continu par automation — il ne faut PAS reconstruire
-// ~4 700 sommets par frame pour ça.
+// Only these keys trigger a surface rebuild; the ball knobs can be modulated
+// continuously without rebuilding ~4700 vertices per frame.
 const SHAPE_KEYS: RangeKey[] = ["mA", "n1A", "n2A", "n3A", "mB", "n1B", "n2B", "n3B", "scale"];
 
 const BOID_MAX = 30;
@@ -88,18 +64,17 @@ const SF3D_PRESETS: Record<string, Record<string, number>> = {
 const norm   = (key: RangeKey, v: number) => (v - RANGES[key].min) / (RANGES[key].max - RANGES[key].min);
 const denorm = (key: RangeKey, t: number) => RANGES[key].min + Math.max(0, Math.min(1, t)) * (RANGES[key].max - RANGES[key].min);
 
-// Redimensionnement à deux mains géré par l'hôte → plus de poignée par item.
+// Resizing is two-handed (host-level); no per-instrument handle.
 
-// Résolution de la surface.  97×49 ≈ 4 750 sommets : nécessaire pour que la
-// surface AFFICHÉE colle à la vraie formule — la boule suit la formule exacte,
-// un maillage trop grossier (48×24) la faisait « flotter » hors des facettes
-// dès que m dépassait ~6.  Rebuild seulement pendant le morphing.
+// Surface resolution. ~97x49 (~4750 verts) is needed so the displayed surface
+// matches the formula closely; a coarser mesh made the ball "float" off the
+// facets once m exceeded ~6. Rebuilt only while morphing.
 const U_SEGS = 96;   // θ : -π..π
 const V_SEGS = 48;   // φ : -π/2..π/2
 const TRAIL_POINTS = 90;
 
-// Dégradé de couleur par rayon normalisé
-const COLOR_INNER = new Color3(0.30, 0.10, 0.55);   // violet profond
+// Colour gradient by normalized radius
+const COLOR_INNER = new Color3(0.30, 0.10, 0.55);   // deep violet
 const COLOR_OUTER = new Color3(0.20, 0.95, 1.00);   // cyan
 
 // ─── GUI ──────────────────────────────────────────────────────────────────────
@@ -108,12 +83,12 @@ export class Superformula3DN3DGUI implements Node3DGUI {
     root!: TransformNode;
     get worldSize() { return this.factory.size; }
 
-    handle!: AbstractMesh;          // plaque arrière — seule cible de la bounding box
-    shapeRoot!: TransformNode;      // porte la surface (auto-rotation)
-    surface!: Mesh;                 // mesh updatable du supershape
-    wire!: Mesh;                    // clone wireframe (géométrie partagée)
+    handle!: AbstractMesh;          // back plate — only bounding-box target
+    shapeRoot!: TransformNode;      // carries the surface (auto-rotation)
+    surface!: Mesh;                 // updatable supershape mesh
+    wire!: Mesh;                    // wireframe clone (shared geometry)
     wireMat!: StandardMaterial;
-    edgeMat!: StandardMaterial;     // matériau commun des 12 arêtes de la cage
+    edgeMat!: StandardMaterial;     // shared material for the 12 cage edges
 
     // Playhead
     ballRoot!: TransformNode;
@@ -122,7 +97,7 @@ export class Superformula3DN3DGUI implements Node3DGUI {
     trail!: LinesMesh | null;
     trailPoints: Vector3[] = [];
 
-    // Connecteurs / knobs
+    // Connectors / knobs
     audioIn!: AbstractMesh;
     audioOut!: AbstractMesh;
     knobs: Record<string, AbstractMesh> = {};
@@ -140,10 +115,10 @@ export class Superformula3DN3DGUI implements Node3DGUI {
     outBoidCx!: AbstractMesh;  outBoidCy!: AbstractMesh;  outBoidCz!: AbstractMesh;
     outBoidDisp!: AbstractMesh; outBoidAlign!: AbstractMesh; outBoidVort!: AbstractMesh;
 
-    // Cluster standard : ? · Presets · 🎲 · ↺
+    // Standard cluster
     cluster!: ClusterButtons;
 
-    // Buffers réutilisés du mesh (positions/normales/couleurs ; indices fixes)
+    // Reused mesh buffers (positions/normals/colors; fixed indices)
     private positions!: Float32Array;
     private normals!: Float32Array;
     private colors!: Float32Array;
@@ -158,7 +133,7 @@ export class Superformula3DN3DGUI implements Node3DGUI {
 
         this.root = new B.TransformNode("sf3d_root", scene);
 
-        // ── Plaque-poignée arrière (bounding box) ─────────────────────────────
+        // Backing handle (bounding box)
         this.handle = B.MeshBuilder.CreateBox("sf3d_handle", {
             width: 1.7, height: 1.7, depth: 0.06,
         }, scene);
@@ -167,7 +142,7 @@ export class Superformula3DN3DGUI implements Node3DGUI {
         this.handle.material = context.materialMat;
         this.handle.isPickable = false;
 
-        // ── Cage : 12 arêtes lumineuses (pulse pendant le morphing) ───────────
+        // Cage: 12 glowing edges (pulse while morphing)
         this.edgeMat = new StandardMaterial("sf3d_edge_mat", scene);
         this.edgeMat.emissiveColor = new Color3(0, 0.75, 0.85);
         this.edgeMat.disableLighting = true;
@@ -183,7 +158,7 @@ export class Superformula3DN3DGUI implements Node3DGUI {
         for (const sx of [-h, h]) for (const sz of [-h, h]) mkEdge(`sf3d_ey_${sx}_${sz}`, et, 1 + et, et, sx, 0, sz);
         for (const sx of [-h, h]) for (const sy of [-h, h]) mkEdge(`sf3d_ez_${sx}_${sy}`, et, et, 1 + et, sx, sy, 0);
 
-        // ── Surface supershape (mesh custom updatable) ────────────────────────
+        // Supershape surface (custom updatable mesh)
         this.shapeRoot = new B.TransformNode("sf3d_shape_root", scene);
         this.shapeRoot.parent = this.root;
 
@@ -213,25 +188,24 @@ export class Superformula3DN3DGUI implements Node3DGUI {
         vd.applyToMesh(this.surface, true);
 
         const surfMat = new StandardMaterial("sf3d_surface_mat", scene);
-        surfMat.diffuseColor  = new Color3(1, 1, 1);          // modulé par les vertex colors
-        surfMat.emissiveColor = new Color3(0.18, 0.20, 0.28); // lisible même sans lumière directe
+        surfMat.diffuseColor  = new Color3(1, 1, 1);          // modulated by vertex colors
+        surfMat.emissiveColor = new Color3(0.18, 0.20, 0.28); // readable without direct light
         surfMat.specularColor = new Color3(0.4, 0.4, 0.45);
-        surfMat.backFaceCulling = false;                      // les formes concaves montrent l'intérieur
+        surfMat.backFaceCulling = false;                      // concave shapes show their inside
         this.surface.material = surfMat;
         this.surface.hasVertexAlpha = false;
-        // Les buffers changent à chaque morph sans refresh de bounding info →
-        // on désactive le frustum culling (mesh peu coûteux, toujours rendu).
+        // Buffers change every morph without refreshing bounding info, so disable
+        // frustum culling (cheap mesh, always rendered).
         this.surface.alwaysSelectAsActiveMesh = true;
 
-        // Surcouche wireframe — géométrie PARTAGÉE avec la surface (clone),
-        // donc mise à jour gratuitement à chaque morph.
+        // Wireframe overlay — geometry shared with the surface (clone), so it
+        // updates for free on every morph.
         this.wire = this.surface.clone("sf3d_wire");
         this.wire.parent = this.shapeRoot;
         this.wire.isPickable = false;
         this.wire.scaling.setAll(1.015);
-        // Le clone garde la bounding info DÉGÉNÉRÉE du moment du clone (tout à
-        // zéro) et ne la rafraîchit jamais → sans ce flag il disparaît selon
-        // l'angle de vue (frustum culling sur un point).
+        // The clone keeps the degenerate bounding info from clone time and never
+        // refreshes it, so without this flag it would cull at some view angles.
         this.wire.alwaysSelectAsActiveMesh = true;
         this.wireMat = new StandardMaterial("sf3d_wire_mat", scene);
         this.wireMat.emissiveColor = new Color3(0.2, 0.9, 1.0);
@@ -241,9 +215,9 @@ export class Superformula3DN3DGUI implements Node3DGUI {
         this.wireMat.backFaceCulling = false;
         this.wire.material = this.wireMat;
 
-        // ── Playhead : balle + halo + traînée 3D ──────────────────────────────
+        // Playhead: ball + halo + 3D trail
         this.ballRoot = new B.TransformNode("sf3d_ball_root", scene);
-        this.ballRoot.parent = this.shapeRoot;   // suit l'auto-rotation de la forme
+        this.ballRoot.parent = this.shapeRoot;   // follows the shape's auto-rotation
 
         this.ball = B.MeshBuilder.CreateSphere("sf3d_ball", { diameter: 0.05 }, scene);
         this.ball.parent = this.ballRoot;
@@ -273,11 +247,11 @@ export class Superformula3DN3DGUI implements Node3DGUI {
         }, scene);
         this.trail.parent = this.shapeRoot;
         this.trail.isPickable = false;
-        // Même raison que le wire : les updates par instance ne rafraîchissent
-        // pas la bounding info → culling erratique sans ce flag.
+        // Same reason as the wire: per-instance updates don't refresh bounding
+        // info, so without this flag culling is erratic.
         this.trail.alwaysSelectAsActiveMesh = true;
 
-        // ── Audio in/out — coins supérieurs ───────────────────────────────────
+        // Audio in/out — top corners
         const audioColor = (() => { const c = AudioN3DConnectable.Color; return new Color4(c.r, c.g, c.b, 1); })();
         this.audioIn = ConnectableUtils.createInputMesh("sf3d_audio_in", 0.08, scene);
         this.audioIn.parent = this.root;
@@ -289,8 +263,8 @@ export class Superformula3DN3DGUI implements Node3DGUI {
         this.audioOut.position.set(0.68, 0.68, 0);
         MeshUtils.setColor(this.audioOut, audioColor);
 
-        // ── Knobs : profil A à gauche (or), profil B à droite (magenta),
-        //    scale/speed en bas des colonnes (orange) ────────────────────────────
+        // Knobs: profile A left (gold), profile B right (magenta),
+        // scale/speed at the bottom of each column (orange).
         const mkKnob = (name: string, color: Color4): AbstractMesh => {
             const k = B.MeshBuilder.CreateSphere(name, { diameter: 0.10 }, scene);
             k.parent = this.root;
@@ -321,8 +295,7 @@ export class Superformula3DN3DGUI implements Node3DGUI {
         this.knobs["speed"] = mkKnob("sf3d_knob_speed", motion);
         this.knobs["speed"].position.set(0.68, -0.42, 0);
 
-        // Potards de pilotage de la boule — roses comme elle, bas centre,
-        // sous l'arête inférieure de la cage (y=-0.5)
+        // Ball steering knobs — pink like the ball, bottom-centre below the cage
         const pink = new Color4(1.0, 0.45, 0.75, 1);
         (["ballX", "ballY", "ballZ"] as RangeKey[]).forEach((key, i) => {
             const k = mkKnob(`sf3d_knob_${key}`, pink);
@@ -330,7 +303,7 @@ export class Superformula3DN3DGUI implements Node3DGUI {
             this.knobs[key] = k;
         });
 
-        // ── 8 sorties d'automation — rangée du bas ────────────────────────────
+        // 8 automation outputs — bottom row
         const outColors: Record<string, Color4> = {
             posX:        new Color4(0.90, 0.15, 0.15, 1),
             posY:        new Color4(0.15, 0.40, 0.95, 1),
@@ -358,9 +331,7 @@ export class Superformula3DN3DGUI implements Node3DGUI {
         this.outAcceleration = mkOut("sf3d_out_accel",  xs[6], outColors.accel);
         this.outCurvature    = mkOut("sf3d_out_curv",   xs[7], outColors.curvature);
 
-        // (Plus de poignée de resize : redimensionnement à deux mains via l'hôte.)
-
-        // ── Contrôles boids — disques en haut à gauche (même idiome que le 2D) ─
+        // Boid controls — discs at the top-left
         const mkDisc = (name: string, diameter: number, emissive: Color3): AbstractMesh => {
             const m = B.MeshBuilder.CreateCylinder(name, { diameter, height: 0.025, tessellation: 24 }, scene);
             m.rotation.x = Math.PI / 2;
@@ -379,14 +350,14 @@ export class Superformula3DN3DGUI implements Node3DGUI {
         this.btnBoidRemove = mkDisc("sf3d_boid_remove", 0.08, new Color3(0.85, 0.2, 0.3));
         this.btnBoidRemove.position.set(-0.22, 0.70, 0);
 
-        // Cluster standard ? · Presets · 🎲 · ↺ — au-dessus de la cage, centré
+        // Standard cluster — above the cage, centred
         this.cluster = makeClusterButtons(B, scene, this.root, { x: -0.24, y: 0.86, z: 0 });
 
-        // L'essaim vit dans l'espace de la forme (suit sa rotation, comme la boule)
+        // The swarm lives in shape space (follows its rotation, like the ball)
         this.boidContainer = new B.TransformNode("sf3d_boid_container", scene);
         this.boidContainer.parent = this.shapeRoot;
 
-        // ── 6 sorties de métriques boids — 2e rangée sous les sorties motion ──
+        // 6 boid-metric outputs — second row below the motion outputs
         const mkBoidOut = (name: string, x: number, c: Color4): AbstractMesh => {
             const m = ConnectableUtils.createOutputMesh(name, 0.06, scene);
             m.parent = this.root;
@@ -395,19 +366,16 @@ export class Superformula3DN3DGUI implements Node3DGUI {
             return m;
         };
         const bxs = [-0.50, -0.30, -0.10, 0.10, 0.30, 0.50];
-        this.outBoidCx    = mkBoidOut("sf3d_boid_cx",    bxs[0], new Color4(1.00, 0.40, 0.70, 1));  // rose
-        this.outBoidCy    = mkBoidOut("sf3d_boid_cy",    bxs[1], new Color4(0.40, 0.70, 1.00, 1));  // bleu clair
+        this.outBoidCx    = mkBoidOut("sf3d_boid_cx",    bxs[0], new Color4(1.00, 0.40, 0.70, 1));  // pink
+        this.outBoidCy    = mkBoidOut("sf3d_boid_cy",    bxs[1], new Color4(0.40, 0.70, 1.00, 1));  // light blue
         this.outBoidCz    = mkBoidOut("sf3d_boid_cz",    bxs[2], new Color4(0.30, 0.95, 0.80, 1));  // turquoise
-        this.outBoidDisp  = mkBoidOut("sf3d_boid_disp",  bxs[3], new Color4(1.00, 0.85, 0.30, 1));  // or
-        this.outBoidAlign = mkBoidOut("sf3d_boid_align", bxs[4], new Color4(0.30, 0.90, 0.55, 1));  // émeraude
+        this.outBoidDisp  = mkBoidOut("sf3d_boid_disp",  bxs[3], new Color4(1.00, 0.85, 0.30, 1));  // gold
+        this.outBoidAlign = mkBoidOut("sf3d_boid_align", bxs[4], new Color4(0.30, 0.90, 0.55, 1));  // emerald
         this.outBoidVort  = mkBoidOut("sf3d_boid_vort",  bxs[5], new Color4(0.75, 0.40, 1.00, 1));  // violet
     }
 
-    /**
-     * Recalcule positions + normales + couleurs du supershape pour les
-     * paramètres donnés.  Buffers réutilisés, indices fixes — pas d'allocation
-     * par frame (hors le tableau temporaire de ComputeNormals).
-     */
+    /** Recompute supershape positions/normals/colors for the given parameters.
+     *  Reuses buffers with fixed indices — no per-frame allocation. */
     rebuildSurface(
         mA: number, n1A: number, n2A: number, n3A: number,
         mB: number, n1B: number, n2B: number, n3B: number,
@@ -434,7 +402,7 @@ export class Superformula3DN3DGUI implements Node3DGUI {
             }
         }
 
-        // Couleurs : dégradé violet → cyan selon le rayon normalisé
+        // Colors: violet → cyan gradient by normalized radius
         const maxR = Math.sqrt(maxR2);
         const n = pos.length / 3;
         for (let k = 0; k < n; k++) {
@@ -453,13 +421,9 @@ export class Superformula3DN3DGUI implements Node3DGUI {
         this.surface.refreshBoundingInfo();
     }
 
-    /**
-     * Échantillonne la SURFACE AFFICHÉE en (u01, v01) ∈ [0,1]² : interpolation
-     * bilinéaire entre les 4 sommets voisins des buffers du mesh (positions +
-     * normales).  La boule qui suit ce point est collée aux facettes RENDUES
-     * par construction — aucune divergence possible entre la formule analytique
-     * et le maillage (résolution, spikes, morphing en cours…).
-     */
+    /** Sample the displayed surface at (u01, v01) ∈ [0,1]² by bilinear
+     *  interpolation of the 4 neighbouring mesh vertices, so the ball stays
+     *  glued to the rendered facets (no drift from the analytic formula). */
     samplePoint(u01: number, v01: number, outPos: Vector3, outNormal: Vector3): void {
         const fu = Math.max(0, Math.min(0.9999, u01)) * U_SEGS;
         const fv = Math.max(0, Math.min(0.9999, v01)) * V_SEGS;
@@ -474,7 +438,7 @@ export class Superformula3DN3DGUI implements Node3DGUI {
         outNormal.set(bilerp(this.normals, 0), bilerp(this.normals, 1), bilerp(this.normals, 2));
     }
 
-    /** Pousse une position de playhead dans la traînée (fondante). */
+    /** Push a playhead position into the fading trail. */
     pushTrailPoint(p: Vector3): void {
         if (!this.trail || this.trail.isDisposed()) return;
         for (let i = 0; i < TRAIL_POINTS - 1; i++) this.trailPoints[i].copyFrom(this.trailPoints[i + 1]);
@@ -492,16 +456,16 @@ export class Superformula3DN3DGUI implements Node3DGUI {
 // ─── Logic ────────────────────────────────────────────────────────────────────
 
 export class Superformula3DN3D implements Node3D {
-    // Cibles (les knobs écrivent ici) et valeurs courantes (lissées vers la cible)
+    // Targets (knobs write here) and current values (smoothed toward the target)
     private target: Record<RangeKey, number> = Object.fromEntries(
         (Object.keys(RANGES) as RangeKey[]).map(k => [k, RANGES[k].default]),
     ) as Record<RangeKey, number>;
     private current = { ...this.target };
 
-    private theta = 0;          // phase du playhead
-    private morphActivity = 0;  // 0..1 — pilote wireframe/cage/rotation
+    private theta = 0;          // playhead phase
+    private morphActivity = 0;  // 0..1 — drives wireframe/cage/rotation
 
-    // Boids (synchronisés réseau, comme le 2D)
+    // Boids (network-synced)
     private boidMode = false;
     private boidCount = 5;
     private swarm!: BoidSwarm;
@@ -518,7 +482,7 @@ export class Superformula3DN3D implements Node3D {
 
         context.addToBoundingBox(gui.handle);
 
-        // Aplatit l'inclinaison de spawn de la bounding box (idiome du 2D)
+        // Flatten the bounding box's spawn tilt
         let orientObs: Observer<Scene> | null = null;
         orientObs = context.observe(scene.onBeforeRenderObservable, () => {
             let p: TransformNode | null = gui.root.parent as TransformNode | null;
@@ -529,14 +493,14 @@ export class Superformula3DN3D implements Node3D {
             if (orientObs) { scene.onBeforeRenderObservable.remove(orientObs); orientObs = null; }
         });
 
-        // ── Audio passthrough ─────────────────────────────────────────────────
+        // Audio passthrough
         this.gainIn = audioCtx.createGain();
         this.gainOut = audioCtx.createGain();
         this.gainIn.connect(this.gainOut);
         context.createConnectable(new T.AudioN3DConnectable.Input("audioIn", [gui.audioIn], "Audio In", this.gainIn));
         context.createConnectable(new T.AudioN3DConnectable.Output("audioOut", [gui.audioOut], "Audio Out", this.gainOut));
 
-        // ── 8 sorties d'automation ────────────────────────────────────────────
+        // 8 automation outputs
         const A = T.AutomationN3DConnectable.Output;
         const outDefs: [string, AbstractMesh, string, number][] = [
             ["posX",        gui.outPosX,         "Position X",        0.5],
@@ -554,7 +518,7 @@ export class Superformula3DN3D implements Node3D {
             context.createConnectable(out);
         }
 
-        // ── Knobs (10) — la cible bouge, la forme suit en douceur ─────────────
+        // Knobs — the target moves, the shape follows smoothly
         const knobDefs: [RangeKey, string, number][] = [
             ["mA",  "Petals A (m)",      1],
             ["n1A", "Sharpness A (n1)",  2],
@@ -570,8 +534,8 @@ export class Superformula3DN3D implements Node3D {
             ["ballY", "Ball Y",          2],
             ["ballZ", "Ball Z",          2],
         ];
-        // Paramètres pilotables par le cluster (presets/mutation) : la FORME
-        // uniquement (on exclut ballX/Y/Z qui sont de la performance live).
+        // Cluster-controllable params (presets/mutation): shape only —
+        // ballX/Y/Z are live performance and excluded.
         const tunables: TunableParam[] = [];
         for (const [key, label, decimals] of knobDefs) {
             const mesh = gui.knobs[key];
@@ -596,9 +560,7 @@ export class Superformula3DN3D implements Node3D {
             }
         }
 
-        // (Redimensionnement à deux mains géré par l'hôte → pas de userScale.)
-
-        // ── Boids : essaim 3D qui chasse la boule ─────────────────────────────
+        // Boids: a 3D swarm that chases the ball
         this.swarm = new BoidSwarm(gui.boidContainer, scene, { is3D: true });
         this.swarm.setCount(this.boidCount);
         this.swarm.setEnabled(this.boidMode);
@@ -642,7 +604,7 @@ export class Superformula3DN3D implements Node3D {
             release: () => {},
         });
 
-        // 6 sorties de métriques de l'essaim (centroïde 3D + dynamique)
+        // 6 swarm-metric outputs (3D centroid + dynamics)
         const boidOutDefs: [string, AbstractMesh, string, number][] = [
             ["boidCentroidX",  gui.outBoidCx,    "Boid Centroid X", 0.5],
             ["boidCentroidY",  gui.outBoidCy,    "Boid Centroid Y", 0.5],
@@ -657,7 +619,7 @@ export class Superformula3DN3D implements Node3D {
             context.createConnectable(out);
         }
 
-        // ── Standard cluster: ? · Presets · 🎲 · ↺ (applies "Flower" on spawn) ─
+        // Standard cluster (applies "Flower" on spawn)
         setupInstrumentControls(context, {
             title: "Superformula 3D",
             description: "3D Gielis supershape. The 8 knobs sculpt the surface " +
@@ -682,29 +644,23 @@ export class Superformula3DN3D implements Node3D {
             resetBtn: gui.cluster.resetBtn,
         });
 
-        // Pulse des 8 sorties motion ∝ valeur (on voit l'activité d'un coup d'œil)
+        // Pulse the 8 motion outputs by value
         const pulser = new OutputPulser([
             gui.outPosX, gui.outPosY, gui.outPosZ, gui.outRadius,
             gui.outRadiusDelta, gui.outSpeed, gui.outAcceleration, gui.outCurvature,
         ]);
 
-        console.log("[Superformula3D] SPAWNED");
+        console.log("[Superformula3D] spawned");
 
-        // ── Boucle par frame ──────────────────────────────────────────────────
-        //
-        //   1. Lissage des paramètres courants vers la cible (morphing fluide) ;
-        //      rebuild de la surface tant que ça bouge.
-        //   2. Avance du playhead en spirale (θ, φ incommensurables → couvre
-        //      toute la surface) + traînée.
-        //   3. Métriques de mouvement 3D → automation.
-        //   4. Feedback : auto-rotation, wireframe/cage qui respirent, halo.
-        //
+        // Per-frame loop: smooth params toward target (rebuild surface while
+        // moving), advance the spiral playhead + trail, emit 3D motion metrics,
+        // and update feedback (auto-rotation, breathing wireframe/cage, halo).
         let prev = new Vector3();
         let prevVel = new Vector3();
         let prevR = 0;
         let firstFrame = true;
         let surfaceDirty = true;
-        let uCur = 0, vCur = 0.5;   // position (u,v) courante de la boule (lissée)
+        let uCur = 0, vCur = 0.5;   // current (smoothed) ball (u,v) position
         const ballPos = new Vector3();
         const ballNormal = new Vector3();
         const vel = new Vector3();
@@ -714,9 +670,8 @@ export class Superformula3DN3D implements Node3D {
             if (dt <= 0) return;
             const tNow = performance.now() / 1000;
 
-            // 1. Morphing lissé (toutes les clés glissent vers leur cible, mais
-            //    SEULES les clés de FORME déclenchent un rebuild de surface —
-            //    les potards Boule X/Y/Z peuvent être modulés chaque frame).
+            // 1. Smooth morph (all keys glide toward target, but only SHAPE keys
+            //    trigger a surface rebuild; ball X/Y/Z can modulate every frame).
             const k = Math.min(1, dt * 6);
             let shapeDiff = 0;
             for (const key of Object.keys(RANGES) as RangeKey[]) {
@@ -736,13 +691,11 @@ export class Superformula3DN3D implements Node3D {
                 surfaceDirty = false;
             }
 
-            // 2. Playhead sur la SURFACE AFFICHÉE — on échantillonne les buffers
-            //    du mesh (bilinéaire), PAS la formule analytique : collage
-            //    parfait aux facettes rendues.
-            //    PILOTAGE : potards Boule X/Y/Z centrés → spirale automatique ;
-            //    déviés → la boule glisse vers le point de la surface dans la
-            //    direction visée (θ = atan2(z,x), φ = asin(y/|T|)). Elle reste
-            //    toujours SUR la surface (2 degrés de liberté).
+            // 2. Playhead on the displayed surface — sample the mesh buffers
+            //    (bilinear), not the analytic formula, for a perfect fit to the
+            //    rendered facets. Steering: ball X/Y/Z centred → auto spiral;
+            //    off-centre → the ball glides toward the aimed surface point
+            //    (θ = atan2(z,x), φ = asin(y/|T|)), always staying on the surface.
             this.theta += this.current.speed * dt;
             const tx = this.current.ballX - 0.5;
             const ty = this.current.ballY - 0.5;
@@ -750,7 +703,7 @@ export class Superformula3DN3D implements Node3D {
             const tLen = Math.sqrt(tx * tx + ty * ty + tz * tz);
             let uTarget: number, vTarget: number;
             if (tLen < 0.06) {
-                // Pilote automatique : spirale (θ, φ incommensurables)
+                // Autopilot: spiral (θ, φ incommensurable)
                 uTarget = (((this.theta % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI)) / (2 * Math.PI);
                 vTarget = 0.5 + 0.46 * Math.sin(this.theta * 0.37);
             } else {
@@ -759,15 +712,15 @@ export class Superformula3DN3D implements Node3D {
                 uTarget = (thetaDir + Math.PI) / (2 * Math.PI);
                 vTarget = Math.max(0.04, Math.min(0.96, (phiDir + Math.PI / 2) / Math.PI));
             }
-            // Lissage vers la cible (u est cyclique → plus court chemin)
+            // Smooth toward target (u is cyclic → shortest path)
             const ek = Math.min(1, dt * 6);
             const du = ((uTarget - uCur + 1.5) % 1) - 0.5;
             uCur = (((uCur + du * ek) % 1) + 1) % 1;
             vCur += (vTarget - vCur) * ek;
             const s = this.current.scale;
             gui.samplePoint(uCur, vCur, ballPos, ballNormal);
-            // Poser la boule SUR la facette : petit décalage le long de la
-            // normale extérieure (retournée si elle pointe vers le centre).
+            // Seat the ball on the facet: a small offset along the outward
+            // normal (flipped if it points toward the centre).
             const nLen = ballNormal.length();
             if (nLen > 1e-6) {
                 ballNormal.scaleInPlace(1 / nLen);
@@ -775,12 +728,12 @@ export class Superformula3DN3D implements Node3D {
                 ballPos.addInPlace(ballNormal.scaleInPlace(0.02));
             }
             gui.ballRoot.position.copyFrom(ballPos);
-            // Première frame : la traînée démarre SUR la boule (sinon un trait
-            // parasite relie l'origine à la position de départ).
+            // First frame: start the trail ON the ball (else a stray line links
+            // the origin to the start position).
             if (firstFrame) for (const p of gui.trailPoints) p.copyFrom(ballPos);
             gui.pushTrailPoint(ballPos);
 
-            // 3. Métriques 3D → automation (normalisées 0..1, mêmes calibres que le 2D)
+            // 3. 3D metrics → automation (normalized 0..1)
             const r = ballPos.length();
             ballPos.subtractToRef(prev, vel);
             const speedMag = firstFrame ? 0 : vel.length() / Math.max(dt, 1e-6);
@@ -811,8 +764,8 @@ export class Superformula3DN3D implements Node3D {
                 this.outs.radiusDelta.value, this.outs.speed.value, this.outs.accel.value, this.outs.curvature.value,
             ], dt);
 
-            // 4. Boids : l'essaim chasse la boule (no-op si désactivé) puis
-            //    ses métriques agrégées partent en automation.
+            // 4. Boids: the swarm chases the ball (no-op when disabled), and its
+            //    aggregate metrics go out as automation.
             this.swarm.update(gui.ballRoot.position, dt);
             const bm = this.swarm.computeMetrics();
             this.boidOuts.boidCentroidX.value  = bm.centroidX;
@@ -822,10 +775,9 @@ export class Superformula3DN3D implements Node3D {
             this.boidOuts.boidAlignment.value  = bm.alignment;
             this.boidOuts.boidVorticity.value  = bm.vorticity;
 
-            // 5. Feedback continu.
-            //    PAS d'auto-rotation au repos : la forme reste stable pour que
-            //    la boule se lise clairement en train de parcourir la surface.
-            //    Pendant le morphing seulement, la forme « remue » doucement.
+            // 5. Continuous feedback. No auto-rotation at rest (the shape stays
+            //    stable so the ball reads clearly as it travels); only while
+            //    morphing does the shape gently turn.
             gui.shapeRoot.rotation.y += dt * this.morphActivity * 1.2;
             const breathe = 1 + Math.sin(tNow * Math.PI) * 0.06;
             gui.ball.scaling.setAll(breathe);
@@ -851,7 +803,7 @@ export class Superformula3DN3D implements Node3D {
         this.swarm?.dispose();
     }
 
-    // ── Sync : 13 knobs + boids ; theta évolue librement par pair ─────────────
+    // Sync: knobs + boids (theta evolves freely per peer)
     getStateKeys(): string[] { return [...Object.keys(RANGES), "boidMode", "boidCount"]; }
 
     async getState(key: string): Promise<Serializable | void> {

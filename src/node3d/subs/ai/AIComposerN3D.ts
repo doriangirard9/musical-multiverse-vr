@@ -11,48 +11,28 @@ import type { MidiEvent, HyperparamSpec } from "../../../ai/types";
 import { WamTransportManager } from "../../../app/WamTransportManager";
 import { setupInstrumentControls, makeClusterButtons, type TunableParam, type ClusterButtons } from "../behaviours/instrumentControls";
 
-// ─── AIComposerN3D ───────────────────────────────────────────────────────────
+// AI "synth console" module: a metal chassis with a front panel facing the
+// player. A glowing AI core (sphere + orbital ring) is the play/stop button
+// (state colour, pulses on each played note, ring spins with activity); an
+// on-board screen shows model/state/knob values/buffer gauge/note count; rotary
+// cylinder knobs on stalks reach in front of the pickable bounding box so they
+// are grabbable in VR; a MIDI output sits on the right side.
 //
-//   Module "console synthé" : châssis métal + panneau avant face au joueur.
+// Bounding box: the pickable box wraps the addToBoundingBox meshes plus a depth
+// margin, so every interactive element must sit outside it. Only the chassis
+// goes in; knobs are at z=-0.21 (player side), the core above, MIDI on the side.
 //
-//     • Cœur IA lumineux (sphère + anneau orbital) = bouton play/stop.
-//       Couleur d'état (vert prêt / ambre chargement / accent en jeu / rouge
-//       erreur), pulse à CHAQUE note jouée (synchronisé au temps audio),
-//       anneau qui tourne avec l'activité.
-//
-//     • Écran embarqué (ADT sur le panneau) : nom du modèle, état, valeurs
-//       des potards, jauge de buffer look-ahead, compteur de notes,
-//       progression du chargement du checkpoint.
-//
-//     • Potards CYLINDRIQUES rotatifs (encoche + bague colorée), montés sur
-//       tiges qui dépassent DEVANT la bounding box pickable (marge +0.1 monde
-//       en z) → directement manipulables en VR.  L'host couple chaque potard
-//       à un point d'automation sur le même mesh → toujours câblables depuis
-//       l'AudioPlaque/Superformula.
-//
-//     • Sortie MIDI (MidiN3DConnectable.ListOutput) sur le flanc droit.
-//
-//   GÉOMÉTRIE / BOUNDING BOX — règle apprise à la dure : la BoundingBox
-//   pickable enveloppe les meshes addToBoundingBox + une marge (+0.1 monde en
-//   profondeur).  Tout élément interactif DOIT en sortir.  Ici seul le châssis
-//   (z 0.025..0.375) y va ; les potards sont à z=-0.21 (côté joueur, le spawn
-//   oriente -z vers lui), le cœur au-dessus (y=0.80), le MIDI sur le flanc.
-//
-//   Mapping des deux latences (cf PFE_JOURNAL) :
-//     • température / densité (ou morph) → hyperparamètres → génération FUTURE
-//     • tempo / vélocité                 → appliqués au drain → immédiats
+// Two latencies: temperature/density (or morph) feed hyperparameters → future
+// generation; tempo/velocity are applied at the drain → immediate.
 
-// BPM nominal du modèle (Magenta génère ses deltas à 120). Le tempo réel vient
-// de l'hôte : tempoScale du scheduler = bpmHôte/120 × multiplicateur du potard.
+// Model's nominal BPM (Magenta generates deltas at 120); the real tempo comes
+// from the host: scheduler tempoScale = hostBpm/120 × the knob multiplier.
 const NOMINAL_BPM = 120;
 
-// Plages des potards post-génération.
-// Le potard "Tempo" est désormais un MULTIPLICATEUR RELATIF au tempo de
-// l'hôte (WamTransportManager) : 1.0 = exactement le tempo du chef, <1 plus
-// lent, >1 plus vite → rubato sans quitter la pulsation de l'orchestre.
-// Horizon : 2 s par défaut — l'inférence dans le worker (CPU) prend des
-// centaines de ms par chunk ; un horizon de 0.5 s provoquait une famine
-// cyclique (buffer vidé pendant l'inférence → ruptures de grille audibles).
+// Post-generation knob ranges. "Tempo" is a multiplier RELATIVE to the host
+// tempo (1.0 = the conductor's tempo) for rubato without leaving the pulse.
+// Horizon defaults to 2 s: worker inference takes hundreds of ms per chunk, so
+// a 0.5 s horizon starved the buffer and caused audible grid breaks.
 const TEMPO_RANGE   = { min: 0.25, max: 3.0, default: 1.0 };
 const VEL_RANGE     = { min: 0.0,  max: 2.0, default: 1.0 };
 const HORIZON_RANGE = { min: 0.25, max: 4.0, default: 2.0 };
@@ -60,17 +40,17 @@ const HORIZON_RANGE = { min: 0.25, max: 4.0, default: 2.0 };
 const invlerp = (r: { min: number; max: number }, v: number) => (v - r.min) / (r.max - r.min);
 const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
 
-// Couleurs d'état du cœur
+// Core state colours
 const COLOR_READY   = new Color3(0.25, 0.85, 0.45);
 const COLOR_LOADING = new Color3(0.95, 0.75, 0.15);
 const COLOR_ERROR   = new Color3(0.90, 0.20, 0.20);
 
 type CoreState = "ready" | "loading" | "playing" | "error";
 
-/** Un potard rotatif : cylindre + encoche, bague colorée à la base. */
+/** A rotary knob: cylinder + notch, coloured ring at the base. */
 interface Knob {
-    mesh: AbstractMesh;            // le cylindre pickable (createParameter)
-    set: (v01: number) => void;    // tourne l'encoche (-135°..+135°)
+    mesh: AbstractMesh;            // pickable cylinder (createParameter)
+    set: (v01: number) => void;    // rotates the notch (-135°..+135°)
 }
 
 // ─── GUI ──────────────────────────────────────────────────────────────────────
@@ -79,24 +59,24 @@ export class AIComposerN3DGUI implements Node3DGUI {
     root!: TransformNode;
     get worldSize() { return 1.5; }
 
-    chassis!: AbstractMesh;     // seule cible de la bounding box (poignée)
+    chassis!: AbstractMesh;     // only bounding-box target (handle)
     midiOut!: AbstractMesh;
 
-    hypKnobs: Knob[] = [];      // 2 gros potards hyperparamètres (façade)
-    tempoKnob!: Knob;           // 3 petits potards post-gen
+    hypKnobs: Knob[] = [];      // 2 large hyperparameter knobs
+    tempoKnob!: Knob;           // 3 small post-gen knobs
     velKnob!: Knob;
     horizonKnob!: Knob;
-    cluster!: ClusterButtons;   // ? · Presets · 🎲 · ↺
+    cluster!: ClusterButtons;
 
-    core!: AbstractMesh;        // cœur IA = bouton play/stop
+    core!: AbstractMesh;        // AI core = play/stop button
     coreMat!: StandardMaterial;
     coreHalo!: AbstractMesh;
     coreHaloMat!: StandardMaterial;
-    ring!: AbstractMesh;        // anneau orbital autour du cœur
+    ring!: AbstractMesh;        // orbital ring around the core
 
     accent!: Color3;
 
-    // Écran
+    // Screen
     private screenTex?: GUI.AdvancedDynamicTexture;
     private statusText?: GUI.TextBlock;
     private valuesText1?: GUI.TextBlock;
@@ -114,14 +94,14 @@ export class AIComposerN3DGUI implements Node3DGUI {
 
         this.root = new B.TransformNode("ai_composer_root", scene);
 
-        // ── Châssis (bounding box) — boîtier arrière ──────────────────────────
+        // Chassis (bounding box) — rear box
         this.chassis = B.CreateBox("ai_chassis", { width: 1.2, height: 1.0, depth: 0.35 }, scene);
         this.chassis.parent = this.root;
         this.chassis.position.set(0, 0, 0.2);
         this.chassis.material = context.materialMetal;
         this.chassis.isPickable = false;
 
-        // ── Panneau avant (plaque proud du châssis, face joueur en -z) ────────
+        // Front panel (sits proud of the chassis, faces the player in -z)
         const panel = B.CreateBox("ai_panel", { width: 1.26, height: 1.06, depth: 0.05 }, scene);
         panel.parent = this.root;
         panel.position.set(0, 0, 0);
@@ -131,7 +111,7 @@ export class AIComposerN3DGUI implements Node3DGUI {
         panel.material = panelMat;
         panel.isPickable = false;
 
-        // Liserés lumineux accent sur le pourtour du panneau
+        // Glowing accent trim around the panel
         const trimMat = new StandardMaterial("ai_trim_mat", scene);
         trimMat.emissiveColor = this.accent.scale(0.85);
         trimMat.disableLighting = true;
@@ -150,8 +130,7 @@ export class AIComposerN3DGUI implements Node3DGUI {
             trim.isPickable = false;
         }
 
-        // ── Écran (haut du panneau) ───────────────────────────────────────────
-        // NB : la face avant d'un CreatePlane regarde -z (côté joueur au spawn)
+        // Screen (top of the panel). A CreatePlane's front face looks down -z.
         const screen = B.MeshBuilder.CreatePlane("ai_screen", { width: 1.06, height: 0.44 }, scene);
         screen.parent = this.root;
         screen.position.set(0, 0.30, -0.032);
@@ -188,7 +167,7 @@ export class AIComposerN3DGUI implements Node3DGUI {
         this.valuesText1 = mkLine(42, "#9fd8e8", 60);
         this.valuesText2 = mkLine(38, "#7a9aa8", 56);
 
-        // Dernière ligne : jauge de buffer + compteur de notes
+        // Last line: buffer gauge + note count
         const bottomRow = new GUI.Grid();
         bottomRow.addColumnDefinition(0.62);
         bottomRow.addColumnDefinition(0.38);
@@ -220,7 +199,7 @@ export class AIComposerN3DGUI implements Node3DGUI {
         this.notesText.text = "♪ 0";
         bottomRow.addControl(this.notesText, 0, 1);
 
-        // ── Cœur IA (bouton play/stop) au-dessus du module ────────────────────
+        // AI core (play/stop button) above the module
         this.core = B.CreateSphere("ai_core", { diameter: 0.30, segments: 24 }, scene);
         this.core.parent = this.root;
         this.core.position.set(0, 0.80, 0.08);
@@ -251,21 +230,21 @@ export class AIComposerN3DGUI implements Node3DGUI {
         this.ring.material = ringMat;
         this.ring.isPickable = false;
 
-        // Colonne de support du cœur
+        // Core support column
         const stem = B.MeshBuilder.CreateCylinder("ai_core_stem", { diameter: 0.05, height: 0.18 }, scene);
         stem.parent = this.root;
         stem.position.set(0, 0.59, 0.08);
         stem.material = context.materialMetal;
         stem.isPickable = false;
 
-        // ── Potards — sur tiges DEVANT la bounding box (z=-0.21 < -0.142) ─────
+        // Knobs — on stalks in FRONT of the bounding box (z=-0.21 < -0.142)
         const makeKnob = (name: string, pos: Vector3, diameter: number, height: number, ringColor: Color3): Knob => {
             const knobRoot = new B.TransformNode(`${name}_root`, scene);
             knobRoot.parent = this.root;
             knobRoot.position.copyFrom(pos);
-            knobRoot.rotation.x = -Math.PI / 2;   // axe du cylindre vers -z (joueur)
+            knobRoot.rotation.x = -Math.PI / 2;   // cylinder axis toward -z (player)
 
-            // Tige reliant le panneau au potard
+            // Stalk linking the panel to the knob
             const stemLen = -pos.z - 0.02;
             const kstem = B.MeshBuilder.CreateCylinder(`${name}_stem`, { diameter: 0.035, height: stemLen }, scene);
             kstem.parent = knobRoot;
@@ -273,7 +252,7 @@ export class AIComposerN3DGUI implements Node3DGUI {
             kstem.material = context.materialMetal;
             kstem.isPickable = false;
 
-            // Corps (pickable — c'est lui le paramètre draggable)
+            // Body (pickable — this is the draggable parameter)
             const body = B.MeshBuilder.CreateCylinder(name, { diameter, height, tessellation: 32 }, scene);
             body.parent = knobRoot;
             const bodyMat = new StandardMaterial(`${name}_mat`, scene);
@@ -281,7 +260,7 @@ export class AIComposerN3DGUI implements Node3DGUI {
             bodyMat.specularColor = new Color3(0.5, 0.5, 0.55);
             body.material = bodyMat;
 
-            // Encoche lumineuse sur la face avant (tourne avec body.rotation.y)
+            // Glowing notch on the front face (rotates with body.rotation.y)
             const notch = B.CreateBox(`${name}_notch`, {
                 width: 0.024, height: 0.018, depth: diameter * 0.38,
             }, scene);
@@ -293,7 +272,7 @@ export class AIComposerN3DGUI implements Node3DGUI {
             notch.material = notchMat;
             notch.isPickable = false;
 
-            // Bague colorée à la base (code couleur : accent = IA, gris = utilitaire)
+            // Coloured ring at the base (accent = AI, grey = utility)
             const collar = B.MeshBuilder.CreateTorus(`${name}_collar`, {
                 diameter: diameter * 1.18, thickness: 0.016, tessellation: 32,
             }, scene);
@@ -305,7 +284,7 @@ export class AIComposerN3DGUI implements Node3DGUI {
             collar.material = collarMat;
             collar.isPickable = false;
 
-            // Encoche : valeur 0 → 7h (-135°), valeur 1 → 5h (+135°), sens horaire
+            // Notch: value 0 → -135°, value 1 → +135°, clockwise
             const set = (v01: number) => { body.rotation.y = (0.5 - clamp01(v01)) * 1.5 * Math.PI; };
             set(0.5);
             return { mesh: body, set };
@@ -320,17 +299,17 @@ export class AIComposerN3DGUI implements Node3DGUI {
         this.velKnob     = makeKnob("ai_vel",     new Vector3( 0.0,  -0.40, -0.21), 0.13, 0.08, grey);
         this.horizonKnob = makeKnob("ai_horizon", new Vector3( 0.32, -0.40, -0.21), 0.13, 0.08, grey);
 
-        // ── Sortie MIDI — flanc droit (hors bounding box en x) ────────────────
+        // MIDI output — right side (outside the bounding box in x)
         this.midiOut = ConnectableUtils.createOutputMesh("ai_midi_out", 0.16, scene);
         this.midiOut.parent = this.root;
         this.midiOut.position.set(0.76, 0, 0.05);
         MeshUtils.setColor(this.midiOut, MidiN3DConnectable.Color.toColor4());
 
-        // ── Cluster standard ? · Presets · 🎲 · ↺ — bande sous les potards ────
+        // Standard cluster — strip below the knobs
         this.cluster = makeClusterButtons(B, scene, this.root, { x: -0.225, y: -0.60, z: -0.20 }, 0.15, 0.09);
     }
 
-    // ── Setters écran (appelés par la logique, throttlés côté logique) ────────
+    // Screen setters (called by the logic, throttled there)
     setStatus(text: string)  { if (this.statusText)  this.statusText.text  = text; }
     setValues(l1: string, l2: string) {
         if (this.valuesText1) this.valuesText1.text = l1;
@@ -359,32 +338,32 @@ export class AIComposerN3D implements Node3D {
     private initializing = false;
     private alive = true;
 
-    // État visuel
+    // Visual state
     private coreState: CoreState = "ready";
-    private corePulse = 0;          // décroît exponentiellement, bump par note
+    private corePulse = 0;          // decays exponentially, bumped per note
     private loadProgress = 0;
-    private noteOnsSent = 0;        // diagnostic d'émission MIDI
+    private noteOnsSent = 0;        // MIDI emission diagnostic
 
-    // Valeurs courantes des potards post-gen (synchronisées).
-    // `tempo` = multiplicateur RELATIF au tempo de l'hôte (1.0 = tempo du chef).
+    // Current post-gen knob values (synced).
+    // `tempo` = multiplier RELATIVE to the host tempo (1.0 = the conductor's).
     private tempo = TEMPO_RANGE.default;
     private velocity = VEL_RANGE.default;
     private horizon = HORIZON_RANGE.default;
 
-    // Transport de l'hôte (tempo + signature rythmique partagés)
+    // Host transport (shared tempo + time signature)
     private transport!: WamTransportManager;
     private unsubTransport: (() => void) | null = null;
     private hostBpm = NOMINAL_BPM;
     private timeSig = { numerator: 4, denominator: 4 };
 
-    // Hyperparamètres (2 premiers du modèle)
+    // Hyperparameters (first 2 of the model)
     private hypSpecs: HyperparamSpec[] = [];
     private hypValues: Record<string, number> = {};
 
-    // Visuels des potards par id (pour resynchroniser après setState réseau)
+    // Knob visuals by id (to resync after a network setState)
     private knobVisuals = new Map<string, () => void>();
 
-    // Paramètres pilotables par le cluster (presets / mutation), remplis par setupKnob
+    // Cluster-controllable params (presets / mutation), filled by setupKnob
     private tunables: TunableParam[] = [];
 
     constructor(
@@ -428,15 +407,13 @@ export class AIComposerN3D implements Node3D {
 
         this.perf = new PerfMonitor(scene, this.scheduler, this.adapter);
 
-        // ── Transport de l'hôte : tempo + signature rythmique (feedback prof) ──
-        // L'AIComposer ÉCOUTE le WamTransportManager au lieu d'imposer son tempo.
-        // tempo hôte → scheduler ; signature → grille/accents de l'adapter.
+        // Host transport: the AIComposer LISTENS to WamTransportManager instead
+        // of imposing its own tempo (host tempo → scheduler; signature → adapter).
         this.transport = WamTransportManager.getInstance(audioCtx);
         this.unsubTransport = this.transport.onChange(() => this.applyTransport());
 
-        // ── Potards hyperparamètres : les 2 PREMIERS du modèle ────────────────
-        // RNN → température + densité ; VAE → température + morph.  Le mesh est
-        // aussi couplé à un point d'automation par l'host → câblable.
+        // Hyperparameter knobs: the first 2 of the model (RNN → temperature +
+        // density; VAE → temperature + morph). The mesh is also automatable.
         this.hypSpecs = this.adapter.capabilities.hyperparameters.slice(0, 2);
         this.hypSpecs.forEach((spec, i) => {
             this.hypValues[spec.name] = spec.default;
@@ -446,13 +423,13 @@ export class AIComposerN3D implements Node3D {
                 () => this.hypValues[spec.name],
                 (v) => {
                     this.hypValues[spec.name] = v;
-                    // Mis en cache même avant init() (poussé au worker à l'init)
+                    // Cached even before init() (pushed to the worker at init)
                     try { this.adapter.setHyperparameter(spec.name, v); } catch (_) {}
                 },
             );
         });
 
-        // ── Cœur = bouton play/stop ───────────────────────────────────────────
+        // Core = play/stop button
         context.createButton({
             id: "playStop",
             meshes: [gui.core],
@@ -462,9 +439,8 @@ export class AIComposerN3D implements Node3D {
             release: () => {},
         });
 
-        // ── Potards post-gen ──────────────────────────────────────────────────
-        // "Tempo" = multiplicateur relatif au tempo hôte → applyTransport() le
-        // combine avec le BPM courant (rubato sans casser la pulsation).
+        // Post-gen knobs. "Tempo" is relative to the host tempo; applyTransport()
+        // combines it with the current BPM (rubato without breaking the pulse).
         this.setupKnob("tempo", "Tempo ×", gui.tempoKnob, TEMPO_RANGE,
             () => this.tempo, (v) => { this.tempo = v; this.applyTransport(); }, true);
         this.setupKnob("velocity", "Velocity", gui.velKnob, VEL_RANGE,
@@ -472,7 +448,7 @@ export class AIComposerN3D implements Node3D {
         this.setupKnob("horizon", "Horizon", gui.horizonKnob, HORIZON_RANGE,
             () => this.horizon, (v) => { this.horizon = v; this.scheduler.setHorizonSec(v); }, true);
 
-        // ── Standard cluster: ? · Presets · 🎲 · ↺ (sound presets per variant) ─
+        // Standard cluster (sound presets per variant)
         const hyp1 = this.hypSpecs[1]?.displayName ?? "Density";
         setupInstrumentControls(context, {
             title: gui.factory.shortLabel,
@@ -494,11 +470,11 @@ export class AIComposerN3D implements Node3D {
             resetBtn: gui.cluster.resetBtn,
         });
 
-        // Applique le tempo + la signature de l'hôte dès le départ.
+        // Apply the host tempo + signature from the start.
         this.applyTransport();
         this.gui.setStatus("Ready — touch the core");
 
-        // ── Boucle de feedback (pulse, anneau, halo, écran throttlé) ──────────
+        // Feedback loop (pulse, ring, halo, throttled screen)
         const targetColor = new Color3();
         let screenTimer = 0;
         context.observe(scene.onBeforeRenderObservable, () => {
@@ -506,10 +482,10 @@ export class AIComposerN3D implements Node3D {
             if (dt <= 0) return;
             const tNow = performance.now() / 1000;
 
-            // Pulse de note (bump à chaque note-on, décroissance exponentielle)
+            // Note pulse (bumped on each note-on, exponential decay)
             this.corePulse *= Math.exp(-dt * 5);
 
-            // Respiration lente au repos, pulse énergique en jeu
+            // Slow breathing at rest, energetic pulse while playing
             const breathe = this.playing
                 ? Math.sin(tNow * Math.PI * 2.2) * 0.02
                 : Math.sin(tNow * Math.PI * 0.8) * 0.04;
@@ -517,7 +493,7 @@ export class AIComposerN3D implements Node3D {
             gui.coreHalo.scaling.setAll(1 + breathe + this.corePulse * 0.55);
             gui.coreHaloMat.alpha = 0.10 + this.corePulse * 0.30;
 
-            // Couleur du cœur selon l'état (transition douce)
+            // Core colour by state (smooth transition)
             switch (this.coreState) {
                 case "ready":   targetColor.copyFrom(COLOR_READY);   break;
                 case "loading": targetColor.copyFrom(COLOR_LOADING); break;
@@ -527,16 +503,16 @@ export class AIComposerN3D implements Node3D {
             Color3.LerpToRef(gui.coreMat.emissiveColor, targetColor, Math.min(1, dt * 8), gui.coreMat.emissiveColor);
             gui.coreHaloMat.emissiveColor.copyFrom(gui.coreMat.emissiveColor);
 
-            // Clignotement du chargement
+            // Loading blink
             if (this.coreState === "loading") {
                 const blink = 0.65 + Math.sin(tNow * Math.PI * 4) * 0.35;
                 gui.coreMat.emissiveColor.scaleToRef(blink, gui.coreMat.emissiveColor);
             }
 
-            // Anneau orbital : vitesse ∝ activité
+            // Orbital ring: speed ∝ activity
             gui.ring.rotation.y += dt * (this.playing ? 1.4 + this.corePulse * 5 : 0.15);
 
-            // Écran (4 Hz suffisent)
+            // Screen (4 Hz is enough)
             screenTimer += dt;
             if (screenTimer >= 0.25) {
                 screenTimer = 0;
@@ -544,19 +520,19 @@ export class AIComposerN3D implements Node3D {
             }
         });
 
-        console.log(`[AIComposer] SPAWNED (modelType=${modelType}, variant=${variant})`);
+        console.log(`[AIComposer] spawned (modelType=${modelType}, variant=${variant})`);
     }
 
-    // ── Envoi MIDI + pulse visuel synchronisé au temps audio ──────────────────
+    // MIDI emission + visual pulse synced to audio time
     private emitToConnections(ev: MidiEvent, timeSec: number): void {
         const channel = ev.channel ?? 0;
-        // Tuple [number, number, number] : typage WamMidiData de la nouvelle
-        // version de @webaudiomodules/api — un number[] large ne passe plus.
+        // Tuple [number, number, number] for WamMidiData typing — a wide
+        // number[] no longer passes the current @webaudiomodules/api.
         let bytes: [number, number, number] | null = null;
         if (ev.type === "note-on" && ev.note !== undefined) {
             bytes = [0x90 | channel, ev.note, ev.velocity ?? 80];
-            // Le scheduler émet ~0.5 s en avance (look-ahead) : on programme le
-            // pulse visuel au moment AUDIBLE de la note, pas à l'émission.
+            // The scheduler emits ~0.5 s ahead (look-ahead), so schedule the
+            // visual pulse at the note's audible time, not at emission.
             const delayMs = Math.max(0, (timeSec - this.audioCtx.currentTime) * 1000);
             const strength = 0.4 + ((ev.velocity ?? 80) / 127) * 0.6;
             setTimeout(() => {
@@ -569,17 +545,17 @@ export class AIComposerN3D implements Node3D {
         for (const cn of this.midiOutput.connections) {
             cn.scheduleEvents({ type: "wam-midi", time: timeSec, data: { bytes } });
         }
-        // Diagnostic : confirme périodiquement que des événements PARTENT et
-        // vers combien de WAMs (si silence côté synthé → problème côté WAM).
+        // Diagnostic: periodically confirm events are leaving and to how many
+        // WAMs (silence at the synth → problem on the WAM side).
         if (ev.type === "note-on") {
             this.noteOnsSent++;
             if (this.noteOnsSent === 1 || this.noteOnsSent % 50 === 0) {
-                console.log(`[AIComposer] ${this.noteOnsSent} note-on émis → ${this.midiOutput.connections.length} connexion(s) MIDI`);
+                console.log(`[AIComposer] ${this.noteOnsSent} note-on sent → ${this.midiOutput.connections.length} MIDI connection(s)`);
             }
         }
     }
 
-    // ── Play/Stop avec init paresseux ─────────────────────────────────────────
+    // Play/Stop with lazy init
     private async togglePlay(): Promise<void> {
         if (this.initializing) return;
 
@@ -603,9 +579,9 @@ export class AIComposerN3D implements Node3D {
                     progressCallback: (p: number) => { this.loadProgress = p; },
                 });
                 this.adapterReady = true;
-                console.log(`[AIComposer] adapter prêt (init ${this.adapter.stats.initTimeMs.toFixed(0)} ms, backend=${this.adapter.backend})`);
+                console.log(`[AIComposer] adapter ready (init ${this.adapter.stats.initTimeMs.toFixed(0)} ms, backend=${this.adapter.backend})`);
             } catch (e) {
-                console.error("[AIComposer] init échouée:", e);
+                console.error("[AIComposer] init failed:", e);
                 this.context.showMessage("Failed to load the model.");
                 this.coreState = "error";
                 this.gui.setStatus("✖ Load failed");
@@ -615,9 +591,8 @@ export class AIComposerN3D implements Node3D {
             this.initializing = false;
         }
 
-        // Démarrage aligné sur le DOWNBEAT de l'hôte : si le transport joue, on
-        // pose le 1er événement au prochain début de mesure → la batterie tombe
-        // sur le "1" du chef, pas à un instant arbitraire.
+        // Start aligned to the host downbeat: if the transport is playing, place
+        // the first event at the next bar start so it lands on the conductor's "1".
         let startAt: number | undefined;
         if (this.transport.getPlaying()) {
             const { numerator, denominator } = this.transport.getTimeSignature();
@@ -631,25 +606,25 @@ export class AIComposerN3D implements Node3D {
         this.playing = true;
         this.coreState = "playing";
 
-        // Signal coloré dans le monde : "cet instrument démarre"
+        // Coloured world signal: "this instrument is starting"
         const a = this.gui.accent;
         this.context.sendSignal(this.context.getPosition().position, a.r, a.g, a.b);
         console.log("[AIComposer] play");
     }
 
-    // ── Suit le transport de l'hôte : tempo (immédiat) + signature (grille) ──
+    // Follow the host transport: tempo (immediate) + signature (grid)
     private applyTransport(): void {
         this.hostBpm = this.transport.getTempo();
         this.timeSig = this.transport.getTimeSignature();
-        // Tempo réel = BPM hôte × multiplicateur du potard (le scheduler joue
-        // des deltas calés à NOMINAL_BPM, d'où le ratio).
+        // Real tempo = host BPM × knob multiplier (the scheduler plays deltas
+        // calibrated to NOMINAL_BPM, hence the ratio).
         this.scheduler.setTempoScale((this.hostBpm / NOMINAL_BPM) * this.tempo);
-        // Signature rythmique → grille/accents de l'adapter (worker).
+        // Time signature → adapter grid/accents (worker).
         this.adapter.setMeter(this.timeSig.numerator, this.timeSig.denominator);
         this.refreshValues();
     }
 
-    // ── Écran : valeurs des potards ───────────────────────────────────────────
+    // Screen: knob values
     private refreshValues(): void {
         const fmt = (spec: HyperparamSpec, v: number) =>
             (spec.max - spec.min) > 4 ? Math.round(v).toString() : v.toFixed(2);
@@ -661,7 +636,7 @@ export class AIComposerN3D implements Node3D {
         );
     }
 
-    // ── Écran : état + jauge buffer + compteur (throttlé à 4 Hz) ──────────────
+    // Screen: state + buffer gauge + counter (throttled to 4 Hz)
     private refreshScreen(): void {
         const stats = this.scheduler.stats;
         const nConn = this.midiOutput?.connections.length ?? 0;
@@ -679,13 +654,13 @@ export class AIComposerN3D implements Node3D {
                 }
                 break;
             }
-            // ready / error : message posé une fois par togglePlay, pas écrasé
+            // ready / error: message set once by togglePlay, not overwritten
         }
         this.gui.setBuffer(this.playing ? stats.bufferDepthSec / Math.max(this.horizon, 0.01) : 0);
         this.gui.setNotes(`♪ ${stats.notesPlayed}`);
     }
 
-    // ── Helper : potard rotatif (Node3DParameter) ─────────────────────────────
+    // Helper: rotary knob (Node3DParameter)
     private setupKnob(
         id: string, label: string, knob: Knob,
         range: { min: number; max: number; default: number },
@@ -710,7 +685,7 @@ export class AIComposerN3D implements Node3D {
             setValue: setNorm,
             stringify: (v01: number) => `${label}: ${(range.min + v01 * (range.max - range.min)).toFixed(2)}`,
         });
-        // Pilotable par le cluster (presets / mutation).
+        // Cluster-controllable (presets / mutation).
         this.tunables.push({ name: id, min: range.min, max: range.max, getNorm: () => invlerp(range, getter()), setNorm });
     }
 
@@ -722,7 +697,7 @@ export class AIComposerN3D implements Node3D {
         await this.adapter?.dispose();
     }
 
-    // ── Sync : tempo / vélocité / horizon ─────────────────────────────────────
+    // Sync: tempo / velocity / horizon
     getStateKeys(): string[] { return ["tempo", "velocity", "horizon"]; }
 
     async getState(key: string): Promise<Serializable | void> {

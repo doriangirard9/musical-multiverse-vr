@@ -8,8 +8,8 @@ import { Node3DInstance } from "./Node3DInstance"
 
 const highlightColor = Color3.Blue()
 
-// Default drag mapping: value change per metre of WORLD vertical hand movement.
-// ~1/0.33 → a full 0..1 sweep over ≈ 33 cm of vertical travel. Tune to taste.
+// Default drag: value change per metre of world vertical hand movement
+// (~33 cm for a full 0..1 sweep).
 const DEFAULT_VERTICAL_GAIN = 3.0
 
 
@@ -44,23 +44,17 @@ export class N3DParameterInstance {
         readonly config: Node3DParameter,
     ) {
 
-        /* Parameter value text visual */
-        // Gère l'affichage du texte de la valeur du paramètre
+        // Parameter value text visual
         const text = this.text = new N3DText(`parameter ${config.id}`, config.meshes, utilityLayer.utilityLayerScene)
-        /* */
 
-
-        /* Highlight visual */
-        // Gère l'affichage de la surbrillance du paramètre
+        // Highlight visual
         const highlight = this.highlight = {
             show(){ for(const d of config.meshes) NodeCompUtils.highlight(highlightLayer, d, highlightColor) },
             hide(){ for(const d of config.meshes) NodeCompUtils.unhighlight(highlightLayer, d) },
             dispose(){ for(const d of config.meshes) NodeCompUtils.unhighlight(highlightLayer, d) },
-        } 
-        /* */
+        }
 
-
-        /* Mix visuals */
+        // Combined hover/drag visual state
         const visual = this.visual = {
             stack: 0,
             offset(offset: number){
@@ -74,11 +68,8 @@ export class N3DParameterInstance {
                     text.hide()
                 }
             }
-        } 
-        /* */
+        }
 
-
-        /* Shared functions */
         function updateText(){
             text.updatePosition()
             text.set([
@@ -86,7 +77,6 @@ export class N3DParameterInstance {
                 {content: config.stringify(config.getValue()), size: .7}
             ])
         }
-        /* */
 
         const disposables: (()=>void)[] = []
 
@@ -151,11 +141,8 @@ export class N3DParameterInstance {
                         newvalue = startingValue + offset * changeFactor
                     }
                     else{
-                        // Default: WORLD vertical hand movement → raising increases the
-                        // value, lowering decreases it, consistently whatever the angle
-                        // the controller is tilted to reach the knob. (The old grab-frame
-                        // mapping flipped on tilted/low knobs — hence "certain knobs"
-                        // felt inverted.)
+                        // Default: world vertical hand movement — raising increases,
+                        // lowering decreases, regardless of controller tilt.
                         const dy = input.origin.y - grabY
                         newvalue = startingValue + dy * DEFAULT_VERTICAL_GAIN
                     }

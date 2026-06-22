@@ -96,12 +96,12 @@ export class Node3DInstance implements Synchronized {
             tools,
             inputs: InputManager.getInstance(),
 
-            // Le nom du wam
+            // The WAM's name
             setLabel(label: string) {
                 root_transform.name = `${label} root`
             },
 
-            // Les paramètres draggables
+            // Draggable parameters
             createParameter(info: Node3DParameter) {
                 const param = new N3DParameterInstance(instance, instance.root_transform, highlightLayer, utilityLayer, info)
                 instance.parameters.set(info.id, param)
@@ -152,8 +152,7 @@ export class Node3DInstance implements Synchronized {
                 instance.buttons.delete(id)
             },
 
-            // Les mesh qui font partis de la bounding box
-            // En attendant la bounding box est une boite qui les englobes
+            // Meshes wrapped by the bounding box (currently a box enclosing them)
             addToBoundingBox(mesh: AbstractMesh) {
                 instance.boxes.push(mesh)
 
@@ -270,21 +269,13 @@ export class Node3DInstance implements Synchronized {
         this.bounding_box = new BoundingBox(this.bounding_mesh)
 
 
-        // Shake-to-delete — detection based on the REAL movement of the held box
-        // (HoldableBehaviour observables), not the pointer ray: ShakeBehavior
-        // listened to pointer.onMove, a path that doesn't fire in VR while
-        // FullHoldBehaviour holds the box. If dragging works, this works.
-        //
-        // DELIBERATELY HARD TO TRIGGER (made stricter on request) so an item is
-        // never deleted by accident while repositioning it:
-        //   • a swing only counts if it exceeds SWING_MIN (big gestures only),
-        //   • REVERSALS_TO_DELETE direction reversals are required,
-        //   • any pause > RESET_MS between two reversals resets the counter →
-        //     a slow / hesitant move never accumulates anything.
-        // Progressive feedback: colour white→red + a percentage message.
-        const SWING_MIN = 0.13            // m : minimum amplitude of a real swing (was 0.07)
-        const REVERSALS_TO_DELETE = 18    // ≈ 9 sustained back-and-forths (was 10)
-        const RESET_MS = 550              // max pause between two reversals (was 700)
+        // Shake-to-delete, driven by the held box's real movement (HoldableBehaviour
+        // observables) since the pointer ray doesn't fire while held in VR.
+        // Thresholds are intentionally strict so repositioning never deletes by
+        // accident; feedback fades the box white→red with a percentage message.
+        const SWING_MIN = 0.13            // min amplitude (m) for a swing to count
+        const REVERSALS_TO_DELETE = 18    // direction reversals required
+        const RESET_MS = 550              // max pause between reversals before reset
 
         const box = this.bounding_box.boundingBox
         const holdable = this.bounding_box.holdable
@@ -353,12 +344,8 @@ export class Node3DInstance implements Synchronized {
         this.createDeleteButton()
     }
 
-    /**
-     * A small billboarded 🗑 button pinned to the top-right-front corner of the
-     * node. Pointing + trigger asks for confirmation (ChoiceMenu) before the
-     * node is removed network-wide. Rebuilt on every bounding-box update since
-     * it parents to the (recreated) bounding_mesh.
-     */
+    /** Billboarded delete button at the node's top-right corner; opens the delete
+     *  menu. Rebuilt on each bounding-box update (it parents to bounding_mesh). */
     private createDeleteButton() {
         this.delete_button?.dispose()
         this.delete_button = null
@@ -435,11 +422,8 @@ export class Node3DInstance implements Synchronized {
         return `${portName(local)} ${flow} ${remote.instance.displayName}:${portName(remote)}`
     }
 
-    /**
-     * Open/replace the per-node delete ChoiceMenu showing the given choices.
-     * Reuses the same menu instance across navigation (mirrors openMenu) so we
-     * never dispose the menu mid-click while swapping screens.
-     */
+    /** Show the delete menu, reusing one ChoiceMenu instance across screens so a
+     *  click never disposes the menu mid-navigation. */
     private showDeleteChoice(choices: { label: string; color?: string; click?: () => void }[]) {
         const menus = MenuSystem.getInstance()
         if (this._deleteMenu && menus.current_menu === this._deleteMenu) {
