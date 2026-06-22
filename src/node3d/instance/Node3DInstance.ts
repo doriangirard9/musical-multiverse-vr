@@ -93,12 +93,12 @@ export class Node3DInstance implements Synchronized {
             tools,
             inputs: InputManager.getInstance(),
 
-            // Le nom du wam
+            // The WAM's name
             setLabel(label: string) {
                 root_transform.name = `${label} root`
             },
 
-            // Les paramètres draggables
+            // Draggable parameters
             createParameter(info: Node3DParameter) {
                 const param = new N3DParameterInstance(instance, instance.root_transform, highlightLayer, utilityLayer, info)
                 instance.parameters.set(info.id, param)
@@ -149,8 +149,7 @@ export class Node3DInstance implements Synchronized {
                 instance.buttons.delete(id)
             },
 
-            // Les mesh qui font partis de la bounding box
-            // En attendant la bounding box est une boite qui les englobes
+            // Meshes wrapped by the bounding box (currently a box enclosing them)
             addToBoundingBox(mesh: AbstractMesh) {
                 instance.boxes.push(mesh)
 
@@ -260,11 +259,8 @@ export class Node3DInstance implements Synchronized {
 
         this.bounding_box = new BoundingBox(this.bounding_mesh)
 
-        // Shake to delete
-        // [YASSINE_CEST_LA] J'ai remplacé par le ShakeBehaviour:
-        //  Meilleur séparation du code, plus flexible, plus réutilisable et comme ça c'est le même comportement
-        //  pour tous ce qui se base sur le shake (cables, bounding box, etc).
-        //  Si le shake marche mal, il faut corriger le ShakeBehaviour.
+        // Shake-to-delete via the shared ShakeBehavior (same gesture for nodes
+        // and cables; tune it there if the shake feels wrong).
         const bbox = this.boundingBoxMesh
         this.shake = new ShakeBehavior()
         this.shake.shake_threshold = 5
