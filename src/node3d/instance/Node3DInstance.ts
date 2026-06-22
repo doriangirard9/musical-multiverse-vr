@@ -22,19 +22,16 @@ import { Doc } from "yjs";
 import { Synchronized } from "../../network/sync/Synchronized";
 import { N3DHighlighter } from "./utils/N3DHighlighter";
 import { N3DShared } from "./N3DShared";
-import { AutomationN3DConnectable, MeshUtils } from "../tools";
-import { NetworkManager } from "../../network/NetworkManager.ts";
-import { N3DButtonInstance } from "./N3DButtonInstance.ts";
+import { AutomationN3DConnectable } from "../tools";
 import { SceneManager } from "../../app/SceneManager.ts";
 import { InputManager } from "../../xr/inputs/InputManager.ts";
 import { BoxWave } from "../../world/BoxWave.ts";
 import { MenuSystem } from "../../app/MenuSystem.ts";
 import { AbstractMenu } from "../../menus/AbstractMenu.ts";
 import { ChoiceMenu } from "../../menus/ChoiceMenu.ts";
-import * as GUI from "@babylonjs/gui";
-import { InputGrabBehavior } from "../../xr/inputs/tools/InputGrabBehavior.ts";
-import { InputHoverBehavior } from "../../xr/inputs/tools/InputHoverBehavior.ts";
-import type { N3DConnectionInstance } from "./N3DConnectionInstance.ts";
+import { ShakeBehavior } from "../../behaviours/ShakeBehavior.ts";
+import { N3DConnectionInstance } from "./N3DConnectionInstance.ts";
+import { N3DButtonInstance } from "./N3DButtonInstance.ts";
 
 export class Node3DInstance implements Synchronized {
 
@@ -43,7 +40,7 @@ export class Node3DInstance implements Synchronized {
 
     constructor(
         private shared: N3DShared,
-        private node_factory: Node3DFactory<Node3DGUI, Node3D>,
+        readonly factory: Node3DFactory<Node3DGUI, Node3D>,
     ) { }
 
     private declare gui: Node3DGUI
@@ -70,7 +67,7 @@ export class Node3DInstance implements Synchronized {
 
         const gui_root_transform = new TransformNode("node3d gui root", scene)
 
-        this.gui = await this.node_factory.createGUI({
+        this.gui = await this.factory.createGUI({
             babylon, tools, scene,
 
             materialLight: this.shared.materialLight,
@@ -89,19 +86,19 @@ export class Node3DInstance implements Synchronized {
 
 
         // Node related things
-        this.node = await this.node_factory.create({
+        this.node = await this.factory.create({
             audioCtx: this.shared.audioContext,
             audioEngine: this.shared.audioEngine,
             groupId: this.shared.groupId,
             tools,
             inputs: InputManager.getInstance(),
 
-            // The WAM's name
+            // Le nom du wam
             setLabel(label: string) {
                 root_transform.name = `${label} root`
             },
 
-            // Draggable parameters
+            // Les paramètres draggables
             createParameter(info: Node3DParameter) {
                 const param = new N3DParameterInstance(instance, instance.root_transform, highlightLayer, utilityLayer, info)
                 instance.parameters.set(info.id, param)
@@ -152,7 +149,8 @@ export class Node3DInstance implements Synchronized {
                 instance.buttons.delete(id)
             },
 
-            // Meshes wrapped by the bounding box (currently a box enclosing them)
+            // Les mesh qui font partis de la bounding box
+            // En attendant la bounding box est une boite qui les englobes
             addToBoundingBox(mesh: AbstractMesh) {
                 instance.boxes.push(mesh)
 
@@ -227,18 +225,12 @@ export class Node3DInstance implements Synchronized {
     private bounding_mesh = null as null | Mesh
     private bounding_box = null as null | BoundingBox
     private doUpdateBoundingBox = false
-    private delete_button = null as null | { dispose(): void }
-    private _deleteMenu = null as null | ChoiceMenu
+    private shake: ShakeBehavior|null = null
 
     get boundingBoxMesh() { return this.bounding_box!!.boundingBox }
 
     private updateBoundingBoxNow() {
         if (this.disposed) return
-
-        // Dispose the corner delete button BEFORE its parent bounding_mesh, so we
-        // free its texture cleanly (mesh.dispose() recurse wouldn't free the ADT).
-        this.delete_button?.dispose()
-        this.delete_button = null
 
         if (this.bounding_mesh) this.shared.shadowGenerator.removeShadowCaster(this.bounding_mesh)
         this.bounding_box?.dispose()
@@ -268,69 +260,28 @@ export class Node3DInstance implements Synchronized {
 
         this.bounding_box = new BoundingBox(this.bounding_mesh)
 
-
-        // Shake-to-delete, driven by the held box's real movement (HoldableBehaviour
-        // observables) since the pointer ray doesn't fire while held in VR.
-        // Thresholds are intentionally strict so repositioning never deletes by
-        // accident; feedback fades the box white→red with a percentage message.
-        const SWING_MIN = 0.13            // min amplitude (m) for a swing to count
-        const REVERSALS_TO_DELETE = 18    // direction reversals required
-        const RESET_MS = 550              // max pause between reversals before reset
-
-        const box = this.bounding_box.boundingBox
-        const holdable = this.bounding_box.holdable
-        const lastPos = new Vector3()
-        const delta = new Vector3()
-        const lastDelta = new Vector3()
-        let swingDist = 0
-        let reversals = 0
-        let lastReversalAt = 0
-        let deleting = false
-
-        const resetShakeFeedback = () => {
-            reversals = 0
-            swingDist = 0
-            if (!box.isDisposed()) MeshUtils.setColor(box, Color3.White().toColor4())
+        // Shake to delete
+        // [YASSINE_CEST_LA] J'ai remplacé par le ShakeBehaviour:
+        //  Meilleur séparation du code, plus flexible, plus réutilisable et comme ça c'est le même comportement
+        //  pour tous ce qui se base sur le shake (cables, bounding box, etc).
+        //  Si le shake marche mal, il faut corriger le ShakeBehaviour.
+        const bbox = this.boundingBoxMesh
+        this.shake = new ShakeBehavior()
+        this.shake.shake_threshold = 5
+        bbox.addBehavior(this.shake)
+        this.shake.on_shake = (power, counter) => {
+            bbox.visibility = Math.max(0, 1 - power / 12)
+            if(counter>10) this.dispose()
         }
-
-        holdable.onGrabObservable.add(() => {
-            lastPos.copyFrom(box.absolutePosition)
-            lastDelta.setAll(0)
-            resetShakeFeedback()
-        })
-
-        holdable.onMoveObservable.add(() => {
-            if (this.disposed || deleting || box.isDisposed()) return
-            box.absolutePosition.subtractToRef(lastPos, delta)
-            if (delta.length() < 0.003) return   // tracking noise
-            const now = performance.now()
-            if (reversals > 0 && now - lastReversalAt > RESET_MS) resetShakeFeedback()
-            if (Vector3.Dot(delta, lastDelta) < 0) {
-                // Direction reversal: only counts if the swing was a real one
-                if (swingDist >= SWING_MIN) {
-                    reversals++
-                    lastReversalAt = now
-                    const progress = reversals / REVERSALS_TO_DELETE
-                    if (reversals >= REVERSALS_TO_DELETE) {
-                        deleting = true
-                        MenuSystem.getInstance().showMessage("Instrument deleted")
-                        NetworkManager.getInstance().node3d.nodes.remove(this)
-                        return
-                    }
-                    MeshUtils.setColor(box, Color3.Lerp(Color3.White(), Color3.Red(), progress).toColor4())
-                    MenuSystem.getInstance().showMessage(`Shake to delete… ${Math.round(progress * 100)} %`)
-                }
-                swingDist = 0
-            } else {
-                swingDist += delta.length()
-            }
-            lastDelta.copyFrom(delta)
-            lastPos.copyFrom(box.absolutePosition)
-        })
-
-        holdable.onReleaseObservable.add(() => {
-            if (!this.disposed && !deleting) resetShakeFeedback()
-        })
+        this.shake.on_stop = (_, __) => {
+            bbox.visibility = .8
+        }
+        this.shake.on_pick = () => {
+            bbox.visibility = .8
+        }
+        this.shake.on_drop = () => {
+            bbox.visibility = 1
+        }
 
 
         // On position change
@@ -339,145 +290,13 @@ export class Node3DInstance implements Synchronized {
 
         // Shadow Generator
         this.shared.shadowGenerator.addShadowCaster(this.bounding_mesh, false)
-
-        // Per-node delete button (top-right corner, recycle-bin icon).
-        this.createDeleteButton()
-    }
-
-    /** Billboarded delete button at the node's top-right corner; opens the delete
-     *  menu. Rebuilt on each bounding-box update (it parents to bounding_mesh). */
-    private createDeleteButton() {
-        this.delete_button?.dispose()
-        this.delete_button = null
-        if (!this.bounding_mesh) return
-
-        const scene = this.shared.scene
-        const ext = this.bounding_mesh.getBoundingInfo().boundingBox.extendSize  // half-extents (local)
-        const SIZE = 0.14
-
-        const plane = MeshBuilder.CreatePlane("node3d_delete_btn", { size: SIZE }, scene)
-        plane.parent = this.bounding_mesh
-        // Top-right-front corner, nudged outward so it reads as "in the corner".
-        plane.position.set(ext.x + SIZE * 0.4, ext.y + SIZE * 0.4, -ext.z - 0.01)
-        plane.billboardMode = AbstractMesh.BILLBOARDMODE_ALL
-        plane.isPickable = true
-        plane.renderingGroupId = 1   // draw above the node so it's never occluded
-
-        const tex = GUI.AdvancedDynamicTexture.CreateForMesh(plane, 256, 256)
-        const circle = new GUI.Ellipse()
-        circle.width = "100%"; circle.height = "100%"
-        circle.background = "#c0392b"
-        circle.color = "#ffffff"
-        circle.thickness = 14
-        tex.addControl(circle)
-        const icon = new GUI.TextBlock()
-        icon.text = "🗑"
-        icon.fontSize = 130
-        icon.color = "#ffffff"
-        circle.addControl(icon)
-
-        const hover = new InputHoverBehavior(
-            () => { circle.background = "#e74c3c"; plane.scaling.setAll(1.18) },
-            () => { circle.background = "#c0392b"; plane.scaling.setAll(1) },
-        )
-        const press = new InputGrabBehavior(
-            () => this.openDeleteMenu(),
-            () => {},
-        )
-        plane.addBehavior(hover)
-        plane.addBehavior(press)
-
-        this.delete_button = {
-            dispose() {
-                if (plane.isDisposed()) return
-                plane.removeBehavior(hover)
-                plane.removeBehavior(press)
-                tex.dispose()
-                plane.dispose()
-            }
-        }
-    }
-
-    /** Human-readable name of this node (e.g. "Fluid Field"), derived from its root. */
-    public get displayName() {
-        return this.root_transform?.name?.replace(/ root$/, "") ?? "node"
     }
 
     /** Every connection touching this node (deduplicated across all its ports). */
-    private collectConnections(): N3DConnectionInstance[] {
+    get connections(): N3DConnectionInstance[] {
         const set = new Set<N3DConnectionInstance>()
         for (const c of this.connectables.values()) for (const conn of c.connections) set.add(conn)
         return [...set]
-    }
-
-    /** Short label for a connection, from this node's point of view (signal flows output → input). */
-    private connectionLabel(conn: N3DConnectionInstance): string {
-        const out = conn.outputConnectable
-        const inp = conn.inputConnectable
-        const portName = (c: typeof out) => (c?.config.label || c?.config.id || "port")
-        if (!out || !inp) return "incomplete connection"
-        const local  = out.instance === this ? out : inp
-        const remote = out.instance === this ? inp : out
-        const flow   = out.instance === this ? "→" : "←"   // → = signal leaves this node
-        return `${portName(local)} ${flow} ${remote.instance.displayName}:${portName(remote)}`
-    }
-
-    /** Show the delete menu, reusing one ChoiceMenu instance across screens so a
-     *  click never disposes the menu mid-navigation. */
-    private showDeleteChoice(choices: { label: string; color?: string; click?: () => void }[]) {
-        const menus = MenuSystem.getInstance()
-        if (this._deleteMenu && menus.current_menu === this._deleteMenu) {
-            this._deleteMenu.set(choices)
-        } else {
-            const menu = new ChoiceMenu(this.shared.scene, this.shared.utilityLayer.utilityLayerScene, choices)
-            this._deleteMenu = menu
-            menu.onHide.addOnce(() => { if (this._deleteMenu === menu) this._deleteMenu = null })
-            menus.open(menu, true)
-        }
-    }
-
-    /** Generic confirm screen: a message, then ✔ Confirm / ✖ Cancel. */
-    private confirmDeleteChoice(message: string, onConfirm: () => void) {
-        this.showDeleteChoice([
-            { label: message, color: "#ffffff" },
-            { label: "✔ Confirm", color: "#ff5555", click: () => { MenuSystem.getInstance().close(); onConfirm() } },
-            { label: "✖ Cancel", color: "#aaaaaa", click: () => MenuSystem.getInstance().close() },
-        ])
-    }
-
-    /** Top menu shown when the 🗑 corner button is pressed. */
-    private openDeleteMenu() {
-        this.showDeleteChoice([
-            { label: "What to delete?", color: "#ffffff" },
-            { label: "🗑 Delete object", color: "#ff5555", click: () =>
-                this.confirmDeleteChoice("Delete this whole instrument?", () =>
-                    NetworkManager.getInstance().node3d.nodes.remove(this)) },
-            { label: "✂ Delete all connections", color: "#ffaa55", click: () => {
-                const conns = this.collectConnections()
-                if (conns.length === 0) { MenuSystem.getInstance().showMessage("No connections to delete"); return }
-                this.confirmDeleteChoice(`Delete all ${conns.length} connection(s)?`, () => {
-                    for (const c of conns) c.remove()
-                })
-            } },
-            { label: "✂ Delete a specific connection…", color: "#ffcc55", click: () => this.openSpecificConnectionMenu() },
-            { label: "✖ Cancel", color: "#aaaaaa", click: () => MenuSystem.getInstance().close() },
-        ])
-    }
-
-    /** Lists this node's connections; picking one asks to confirm its deletion. */
-    private openSpecificConnectionMenu() {
-        const conns = this.collectConnections()
-        if (conns.length === 0) { MenuSystem.getInstance().showMessage("No connections to delete"); return }
-        const choices: { label: string; color?: string; click?: () => void }[] = [
-            { label: "Pick a connection to delete:", color: "#ffffff" },
-        ]
-        for (const c of conns) {
-            const label = this.connectionLabel(c)
-            choices.push({ label, color: "#ffcc55", click: () =>
-                this.confirmDeleteChoice(`Delete connection?\n${label}`, () => c.remove()) })
-        }
-        choices.push({ label: "← Back", color: "#aaaaaa", click: () => this.openDeleteMenu() })
-        this.showDeleteChoice(choices)
     }
 
     private updateBoundingBox() {
@@ -552,7 +371,6 @@ export class Node3DInstance implements Synchronized {
         this.disposed = true
         this.set_state("delete")
         this.highlighter.dispose()
-        this.delete_button?.dispose()
         this.bounding_box?.dispose()
         this.bounding_mesh?.dispose()
         this.parameters.forEach(it => it.dispose())

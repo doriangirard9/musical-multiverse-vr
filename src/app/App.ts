@@ -23,6 +23,7 @@ import { BabylonsJSFix } from "./BabylonsJSFix.ts";
 import { PointerVisualSystem } from "./PointerVisualSystem.ts";
 import { MenuSystem } from "./MenuSystem.ts";
 import { MessageMenu } from "../menus/MessageMenu.ts";
+import { ContextMenuSystem } from "./ContextMenuSystem.ts";
 
 let _app: App
 
@@ -140,6 +141,17 @@ export class App {
             TargetManager.getInstance(),
             PointerVisualSystem.getInstance(),
         )
+
+        await ContextMenuSystem.initialize(
+            SceneManager.getInstance(),
+            InputManager.getInstance(),
+            WamTransportManager.getInstance(audioContext),
+            Node3dManager.getInstance(),
+            TargetManager.getInstance(),
+            MenuSystem.getInstance(),
+        )
+
+        XRManager.getInstance().xrHelper.baseExperience.sessionManager.session
 
         
 

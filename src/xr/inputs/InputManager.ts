@@ -197,7 +197,7 @@ export class InputManager {
             ["arrowleft", "arrowright", "arrowup", "arrowdown"],
         )
 
-        im.left.thumbstick._registerMouseWheelObserver()
+        im.right.thumbstick._registerMouseWheelObserver()
     }
 
     _registerXR(xrHelper: WebXRDefaultExperience, xrManager: XRManager, scenes: Scene[]){

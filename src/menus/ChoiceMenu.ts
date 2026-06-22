@@ -22,7 +22,7 @@ export class ChoiceMenu extends AbstractMenu {
     ) {
         super(scene, renderScene)
         
-        this.initPanel("choice_menu", .75, 1.5, 256)
+        this.initPanel("choice_menu", 1.2, 1.5, 256)
 
 
         const that = this
@@ -47,10 +47,16 @@ export class ChoiceMenu extends AbstractMenu {
 
     set(buttonsInfo: MenuButton[]){
 
-        function styleTextBlock(text: TextBlock, info: MenuButton){
+        function styleTextBlock(text: TextBlock, info: MenuButton, width: number){
+            const baseSize = 25
+            
             text.color = info.color ?? "white"
             text.text = info.label
-            text.fontSize = 25
+            text.fontSize = baseSize
+            
+            const w = info.label.length*baseSize*.6
+            if(w>width) text.fontSize = baseSize * width / w
+                
             text.outlineColor = "black"
             text.outlineWidth = 4
         }
@@ -59,7 +65,7 @@ export class ChoiceMenu extends AbstractMenu {
             button.color = info.color ?? "white"
             button.background = "rgb(0,0,0,0)"
             button.width = "230px"
-            button.height= "80px"
+            button.height= "60px"
             button.setPaddingInPixels(5,5,5,5)
             button.pointerEnterAnimation = () => {
                 button.background = "rgb(255,255,255,0.2)"
@@ -75,7 +81,7 @@ export class ChoiceMenu extends AbstractMenu {
                 button.scaleX = 0.95
                 button.scaleY = 0.95
             }
-            styleTextBlock(button.textBlock!, info)
+            styleTextBlock(button.textBlock!, info, 230)
         }
 
         this.buttons.clearControls()
@@ -83,7 +89,6 @@ export class ChoiceMenu extends AbstractMenu {
             if(buttonInfo.click){
                 const button = Button.CreateSimpleButton(buttonInfo.label, buttonInfo.label)
                 styleButton(button, buttonInfo)
-                styleTextBlock(button.textBlock!, buttonInfo)
 
                 const b = button.pointerUpAnimation
                 button.pointerUpAnimation = ()=>{
@@ -99,7 +104,7 @@ export class ChoiceMenu extends AbstractMenu {
             }
             else{
                 const text = new TextBlock()
-                styleTextBlock(text!, buttonInfo)
+                styleTextBlock(text!, buttonInfo, 230)
                 text.width = "230px"
                 text.height= "40px"
                 text.setPaddingInPixels(5,5,5,5)

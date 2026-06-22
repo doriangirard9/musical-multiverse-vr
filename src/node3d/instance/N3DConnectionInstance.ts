@@ -1,4 +1,4 @@
-import { AbstractMesh, Color3, CreateCylinder, Observer, Quaternion, Scene, Vector3 } from "@babylonjs/core"
+import { AbstractMesh, Color3, CreateCylinder, CreateSphere, Observer, Quaternion, Scene, Vector3 } from "@babylonjs/core"
 import { SyncManager } from "../../network/sync/SyncManager"
 import { N3DConnectableInstance } from "./N3DConnectableInstance"
 import { Node3DInstance } from "./Node3DInstance"
@@ -15,10 +15,13 @@ import { MenuSystem } from "../../app"
  */
 export class N3DConnectionInstance{
     private static readonly DEBUG_LOG = false;
+    private static readonly CENTER_NODE_SIZE_FACTOR = 0.72;
+    private static readonly CENTER_NODE_SCALE_RESPONSE = 0.5;
 
     private _tube
     private shake
     private arrow?: AbstractMesh
+    private centerNode?: AbstractMesh
     public on_dispose = ()=>{}
 
     constructor(
@@ -35,15 +38,12 @@ export class N3DConnectionInstance{
 
         SceneManager.getInstance().getShadowGenerator().addShadowCaster(this._tube, false)
 
-        // Shake-to-delete a connection. Intentionally strict (threshold 5,
-        // sustain > 24) so a cable is never removed by accident; the node's
-        // delete menu remains the deliberate path.
         this.shake = new ShakeBehavior()
         this.shake.shake_threshold = 5
         this._tube.addBehavior(this.shake)
         this.shake.on_shake = (power, counter) => {
             this._tube.visibility = Math.max(0, 1 - power / 12)
-            if(counter>24) connections.remove(this)
+            if(counter>10) connections.remove(this)
         }
         this.shake.on_stop = (_, __) => {
             this._tube.visibility = .8
@@ -54,10 +54,10 @@ export class N3DConnectionInstance{
         this.shake.on_drop = () => {
             this._tube.visibility = 1
         }
+        
     }
 
     // Public API
-
     /**
      * Connect two connectable by this connections.
      * If this connections already connect two connectable the old connection is closed.
@@ -78,6 +78,13 @@ export class N3DConnectionInstance{
 
     get tube(){ return this._tube }
 
+    public contains(mesh: AbstractMesh): boolean {
+        return mesh === this._tube
+            || mesh.isDescendantOf(this._tube)
+            || mesh === this.centerNode
+            || (!!this.centerNode && mesh.isDescendantOf(this.centerNode))
+    }
+
 
 
     // Connection
@@ -88,6 +95,32 @@ export class N3DConnectionInstance{
     private buildTimeout?: any
 
     private connectionObject: any = null
+    private centerNodeBaseDiameter = Node3DInstance.CONNECTION_SIZE_MULTIPLIER
+    private inputBaseScale = 1
+    private outputBaseScale = 1
+
+    private getMeshDiameter(mesh: AbstractMesh): number {
+        mesh.computeWorldMatrix(true)
+        const bounds = mesh.getBoundingInfo().boundingBox.extendSizeWorld
+        return Math.max(bounds.x, bounds.y, bounds.z) * 2
+    }
+
+    private getConnectableDiameter(connectable: N3DConnectableInstance): number {
+        const diameters = connectable.config.meshes
+            .map(mesh => this.getMeshDiameter(mesh))
+            .filter(diameter => Number.isFinite(diameter) && diameter > 0)
+
+        if (diameters.length === 0) {
+            return Node3DInstance.CONNECTION_SIZE_MULTIPLIER
+        }
+
+        return Math.max(...diameters)
+    }
+
+    private getNodeScale(connectable: N3DConnectableInstance): number {
+        const scaling = connectable.instance.boundingBoxMesh.scaling
+        return Math.max(scaling.x, scaling.y, scaling.z, 0.0001)
+    }
 
     /**
      * Connect la node3D à deux connections. Pas de synchronisation.
@@ -173,7 +206,22 @@ export class N3DConnectionInstance{
             SceneManager.getInstance().getShadowGenerator().addShadowCaster(this.arrow, false)
             MeshUtils.setColor(this.arrow, this.color)
         }
+
+        this.inputBaseScale = this.getNodeScale(input)
+        this.outputBaseScale = this.getNodeScale(output)
+        this.centerNodeBaseDiameter = (
+            this.getConnectableDiameter(input) +
+            this.getConnectableDiameter(output)
+        ) / 2 * N3DConnectionInstance.CENTER_NODE_SIZE_FACTOR
+
+        this.centerNode = CreateSphere("connection center node", {
+            diameter: 1,
+            segments: 10,
+        }, this.scene)
+        SceneManager.getInstance().getShadowGenerator().addShadowCaster(this.centerNode, false)
+
         MeshUtils.setColor(this._tube, this.color)
+        MeshUtils.setColor(this.centerNode, this.color)
 
         const connection = this
         function movetube(){
@@ -187,6 +235,14 @@ export class N3DConnectionInstance{
                 const pointA = outputMesh.absolutePosition
                 const pointB = connection._tube ? offset.scale(tubeLength).addInPlace(pointA) : inputMesh.absolutePosition
                 const pointC = inputMesh.absolutePosition
+                const inputScaleFactor = connection.getNodeScale(input) / connection.inputBaseScale
+                const outputScaleFactor = connection.getNodeScale(output) / connection.outputBaseScale
+                const averageScaleDelta = (
+                    (inputScaleFactor - 1) +
+                    (outputScaleFactor - 1)
+                ) / 2
+                const centerScaleFactor = 1 + averageScaleDelta * N3DConnectionInstance.CENTER_NODE_SCALE_RESPONSE
+                const centerDiameter = connection.centerNodeBaseDiameter * centerScaleFactor
 
                 const orientation = Quaternion.FromUnitVectorsToRef(Vector3.Up(), offset.normalizeToNew(), new Quaternion())
                 
@@ -195,6 +251,8 @@ export class N3DConnectionInstance{
                 connection._tube.setAbsolutePosition(tubeCenter)
                 connection._tube.rotationQuaternion = orientation
                 connection._tube.scaling.set(1,tubeLength,1)
+                connection.centerNode?.setAbsolutePosition(pointA.add(pointC).scaleInPlace(.5))
+                connection.centerNode?.scaling.setAll(centerDiameter)
 
                 // Move the arrow
                 if(connection.arrow){
@@ -227,6 +285,9 @@ export class N3DConnectionInstance{
             this.cOutput = null
             this.observables.forEach(it=>it.remove())
             this.arrow?.dispose()
+            this.arrow = undefined
+            this.centerNode?.dispose()
+            this.centerNode = undefined
         }
     }
 
@@ -238,9 +299,11 @@ export class N3DConnectionInstance{
 
         const color = Color3.FromHSV(tone*360, 1-strength, 1).toColor4(1).multiplyInPlace(this.color)
         MeshUtils.setColor(this._tube, color)
+        if(this.centerNode) MeshUtils.setColor(this.centerNode, color)
 
         this.pulseTimeout = setTimeout(()=>{
             MeshUtils.setColor(this._tube, this.color)
+            if(this.centerNode) MeshUtils.setColor(this.centerNode, this.color)
         }, 100)
     }
 

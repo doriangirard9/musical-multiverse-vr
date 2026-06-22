@@ -56,6 +56,34 @@ export class ConnectionManager {
         AbstractPointerInput.PickPredicate = null
     }
 
+    private isDirectionCompatible(from: N3DConnectableInstance, to: N3DConnectableInstance): boolean {
+        if ([from.config.direction, to.config.direction].includes("bidirectional")) return true
+        return from.config.direction !== to.config.direction
+    }
+
+    private findNodeForMesh(mesh: any) {
+        for (const [, node] of this.network.nodes.entries()) {
+            if (mesh === node.boundingBoxMesh || mesh.isDescendantOf(node.boundingBoxMesh)) {
+                return node
+            }
+        }
+        return null
+    }
+
+    private findUniqueCompatiblePortOnTargetMesh(source: N3DConnectableInstance, targetMesh: any): N3DConnectableInstance | null {
+        const node = this.findNodeForMesh(targetMesh)
+        if (!node || node === source.instance) return null
+
+        const compatibles = [...node.connectables.values()].filter(candidate => {
+            if (candidate === source) return false
+            if (candidate.config.type !== source.config.type) return false
+            if (!this.isDirectionCompatible(source, candidate)) return false
+            return true
+        })
+
+        return compatibles.length === 1 ? compatibles[0] : null
+    }
+
     private connectHandler(data: IOEventPayload['IO_CONNECT']) {
         const {pickType,pointer} = data
 
@@ -91,6 +119,12 @@ export class ConnectionManager {
                 break;
 
             case "out":
+                if (this.currentPort && pointer.targetMesh) {
+                    const compatibleTarget = this.findUniqueCompatiblePortOnTargetMesh(this.currentPort, pointer.targetMesh)
+                    if (compatibleTarget) {
+                        this.connect(this.currentPort, compatibleTarget)
+                    }
+                }
                 this._cancelAndResetConnection();
                 break;
         }
