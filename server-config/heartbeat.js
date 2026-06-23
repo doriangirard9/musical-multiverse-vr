@@ -2,6 +2,7 @@ const { getDb } = require('./database');
 
 const HEARTBEAT_TTL_SECONDS = 30;
 const CLEANUP_INTERVAL_MS = 10000; // Run cleanup every 10 seconds
+const TEMPORARY_SESSION_JOIN_GRACE_SECONDS = 300;
 
 let cleanupInterval = null;
 
@@ -28,8 +29,8 @@ function cleanupStaleParticipants() {
 /**
  * Supprime les sessions TEMPORAIRES qui n'ont plus aucun participant — elles
  * s'évaporent quand le dernier joueur part (vraie session éphémère). On laisse
- * une grâce de 30 s après création pour qu'une session fraîche ait le temps
- * d'être rejointe par son créateur avant ce nettoyage.
+ * une grâce de 5 min après création pour laisser aux casques le temps de
+ * charger la page, d'accepter le certificat et d'autoriser WebAudio/WebXR.
  * @returns {number} Nombre de sessions temporaires supprimées
  */
 function cleanupEmptyTemporarySessions() {
@@ -37,7 +38,7 @@ function cleanupEmptyTemporarySessions() {
     const stmt = db.prepare(`
         DELETE FROM sessions
         WHERE is_temporary = 1
-          AND created_at < datetime('now', '-30 seconds')
+          AND created_at < datetime('now', '-${TEMPORARY_SESSION_JOIN_GRACE_SECONDS} seconds')
           AND NOT EXISTS (
               SELECT 1 FROM session_participants p WHERE p.session_id = sessions.id
           )
@@ -85,4 +86,5 @@ module.exports = {
     cleanupStaleParticipants,
     cleanupEmptyTemporarySessions,
     HEARTBEAT_TTL_SECONDS,
+    TEMPORARY_SESSION_JOIN_GRACE_SECONDS,
 };
