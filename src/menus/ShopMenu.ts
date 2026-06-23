@@ -1,7 +1,11 @@
-import { Scene } from "@babylonjs/core"
+import { Observable, Scene } from "@babylonjs/core"
 import { Button, Container, Image, InputText, Rectangle, ScrollViewer, StackPanel, TextBlock, VirtualKeyboard } from "@babylonjs/gui"
 import { Node3dManager } from "../app/Node3dManager"
 import { AbstractMenu } from "./AbstractMenu"
+
+const FORCED_MIDI_INSTRUMENT_KINDS = new Set([
+    "server-pro54michel",
+])
 
 export class ShopMenu extends AbstractMenu {
 
@@ -9,10 +13,13 @@ export class ShopMenu extends AbstractMenu {
     // than once (both controllers / event re-dispatch) → spawned the node twice.
     // Allow at most one spawn per shop opening; reset in show().
     private spawnedThisOpen = false
+    readonly onItemSelected = new Observable<string>()
+    readonly onNavigationSelected = new Observable<{ level: "menu" | "submenu", label: string }>()
 
     constructor(
         scene: Scene,
         renderScene: Scene,
+        private readonly allowedKinds?: ReadonlySet<string>,
     ) {
         super(scene, renderScene)
 
@@ -123,6 +130,7 @@ export class ShopMenu extends AbstractMenu {
                     label,
                     selected: label === selection,
                     action: () => {
+                        this.onNavigationSelected.notifyObservers({ level: "submenu", label })
                         setSubMenu(label, submenus)
                         categoryKinds = kinds
                         if (search.text) search.text = ""   // leave search mode
@@ -148,6 +156,7 @@ export class ShopMenu extends AbstractMenu {
                         label,
                         selected: label === selection,
                         action: () => {
+                            this.onNavigationSelected.notifyObservers({ level: "menu", label })
                             setMenu(label, menus)
                             setSubMenu("", submenus)
                         }
@@ -204,7 +213,9 @@ export class ShopMenu extends AbstractMenu {
             // Init menu
             ; (async () => {
                 const builder = Node3dManager.getInstance().builder
-                const kinds = builder.FACTORY_KINDS
+                const kinds = this.allowedKinds
+                    ? builder.FACTORY_KINDS.filter(kind => this.allowedKinds!.has(kind))
+                    : builder.FACTORY_KINDS
                 const factories = (await Promise.all(kinds.map(async kind => {
                     const factory = await builder.getFactory(kind)
                     if (factory == null) return null
@@ -244,6 +255,13 @@ export class ShopMenu extends AbstractMenu {
                 for (const [kind, factory] of factories) {
                     const target = [] as string[][]
 
+                    // Some remote WAM descriptors expose incomplete tags. Keep
+                    // their automatic classification, but guarantee that known
+                    // MIDI instruments remain discoverable in the expected tab.
+                    if (FORCED_MIDI_INSTRUMENT_KINDS.has(kind)) {
+                        target.push(menus.MIDI.Instrument)
+                    }
+
                     if (factory.tags.includes("consumer")) target.push(menus.Output.Output)
 
                     if (factory.tags.includes("automation")) target.push(menus.Automation.Automation)
@@ -265,9 +283,20 @@ export class ShopMenu extends AbstractMenu {
                     }
                     if (target.length === 0) target.push(menus.Other.Other)
 
-                    target.forEach(t => t.push(kind))
+                    new Set(target).forEach(t => t.push(kind))
                 }
-                setMenu("", menus)
+
+                const visibleMenus = Object.fromEntries(
+                    Object.entries(menus)
+                        .map(([menuLabel, submenus]) => [
+                            menuLabel,
+                            Object.fromEntries(
+                                Object.entries(submenus).filter(([, menuKinds]) => menuKinds.length > 0)
+                            ),
+                        ])
+                        .filter(([, submenus]) => Object.keys(submenus).length > 0)
+                )
+                setMenu("", visibleMenus)
             })()
     }
 
@@ -377,6 +406,7 @@ export class ShopMenu extends AbstractMenu {
         container.pointerUpAnimation = () => {
             if (this.spawnedThisOpen) return   // ignore duplicate pointer-up events
             this.spawnedThisOpen = true
+            this.onItemSelected.notifyObservers(kind)
             this.hide()
             Node3dManager.getInstance().addNode3d(kind, this.plane.absolutePosition.clone())
         }
@@ -402,4 +432,3 @@ export class ShopMenu extends AbstractMenu {
     }
 
 }
-

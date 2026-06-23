@@ -1,4 +1,4 @@
-import { ActionManager, Color3, HighlightLayer, Matrix, TransformNode, UtilityLayerRenderer, Vector3 } from "@babylonjs/core"
+import { ActionManager, Color3, HighlightLayer, Matrix, Observable, TransformNode, UtilityLayerRenderer, Vector3 } from "@babylonjs/core"
 import { NodeCompUtils } from "../tools/utils/NodeCompUtils"
 import { Node3DParameter } from "../Node3DParameter"
 import { N3DText } from "./utils/N3DText"
@@ -187,6 +187,8 @@ export class N3DParameterInstance {
     setValue(value: number){
         if(this.isLocked) return
         this.config.setValue(value)
+        this.onValueChanged.notifyObservers(value)
+        this.node3d.onParameterChanged.notifyObservers({ id: this.config.id, value })
         if(!this.config.notSynced) this.node3d.set_state("node3d_parameter_"+this.config.id)
     }
 
@@ -202,5 +204,6 @@ export class N3DParameterInstance {
     readonly text
     readonly highlight
     readonly visual
+    readonly onValueChanged = new Observable<number>()
 
 }

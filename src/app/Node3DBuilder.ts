@@ -166,6 +166,14 @@ export class Node3DBuilder {
         if (kind.startsWith("wam3d-")) {
             const config = (examples as Record<string, WAMGuiInitCode>)[kind.substring(6)]
             if (!config) return null
+            if (kind === "wam3d-Drum") {
+                return await Wam3DGeneratorN3DFactory.create({
+                    ...config,
+                    name: "Drum",
+                    description: "Drum sampler controlled by MIDI.",
+                    tags: ["audio", "midi", "instrument", "drum"],
+                } as WAMGuiInitCode)
+            }
             return await Wam3DGeneratorN3DFactory.create(config)
         }
 

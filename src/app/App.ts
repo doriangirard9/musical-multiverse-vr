@@ -23,6 +23,7 @@ import { BabylonsJSFix } from "./BabylonsJSFix.ts";
 import { PointerVisualSystem } from "./PointerVisualSystem.ts";
 import { MenuSystem } from "./MenuSystem.ts";
 import { ContextMenuSystem } from "./ContextMenuSystem.ts";
+import { TUTORIAL_KINDS } from "../tutorial/TutorialScenario.ts";
 
 let _app: App
 
@@ -42,7 +43,12 @@ export class App {
         return App.instance;
     }
 
-    public async start(participantId: string, roomName: string, doc: Doc): Promise<void> {
+    public async start(
+        participantId: string,
+        roomName: string,
+        doc: Doc,
+        options: { tutorial?: boolean } = {},
+    ): Promise<void> {
         App.instance = this
         
         const username = RandomUtils.randomName()
@@ -118,6 +124,7 @@ export class App {
             InputManager.getInstance(),
             Node3dManager.getInstance(),
             MenuSystem.getInstance(),
+            options.tutorial ? { allowedKinds: new Set(Object.values(TUTORIAL_KINDS)) } : {},
         )
 
         await TargetManager.initialize(

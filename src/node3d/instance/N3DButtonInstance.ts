@@ -1,10 +1,11 @@
-import { Behavior, HighlightLayer, TransformNode, UtilityLayerRenderer } from "@babylonjs/core"
+import { Behavior, HighlightLayer, Observable, TransformNode, UtilityLayerRenderer } from "@babylonjs/core"
 import { InputGrabBehavior } from "../../xr/inputs/tools/InputGrabBehavior"
 import { InputHoverBehavior } from "../../xr/inputs/tools/InputHoverBehavior"
 import { InputPressBehavior } from "../../xr/inputs/tools/InputPressBehavior"
 import { Node3DButton } from "../Node3DButton"
 import { NodeCompUtils } from "../tools/utils/NodeCompUtils"
 import { N3DText } from "./utils/N3DText"
+import type { Node3DInstance } from "./Node3DInstance"
 
 
 /**
@@ -24,6 +25,7 @@ export class N3DButtonInstance {
      * @param stringify A function that returns the string representation of the parameter value.
      */
     constructor(
+        readonly node3d: Node3DInstance,
         root: TransformNode,
         highlightLayer: HighlightLayer,
         utilityLayer: UtilityLayerRenderer,
@@ -83,6 +85,7 @@ export class N3DButtonInstance {
 
         const on_pick_down = ()=>{
             config.press()
+            this.onPressed.notifyObservers()
             visual.offset(1)
         }
 
@@ -123,5 +126,6 @@ export class N3DButtonInstance {
     readonly text
     readonly highlight
     readonly visual
+    readonly onPressed = new Observable<void>()
 
 }

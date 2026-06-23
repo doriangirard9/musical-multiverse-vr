@@ -213,6 +213,20 @@ export class Wam3DGeneratorN3DFactory implements Node3DFactory<Wam3DGeneratorN3D
                 code
             )
         } catch (e) {
+            const fallback = code as WAMGuiInitCode & {
+                name?: string
+                description?: string
+                tags?: string[]
+            }
+            if (fallback.name && fallback.tags?.length) {
+                console.warn(`[Wam3DGenerator] Descriptor unavailable for ${fallback.name}; using local metadata.`)
+                return new Wam3DGeneratorN3DFactory(
+                    fallback.name,
+                    fallback.description ?? "",
+                    fallback.tags,
+                    code,
+                )
+            }
             return null
         }
     }

@@ -272,7 +272,7 @@ class SequencerN3D implements Node3D{
         function updateTransport(){
             sequencer.sync.duration = (60/transport.getTempo()) * // Beat duration in seconds
                 4 / transport.getTimeSignature().denominator * // Note duration in seconds
-                gui.noteCount * // Total duration in seconds
+                (gui.stepCount / 4) * // Four sequencer steps per beat
                 sequencer.duration_multiplier // With multiplier
             sequencer.start_time = transport.getElapsedSeconds()
         }
