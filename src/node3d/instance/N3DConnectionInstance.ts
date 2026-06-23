@@ -15,8 +15,8 @@ import { MenuSystem } from "../../app"
  */
 export class N3DConnectionInstance{
     private static readonly DEBUG_LOG = false;
-    private static readonly CENTER_NODE_SIZE_FACTOR = 0.72;
-    private static readonly CENTER_NODE_SCALE_RESPONSE = 0.5;
+    private static readonly CENTER_NODE_SIZE_FACTOR = 0.3;
+    private static readonly CENTER_NODE_SCALE_RESPONSE = 0.25;
 
     private _tube
     private shake

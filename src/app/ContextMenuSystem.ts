@@ -147,6 +147,68 @@ export class ContextMenuSystem {
                     const head = that.inputs.head.matrix.asArray()
                     await navigator.clipboard.writeText(JSON.stringify({serialized,head}))
                 }},
+
+                { label: "---"},
+
+                { label: "📄 Copy Parameters", color: "#70e7ff", click: async()=>{
+                    if(!target) return
+                    const parameters = [...target.parameters.entries()]
+                        .map(([k,p])=>[k, p.getValue()])
+                    await navigator.clipboard.writeText(JSON.stringify(Object.fromEntries(parameters)))
+                }},
+
+                { label: "📋 Paste Parameters", color: "#70e7ff", click: async()=>{
+                    if(!target) return
+                    const text = await navigator.clipboard.readText()
+                    try{
+                        const json = JSON.parse(text)
+                        console.log("Pasting parameters", json, target.parameters)
+                        for(const [k,v] of Object.entries(json))
+                            if(target.parameters.has(k))
+                                if(typeof v == "number"){
+                                    console.log("Setting parameter", k, v)
+                                    target.parameters.get(k)?.setValue(v)
+                                }
+                    }catch(e){}
+                }},
+
+                { label: "🧬 Mutate Parameters", color: "#70e7ff", click: async()=>{
+                    if(!target) return
+                    for(const p of target.parameters.values()){
+                        const stepcount = p.config.getStepCount() || 1000
+                        let step = Math.max(.05,2/stepcount)
+                        let v = p.getValue() + (Math.random()-0.5)*2*step
+                        v = v - v % (1/stepcount)
+                        if(v < 0) v = 0
+                        if(v > 1) v = 1
+                        p.setValue(v)
+                    }
+                }},
+
+                { label: "🧬+ Super Mutate Parameters", color: "#70e7ff", click: async()=>{
+                    if(!target) return
+                    for(const p of target.parameters.values()){
+                        const stepcount = p.config.getStepCount() || 1000
+                        let step = Math.max(.1,2/stepcount)
+                        let v = p.getValue() + (Math.random()-0.5)*2*step
+                        v = v - v % (1/stepcount)
+                        if(v < 0) v = 0
+                        if(v > 1) v = 1
+                        p.setValue(v)
+                    }
+                }},
+
+                { label: "🎲 Random Parameters", color: "#70e7ff", click: async()=>{
+                    if(!target) return
+                    for(const p of target.parameters.values()){
+                        const stepcount = p.config.getStepCount() || 1000
+                        let v = Math.random()
+                        v = v - v % (1/stepcount)
+                        if(v < 0) v = 0
+                        if(v > 1) v = 1
+                        p.setValue(v)
+                    }
+                }},
             ])
         }    
 

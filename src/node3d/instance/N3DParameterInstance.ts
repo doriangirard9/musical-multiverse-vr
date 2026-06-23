@@ -200,6 +200,13 @@ export class N3DParameterInstance {
         this.config.setValue(value, true)
     }
 
+    /**
+     * Get the current value of the parameter.
+     */
+    getValue(): number{
+        return this.config.getValue()
+    }
+
     readonly dispose
     readonly text
     readonly highlight
