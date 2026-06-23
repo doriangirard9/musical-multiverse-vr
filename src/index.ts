@@ -20,6 +20,8 @@ import { LoadingOverlay } from "./ui/pages/LoadingOverlay.ts";
 import { SessionHUD } from "./ui/pages/SessionHUD.ts";
 import { SessionConnector } from "./network/SessionConnector.ts";
 import { SessionAPIClient } from "./network/SessionAPIClient.ts";
+import { Node3dManager } from "./app/Node3dManager.ts";
+import { TutorialController } from "./tutorial/TutorialController.ts";
 import * as Y from 'yjs';
 import { installConsoleFilter } from "./utils/logger.ts";
 
@@ -123,6 +125,7 @@ let onload = async() => {
             case ROUTES.APP:
                 const sessionId = route.params.session;
                 const shareToken = route.params.share;
+                const tutorialMode = route.params.tutorial === '1';
                 
                 if (!sessionId) {
                     router.replace(ROUTES.SESSIONS);
@@ -152,7 +155,7 @@ let onload = async() => {
                         loadingOverlay.show(appRoot!, 'Click anywhere on the page to start', false);
 
                         const newApp = new App();
-                        await newApp.start(connectionInfo.participantId, sessionId, doc);
+                        await newApp.start(connectionInfo.participantId, sessionId, doc, { tutorial: tutorialMode });
                         appStarted = true;
 
                         // Show the leave button and prepare for sync
@@ -171,6 +174,9 @@ let onload = async() => {
                         // Now that Node3dManager is initialized, we can hydrate the CRDT state
                         loadingOverlay.show(appRoot!, 'Checking session state...', true);
                         await activeConnector.initCRDTState(connectionInfo.participantNumber, connectionInfo.crdtData);
+                        if (tutorialMode) {
+                            TutorialController.startWhenInXR(Node3dManager.getInstance().getAudioContext());
+                        }
                         loadingOverlay.show(appRoot!, 'Session ready ! Click on the headset icon below to enter VR.', false);
 
                         

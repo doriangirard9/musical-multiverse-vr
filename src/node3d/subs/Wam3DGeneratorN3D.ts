@@ -72,7 +72,6 @@ class Wam3DGeneratorN3D implements Node3D {
                 defineAnInput(settings) {
                     wamNode = settings.node
                     count++
-                    let target = settings.target
                     context.createConnectable(new T.AudioN3DConnectable.Input(
                         `audioinput${count}`,
                         settings.target,
@@ -213,6 +212,23 @@ export class Wam3DGeneratorN3DFactory implements Node3DFactory<Wam3DGeneratorN3D
                 code
             )
         } catch (e) {
+            // TODO: Trouver un truc plus propre, sans cast bizarres.
+            // Peut être vérifié à posteriori si name,description sont présent au lieu d'uniquement fallback
+            // Mais sinon OK
+            const fallback = code as WAMGuiInitCode & {
+                name?: string
+                description?: string
+                tags?: string[]
+            }
+            if (fallback.name && fallback.tags?.length) {
+                console.warn(`[Wam3DGenerator] Descriptor unavailable for ${fallback.name}; using local metadata.`)
+                return new Wam3DGeneratorN3DFactory(
+                    fallback.name,
+                    fallback.description ?? "",
+                    fallback.tags,
+                    code,
+                )
+            }
             return null
         }
     }

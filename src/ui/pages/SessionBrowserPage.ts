@@ -41,6 +41,7 @@ export class SessionBrowserPage {
                 <div class="wj-toolbar">
                     <h1 class="wj-title" style="text-align:left;margin:0;">🎵 WAM Jam Party</h1>
                     <div class="wj-toolbar-actions">
+                        <button class="wj-btn wj-btn-tutorial wj-hud-btn" id="wj-new-tutorial" title="A guided solo introduction using a temporary session">Guided Tutorial</button>
                         <button class="wj-btn wj-btn-primary wj-hud-btn" id="wj-new-temp" title="A session you can play right away, never saved, that disappears when everyone leaves">⚡ Temporary Session</button>
                         ${user ? `
                             <div class="wj-user-info">
@@ -98,6 +99,23 @@ export class SessionBrowserPage {
                 console.error('[SessionBrowser] Failed to create temporary session:', err);
                 tempBtn.disabled = false;
                 tempBtn.textContent = '⚡ Temporary Session';
+            }
+        });
+
+        const tutorialBtn = el.querySelector('#wj-new-tutorial') as HTMLButtonElement | null;
+        tutorialBtn?.addEventListener('click', async () => {
+            tutorialBtn.disabled = true;
+            tutorialBtn.textContent = 'Preparing tutorial...';
+            try {
+                const res = await this.api.request<{ session: { id: string } }>('POST', '/sessions/temporary', {
+                    name: 'Guided Tutorial',
+                    maxUsers: 1,
+                });
+                this.router.navigate(ROUTES.APP, { session: res.session.id, tutorial: '1' });
+            } catch (err) {
+                console.error('[SessionBrowser] Failed to create tutorial:', err);
+                tutorialBtn.disabled = false;
+                tutorialBtn.textContent = 'Guided Tutorial';
             }
         });
 

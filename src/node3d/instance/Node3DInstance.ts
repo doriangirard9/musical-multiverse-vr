@@ -6,7 +6,8 @@ import {
     Vector3,
     Quaternion, Color3,
     Vector2,
-    Observer
+    Observer,
+    Observable
 } from "@babylonjs/core";
 import { Node3DConnectable } from "../Node3DConnectable";
 import { Node3DParameter } from "../Node3DParameter";
@@ -48,6 +49,7 @@ export class Node3DInstance implements Synchronized {
     readonly parameters = new Map<string, N3DParameterInstance>()
     readonly buttons = new Map<string, N3DButtonInstance>()
     readonly connectables = new Map<string, N3DConnectableInstance>()
+    readonly onParameterChanged = new Observable<{ id: string, value: number }>()
     private declare root_transform: TransformNode
     private highlighter!: N3DHighlighter
     private observers = new Set<Observer<any>>()
@@ -141,7 +143,7 @@ export class Node3DInstance implements Synchronized {
             },
 
             createButton(info) {
-                const button = new N3DButtonInstance(instance.root_transform, highlightLayer, utilityLayer, info)
+                const button = new N3DButtonInstance(instance, instance.root_transform, highlightLayer, utilityLayer, info)
                 instance.buttons.set(info.id, button)
             },
             removeButton(id) {

@@ -10,6 +10,9 @@ export class AbstractPointerInput {
     /** Global predicate to filter pickable meshes (e.g. during connection drag) */
     public static PickPredicate: ((mesh: AbstractMesh) => boolean) | null = null;
 
+    /** Global maximum distance for touch interaction */
+    public static TouchMaxDistance: number = 0.05;
+
 
     /**
       * The matrix that represents the pointer position and orientation in world space.
@@ -40,6 +43,15 @@ export class AbstractPointerInput {
     /** The mesh previously targeted by the pointer. Null if no mesh was previously targeted. */
     public previousMesh: AbstractMesh | null = null
 
+    /** Do the pointer was touching the targetMesh in the touch event. */
+    public wasTouching: boolean = false
+
+    /** Do the pointer touch the targetMesh */
+    public isTouching: boolean = false
+
+    /** The currently touched mesh. Null if no mesh is touched. */
+    public touchedMesh: AbstractMesh | null = null
+
     /** Whether the pointer is hitting a mesh. */
     public hit = false
 
@@ -48,6 +60,9 @@ export class AbstractPointerInput {
 
     /** The observable that is notified when the pointer targets a new mesh. */
     readonly onNewTarget = new Observable<this>()
+
+    /** The observable that is notified when the pointer touch targets a new mesh. */
+    readonly onNewTouch = new Observable<this>()
 
     /** The observable that is notified when the pointer is removed. */
     readonly onRemove = new Observable<this>()
@@ -94,11 +109,31 @@ export class AbstractPointerInput {
             if(this.targetMesh!=null)break
         }
 
-        // Send events
-        if (this.targetMesh != this.previousMesh) {
-            this.onNewTarget.notifyObservers(this)
-            this.previousMesh = this.targetMesh
+        // Back ray : If back ray also touch the target, then the origin is inside the mesh.
+        if(this.targetMesh){
+            const backRay = new Ray(this.origin, this.forward.scale(-1))
+            const result = backRay.intersectsMesh(this.targetMesh)
+            if(result && result.hit){
+                this.hit = true
+                this.target.copyFrom(backRay.origin)
+            }
         }
+
+        // Test touch
+        this.isTouching = !!this.targetMesh && Vector3.DistanceSquared(this.origin, this.target)<Math.pow(AbstractPointerInput.TouchMaxDistance,2)
+        this.touchedMesh = this.isTouching ? this.targetMesh : null
+        
+        // Send events
+        if (this.targetMesh!=this.previousMesh) {
+            this.onNewTarget.notifyObservers(this)
+        }
+
+        if((this.targetMesh!=this.previousMesh && this.isTouching) || (this.isTouching!=this.wasTouching)){
+            this.onNewTouch.notifyObservers(this)
+        }
+
+        this.previousMesh = this.targetMesh
+        this.wasTouching = this.isTouching
 
         this.onMove.notifyObservers(this)
     }

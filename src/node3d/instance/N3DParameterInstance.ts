@@ -1,4 +1,4 @@
-import { ActionManager, Color3, HighlightLayer, Matrix, TransformNode, UtilityLayerRenderer, Vector3 } from "@babylonjs/core"
+import { ActionManager, Color3, HighlightLayer, Matrix, Observable, TransformNode, UtilityLayerRenderer, Vector3 } from "@babylonjs/core"
 import { NodeCompUtils } from "../tools/utils/NodeCompUtils"
 import { Node3DParameter } from "../Node3DParameter"
 import { N3DText } from "./utils/N3DText"
@@ -7,12 +7,6 @@ import { InputGrabBehavior } from "../../xr/inputs/tools/InputGrabBehavior"
 import { Node3DInstance } from "./Node3DInstance"
 
 const highlightColor = Color3.Blue()
-
-// Default drag: value change per metre of world vertical hand movement
-// (~33 cm for a full 0..1 sweep).
-const DEFAULT_VERTICAL_GAIN = 3.0
-
-
 
 /**
  * A simple parameter whose value is changed by dragging it.
@@ -93,11 +87,11 @@ export class N3DParameterInstance {
             let startingValue = 0
             let stepSize = 0.01
             let changeFactor = 0
-            let grabY = 0   // world-space controller Y captured at grab start
 
             const reverseMatrix = Matrix.Identity()
             const relativePosition = new Vector3()
             const relativeDirection = new Vector3()
+            const temp = new Vector3()
 
             const drag = new InputGrabBehavior(
                 input=>{
@@ -123,7 +117,6 @@ export class N3DParameterInstance {
                     }
                     
                     reverseMatrix.copyFrom(input.matrix).invertToRef(reverseMatrix)
-                    grabY = input.origin.y
                 },
                 ()=>{
                     visual.offset(-1)
@@ -132,21 +125,22 @@ export class N3DParameterInstance {
                     // If stepCount is 2, do nothing on drag
                     if(stepSize==1)return
 
-                    let newvalue: number
-                    if(config.fromOffset){
-                        // Custom mapping (e.g. IsfShader) — keep the grab-frame offsets.
-                        Vector3.TransformCoordinatesToRef(input.origin, reverseMatrix, relativePosition)
-                        Vector3.TransformNormalToRef(input.forward, reverseMatrix, relativeDirection)
-                        const offset = config.fromOffset(relativePosition, relativeDirection)
-                        newvalue = startingValue + offset * changeFactor
-                    }
-                    else{
-                        // Default: world vertical hand movement — raising increases,
-                        // lowering decreases, regardless of controller tilt.
-                        const dy = input.origin.y - grabY
-                        newvalue = startingValue + dy * DEFAULT_VERTICAL_GAIN
-                    }
+                    // Get ray relative to the parameter
+                    Vector3.TransformCoordinatesToRef(input.origin, reverseMatrix, relativePosition)
+                    Vector3.TransformNormalToRef(input.forward, reverseMatrix, relativeDirection)
 
+                    const fromOffset = config.fromOffset ?? ((posOffset, dirOffset) => {
+                        // Project to ground plane
+                        const ground_length = Math.abs(Math.pow(dirOffset.x,2) + Math.pow(dirOffset.z,2))
+                        const corrected_length = Math.min(1/ground_length,10)
+
+                        temp.copyFrom(dirOffset).scaleInPlace(corrected_length).addInPlace(posOffset)
+                        return -temp.y
+                    })
+
+                    const offset = fromOffset(relativePosition, relativeDirection)
+
+                    let newvalue = (startingValue + offset * changeFactor)
                     newvalue = newvalue - newvalue % stepSize
                     newvalue = Math.max(0, Math.min(1, newvalue))
                     this.setValue(newvalue)
@@ -180,6 +174,8 @@ export class N3DParameterInstance {
     setValue(value: number){
         if(this.isLocked) return
         this.config.setValue(value)
+        this.onValueChanged.notifyObservers(value)
+        this.node3d.onParameterChanged.notifyObservers({ id: this.config.id, value })
         if(!this.config.notSynced) this.node3d.set_state("node3d_parameter_"+this.config.id)
     }
 
@@ -195,5 +191,6 @@ export class N3DParameterInstance {
     readonly text
     readonly highlight
     readonly visual
+    readonly onValueChanged = new Observable<number>()
 
 }

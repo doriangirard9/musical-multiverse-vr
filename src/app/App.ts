@@ -22,8 +22,9 @@ import { TargetManager } from "./TargetManager.ts";
 import { BabylonsJSFix } from "./BabylonsJSFix.ts";
 import { PointerVisualSystem } from "./PointerVisualSystem.ts";
 import { MenuSystem } from "./MenuSystem.ts";
-import { MessageMenu } from "../menus/MessageMenu.ts";
 import { ContextMenuSystem } from "./ContextMenuSystem.ts";
+import { HapticContactSystem } from "./HapticContactSystem.ts";
+import { TUTORIAL_KINDS } from "../tutorial/TutorialScenario.ts";
 
 let _app: App
 
@@ -43,7 +44,12 @@ export class App {
         return App.instance;
     }
 
-    public async start(participantId: string, roomName: string, doc: Doc): Promise<void> {
+    public async start(
+        participantId: string,
+        roomName: string,
+        doc: Doc,
+        options: { tutorial?: boolean } = {},
+    ): Promise<void> {
         App.instance = this
         
         const username = RandomUtils.randomName()
@@ -119,6 +125,7 @@ export class App {
             InputManager.getInstance(),
             Node3dManager.getInstance(),
             MenuSystem.getInstance(),
+            options.tutorial ? { allowedKinds: new Set(Object.values(TUTORIAL_KINDS)) } : {},
         )
 
         await TargetManager.initialize(
@@ -138,8 +145,6 @@ export class App {
             WamTransportManager.getInstance(audioContext),
             Node3dManager.getInstance(),
             ShopMenuSystem.getInstance(),
-            TargetManager.getInstance(),
-            PointerVisualSystem.getInstance(),
         )
 
         await ContextMenuSystem.initialize(
@@ -149,6 +154,10 @@ export class App {
             Node3dManager.getInstance(),
             TargetManager.getInstance(),
             MenuSystem.getInstance(),
+        )
+
+        await HapticContactSystem.initialize(
+            InputManager.getInstance(),
         )
 
         XRManager.getInstance().xrHelper.baseExperience.sessionManager.session
@@ -180,6 +189,9 @@ export class App {
             }
             else if(e.key=="i"){
                 scene.debugLayer.show()
+            }
+            else if(e.key=="o"){
+                NetworkManager.getInstance().doc
             }
             // else if(e.key=="q"){
             //     let prompt = window.prompt("Enter URL to import:")

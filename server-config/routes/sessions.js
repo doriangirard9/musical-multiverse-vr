@@ -21,6 +21,7 @@ router.get('/public', (req, res) => {
             JOIN projects p ON s.project_id = p.id
             JOIN users u ON p.owner_id = u.id
             WHERE s.is_public = 1
+              AND s.is_temporary = 0
             ORDER BY participant_count DESC, s.created_at DESC
         `).all();
         res.json({ sessions });

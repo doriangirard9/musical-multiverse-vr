@@ -45,7 +45,7 @@ export class InputMultiHoverBehavior implements Behavior<AbstractMesh> {
         }
 
         this.observables.push(
-            inputs.onNewtarget.add(pointer=>{
+            inputs.onNewTarget.add(pointer=>{
                 if(pointer.previousMesh===target) this.onExit(pointer)
                 if(pointer.targetMesh===target) this.onEnter(pointer)
             })

@@ -5,11 +5,8 @@ import { DrawingSystem } from "./DrawingSystem"
 import { Node3dManager } from "./Node3dManager"
 import { ShopMenuSystem } from "./ShopMenuSystem"
 import { Serialization } from "./Serialization"
-import { AbstractMesh, Color3, Matrix, Quaternion, Vector3 } from "@babylonjs/core"
+import { Matrix, Quaternion, Vector3 } from "@babylonjs/core"
 import { QuaternionUtils } from "../utils/quaternion"
-import { TargetManager } from "./TargetManager"
-import { BoxHighlight } from "../world/BoxHighlight"
-import { PointerVisualSystem } from "./PointerVisualSystem"
 import { ChoiceMenu, MenuButton as ChoiceMenuButton } from "../menus/ChoiceMenu"
 import { NoteUtils } from "../node3d/tools";
 import { ROUTES, buildHash } from "../router/routes"
@@ -39,9 +36,6 @@ export class HandMenuSystem {
     private transportMenu!: TransportMenu
 
     public pointer
-    public selector
-    public pointerVisual
-    private selectionColor
 
     constructor(
         readonly scene: SceneManager,
@@ -49,23 +43,9 @@ export class HandMenuSystem {
         readonly wamTransport: WamTransportManager,
         readonly nodeManager: Node3dManager,
         readonly shopMenu: ShopMenuSystem,
-        readonly targets: TargetManager,
-        pointerVisualSystem: PointerVisualSystem,
-    ){
-        // Settings
-        this.selectionColor = Color3.Green()
-            
+    ){            
         // Pointer and selector
         this.pointer = inputs.left.pointer
-        this.pointerVisual = pointerVisualSystem.pointerToVisual.get(this.pointer)!
-        this.selector = targets.controllerToTarget.get(this.pointer.controller)!
-        this.selector.onNewTarget.add(()=>{
-            this.updateMenu()
-            this.highlightTarget = this.selector.target.node?.boundingBoxMesh
-                ?? this.selector.target.connection?.tube
-                ?? null
-            this.updateHighlight()
-        })
 
         // Hand Menu
         this.menu = new ChoiceMenu(
@@ -74,10 +54,7 @@ export class HandMenuSystem {
             []
         )
         
-        this.menu.followPointer(this.pointer,{
-            onShow: this.onShow.bind(this),
-            onHide: this.onHide.bind(this),
-        })
+        this.menu.followPointer(this.pointer,{})
         this.menu.show()
 
         // Transport
@@ -87,15 +64,10 @@ export class HandMenuSystem {
             this.updateMenu()
         })
 
-        // Highlight
-        this.initHighlight()
-
         this.updateMenu()
     }
 
     updateMenu(){
-        const target = this.selector.target
-
         const buttons = [] as ChoiceMenuButton[]
 
         // Play/Stop
@@ -106,60 +78,20 @@ export class HandMenuSystem {
             this.wamTransport.start()
         }})
 
+        // Settings
         buttons.push({ label: `⚙ Open/Close settings`, color: "#66ccff", click: ()=>{
             this.shopMenu.menus.toggle(this.transportMenu.menu, false)
         }})
 
-        buttons.push({ label: "↩ Leave session", color: "#ff9966", click: ()=>{
-            window.location.hash = buildHash(ROUTES.SESSIONS)
-        }})
-
-        // Open shop menu
+        // Shop
         buttons.push({ label: "🛒 Open/Close shop menu", color: "#ffcc66", click: async()=>{
             this.shopMenu.toggle()
         }})
 
-        if(target.node){
-
-            buttons.push({ label: `On ${this.pointer.controller.side} pointed :`, color: "#ffffff"})
-
-            // Delete pointed object
-            buttons.push({ label: "🗑 Delete node", color: "#ff6666", click: async()=>{
-                if(target.node==null) return
-                target.node.dispose()
-            }})
-
-            // Clone
-            buttons.push({ label: "📄 Clone pointed node", color: "#66ff66", click: async()=>{
-                if(!target.node) return
-                const serialized = Serialization.getInstance().save([target.node], false)
-                const clone = await Serialization.getInstance().load(serialized)
-                for(const node of clone){
-                    node.boundingBoxMesh.position.addInPlaceFromFloats(Math.random()-0.5, Math.random()-0.5, Math.random()-0.5)
-                    node.updatePosition()
-                }
-            }})
-
-            // Copy
-            buttons.push({ label: "📋 Copy Structure", color: "#66ccff", click: async()=>{
-                if(!target.node) return
-                const serialized = Serialization.getInstance().save([target.node], true)
-                const head = this.inputs.head.matrix.asArray()
-                await navigator.clipboard.writeText(JSON.stringify({serialized,head}))
-            }})
-            
-        }
-
-        if(target.connection){
-
-            buttons.push({ label: `On ${this.pointer.controller.side} pointed :`, color: "#ffffff"})
-
-            // Delete pointed object
-            buttons.push({ label: "🗑 Delete connection", color: "#ff6666", click: async()=>{
-                if(target.connection==null) return
-                target.connection.dispose()
-            }})
-        }
+        // Leave session
+        buttons.push({ label: "↩ Leave session", color: "#ff9966", click: ()=>{
+            window.location.hash = buildHash(ROUTES.SESSIONS)
+        }})
 
         buttons.push({ label: `---`, color: "#ffffff"})
 
@@ -196,39 +128,6 @@ export class HandMenuSystem {
 
         this.menu.set(buttons)
     }
-
-    onShow(){
-        this.isHighlightVisible = true
-        this.updateHighlight()
-        this.pointerVisual.addColor(this.selectionColor)
-    }
-
-    onHide(){
-        this.isHighlightVisible = false
-        this.updateHighlight()
-        this.pointerVisual.removeColor(this.selectionColor)
-    }
-
-    // Highlight
-    private highlight!: BoxHighlight
-    
-    private initHighlight(){
-        this.highlight = new BoxHighlight(this.scene.getScene(), this.selectionColor)
-    }
-
-    private highlightTarget: AbstractMesh|null = null
-    private isHighlightVisible = false
-
-    private updateHighlight(){
-        const toHighlight = this.isHighlightVisible ? this.highlightTarget : null
-        if(toHighlight!=this.highlight.attachedNode){
-            if(this.highlight.attachedNode!=null){
-                this.highlight.attachedNode.removeBehavior(this.highlight)
-            }
-            if(toHighlight) toHighlight.addBehavior(this.highlight)
-        }
-    }
-
 
 }
 

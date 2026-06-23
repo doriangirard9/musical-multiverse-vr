@@ -1,5 +1,5 @@
 import { Color3 } from "@babylonjs/core";
-import { ChoiceMenu, MenuButton as ChoiceMenuButton } from "../menus/ChoiceMenu";
+import { ChoiceMenu } from "../menus/ChoiceMenu";
 import { Node3DInstance } from "../node3d/instance/Node3DInstance";
 import { BoxHighlight } from "../world/BoxHighlight";
 import { InputManager } from "../xr/inputs/InputManager";
