@@ -72,7 +72,6 @@ class Wam3DGeneratorN3D implements Node3D {
                 defineAnInput(settings) {
                     wamNode = settings.node
                     count++
-                    let target = settings.target
                     context.createConnectable(new T.AudioN3DConnectable.Input(
                         `audioinput${count}`,
                         settings.target,

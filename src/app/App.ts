@@ -145,8 +145,6 @@ export class App {
             WamTransportManager.getInstance(audioContext),
             Node3dManager.getInstance(),
             ShopMenuSystem.getInstance(),
-            TargetManager.getInstance(),
-            PointerVisualSystem.getInstance(),
         )
 
         await ContextMenuSystem.initialize(
