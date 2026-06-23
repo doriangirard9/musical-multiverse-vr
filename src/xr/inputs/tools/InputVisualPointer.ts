@@ -1,6 +1,6 @@
-import { AbstractMesh, Color3, CreateCylinder, CreateIcoSphere, Quaternion, Scene, Vector3 } from "@babylonjs/core";
+import { AbstractMesh, CreateCylinder, CreateIcoSphere, Quaternion, Scene, Vector3 } from "@babylonjs/core";
 import { PointerInput } from "../PointerInput";
-import { MeshUtils } from "../../../node3d/tools";
+import { AbstractPointerInput } from "../AbstractPointerInput";
 
 
 /**
@@ -16,7 +16,8 @@ export class InputVisualPointer {
     constructor(
         public pointer: PointerInput,
         public line: AbstractMesh,
-        public point: AbstractMesh
+        public point: AbstractMesh,
+        public contactPoint?: AbstractMesh,
     ){
         const up = Vector3.Up()
         const target = new Vector3()
@@ -46,6 +47,13 @@ export class InputVisualPointer {
 
             point.position.copyFrom(target)
             point.scaling.setAll(1+length/5)
+
+            if(this.contactPoint){
+                this.contactPoint.position
+                    .copyFrom(pointer.forward)
+                    .scaleInPlace(AbstractPointerInput.TouchMaxDistance)
+                    .addInPlace(pointer.origin)
+            }
             
         }
 
@@ -82,16 +90,21 @@ export class InputVisualPointer {
         const point = CreateIcoSphere(pointer.controller.side+" pointer point", {radius:0.01,subdivisions:5}, scene)
         point.isPickable = false
 
-        const visual = new InputVisualPointer(pointer, line, point)
+        const contactPoint = CreateIcoSphere(pointer.controller.side+" pointer contact point", {radius:0.005,subdivisions:5}, scene)
+        contactPoint.isPickable = false
+
+        const visual = new InputVisualPointer(pointer, line, point, contactPoint)
 
         return {
             line,
             point,
             visual,
+            contactPoint,
             remove(){
                 visual.remove()
                 line.dispose()
                 point.dispose()
+                contactPoint.dispose()
             },
         }
     }

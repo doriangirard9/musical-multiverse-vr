@@ -90,7 +90,10 @@ export class InputManager {
     readonly onThumbstickChange = new Observable<AxisInputEvent>()
 
     /** The observable that is notified when any pointer input gets a new target. */
-    readonly onNewtarget = new Observable<PointerInput>()
+    readonly onNewTarget = new Observable<PointerInput>()
+
+    /** The observable that is notified when any pointer input touch a new target. */
+    readonly onNewTouch = new Observable<PointerInput>()
 
     /** The observable that is notified when a target is entered for the first time since the last exit. */
     readonly onEnterTarget = new Observable<{target:AbstractMesh,pointer:PointerInput}>()
@@ -130,7 +133,7 @@ export class InputManager {
             controller.onPressableChange.add((event) => im.onPressableChange.notifyObservers(event))
 
             controller.pointer.onNewTarget.add((event) =>{
-                im.onNewtarget.notifyObservers(event)
+                im.onNewTarget.notifyObservers(event)
                 
                 // Previous
                 if(event.previousMesh!=null){
@@ -150,6 +153,10 @@ export class InputManager {
                     }
                     im._pointeds.set(event.targetMesh, newCount)
                 }
+            })
+
+            controller.pointer.onNewTouch.add((event) =>{
+                im.onNewTouch.notifyObservers(event)
             })
         }
 

@@ -23,6 +23,7 @@ import { BabylonsJSFix } from "./BabylonsJSFix.ts";
 import { PointerVisualSystem } from "./PointerVisualSystem.ts";
 import { MenuSystem } from "./MenuSystem.ts";
 import { ContextMenuSystem } from "./ContextMenuSystem.ts";
+import { HapticContactSystem } from "./HapticContactSystem.ts";
 
 let _app: App
 
@@ -148,6 +149,10 @@ export class App {
             Node3dManager.getInstance(),
             TargetManager.getInstance(),
             MenuSystem.getInstance(),
+        )
+
+        await HapticContactSystem.initialize(
+            InputManager.getInstance(),
         )
 
         XRManager.getInstance().xrHelper.baseExperience.sessionManager.session
