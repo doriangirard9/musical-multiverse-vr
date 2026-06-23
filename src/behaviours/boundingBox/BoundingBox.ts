@@ -18,7 +18,7 @@ import { IOEventBus } from "../../eventBus/IOEventBus.ts";
 export class BoundingBox {
     private scene : Scene = SceneManager.getInstance().getScene();
     readonly holdable: HoldableBehaviour
-    public boundingBox!: B.AbstractMesh;
+    public boundingBox!: B.Mesh;
     private unsubscribeIO?: () => void;
 
     public on_move = ()=>{}

@@ -81,7 +81,7 @@ export class ShakeBehavior implements Behavior<AbstractMesh> {
         this.interval = setInterval(() => {
             this.setShakePower(Math.floor(this.shake_power * 0.9))
             if(this.shake_power<0.01) this.shake_counter = 0
-            else{
+            else if(this.shake_power>=this.shake_threshold){
                 this.shake_counter = this.shake_counter + 1
                 this.on_shake(this.shake_power, this.shake_counter)
             }

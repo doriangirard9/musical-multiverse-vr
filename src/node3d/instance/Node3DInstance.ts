@@ -7,7 +7,8 @@ import {
     Quaternion, Color3,
     Vector2,
     Observer,
-    Observable
+    Observable,
+    Color4
 } from "@babylonjs/core";
 import { Node3DConnectable } from "../Node3DConnectable";
 import { Node3DParameter } from "../Node3DParameter";
@@ -23,7 +24,7 @@ import { Doc } from "yjs";
 import { Synchronized } from "../../network/sync/Synchronized";
 import { N3DHighlighter } from "./utils/N3DHighlighter";
 import { N3DShared } from "./N3DShared";
-import { AutomationN3DConnectable } from "../tools";
+import { AutomationN3DConnectable, MeshUtils } from "../tools";
 import { SceneManager } from "../../app/SceneManager.ts";
 import { InputManager } from "../../xr/inputs/InputManager.ts";
 import { BoxWave } from "../../world/BoxWave.ts";
@@ -225,6 +226,7 @@ export class Node3DInstance implements Synchronized {
     //// BOUNDING BOX ////
     private boxes = [] as AbstractMesh[]
     private bounding_mesh = null as null | Mesh
+    private red_bounding_mesh = null as null | Mesh
     private bounding_box = null as null | BoundingBox
     private doUpdateBoundingBox = false
     private shake: ShakeBehavior|null = null
@@ -237,6 +239,7 @@ export class Node3DInstance implements Synchronized {
         if (this.bounding_mesh) this.shared.shadowGenerator.removeShadowCaster(this.bounding_mesh)
         this.bounding_box?.dispose()
         this.bounding_mesh?.dispose()
+        this.red_bounding_mesh?.dispose()
 
 
         // Update bounds shape
@@ -254,7 +257,7 @@ export class Node3DInstance implements Synchronized {
         this.bounding_mesh.position.subtractInPlace(bounds.min).subtractInPlace(size)
         //this.bounding_mesh.isVisible = false
         this.bounding_mesh.visibility = 0
-        this.bounding_mesh.receiveShadows
+        this.bounding_mesh.receiveShadows = false
         this.bounding_mesh.checkCollisions = false
         this.bounding_mesh.isPickable = false
 
@@ -267,22 +270,28 @@ export class Node3DInstance implements Synchronized {
         //  Meilleur séparation du code, plus flexible, plus réutilisable et comme ça c'est le même comportement
         //  pour tous ce qui se base sur le shake (cables, bounding box, etc).
         //  Si le shake marche mal, il faut corriger le ShakeBehaviour.
-        const bbox = this.boundingBoxMesh
+        const bbox = this.bounding_box.boundingBox
+
+        const red_box = this.red_bounding_mesh = bbox.clone("red_box", bbox, true)
+        red_box.makeGeometryUnique()
+        MeshUtils.setColor(red_box, new Color4(1, 0, 0,1))
+        red_box.resetLocalMatrix()
+        red_box.isPickable = false
+        red_box.checkCollisions = false
+        red_box.visibility = 0
+
         this.shake = new ShakeBehavior()
         this.shake.shake_threshold = 5
         bbox.addBehavior(this.shake)
-        this.shake.on_shake = (power, counter) => {
-            bbox.visibility = Math.max(0, 1 - power / 12)
+        this.shake.on_shake = (_, counter) => {
+            red_box.visibility = Math.min(1, counter / 12)
             if(counter>10) this.dispose()
         }
         this.shake.on_stop = (_, __) => {
-            bbox.visibility = .8
-        }
-        this.shake.on_pick = () => {
-            bbox.visibility = .8
+            red_box.visibility = 0
         }
         this.shake.on_drop = () => {
-            bbox.visibility = 1
+            red_box.visibility = 0
         }
 
 
