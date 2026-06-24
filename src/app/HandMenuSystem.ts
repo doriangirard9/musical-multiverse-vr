@@ -10,6 +10,7 @@ import { QuaternionUtils } from "../utils/quaternion"
 import { ChoiceMenu, MenuButton as ChoiceMenuButton } from "../menus/ChoiceMenu"
 import { NoteUtils } from "../node3d/tools";
 import { ROUTES, buildHash } from "../router/routes"
+import { BlocksMenu, BMenuBlock } from "../menus/BlocksMenu"
 
 
 /**
@@ -142,7 +143,7 @@ class TransportMenu{
         scenes: SceneManager,
         private transport: WamTransportManager,
     ){
-        this.menu = new ChoiceMenu(scenes.getScene(), scenes.getUtilityLayer().utilityLayerScene, [])
+        this.menu = new BlocksMenu(scenes.getScene(), scenes.getUtilityLayer().utilityLayerScene)
         this.menu.hide()
         this.updateMenu()
 
@@ -152,43 +153,90 @@ class TransportMenu{
     }
 
     updateMenu(){
-        const buttons = [] as ChoiceMenuButton[]
+        const items = [] as BMenuBlock[]
         
         // Play/Stop
-        if(this.transport.isPlaying) buttons.push({ label: "⏸ Stop", color: "#FF6666", click: ()=>{
-            this.transport.stop()
-        }})
-        else buttons.push({ label: "▶ Play", color: "#66ff66", click: ()=>{
-            this.transport.start()
-        }})
+        if(this.transport.isPlaying) items.push(
+            { text: "▶", width:2, height: 2 },
+            {
+                text: "Stop",
+                color: "#FF6666",
+                onClick: () => this.transport.stop(),
+                width:4, height: 2
+            }
+        )
+        else items.push(
+            { text: "⏸", width:2, height: 2 },
+            {
+                text: "Play",
+                color: "#66ff66",
+                onClick: () => this.transport.start(),
+                width:4, height: 2
+            }
+        )
 
         // Tempo
-        buttons.push({ label: `Tempo : ${this.transport.getTempo()} BPM`, color: "#bbffff"})
-        buttons.push({ label: "+", color: "#bbffff", click: ()=>{
-            this.transport.setTempo(Math.min(300, this.transport.getTempo()+5))
-        }})
-        buttons.push({ label: "-", color: "#bbffff", click: ()=>{
-            this.transport.setTempo(Math.max(0,this.transport.getTempo()-5))
-        }})
+        items.push({
+            text: `Tempo : ${this.transport.getTempo()} BPM`,
+            color: "#bbffff",
+            width:5, height: 2
+        })
+        items.push({
+            text: "+", color: "#bbffff",
+            onClick: () => this.transport.setTempo(Math.min(300, this.transport.getTempo()+5)),
+            width:1, height: 1
+        })
+        items.push({
+            text: "-", color: "#bbffff",
+            onClick: () => this.transport.setTempo(Math.max(0,this.transport.getTempo()-5)),
+            width:1, height: 1
+        })
 
         // Time signature
         const ts = this.transport.getTimeSignature()
-        buttons.push({ label: `Time Signature : ${ts.numerator}/${ts.denominator}`, color: "#ffffbb"})
-        buttons.push({ label: "+", color: "#ffffbb", click: ()=>{
-            this.transport.setTimeSignature(ts.numerator+1, ts.denominator)
-        }})
-        buttons.push({ label: "-", color: "#ffffbb", click: ()=>{
-            this.transport.setTimeSignature(Math.max(1, ts.numerator-1), ts.denominator)
-        }})
+        items.push({
+            text: `Time Signature : ${ts.numerator}/${ts.denominator}`,
+            color: "#ffffbb",
+            width:5, height: 2
+        })
+        items.push({
+            text: "+", color: "#ffffbb",
+            onClick: () => this.transport.setTimeSignature(ts.numerator+1, ts.denominator),
+            width:1, height: 1
+        })
+        items.push({
+            text: "-", color: "#ffffbb",
+            onClick: () => this.transport.setTimeSignature(Math.max(1, ts.numerator-1), ts.denominator),
+            width:1, height: 1
+        })
 
         // Gamme
         const notes = NoteUtils
-        buttons.push({ label: notes.getSelectedGamme().label, color: "#d982c6", click: ()=>{
-            notes.setSelectedGammeIndex(notes.getSelectedGammeIndex()+1)
-            this.updateMenu()
-        }})
+        items.push({
+            text: notes.getSelectedGamme().label, color: "#d982c6",
+            width:5, height: 2
+        })
+
+        items.push({
+            text: "˄", color: "#d982c6",
+            onClick: () => {
+                const index = (notes.getSelectedGammeIndex()+1) % notes.GAMMES.length
+                notes.setSelectedGammeIndex(index)
+                this.updateMenu()
+            },
+            width:1, height: 1
+        })
+        items.push({
+            text: "˅", color: "#d982c6",
+            onClick: () => {
+                const index = (notes.getSelectedGammeIndex()-1+notes.GAMMES.length) % notes.GAMMES.length
+                notes.setSelectedGammeIndex(index)
+                this.updateMenu()
+            },
+            width:1, height: 1
+        })
 
 
-        this.menu.set(buttons)
+        this.menu.set({ width: 6, items })
     }
 }

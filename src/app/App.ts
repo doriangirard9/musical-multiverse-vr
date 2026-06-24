@@ -160,10 +160,6 @@ export class App {
             InputManager.getInstance(),
         )
 
-        XRManager.getInstance().xrHelper.baseExperience.sessionManager.session
-
-        
-
         // Get things
         const scene = SceneManager.getInstance().getScene()
         const node3dManager = Node3dManager.getInstance()
