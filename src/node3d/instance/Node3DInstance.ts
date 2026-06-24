@@ -89,138 +89,145 @@ export class Node3DInstance implements Synchronized {
 
 
         // Node related things
-        this.node = await this.factory.create({
-            audioCtx: this.shared.audioContext,
-            audioEngine: this.shared.audioEngine,
-            groupId: this.shared.groupId,
-            tools,
-            inputs: InputManager.getInstance(),
+        // TODO: Better exception handling
+        try{
+            this.node = await this.factory.create({
+                audioCtx: this.shared.audioContext,
+                audioEngine: this.shared.audioEngine,
+                groupId: this.shared.groupId,
+                tools,
+                inputs: InputManager.getInstance(),
 
-            // Le nom du wam
-            setLabel(label: string) {
-                root_transform.name = `${label} root`
-            },
+                // Le nom du wam
+                setLabel(label: string) {
+                    root_transform.name = `${label} root`
+                },
 
-            // Les paramètres draggables
-            createParameter(info: Node3DParameter) {
-                const param = new N3DParameterInstance(instance, instance.root_transform, highlightLayer, utilityLayer, info)
-                instance.parameters.set(info.id, param)
-                let last_value = 0
-                const connectableinfo = new AutomationN3DConnectable.Input(
-                    `${info.id}_connectable`,
-                    info.meshes,
-                    "",
-                    {
-                        getName() { return info.getLabel() },
-                        getStepCount() { return info.getStepCount() },
-                        stringify(value) { return info.stringify(value) },
-                        setValue(value) { 
-                            param.setValueAutomated(value)
-                            last_value = value
-                         },
-                        lock(isLocked) {
-                            if(!isLocked) param.setValue(last_value)
-                            param.isLocked = isLocked
+                // Les paramètres draggables
+                createParameter(info: Node3DParameter) {
+                    const param = new N3DParameterInstance(instance, instance.root_transform, highlightLayer, utilityLayer, info)
+                    instance.parameters.set(info.id, param)
+                    let last_value = 0
+                    const connectableinfo = new AutomationN3DConnectable.Input(
+                        `${info.id}_connectable`,
+                        info.meshes,
+                        "",
+                        {
+                            getName() { return info.getLabel() },
+                            getStepCount() { return info.getStepCount() },
+                            stringify(value) { return info.stringify(value) },
+                            setValue(value) { 
+                                param.setValueAutomated(value)
+                                last_value = value
+                            },
+                            lock(isLocked) {
+                                if(!isLocked) param.setValue(last_value)
+                                param.isLocked = isLocked
+                            },
                         },
-                    },
-                )
-                const connectable = new N3DConnectableInstance(instance, connectableinfo, highlightLayer, utilityLayer, IOEventBus.getInstance(), true, false)
-                instance.connectables.set(connectableinfo.id, connectable)
-            },
-            removeParameter(id: Node3DParameter["id"]) {
-                instance.parameters.get(id)?.dispose()
-                instance.parameters.delete(id)
-                instance.connectables.get(`${id}_connectable`)?.dispose()
-            },
+                    )
+                    const connectable = new N3DConnectableInstance(instance, connectableinfo, highlightLayer, utilityLayer, IOEventBus.getInstance(), true, false)
+                    instance.connectables.set(connectableinfo.id, connectable)
+                },
+                removeParameter(id: Node3DParameter["id"]) {
+                    instance.parameters.get(id)?.dispose()
+                    instance.parameters.delete(id)
+                    instance.connectables.get(`${id}_connectable`)?.dispose()
+                },
 
-            // Les outputs et inputs que l'on peut connecter
-            createConnectable(info: Node3DConnectable) {
-                const connectable = new N3DConnectableInstance(instance, info, highlightLayer, utilityLayer, IOEventBus.getInstance())
-                instance.connectables.set(info.id, connectable)
-            },
-            removeConnectable(id: Node3DConnectable["id"]) {
-                instance.connectables.get(id)?.dispose()
-                instance.connectables.delete(id)
-            },
+                // Les outputs et inputs que l'on peut connecter
+                createConnectable(info: Node3DConnectable) {
+                    const connectable = new N3DConnectableInstance(instance, info, highlightLayer, utilityLayer, IOEventBus.getInstance())
+                    instance.connectables.set(info.id, connectable)
+                },
+                removeConnectable(id: Node3DConnectable["id"]) {
+                    instance.connectables.get(id)?.dispose()
+                    instance.connectables.delete(id)
+                },
 
-            createButton(info) {
-                const button = new N3DButtonInstance(instance, instance.root_transform, highlightLayer, utilityLayer, info)
-                instance.buttons.set(info.id, button)
-            },
-            removeButton(id) {
-                instance.buttons.get(id)?.dispose()
-                instance.buttons.delete(id)
-            },
+                createButton(info) {
+                    const button = new N3DButtonInstance(instance, instance.root_transform, highlightLayer, utilityLayer, info)
+                    instance.buttons.set(info.id, button)
+                },
+                removeButton(id) {
+                    instance.buttons.get(id)?.dispose()
+                    instance.buttons.delete(id)
+                },
 
-            // Les mesh qui font partis de la bounding box
-            // En attendant la bounding box est une boite qui les englobes
-            addToBoundingBox(mesh: AbstractMesh) {
-                instance.boxes.push(mesh)
+                // Les mesh qui font partis de la bounding box
+                // En attendant la bounding box est une boite qui les englobes
+                addToBoundingBox(mesh: AbstractMesh) {
+                    instance.boxes.push(mesh)
 
-                instance.updateBoundingBox()
-            },
-            removeFromBoundingBox(mesh: AbstractMesh) {
-                const idx = instance.boxes.indexOf(mesh)
-                if (idx >= 0) instance.boxes.splice(idx, 1)
-                instance.updateBoundingBox()
-            },
+                    instance.updateBoundingBox()
+                },
+                removeFromBoundingBox(mesh: AbstractMesh) {
+                    const idx = instance.boxes.indexOf(mesh)
+                    if (idx >= 0) instance.boxes.splice(idx, 1)
+                    instance.updateBoundingBox()
+                },
 
-            // Afficher un menu ou un message
-            openMenu(choices: { label: string; color?: string, click?: () => void; }[]) {
-                if(lastMenu && lastMenu instanceof ChoiceMenu && lastMenu===menus.current_menu){
-                    lastMenu.set(choices)
-                }
-                else{
-                    const new_menu = new ChoiceMenu(scene, utilityLayer.utilityLayerScene, choices)
-                    lastMenu = new_menu
-                    lastMenu.onHide.addOnce(() => lastMenu = null)
-                    menus.open(new_menu, true)
-                }
-            },
-            closeMenu() {
-                if(menus.current_menu==lastMenu) menus.close()
-            },
-            showMessage(message: string) {
-                menus.showMessage(message)
-            },
-            sendSignal(position, red, green, blue) {
-                SceneManager.getInstance().getWaveGround().putWorldSpace(position, red, green, blue)
-                SceneManager.getInstance().getSoundwaveEmitter().spawn(new Vector2(position.x, position.z), new Color3(red, green, blue))
-                new BoxWave(
-                    instance.boundingBoxMesh,
-                    new Color3(red, green, blue).toColor4(1),
-                    1
-                )
-            },
+                // Afficher un menu ou un message
+                openMenu(choices: { label: string; color?: string, click?: () => void; }[]) {
+                    if(lastMenu && lastMenu instanceof ChoiceMenu && lastMenu===menus.current_menu){
+                        lastMenu.set(choices)
+                    }
+                    else{
+                        const new_menu = new ChoiceMenu(scene, utilityLayer.utilityLayerScene, choices)
+                        lastMenu = new_menu
+                        lastMenu.onHide.addOnce(() => lastMenu = null)
+                        menus.open(new_menu, true)
+                    }
+                },
+                closeMenu() {
+                    if(menus.current_menu==lastMenu) menus.close()
+                },
+                showMessage(message: string) {
+                    menus.showMessage(message)
+                },
+                sendSignal(position, red, green, blue) {
+                    SceneManager.getInstance().getWaveGround().putWorldSpace(position, red, green, blue)
+                    SceneManager.getInstance().getSoundwaveEmitter().spawn(new Vector2(position.x, position.z), new Color3(red, green, blue))
+                    new BoxWave(
+                        instance.boundingBoxMesh,
+                        new Color3(red, green, blue).toColor4(1),
+                        1
+                    )
+                },
 
-            getPlayerPosition() {
-                const xrManager = XRManager.getInstance();
-                if (xrManager.xrHelper && xrManager.xrHelper.baseExperience) {
-                    const vrCamera = xrManager.xrHelper.baseExperience.camera;
-                    return { position: vrCamera.globalPosition.clone(), rotation: vrCamera.absoluteRotation.clone() }
-                }
-                else return { position: Vector3.Zero(), rotation: Quaternion.Identity() }
-            },
+                getPlayerPosition() {
+                    const xrManager = XRManager.getInstance();
+                    if (xrManager.xrHelper && xrManager.xrHelper.baseExperience) {
+                        const vrCamera = xrManager.xrHelper.baseExperience.camera;
+                        return { position: vrCamera.globalPosition.clone(), rotation: vrCamera.absoluteRotation.clone() }
+                    }
+                    else return { position: Vector3.Zero(), rotation: Quaternion.Identity() }
+                },
 
-            getPosition() {
-                return { position: instance.root_transform.absolutePosition.clone(), rotation: instance.root_transform.absoluteRotationQuaternion.clone() }
-            },
+                getPosition() {
+                    return { position: instance.root_transform.absolutePosition.clone(), rotation: instance.root_transform.absoluteRotationQuaternion.clone() }
+                },
 
-            delete() {
-                instance.dispose()
-            },
+                delete() {
+                    instance.dispose()
+                },
 
-            notifyStateChange(key: string) {
-                instance.set_state(key)
-            },
+                notifyStateChange(key: string) {
+                    instance.set_state(key)
+                },
 
-            observe(observable, observer) {
-                const o = observable.add(observer)
-                instance.observers.add(o)
-                return o 
-            },
+                observe(observable, observer) {
+                    const o = observable.add(observer)
+                    instance.observers.add(o)
+                    return o 
+                },
 
-        }, this.gui)
+            }, this.gui)
+        }catch(e){
+            this.gui.dispose()
+            gui_root_transform.dispose()
+            root_transform.dispose()
+        }
     }
 
     //// BOUNDING BOX ////
