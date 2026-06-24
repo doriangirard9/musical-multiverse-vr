@@ -25,6 +25,7 @@ import { MenuSystem } from "./MenuSystem.ts";
 import { ContextMenuSystem } from "./ContextMenuSystem.ts";
 import { HapticContactSystem } from "./HapticContactSystem.ts";
 import { TUTORIAL_KINDS } from "../tutorial/TutorialScenario.ts";
+import { AudioWorldSystem } from "./AudioDestinationSystem.ts";
 
 let _app: App
 
@@ -157,6 +158,11 @@ export class App {
         )
 
         await HapticContactSystem.initialize(
+            InputManager.getInstance(),
+        )
+
+        await AudioWorldSystem.initialize(
+            audioContext,
             InputManager.getInstance(),
         )
 

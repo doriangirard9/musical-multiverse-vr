@@ -115,7 +115,7 @@ export class SpeakerPannerNodeN3D implements Node3D{
     constructor(){}
 
     async init(context: Node3DContext, gui: SpeakerN3DGUI){
-        const {tools:{AudioN3DConnectable}, audioCtx, audioEngine} = context
+        const {tools:{AudioN3DConnectable}, audioCtx} = context
 
         gui.doShowFalloff(true)
 
@@ -139,7 +139,6 @@ export class SpeakerPannerNodeN3D implements Node3D{
         pannerNode.connect(analyserNode)
         analyserNode.connect(audioCtx.destination)
 
-        let i=0
         let speed = 0
         let prev = 0
         // TODO: audioCtx.listener ne devrait pas être changé par un Node3d car c'est un paramètre général
@@ -149,9 +148,6 @@ export class SpeakerPannerNodeN3D implements Node3D{
             // Son 3D
             const output_transform = context.getPosition()
             const output_forward = Vector3.Forward().applyRotationQuaternionInPlace(output_transform.rotation)
-            const player_transform = context.getPlayerPosition()
-            const player_forward = Vector3.Forward().applyRotationQuaternionInPlace(player_transform.rotation)
-            const player_up = Vector3.Up().applyRotationQuaternionInPlace(player_transform.rotation)
 
             for(const [parameter, value] of [
                 [this.pannerNode.positionX, output_transform.position.x],
@@ -161,21 +157,9 @@ export class SpeakerPannerNodeN3D implements Node3D{
                 [this.pannerNode.orientationX, output_forward.x],
                 [this.pannerNode.orientationY, output_forward.y],
                 [this.pannerNode.orientationZ, -output_forward.z],
-
-                [audioCtx.listener.positionX, player_transform.position.x],
-                [audioCtx.listener.positionY, player_transform.position.y],
-                [audioCtx.listener.positionZ, -player_transform.position.z],
-
-                [audioCtx.listener.forwardX, player_forward.x],
-                [audioCtx.listener.forwardY, player_forward.y],
-                [audioCtx.listener.forwardZ, -player_forward.z],
-
-                [audioCtx.listener.upX, player_up.x],
-                [audioCtx.listener.upY, player_up.y],
-                [audioCtx.listener.upZ, -player_up.z],
             ] as [AudioParam,number][]){
                 // setTargetAtTime change le paramètre de manière progressive et évite les "pop"
-                parameter.setTargetAtTime(value, audioCtx.currentTime, 40/1000)
+                parameter.setTargetAtTime(value, audioCtx.currentTime, (50/1000)*.9)
             }
 
             // Effet visuel
