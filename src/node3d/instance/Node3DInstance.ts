@@ -34,6 +34,7 @@ import { ChoiceMenu } from "../../menus/ChoiceMenu.ts";
 import { ShakeBehavior } from "../../behaviours/ShakeBehavior.ts";
 import { N3DConnectionInstance } from "./N3DConnectionInstance.ts";
 import { N3DButtonInstance } from "./N3DButtonInstance.ts";
+import { AudioWorldSystem } from "../../app/AudioDestinationSystem.ts";
 
 export class Node3DInstance implements Synchronized {
 
@@ -54,6 +55,7 @@ export class Node3DInstance implements Synchronized {
     private declare root_transform: TransformNode
     private highlighter!: N3DHighlighter
     private observers = new Set<Observer<any>>()
+    private disposables = new Set<() => void>()
     public on_dispose = () => { }
 
     async instantiate() {
@@ -220,6 +222,34 @@ export class Node3DInstance implements Synchronized {
                     const o = observable.add(observer)
                     instance.observers.add(o)
                     return o 
+                },
+
+                createOutputNode(position, forward) {
+                    const output = AudioWorldSystem.getInstance().createSoundOutput(position, forward)
+
+                    const dispose = ()=>{
+                        output.dispose()
+                        instance.disposables.delete(dispose)
+                    }
+                    instance.disposables.add(dispose)
+                    
+                    return {
+                        pannerNode: output.pannerNode,
+                        dispose: dispose
+                    }
+                },
+
+                addFilter(input, output, order) {
+                    const disposeFilter = AudioWorldSystem.getInstance().addFilter(input, output, order)
+                    
+                    const dispose = ()=>{
+                        disposeFilter()
+                        instance.disposables.delete(dispose)
+                    }
+
+                    instance.disposables.add(dispose)
+                    
+                    return dispose
                 },
 
             }, this.gui)
@@ -396,6 +426,8 @@ export class Node3DInstance implements Synchronized {
         this.connectables.forEach(it => it.dispose())
         this.observers.forEach(observable => observable.remove())
         this.observers.clear()
+        this.disposables.forEach(dispose => dispose())
+        this.disposables.clear()
         await this.node.dispose()
         await this.gui.dispose()
     }
