@@ -1,3 +1,4 @@
+import { Vector3 } from "@babylonjs/core"
 import { InputManager } from "../xr/inputs"
 
 const UPDATE_FREQUENCY = 10 //Hz
@@ -24,11 +25,56 @@ export class AudioWorldSystem {
         return this._instance
     }
 
+
+    // Public API
+
+    /** The destination node of the audio world. All audio sources should be connected to this node. */
+    get destination(){
+        return this._destinationNode
+    }
+
+    /**
+     * Adds a filter to the audio world. The filter will be applied in the order specified by the `order` parameter.
+     * @param input The input node of the filter. This is where the audio signal will be sent to be processed by the filter.
+     * @param output The output node of the filter. This is where the processed audio signal will be sent after being processed by the filter.
+     * @param order The order in which the filter will be applied. Filters with lower order values will be applied before filters with higher order values.
+     * @returns 
+     */
+    addFilter(input: AudioNode, output: AudioNode, order: number){
+        const obj = {input, output, order}
+        this._filters.push(obj)
+        this.updateFilters()
+        return ()=>{
+            const index = this._filters.indexOf(obj)
+            if(index !== -1){
+                this._filters.splice(index, 1)
+                this.updateFilters()
+            }
+        }
+    }
+
+    // TODO: Utilise ça dans SpeakerN3D:
+    // - Il faut donc ajouter un accès à ça, à l'API
+    /**
+     * Creates a sound generator that can be used to output audio in 3D space. 
+     * The sound generator will be positioned at the specified position and will be oriented in the specified forward direction.
+     * @param position The position of the sound generator in 3D space. This should be a function that returns a Vector3 representing the position.
+     * @param forward The forward direction of the sound generator in 3D space. This should be a function that returns a Vector3 representing the forward direction.
+     * @returns The sound generator. The sound generator has a pannerNode that can be used to connect audio sources to it, and a dispose method that can be used to clean up the sound generator when it is no longer needed.
+     */
+    createSoundOutput(position:()=>Vector3, forward:()=>Vector3){
+        return this._createSoundGenerator(position, forward)
+    }
+
+
+
     constructor(
         private audioContext: AudioContext,
         private inputs: InputManager,
     ){
         setInterval(()=>this.tick(1/UPDATE_FREQUENCY), 1000/UPDATE_FREQUENCY)
+        this._destinationNode = audioContext.createGain()
+        this.updateFilters()
     }
 
     tick(delta: number){
@@ -50,6 +96,74 @@ export class AudioWorldSystem {
             // setTargetAtTime change le paramètre de manière progressive et évite les "pop"
             parameter.setTargetAtTime(value, audioCtx.currentTime, delta*.9)
         }
+    }
+
+    
+    // Audio destination and filters
+    private _destinationNode
+
+    private _filters: {input: AudioNode, output: AudioNode, order: number}[] = []
+
+    private _currentFilters: {input: AudioNode, output: AudioNode, order: number}[] = []
+
+    private updateFilters(){
+        // Cleanup
+        let previous: AudioNode = this._destinationNode
+        for(const filter of this._currentFilters){
+            previous.disconnect(filter.input)
+            previous = filter.output
+        }
+        previous.disconnect(this.audioContext.destination)
+
+        // Setup
+        this._currentFilters = this._filters.sort((a,b)=>a.order-b.order)
+        previous = this._destinationNode
+        for(const filter of this._currentFilters){
+            previous.connect(filter.input)
+            previous = filter.output
+        }
+        previous.connect(this.audioContext.destination)
+    }
+
+
+    // Localised node
+    private _createSoundGenerator(position:()=>Vector3, forward:()=>Vector3){
+        const pannerNode = this.audioContext.createPanner()
+
+        pannerNode.panningModel = 'HRTF'
+        pannerNode.distanceModel = 'exponential'
+        pannerNode.refDistance = 5 // Distance de référence pour réduire le volume
+        pannerNode.maxDistance = 200 // Distance maximale à laquelle le son sera réduit, passé cette distance le son ne sera pas réduit
+        pannerNode.rolloffFactor = 3 // Vitesse de décroissance du volume en fonction de la distance
+
+        pannerNode.connect(this._destinationNode)
+
+        const _position = position()
+        const _forward = forward()
+
+        const interval = setInterval(()=>{
+            for(const [parameter, value] of [
+                [pannerNode.positionX, _position.x],
+                [pannerNode.positionY, _position.y],
+                [pannerNode.positionZ, -_position.z],
+
+                [pannerNode.orientationX, _forward.x],
+                [pannerNode.orientationY, _forward.y],
+                [pannerNode.orientationZ, -_forward.z],
+            ] as [AudioParam,number][]){
+                // setTargetAtTime change le paramètre de manière progressive et évite les "pop"
+                parameter.setTargetAtTime(value, this.audioContext.currentTime, (1/UPDATE_FREQUENCY)*.9)
+            }
+        }, 1000/UPDATE_FREQUENCY)
+
+        return {
+            pannerNode,
+            dispose: ()=>{
+                clearInterval(interval)
+                pannerNode.disconnect()
+            },
+        }
+        
     }
 }
 
