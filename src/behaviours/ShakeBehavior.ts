@@ -45,7 +45,8 @@ export class ShakeBehavior implements Behavior<AbstractMesh> {
     private shake_counter = 0
     private interval : any = null
 
-    private grab
+    private grab: InputGrabBehavior
+    attachedNode: Nullable<AbstractMesh> = null
     
     constructor(){
         this.grab = new InputGrabBehavior(
@@ -76,6 +77,10 @@ export class ShakeBehavior implements Behavior<AbstractMesh> {
     }
 
     onGrab(){
+        if(this.interval!==null){
+            clearInterval(this.interval)
+            this.interval = null
+        }
         this.on_pick()
         this.shake_power = 0
         this.interval = setInterval(() => {
@@ -125,13 +130,22 @@ export class ShakeBehavior implements Behavior<AbstractMesh> {
     onUp(){
         this.setShakePower(0)
         this.on_drop()
-        clearInterval(this.interval)
+        if(this.interval!==null){
+            clearInterval(this.interval)
+            this.interval = null
+        }
     }
 
     detach(): void {
         this.attachedNode?.removeBehavior(this.grab);
     }
 
-    init(): void { }
+    init(): void {
+        this.shake_power = 0
+        this.shake_counter = 0
+        this.interval = null
+        this.target = null
+        this.attachedNode = null
+    }
 
 }

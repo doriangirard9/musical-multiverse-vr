@@ -104,6 +104,12 @@ export class InputManager {
     /** A list of the meshes currently being pointed at by any controller. */
     get pointedMeshes() { return Array.from(this._pointeds.keys()) }
 
+    /**
+     * Generic query: is this mesh currently being pointed at by any controller?
+     * O(1) — anything in the scene can ask, no behavior or callback wiring needed.
+     */
+    isPointedAt(mesh: AbstractMesh): boolean { return this._pointeds.has(mesh) }
+
     private _pointeds = new Map<AbstractMesh,number>()
 
     private constructor(

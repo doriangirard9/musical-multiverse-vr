@@ -8,6 +8,67 @@ import { MeshUtils } from "../tools"
 import { ShakeBehavior } from "../../behaviours/ShakeBehavior"
 import { SceneManager } from "../../app/SceneManager"
 import { MenuSystem } from "../../app"
+import { EffectProfile, EffectSystem } from "../../visual/effects"
+import { Node3DGraph } from "../graph/Node3DGraph"
+import { edgeViewOf } from "../graph/Node3DGraphAdapter"
+
+const IDLE_SPEED = 600
+const LIVE_SPEED = 250
+
+/** Fallback signal handed to cable effects when the upstream node has no analyser. */
+const STATIC_CABLE_SIGNAL = { strength: 0, tone: 0 } as const
+
+function tubeProfile(speed: number, converging: boolean): EffectProfile {
+    return {
+        id: `tube_${converging ? 'bidi' : 'fwd'}_${speed}`,
+        effects: {
+            pbrWave: {
+                mode: converging ? 'converging' : 'forward',
+                speed,
+                waveFreq: 6,
+                sharpness: 3,
+                floor: 0.20,
+                tint: { r: 0.6, g: 0.85, b: 1 },
+                metallic: 0.35,
+                roughness: 0.55,
+                source: 'strength',
+                reactivity: 2.5,
+                floorBoost: 0.4,
+                // Tube tint now sweeps with the spectral centroid — bass-heavy
+                // material reads warm, brightness reads cool. The cable
+                // visually paints the harmonic content flowing through it.
+                tintSource: 'tone',
+                hueLow: 30,
+                hueHigh: 220,
+                // Wave sharpness spikes on transients so the moving peak
+                // "snaps" rather than gliding through busy passages.
+                sharpnessSource: 'flux',
+                sharpnessReactivity: 6,
+            },
+            cable_note_flow: {
+                triggerSource: 'flux',
+                triggerThreshold: 0.22,
+                refractory: 100,
+                maxCount: 14,
+                speedSource: 'strength',
+                baseSpeed: 0.4,
+                reactivity: 1.8,
+                smoothing: 110,
+                // 12-color chromatic wheel keyed off tone. Notes jump between
+                // discrete musical buckets instead of gliding through a
+                // gradient — reads as "notes on a scale" rather than a smooth
+                // continuum. Pair with `colorMode: 'spectrum'` to switch to
+                // RGB = (bass, mid, treble) literal-spectrum coloring.
+                colorMode: 'palette',
+                paletteSource: 'tone',
+                brightness: 1.6,
+                heightSource: 'tone',
+                heightSpread: 0.22,
+                size: 0.12,
+            },
+        },
+    }
+}
 
 /**
  * Une connection entre deux connectable de deux Node3D.
@@ -98,7 +159,8 @@ export class N3DConnectionInstance{
     private observables = [] as Observer<any>[]
     private color = Color3.White().toColor4(1)
     private buildTimeout?: any
-
+    private _effectSystem: EffectSystem | null = null
+    private static readonly _graph = new Node3DGraph()
     private connectionObject: any = null
 
     /**
@@ -230,12 +292,42 @@ export class N3DConnectionInstance{
         )
         movetube()
 
+        // Effect creation
+        this._createEffectSystem()
         return true
+    }
+
+    private _createEffectSystem() {
+        this._effectSystem?.dispose()
+        this._effectSystem = EffectSystem.forMesh(
+            this.scene, this.tube, this.arrow ?? null,
+            () => this.color,
+            () => this._getConnectionProfilEffect()
+        )
+        // Cables read the upstream node's analyser snapshot so cable effects
+        // (pbrWave speed, future travelling pulses, etc) react to whatever
+        // signal is flowing through them. Falls back to the static signal
+        // when the upstream node has no audio analyser (control-only nodes).
+        const upstream = this.cOutput?.instance
+        this._effectSystem.activate(() => upstream?.getAudioSnapshot() ?? STATIC_CABLE_SIGNAL)
+    }
+
+    private _getConnectionProfilEffect() : EffectProfile {
+        const bidi = this._isConnectionBidirectional(this.cInput!, this.cOutput!)
+        const speed = N3DConnectionInstance._graph.isLive(edgeViewOf(this)) ? LIVE_SPEED : IDLE_SPEED
+        return tubeProfile(speed, bidi)
+    }
+
+    private _isConnectionBidirectional(input: N3DConnectableInstance, output: N3DConnectableInstance) {
+        return input.config.direction === "bidirectional"
+            || output.config.direction === "bidirectional"
     }
 
     private disconnect(){
         const {cOutput,cInput} = this
         if(cOutput && cInput){
+            this._effectSystem?.dispose()
+            this._effectSystem = null
             cInput.config.disconnectAsInput(this.connectionObject)
             cOutput.config.disconnectAsOutput(this.connectionObject)
             cOutput.connections.delete(this)
