@@ -226,8 +226,6 @@ export class HyperKeyboardN3D implements Node3D {
             })
             
             // Touch
-            let currentlyPressed: AbstractMesh|null = null
-
             if(controller.trigger.isPressed()){
                 const key = getKey(controller.pointer.touchedMesh)
                 if(key) this.set(key.x, key.y, key.z, true)
