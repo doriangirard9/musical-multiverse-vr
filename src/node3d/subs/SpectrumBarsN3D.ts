@@ -15,10 +15,10 @@ const PORT_DIAMETER = 0.18
 const PORT_OFFSET = PANEL_WIDTH / 2 + PORT_DIAMETER
 
 /**
- * Visualizer GUI: a flat panel with a row of frequency bars, a green input
- * port on the left edge, and a green output port on the right edge.
+ * Spectrum Bars GUI: a flat panel with a row of FFT-magnitude bars, a green
+ * audio input port on the left edge, and a green audio output port on the right.
  */
-export class VisualizerN3DGUI implements Node3DGUI {
+export class SpectrumBarsN3DGUI implements Node3DGUI {
 
     public root!: TransformNode
     public panel!: Mesh
@@ -83,14 +83,14 @@ export class VisualizerN3DGUI implements Node3DGUI {
 }
 
 /**
- * Visualizer Node3D: passes audio straight through (input → output) while
+ * Spectrum Bars Node3D: passes audio straight through (input → output) while
  * tapping a non-destructive analyser to drive the bar graph. Tagged as a
  * visualizer so it satisfies a sink role for the graph, but downstream nodes
  * can still connect to its output to chain past it.
  */
-export class VisualizerN3D implements Node3D {
+export class SpectrumBarsN3D implements Node3D {
 
-    public async init(context: Node3DContext, gui: VisualizerN3DGUI): Promise<this> {
+    public async init(context: Node3DContext, gui: SpectrumBarsN3DGUI): Promise<this> {
         const { tools: { AudioN3DConnectable }, audioCtx } = context
         this.#gui = gui
 
@@ -128,7 +128,7 @@ export class VisualizerN3D implements Node3D {
         try { this.#passthrough.disconnect() } catch { /* ignore */ }
     }
 
-    #gui!: VisualizerN3DGUI
+    #gui!: SpectrumBarsN3DGUI
     #passthrough!: GainNode
     #analyser!: AudioAnalyser
     #freqBuf!: Uint8Array
@@ -153,14 +153,14 @@ export class VisualizerN3D implements Node3D {
     }
 }
 
-export const VisualizerN3DFactory: Node3DFactory<VisualizerN3DGUI, Node3D> = {
-    label: "Visualizer",
-    description: "Displays the frequency spectrum of incoming audio while passing audio straight through.",
-    tags: ["visualizer", "audio"],
+export const SpectrumBarsN3DFactory: Node3DFactory<SpectrumBarsN3DGUI, Node3D> = {
+    label: "Spectrum Bars",
+    description: "Displays the live frequency spectrum of incoming audio as a row of vertical bars while passing audio straight through.",
+    tags: ["visualizer", "audio", "spectrum", "fft"],
     createGUI: async (context) => {
-        const gui = new VisualizerN3DGUI()
+        const gui = new SpectrumBarsN3DGUI()
         await gui.init(context)
         return gui
     },
-    create: async (context, gui) => await new VisualizerN3D().init(context, gui),
+    create: async (context, gui) => await new SpectrumBarsN3D().init(context, gui),
 }
