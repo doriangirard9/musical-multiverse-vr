@@ -257,6 +257,7 @@ export class Node3DInstance implements Synchronized {
             this.gui.dispose()
             gui_root_transform.dispose()
             root_transform.dispose()
+            throw e
         }
     }
 

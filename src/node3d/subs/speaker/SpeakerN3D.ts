@@ -142,7 +142,7 @@ export class SpeakerPannerNodeN3D implements Node3D{
 
 export const SpeakerN3DFactory: Node3DFactory<SpeakerN3DGUI,Node3D> = {
 
-    label: "Audio Output",
+    label: "Speaker",
 
     description: "A simple 3D speaker that can be used to output audio in 3D space.",
 

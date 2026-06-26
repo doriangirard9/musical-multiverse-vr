@@ -99,7 +99,7 @@ export class AudioWorldSystem {
             [audioCtx.listener.upZ, -head.up.z],
         ] as [AudioParam,number][]){
             parameter.cancelAndHoldAtTime(now)
-            parameter.setValueAtTime((parameter as any)['_prevValue'], now)
+            parameter.setValueAtTime((parameter as any)['_prevValue']??0, now)
             ;(parameter as any)['_prevValue'] = value
             parameter.linearRampToValueAtTime(value, after)
         }
@@ -162,7 +162,7 @@ export class AudioWorldSystem {
                 [pannerNode.orientationZ, -_forward.z],
             ] as [AudioParam,number][]){
                 parameter.cancelAndHoldAtTime(now)
-                parameter.setValueAtTime((parameter as any)['_prevValue'], now)
+                parameter.setValueAtTime((parameter as any)['_prevValue']??0, now)
                 ;(parameter as any)['_prevValue'] = value
                 parameter.linearRampToValueAtTime(value, after)
             }
