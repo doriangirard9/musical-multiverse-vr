@@ -22,6 +22,17 @@ export interface AudioSignal {
     /** Spectral flux: positive bin-to-bin energy increase. Onset / "new note" indicator. */
     flux?: number
     /**
+     * Decaying pulse since the last MIDI noteOn (≈1 at the event, fades to 0).
+     * Set only on MIDI-derived signals; same role as `flux` for audio.
+     */
+    onset?: number
+    /** Pitch of the last MIDI noteOn, normalized to [0, 1] over the MIDI range. */
+    pitch?: number
+    /** Velocity of the last MIDI noteOn, normalized to [0, 1]. */
+    velocity?: number
+    /** Held-note density (currently-held notes / saturation point), in [0, 1]. */
+    activity?: number
+    /**
      * True while a pointer is currently aimed at the target mesh.
      * Effects that disrupt interaction (scale tremor, expanding waves) should
      * suspend themselves so the user can hit the element accurately.
@@ -32,9 +43,14 @@ export interface AudioSignal {
 
 /**
  * Feature channels effects can pick from. `'strength'` is the safe default
- * (always populated, including under the static fallback signal).
+ * (always populated, including under the static fallback signal). MIDI-derived
+ * signals additionally fill `onset` / `pitch` / `velocity` / `activity`; effects
+ * that ask for those on audio-only signals fall back to `strength` via
+ * {@link readFeature}.
  */
-export type AudioFeature = 'strength' | 'peak' | 'bass' | 'mid' | 'treble' | 'flux' | 'tone'
+export type AudioFeature =
+    | 'strength' | 'peak' | 'bass' | 'mid' | 'treble' | 'flux' | 'tone'
+    | 'onset' | 'pitch' | 'velocity' | 'activity'
 
 /**
  * Read one feature from a signal, falling back to `strength` when the feature

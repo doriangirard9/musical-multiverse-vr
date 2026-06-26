@@ -11,12 +11,46 @@ import { MenuSystem } from "../../app"
 import { EffectProfile, EffectSystem } from "../../visual/effects"
 import { Node3DGraph } from "../graph/Node3DGraph"
 import { edgeViewOf } from "../graph/Node3DGraphAdapter"
+import { MidiAnalyser, MidiSignalSnapshot } from "../../utils/MidiAnalyser"
 
 const IDLE_SPEED = 600
 const LIVE_SPEED = 250
 
-/** Fallback signal handed to cable effects when the upstream node has no analyser. */
+/** Fallback signal handed to cable effects when neither analyser is producing data. */
 const STATIC_CABLE_SIGNAL = { strength: 0, tone: 0 } as const
+
+/**
+ * Map a MIDI snapshot onto the AudioSignal shape so cable effects can read it
+ * with their normal feature names. The mappings are deliberate:
+ *  - `flux`   ← `onset`   : flux is the cable's universal "trigger" feature;
+ *                           MIDI noteOn is the equivalent transient.
+ *  - `tone`   ← `pitch`   : `tone` drives default color/height mapping; for
+ *                           MIDI we map directly to the played pitch.
+ *  - `strength` ← `activity`: number of held notes ≈ "loudness".
+ *  - `bass`/`mid`/`treble` are projected from pitch so spectrum-mode colors
+ *    pick a band that mirrors the pitch register.
+ *  - the native MIDI fields (`onset`, `pitch`, `velocity`, `activity`) are
+ *    also kept so effects can opt in by name.
+ */
+function midiSnapshotAsAudioSignal(midi: MidiSignalSnapshot) {
+    const v = midi.velocity > 0 ? midi.velocity : 1
+    const lit = midi.onset * v
+    // Three-bin pitch projection: low pitch → bass channel, mid → mid, high → treble.
+    const bass   = midi.pitch < 0.40 ? lit : 0
+    const mid    = midi.pitch >= 0.40 && midi.pitch < 0.70 ? lit : 0
+    const treble = midi.pitch >= 0.70 ? lit : 0
+    return {
+        strength: midi.activity,
+        tone:     midi.pitch,
+        flux:     midi.onset,
+        peak:     midi.onset,
+        bass, mid, treble,
+        onset:    midi.onset,
+        pitch:    midi.pitch,
+        velocity: midi.velocity,
+        activity: midi.activity,
+    }
+}
 
 function tubeProfile(speed: number, converging: boolean): EffectProfile {
     return {
@@ -162,6 +196,10 @@ export class N3DConnectionInstance{
     private _effectSystem: EffectSystem | null = null
     private static readonly _graph = new Node3DGraph()
     private connectionObject: any = null
+    private _midiAnalyser: MidiAnalyser | null = null
+    private _midiTapTarget: object | null = null
+    private _midiTapOriginal: ((...args: unknown[]) => unknown) | null = null
+    private _midiTapInstalled: ((...args: unknown[]) => unknown) | null = null
 
     /**
      * Connect la node3D à deux connections. Pas de synchronisation.
@@ -292,6 +330,15 @@ export class N3DConnectionInstance{
         )
         movetube()
 
+        // MIDI tap. For MIDI cables, hook a passive listener onto the target
+        // wamNode's scheduleEvents (which is how every source dispatches MIDI
+        // in this codebase) so the cable's MidiAnalyser sees noteOn / noteOff
+        // events as they flow. Limitation: multiple incoming MIDI cables
+        // landing on the same target will each see all incoming events — they
+        // can't be attributed back to a specific source. In practice routings
+        // are 1→1 and this reads correctly; complex fan-in just looks "busy".
+        this._installMidiTap()
+
         // Effect creation
         this._createEffectSystem()
         return true
@@ -304,12 +351,65 @@ export class N3DConnectionInstance{
             () => this.color,
             () => this._getConnectionProfilEffect()
         )
-        // Cables read the upstream node's analyser snapshot so cable effects
-        // (pbrWave speed, future travelling pulses, etc) react to whatever
-        // signal is flowing through them. Falls back to the static signal
-        // when the upstream node has no audio analyser (control-only nodes).
+        // Pick the signal source by cable protocol. Audio cables read the
+        // upstream node's analyser snapshot; MIDI cables read this cable's
+        // own MidiAnalyser, reshaped onto the AudioSignal fields so cable
+        // effects don't need to special-case the protocol. Falls back to
+        // the static silent signal when no live source is available.
         const upstream = this.cOutput?.instance
-        this._effectSystem.activate(() => upstream?.getAudioSnapshot() ?? STATIC_CABLE_SIGNAL)
+        const midiAnalyser = this._midiAnalyser
+        if (midiAnalyser !== null) {
+            this._effectSystem.activate(() => midiSnapshotAsAudioSignal(midiAnalyser.snapshot()))
+        } else {
+            this._effectSystem.activate(() => upstream?.getAudioSnapshot() ?? STATIC_CABLE_SIGNAL)
+        }
+    }
+
+    /**
+     * Wrap the target wamNode's `scheduleEvents` to feed each MIDI event into
+     * the per-cable {@link MidiAnalyser}. The original method is preserved and
+     * restored on disconnect so the audio path is never altered.
+     */
+    private _installMidiTap(): void {
+        if (this.cInput === null) return
+        const cfg = this.cInput.config as { type?: string|Symbol, wamNode?: unknown }
+        if (cfg.type !== 'midi') return
+        const target = cfg.wamNode as { scheduleEvents?: (...args: unknown[]) => unknown } | undefined
+        if (target === undefined || typeof target.scheduleEvents !== 'function') return
+
+        const analyser = new MidiAnalyser()
+        const original = target.scheduleEvents.bind(target)
+        const tapped = (...args: unknown[]) => {
+            // capture before delegating so a downstream throw doesn't suppress visuals
+            for (const a of args) analyser.capture(a)
+            return original(...args)
+        }
+        target.scheduleEvents = tapped
+        this._midiAnalyser = analyser
+        this._midiTapTarget = target
+        this._midiTapOriginal = original
+        this._midiTapInstalled = tapped
+    }
+
+    /**
+     * Remove the MIDI tap if we installed one. Restores the wamNode's original
+     * scheduleEvents only if no other code wrapped it in the meantime — if
+     * something else stacked on top of ours, we leave it alone to avoid
+     * yanking the rug out from under that wrapper.
+     */
+    private _uninstallMidiTap(): void {
+        if (this._midiAnalyser === null) return
+        if (this._midiTapTarget !== null && this._midiTapInstalled !== null && this._midiTapOriginal !== null) {
+            const target = this._midiTapTarget as { scheduleEvents?: unknown }
+            if (target.scheduleEvents === this._midiTapInstalled) {
+                target.scheduleEvents = this._midiTapOriginal
+            }
+        }
+        this._midiAnalyser.dispose()
+        this._midiAnalyser = null
+        this._midiTapTarget = null
+        this._midiTapOriginal = null
+        this._midiTapInstalled = null
     }
 
     private _getConnectionProfilEffect() : EffectProfile {
@@ -326,6 +426,7 @@ export class N3DConnectionInstance{
     private disconnect(){
         const {cOutput,cInput} = this
         if(cOutput && cInput){
+            this._uninstallMidiTap()
             this._effectSystem?.dispose()
             this._effectSystem = null
             cInput.config.disconnectAsInput(this.connectionObject)
