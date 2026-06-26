@@ -47,7 +47,12 @@ import { AudioAnalyser, AudioSignalSnapshot } from "../../utils/AudioAnalyser";
 // passages show plenty.
 // ---------------------------------------------------------------------------
 
-/** Source node: warm color spectrum, small breathing corona + spectrum-colored sparks. */
+/**
+ * Source node: small breathing corona whose color tracks the live spectrum.
+ * No sparks here — generator-type sources (NoteBox, Oscillator, sequencers)
+ * tend to read as "always busy" when the spark trigger fires on any flux,
+ * so the visual would be permanent noise rather than a meaningful accent.
+ */
 const SOURCE_NODE_PROFILE: EffectProfile = {
     id: 'node_source',
     effects: {
@@ -67,25 +72,6 @@ const SOURCE_NODE_PROFILE: EffectProfile = {
             peakBrightness: 0.7,
             secondary: false,
             smoothing: 100,
-        },
-        audio_spark: {
-            triggerSource: 'flux',
-            triggerThreshold: 0.26,
-            refractory: 90,
-            burstCount: 10,
-            capacity: 80,
-            minSize: 0.035,
-            maxSize: 0.08,
-            minLifeTime: 0.25,
-            maxLifeTime: 0.55,
-            emitPower: 1.4,
-            emitRadius: 0.1,
-            colorMode: 'spectrum',
-            spectrumGain: 3.2,
-            spectrumBassGain: 1.1,
-            spectrumMidGain: 1.4,
-            spectrumTrebleGain: 2.0,
-            brightness: 1.2,
         },
     },
 }
@@ -180,27 +166,14 @@ const VIZ_NODE_PROFILE: EffectProfile = {
     effects: {},
 }
 
-/** Mid-chain effect node: occasional sparks on transients, no sustained presence. */
+/**
+ * Mid-chain effect node: no per-node visuals. Cable visuals already convey
+ * what's flowing through; piling sparks on every intermediate node clutters
+ * the chain.
+ */
 const EFFECT_NODE_PROFILE: EffectProfile = {
     id: 'node_effect',
-    effects: {
-        audio_spark: {
-            triggerSource: 'flux',
-            triggerThreshold: 0.32,
-            refractory: 120,
-            burstCount: 6,
-            capacity: 60,
-            minSize: 0.03,
-            maxSize: 0.07,
-            minLifeTime: 0.2,
-            maxLifeTime: 0.45,
-            emitPower: 1.2,
-            emitRadius: 0.08,
-            colorMode: 'spectrum',
-            spectrumGain: 3.0,
-            brightness: 1.1,
-        },
-    },
+    effects: {},
 }
 
 /** Orphan / standalone: no effects. */
