@@ -84,12 +84,12 @@ export class AudioAnalyser {
     }
 
     /** Fill `out` with frequency-domain magnitudes (0..255). Length must equal binCount. */
-    public readFrequency(out: Uint8Array): void {
+    public readFrequency(out: Uint8Array<ArrayBuffer>): void {
         this.#node.getByteFrequencyData(out)
     }
 
     /** Fill `out` with time-domain samples (0..255, centered at 128). Length must equal fftSize. */
-    public readTime(out: Uint8Array): void {
+    public readTime(out: Uint8Array<ArrayBuffer>): void {
         this.#node.getByteTimeDomainData(out)
     }
 
@@ -157,9 +157,9 @@ export class AudioAnalyser {
     }
 
     #node: AnalyserNode
-    #timeBuf: Uint8Array
-    #freqBuf: Uint8Array
-    #prevFreqBuf: Uint8Array
+    #timeBuf: Uint8Array<ArrayBuffer>
+    #freqBuf: Uint8Array<ArrayBuffer>
+    #prevFreqBuf: Uint8Array<ArrayBuffer>
     #bassRange:   readonly [number, number]
     #midRange:    readonly [number, number]
     #trebleRange: readonly [number, number]

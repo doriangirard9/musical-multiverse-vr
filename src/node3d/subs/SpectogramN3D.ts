@@ -127,7 +127,7 @@ export class SpectogramN3D implements Node3D {
     #gui!: SpectogramN3DGUI
     #passthrough!: GainNode
     #analyser!: AudioAnalyser
-    #freqBuf!: Uint8Array
+    #freqBuf!: Uint8Array<ArrayBuffer>
     #columnData!: ImageData
     #renderObserver: Observer<Scene> | null = null
 

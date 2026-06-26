@@ -131,7 +131,7 @@ export class SpectrumBarsN3D implements Node3D {
     #gui!: SpectrumBarsN3DGUI
     #passthrough!: GainNode
     #analyser!: AudioAnalyser
-    #freqBuf!: Uint8Array
+    #freqBuf!: Uint8Array<ArrayBuffer>
     #renderObserver: Observer<Scene> | null = null
 
     #tick(): void {

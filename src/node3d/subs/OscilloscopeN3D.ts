@@ -132,7 +132,7 @@ export class OscilloscopeN3D implements Node3D {
     #gui!: OscilloscopeN3DGUI
     #passthrough!: GainNode
     #analyser!: AudioAnalyser
-    #timeBuf!: Uint8Array
+    #timeBuf!: Uint8Array<ArrayBuffer>
     #renderObserver: Observer<Scene> | null = null
     #lastTick = 0
 
