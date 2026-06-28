@@ -89,7 +89,7 @@ export class LivePianoN3D implements Node3D{
     output 
 
     constructor(context: Node3DContext, private gui: LivePianoN3DGUI){
-        const {tools:T, audioCtx} = context
+        const {tools:T} = context
 
         context.addToBoundingBox(gui.base)
 
@@ -126,9 +126,9 @@ export class LivePianoN3D implements Node3D{
     }
 
 
-    async setState(key: string, value: any){}
+    async setState(_: string, __: any){}
 
-    async getState(key: string){}
+    async getState(_: string){}
 
     getStateKeys(){ return [] }
     

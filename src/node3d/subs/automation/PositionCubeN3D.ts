@@ -170,9 +170,9 @@ export class PositionCubeN3D implements Node3D {
             const output = new T.AutomationN3DConnectable.Output(
                 `position_${['x', 'y', 'z', 'pressure'][i]}`,
                 [mesh],
-                outputNames[i],
-                0.5
+                outputNames[i]
             )
+            output.normalizedValue = .5
             context.createConnectable(output)
             return output
         })
@@ -189,12 +189,12 @@ export class PositionCubeN3D implements Node3D {
                         const position = e.origin.clone()
                         if(gui.localize(position)){
                             gui.set(position.x, position.y, position.z)
-                            this.outputs[0].value = position.x
-                            this.outputs[1].value = position.y
-                            this.outputs[2].value = position.z
+                            this.outputs[0].normalizedValue = position.x
+                            this.outputs[1].normalizedValue = position.y
+                            this.outputs[2].normalizedValue = position.z
                         }
                     })
-                    this.outputs[3].value = 1
+                    this.outputs[3].normalizedValue = 1
                 }
             },
             controller=>{
@@ -202,7 +202,7 @@ export class PositionCubeN3D implements Node3D {
                     lastObserver?.remove()
                     lastObserver = null
                     firstController = null
-                    this.outputs[3].value = 0
+                    this.outputs[3].normalizedValue = 0
                 }
             }
         )
@@ -218,9 +218,9 @@ export class PositionCubeN3D implements Node3D {
         this
     }
 
-    async setState(key: string, value: any) { }
+    async setState(_: string, __: any) { }
 
-    async getState(key: string) { }
+    async getState(_: string) { }
 
     getStateKeys() { return [] }
 

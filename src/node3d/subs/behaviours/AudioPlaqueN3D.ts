@@ -429,10 +429,10 @@ export class AudioPlaqueN3D implements Node3D {
         ));
 
         this.xOut = new T.AutomationN3DConnectable.Output(
-            "xPos", [gui.xOutput], "X Position", 0.5,
+            "xPos", [gui.xOutput], "X Position",
         );
         this.yOut = new T.AutomationN3DConnectable.Output(
-            "yPos", [gui.yOutput], "Y Position", 0.5,
+            "yPos", [gui.yOutput], "Y Position",
         );
         context.createConnectable(this.xOut);
         context.createConnectable(this.yOut);
@@ -441,15 +441,15 @@ export class AudioPlaqueN3D implements Node3D {
         // Default values match what computeMetrics() returns for an empty swarm:
         // centroids at 0.5 (centred), motion metrics at 0.
         this.boidCxOut    = new T.AutomationN3DConnectable.Output(
-            "boidCentroidX",  [gui.outBoidCentroidX],  "Boid Centroid X", 0.5);
+            "boidCentroidX",  [gui.outBoidCentroidX],  "Boid Centroid X");
         this.boidCyOut    = new T.AutomationN3DConnectable.Output(
-            "boidCentroidY",  [gui.outBoidCentroidY],  "Boid Centroid Y", 0.5);
+            "boidCentroidY",  [gui.outBoidCentroidY],  "Boid Centroid Y");
         this.boidDispOut  = new T.AutomationN3DConnectable.Output(
-            "boidDispersion", [gui.outBoidDispersion], "Boid Dispersion", 0);
+            "boidDispersion", [gui.outBoidDispersion], "Boid Dispersion");
         this.boidAlignOut = new T.AutomationN3DConnectable.Output(
-            "boidAlignment",  [gui.outBoidAlignment],  "Boid Alignment", 0);
+            "boidAlignment",  [gui.outBoidAlignment],  "Boid Alignment");
         this.boidVortOut  = new T.AutomationN3DConnectable.Output(
-            "boidVorticity",  [gui.outBoidVorticity],  "Boid Vorticity", 0);
+            "boidVorticity",  [gui.outBoidVorticity],  "Boid Vorticity");
         for (const o of [this.boidCxOut, this.boidCyOut, this.boidDispOut, this.boidAlignOut, this.boidVortOut]) {
             context.createConnectable(o);
         }
@@ -684,8 +684,8 @@ export class AudioPlaqueN3D implements Node3D {
             // 2. Push automation values
             const nx = bp.x + 0.5;   // 0 .. 1
             const ny = bp.y + 0.5;   // 0 .. 1
-            if (Math.abs(nx - lastX) > VALUE_EPS) { this.xOut.value = nx; lastX = nx; }
-            if (Math.abs(ny - lastY) > VALUE_EPS) { this.yOut.value = ny; lastY = ny; }
+            if (Math.abs(nx - lastX) > VALUE_EPS) { this.xOut.normalizedValue = nx; lastX = nx; }
+            if (Math.abs(ny - lastY) > VALUE_EPS) { this.yOut.normalizedValue = ny; lastY = ny; }
             pulser.update([nx, ny], dt);
 
             // 3. Boid swarm — chase the ball (no-op when boidMode is OFF)
@@ -695,11 +695,11 @@ export class AudioPlaqueN3D implements Node3D {
             //    naturally freeze when the swarm is disabled since boid positions
             //    don't change while update() is a no-op).
             const m = this.swarm.computeMetrics();
-            this.boidCxOut.value    = m.centroidX;
-            this.boidCyOut.value    = m.centroidY;
-            this.boidDispOut.value  = m.dispersion;
-            this.boidAlignOut.value = m.alignment;
-            this.boidVortOut.value  = m.vorticity;
+            this.boidCxOut.normalizedValue    = m.centroidX;
+            this.boidCyOut.normalizedValue    = m.centroidY;
+            this.boidDispOut.normalizedValue  = m.dispersion;
+            this.boidAlignOut.normalizedValue = m.alignment;
+            this.boidVortOut.normalizedValue  = m.vorticity;
 
             // 5. Visual polish
             //    a. Ball breathing  — subtle scale pulse (1.0 .. 1.06 over 2 s)

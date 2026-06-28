@@ -76,7 +76,7 @@ export class VoiceVolumeControllerN3DGUI implements Node3DGUI {
 
         // Output
         function createOutput(name: string, position: number) {
-            const output = T.ConnectableUtils.createOutputMesh("voice controller output", .4, context.scene)
+            const output = T.ConnectableUtils.createOutputMesh(name, .4, context.scene)
             output.parent = that.root
             output.position.set(0.75, -0.25, position)
             output.material = context.materialMat
@@ -115,31 +115,36 @@ export class VoiceVolumeControllerN3D implements Node3D {
         const volume = this.volume = new T.AutomationN3DConnectable.Output(
             "automation_controller_volume_output",
             [gui.volume],
-            "Voice Volume",
-            1
+            "Voice Volume"
         )
+        volume.normalizedValue = 0.5
         context.createConnectable(volume)
 
         const pitch = this.pitch = new T.AutomationN3DConnectable.Output(
             "automation_controller_pitch_output",
             [gui.pitch],
-            "Voice ¨Pitch",
-            1
+            "Voice ¨Pitch"
         )
+        pitch.normalizedValue = 0.5
         context.createConnectable(pitch)
 
         // Parameter
         context.createParameter({
             id: "voice_parameter_enabled",
             meshes: [gui.enabledRotator, ...gui.enabledRotator.getChildMeshes()],
-            getLabel() { return volume.name },
-            getStepCount() { return volume.stepCount },
+            getLabel() { return volume.settingsOrDefault.getLabel() },
+
+            getMin(){ return volume.settingsOrDefault.getMin() },
+            getMax(){ return volume.settingsOrDefault.getMax() },
+            getStepSize(){ return volume.settingsOrDefault.getStepSize() },
+            getExponant(){ return volume.settingsOrDefault.getExponant() },
+
             getValue() { return that.enabledValue },
             setValue(value) {
                 that.enabledValue = value
-                gui.enabledRotator.rotation.y = value * Math.PI - Math.PI/2
+                gui.enabledRotator.rotation.y = volume.normalize(that.enabledValue) * Math.PI - Math.PI/2
             },
-            stringify(value) { return volume.stringify(value) },
+            stringify(value) { return volume.settingsOrDefault.stringify(value) },
         })
 
         gui.enabledRotator.rotation.y = 1 * Math.PI - Math.PI/2
@@ -147,14 +152,19 @@ export class VoiceVolumeControllerN3D implements Node3D {
         context.createParameter({
             id: "voice_parameter_disabled",
             meshes: [gui.disabledRotator, ...gui.disabledRotator.getChildMeshes()],
-            getLabel() { return volume.name },
-            getStepCount() { return volume.stepCount },
+            getLabel() { return volume.settingsOrDefault.getLabel() },
+            
+            getMin(){ return volume.settingsOrDefault.getMin() },
+            getMax(){ return volume.settingsOrDefault.getMax() },
+            getStepSize(){ return volume.settingsOrDefault.getStepSize() },
+            getExponant(){ return volume.settingsOrDefault.getExponant() },
+
             getValue() { return that.disabledValue },
             setValue(value) {
                 that.disabledValue = value
-                gui.disabledRotator.rotation.y = value * Math.PI - Math.PI/2
+                gui.disabledRotator.rotation.y = volume.normalize(that.disabledValue) * Math.PI - Math.PI/2
             },
-            stringify(value) { return volume.stringify(value) },
+            stringify(value) { return volume.settingsOrDefault.stringify(value) },
         })
 
         gui.disabledRotator.rotation.y = 0 * Math.PI - Math.PI/2
@@ -195,18 +205,18 @@ export class VoiceVolumeControllerN3D implements Node3D {
 
             let volume_ratio = Math.max(0, Math.min(1, (volume-50)/180))
             this.gui.setLed(volume_ratio > 0)
-            this.volume.value = volume_ratio * this.enabledValue + (1-volume_ratio) * this.disabledValue
+            this.volume.normalizedValue = this.volume.normalize(volume_ratio * this.enabledValue + (1-volume_ratio) * this.disabledValue)
 
             let pitch_ratio = Math.max(0, Math.min(1, minimumPitch/30))
-            if(pitch_ratio<1) this.pitch.value = pitch_ratio * this.enabledValue + (1-pitch_ratio) * this.disabledValue
+            if(pitch_ratio<1) this.pitch.normalizedValue = this.volume.normalize(pitch_ratio * this.enabledValue + (1-pitch_ratio) * this.disabledValue)
         }, 25)
 
         return this
     }
 
-    async setState(key: string, value: any) { }
+    async setState(_: string, __: any) { }
 
-    async getState(key: string) { }
+    async getState(_: string) { }
 
     getStateKeys() { return [] }
 

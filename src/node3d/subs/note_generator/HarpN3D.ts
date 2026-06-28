@@ -189,8 +189,7 @@ export class HarpN3D implements Node3D {
         const automationOutput = this.automationOutput = new T.AutomationN3DConnectable.Output(
             "automation_output", 
             [gui.outputs[1]], 
-            "String pinch height",
-            0
+            "String pinch height"
         )
         context.createConnectable(automationOutput)
     }

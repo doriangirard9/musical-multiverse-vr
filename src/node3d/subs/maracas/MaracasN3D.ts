@@ -45,7 +45,7 @@ export class MaracasN3D implements Node3D{
     output
 
     constructor(context: Node3DContext, private gui: MaracasN3DGUI){
-        const {tools:T, audioCtx} = context
+        const {tools:T} = context
 
         context.addToBoundingBox(gui.base)
 
@@ -56,7 +56,12 @@ export class MaracasN3D implements Node3D{
             id: "rotation",
             getLabel: () => "Rotation",
             getValue: () => this.rotation,
-            getStepCount: () => 100,
+
+            getMin: () => 0,
+            getMax: () => 1,
+            getStepSize: () => .01,
+            getExponant: () => 1,
+
             stringify: (value: number) => `Rotation: ${Math.round(value*100)}%`,
             setValue: (value: number) =>{
                 this.setRotation(value)

@@ -55,7 +55,12 @@ export class OscillatorN3D implements Node3D{
         context.createParameter({
             id: "frequency",
             getLabel() { return "Frequency" },
-            getStepCount() { return 10 },
+
+            getMin() { return 0 },
+            getMax() { return 1 },
+            getStepSize() { return 0.1 },
+            getExponant() { return 1 },
+
             getValue() { return (audionode.frequency.value-130)/100 },
             setValue(value: number) { 
                 audionode.frequency.value = value * 100 + 130

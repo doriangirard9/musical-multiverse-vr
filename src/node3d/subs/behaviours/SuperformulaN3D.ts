@@ -508,14 +508,14 @@ export class SuperformulaN3D implements Node3D {
         ));
 
         const A = T.AutomationN3DConnectable.Output;
-        this.outPosX         = new A("posX",         [gui.outPosX],         "Position X",        0.5);
-        this.outPosY         = new A("posY",         [gui.outPosY],         "Position Y",        0.5);
-        this.outRadius       = new A("radius",       [gui.outRadius],       "Ball Radius",       0.5);
-        this.outRadiusDelta  = new A("radiusDelta",  [gui.outRadiusDelta],  "Ball Radius Delta", 0.0);
-        this.outAngularVel   = new A("angVel",       [gui.outAngularVel],   "Angular Velocity",  0.0);
-        this.outSpeed        = new A("speed",        [gui.outSpeed],        "Ball Speed",        0.0);
-        this.outAcceleration = new A("acceleration", [gui.outAcceleration], "Ball Acceleration", 0.0);
-        this.outCurvature    = new A("curvature",    [gui.outCurvature],    "Ball Curvature",    0.0);
+        this.outPosX         = new A("posX",         [gui.outPosX],         "Position X"        );
+        this.outPosY         = new A("posY",         [gui.outPosY],         "Position Y"        );
+        this.outRadius       = new A("radius",       [gui.outRadius],       "Ball Radius"       );
+        this.outRadiusDelta  = new A("radiusDelta",  [gui.outRadiusDelta],  "Ball Radius Delta" );
+        this.outAngularVel   = new A("angVel",       [gui.outAngularVel],   "Angular Velocity"  );
+        this.outSpeed        = new A("speed",        [gui.outSpeed],        "Ball Speed"        );
+        this.outAcceleration = new A("acceleration", [gui.outAcceleration], "Ball Acceleration" );
+        this.outCurvature    = new A("curvature",    [gui.outCurvature],    "Ball Curvature"    );
 
         for (const o of [
             this.outPosX, this.outPosY, this.outRadius, this.outRadiusDelta,
@@ -524,11 +524,11 @@ export class SuperformulaN3D implements Node3D {
 
         // Five new boid swarm metric outputs.  Defaults match what
         // BoidSwarm.computeMetrics() returns for an empty swarm.
-        this.boidCxOut    = new A("boidCentroidX",  [gui.outBoidCentroidX],  "Boid Centroid X", 0.5);
-        this.boidCyOut    = new A("boidCentroidY",  [gui.outBoidCentroidY],  "Boid Centroid Y", 0.5);
-        this.boidDispOut  = new A("boidDispersion", [gui.outBoidDispersion], "Boid Dispersion", 0);
-        this.boidAlignOut = new A("boidAlignment",  [gui.outBoidAlignment],  "Boid Alignment",  0);
-        this.boidVortOut  = new A("boidVorticity",  [gui.outBoidVorticity],  "Boid Vorticity",  0);
+        this.boidCxOut    = new A("boidCentroidX",  [gui.outBoidCentroidX],  "Boid Centroid X" );
+        this.boidCyOut    = new A("boidCentroidY",  [gui.outBoidCentroidY],  "Boid Centroid Y" );
+        this.boidDispOut  = new A("boidDispersion", [gui.outBoidDispersion], "Boid Dispersion" );
+        this.boidAlignOut = new A("boidAlignment",  [gui.outBoidAlignment],  "Boid Alignment"  );
+        this.boidVortOut  = new A("boidVorticity",  [gui.outBoidVorticity],  "Boid Vorticity"  );
         for (const o of [this.boidCxOut, this.boidCyOut, this.boidDispOut, this.boidAlignOut, this.boidVortOut]) {
             context.createConnectable(o);
         }
@@ -555,7 +555,12 @@ export class SuperformulaN3D implements Node3D {
                 id,
                 meshes: [mesh],
                 getLabel: () => label,
-                getStepCount: () => stepCount,
+
+                getMin: () => 0,
+                getMax: () => 1,
+                getStepSize: () => 1 / stepCount,
+                getExponant: () => 1,
+
                 getValue: () => norm(range, getter()),
                 setValue: setNorm,
                 stringify: (v01: number) => {
@@ -679,7 +684,7 @@ export class SuperformulaN3D implements Node3D {
             key: keyof typeof lastSent, v: number,
         ) => {
             if (Math.abs(v - lastSent[key]) > VALUE_EPS) {
-                out.value = v;
+                out.normalizedValue = v;
                 lastSent[key] = v;
             }
         };
@@ -758,11 +763,11 @@ export class SuperformulaN3D implements Node3D {
 
             // Boid metrics → 5 automation outputs (frozen naturally when swarm is OFF)
             const bm = this.swarm.computeMetrics();
-            this.boidCxOut.value    = bm.centroidX;
-            this.boidCyOut.value    = bm.centroidY;
-            this.boidDispOut.value  = bm.dispersion;
-            this.boidAlignOut.value = bm.alignment;
-            this.boidVortOut.value  = bm.vorticity;
+            this.boidCxOut.normalizedValue    = bm.centroidX;
+            this.boidCyOut.normalizedValue    = bm.centroidY;
+            this.boidDispOut.normalizedValue  = bm.dispersion;
+            this.boidAlignOut.normalizedValue = bm.alignment;
+            this.boidVortOut.normalizedValue  = bm.vorticity;
 
             // Visual polish — same breathing/pulse as AudioPlaque
             const tw = performance.now() / 1000;

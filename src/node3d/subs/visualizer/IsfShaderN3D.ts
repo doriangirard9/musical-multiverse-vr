@@ -282,7 +282,12 @@ export class IsfShaderN3D implements Node3D {
                     const input = this.currentInputs[i];
                     return input ? input.NAME : `Param ${i + 1}`;
                 },
-                getStepCount() { return 100 },
+
+                getMin() { return 0 },
+                getMax() { return 1 },
+                getStepSize() { return 0.01 },
+                getExponant() { return 1 },
+
                 getValue: () => {
                     return this.paramValues[paramId];
                 },

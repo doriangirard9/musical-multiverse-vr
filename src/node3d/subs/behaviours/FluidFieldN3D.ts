@@ -430,14 +430,14 @@ export class FluidFieldN3D implements Node3D {
 
         // ── 4 sorties d'automation (les mappings du sketch, découplés) ────────
         const A = T.AutomationN3DConnectable.Output;
-        const outDefs: [string, AbstractMesh, string, number][] = [
-            ["disturbance", gui.outDisturbance, "Disturbance (énergie)", 0],
-            ["curl",        gui.outCurl,        "Curl (tourbillons)",    0],
-            ["swarmX",      gui.outSwarmX,      "Swarm Center X",        0.5],
-            ["swarmY",      gui.outSwarmY,      "Swarm Center Y",        0.5],
+        const outDefs: [string, AbstractMesh, string][] = [
+            ["disturbance", gui.outDisturbance, "Disturbance (énergie)"],
+            ["curl",        gui.outCurl,        "Curl (tourbillons)"   ],
+            ["swarmX",      gui.outSwarmX,      "Swarm Center X"       ],
+            ["swarmY",      gui.outSwarmY,      "Swarm Center Y"       ],
         ];
-        for (const [id, mesh, label, def] of outDefs) {
-            const out = new A(id, [mesh], label, def);
+        for (const [id, mesh, label] of outDefs) {
+            const out = new A(id, [mesh], label);
             this.outs[id] = out;
             context.createConnectable(out);
         }
@@ -468,7 +468,12 @@ export class FluidFieldN3D implements Node3D {
                 id: key,
                 meshes: [mesh],
                 getLabel: () => label,
-                getStepCount: () => key === "droneNote" ? (RANGES.droneNote.max - RANGES.droneNote.min + 1) : 0,
+
+                getMin: () => 0,
+                getMax: () => 1,
+                getStepSize: () => key === "droneNote" ? 1/(RANGES.droneNote.max - RANGES.droneNote.min + 1) : 0,
+                getExponant: () => 1,
+                
                 getValue: () => norm(key, this.vals[key]),
                 setValue: setNorm,
                 stringify: (v01: number) => `${label}: ${denorm(key, v01).toFixed(decimals)}`,
@@ -618,10 +623,10 @@ export class FluidFieldN3D implements Node3D {
 
             // Rendu + sorties (par frame, pas par pas de sim)
             this.render();
-            this.outs.disturbance.value = this.dist01;
-            this.outs.curl.value        = this.curl01;
-            this.outs.swarmX.value      = this.comX01;
-            this.outs.swarmY.value      = this.comY01;
+            this.outs.disturbance.normalizedValue = this.dist01;
+            this.outs.curl.normalizedValue        = this.curl01;
+            this.outs.swarmX.normalizedValue      = this.comX01;
+            this.outs.swarmY.normalizedValue      = this.comY01;
             pulser.update([this.dist01, this.curl01, this.comX01, this.comY01], dt);
 
             // Mapping C du sketch : centre de masse → panoramique réel

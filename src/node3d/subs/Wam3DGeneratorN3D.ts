@@ -62,10 +62,16 @@ class Wam3DGeneratorN3D implements Node3D {
                     context.createParameter({
                         id: `param${count}`,
                         meshes: settings.target,
-                        getLabel() { return settings.getName() },
-                        getStepCount() { return settings.getStepCount() },
+                        getLabel() { return settings.getLabel() },
+
+                        getMax() { return settings.getMax() },
+                        getMin() { return settings.getMin() },
+                        getExponant() { return settings.getExponant() },
+                        getStepSize() { return settings.getStepSize() },
+
                         getValue() { return settings.getValue() },
                         setValue(value) { settings.setValue(value) },
+                        
                         stringify(value) { return settings.stringify(value) },
                         notSynced: true
                     })

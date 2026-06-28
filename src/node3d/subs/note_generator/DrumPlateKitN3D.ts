@@ -205,12 +205,16 @@ class PlateBehaviour {
             id: `plate_${i}_note`,
             meshes: [plate.noteSelector],
             getLabel() { return `Plate n°${i + 1} note` },
-            getStepCount() { return 128 },
-            getValue() { return that.note / 127 },
-            setValue(value) { that.note = Math.round(value * 127) },
+            
+            getMin(){ return 0 },
+            getMax(){ return 127 },
+            getStepSize() { return 1 },
+            getExponant() { return 1 },
+
+            getValue() { return that.note },
+            setValue(value) { that.note = value },
             stringify(value) {
-                const note = Math.round(value * 127)
-                return NOTE_NAME[note % OCTAVE] + " " + Math.floor(note / OCTAVE + 1) + " (" + note + ")"
+                return NOTE_NAME[value % OCTAVE] + " " + Math.floor(value / OCTAVE + 1) + " (" + value + ")"
             },
         })
 
@@ -261,7 +265,7 @@ export class DrumPlateKitN3D implements Node3D {
             //conn.scheduleEvents({ type: "wam-midi", time: t + NOTE_DURATION, data: { bytes: [0x90, note, 0] } })
             conn.scheduleEvents({ type: "wam-midi", time: t + NOTE_DURATION + 0.001, data: { bytes: [0x80, note, 0] } })
         })
-        this.automationOutput.value = borderness
+        this.automationOutput.normalizedValue = borderness
     }
 
     private plates!: PlateBehaviour[]
@@ -273,8 +277,7 @@ export class DrumPlateKitN3D implements Node3D {
     private observers: {remove():void}[] = []
 
     constructor(context: Node3DContext, private gui: DrumPlateKitN3DGUI) {
-        const { tools: T, audioCtx, inputs } = context
-        const { babylon: B } = gui.context
+        const { tools: T, inputs } = context
 
         // Hitbox
         context.addToBoundingBox(gui.base)
@@ -316,7 +319,6 @@ export class DrumPlateKitN3D implements Node3D {
             "borderness",
             [gui.automationOutput],
             "Borderness",
-            1
         )
         context.createConnectable(this.automationOutput)
 
@@ -324,9 +326,9 @@ export class DrumPlateKitN3D implements Node3D {
         this.plates = gui.plates.map((plate, i) => new PlateBehaviour(gui, this, context, i, plate, 36 + i))
     }
 
-    async setState(key: string, value: any) { }
+    async setState(_: string, __: any) { }
 
-    async getState(key: string) { }
+    async getState(_: string) { }
 
     getStateKeys() { return [] }
 

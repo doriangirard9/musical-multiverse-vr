@@ -115,11 +115,16 @@ export class Node3DInstance implements Synchronized {
                         info.meshes,
                         "",
                         {
-                            getName() { return info.getLabel() },
-                            getStepCount() { return info.getStepCount() },
+                            getLabel() { return info.getLabel() },
+
+                            getMin() { return info.getMin() },
+                            getMax() { return info.getMax() },
+                            getStepSize() { return info.getStepSize() },
+                            getExponant() { return info.getExponant() },
+
                             stringify(value) { return info.stringify(value) },
                             setValue(value) { 
-                                param.setValueAutomated(value)
+                                param.setValue(value)
                                 last_value = value
                             },
                             lock(isLocked) {

@@ -538,18 +538,18 @@ export class Superformula3DN3D implements Node3D {
 
         // ── 8 sorties d'automation ────────────────────────────────────────────
         const A = T.AutomationN3DConnectable.Output;
-        const outDefs: [string, AbstractMesh, string, number][] = [
-            ["posX",        gui.outPosX,         "Position X",        0.5],
-            ["posY",        gui.outPosY,         "Position Y",        0.5],
-            ["posZ",        gui.outPosZ,         "Position Z",        0.5],
-            ["radius",      gui.outRadius,       "Ball Radius",       0.5],
-            ["radiusDelta", gui.outRadiusDelta,  "Ball Radius Delta", 0.0],
-            ["speed",       gui.outSpeed,        "Ball Speed",        0.0],
-            ["accel",       gui.outAcceleration, "Ball Acceleration", 0.0],
-            ["curvature",   gui.outCurvature,    "Ball Curvature",    0.0],
+        const outDefs: [string, AbstractMesh, string][] = [
+            ["posX",        gui.outPosX,         "Position X"           ],
+            ["posY",        gui.outPosY,         "Position Y"           ],
+            ["posZ",        gui.outPosZ,         "Position Z"           ],
+            ["radius",      gui.outRadius,       "Ball Radius"          ],
+            ["radiusDelta", gui.outRadiusDelta,  "Ball Radius Delta"    ],
+            ["speed",       gui.outSpeed,        "Ball Speed"           ],
+            ["accel",       gui.outAcceleration, "Ball Acceleration"    ],
+            ["curvature",   gui.outCurvature,    "Ball Curvature"       ],
         ];
-        for (const [id, mesh, label, def] of outDefs) {
-            const out = new A(id, [mesh], label, def);
+        for (const [id, mesh, label] of outDefs) {
+            const out = new A(id, [mesh], label);
             this.outs[id] = out;
             context.createConnectable(out);
         }
@@ -586,7 +586,12 @@ export class Superformula3DN3D implements Node3D {
                 id: key,
                 meshes: [mesh],
                 getLabel: () => label,
-                getStepCount: () => 0,
+
+                getMin: () => 0,
+                getMax: () => 1,
+                getStepSize: () => 0,
+                getExponant: () => 1,
+
                 getValue: () => norm(key, this.target[key]),
                 setValue: setNorm,
                 stringify: (v01: number) => `${label}: ${denorm(key, v01).toFixed(decimals)}`,
@@ -643,16 +648,16 @@ export class Superformula3DN3D implements Node3D {
         });
 
         // 6 sorties de métriques de l'essaim (centroïde 3D + dynamique)
-        const boidOutDefs: [string, AbstractMesh, string, number][] = [
-            ["boidCentroidX",  gui.outBoidCx,    "Boid Centroid X", 0.5],
-            ["boidCentroidY",  gui.outBoidCy,    "Boid Centroid Y", 0.5],
-            ["boidCentroidZ",  gui.outBoidCz,    "Boid Centroid Z", 0.5],
-            ["boidDispersion", gui.outBoidDisp,  "Boid Dispersion", 0],
-            ["boidAlignment",  gui.outBoidAlign, "Boid Alignment",  0],
-            ["boidVorticity",  gui.outBoidVort,  "Boid Vorticity",  0],
+        const boidOutDefs: [string, AbstractMesh, string][] = [
+            ["boidCentroidX",  gui.outBoidCx,    "Boid Centroid X"],
+            ["boidCentroidY",  gui.outBoidCy,    "Boid Centroid Y"],
+            ["boidCentroidZ",  gui.outBoidCz,    "Boid Centroid Z"],
+            ["boidDispersion", gui.outBoidDisp,  "Boid Dispersion"],
+            ["boidAlignment",  gui.outBoidAlign, "Boid Alignment" ],
+            ["boidVorticity",  gui.outBoidVort,  "Boid Vorticity" ],
         ];
-        for (const [id, mesh, label, def] of boidOutDefs) {
-            const out = new A(id, [mesh], label, def);
+        for (const [id, mesh, label] of boidOutDefs) {
+            const out = new A(id, [mesh], label);
             this.boidOuts[id] = out;
             context.createConnectable(out);
         }
@@ -798,29 +803,29 @@ export class Superformula3DN3D implements Node3D {
             }
             const radiusDelta = firstFrame ? 0 : Math.abs(r - prevR) / Math.max(dt, 1e-6);
             const c01 = (x: number) => Math.max(0, Math.min(1, x));
-            this.outs.posX.value        = c01(ballPos.x + 0.5);
-            this.outs.posY.value        = c01(ballPos.y + 0.5);
-            this.outs.posZ.value        = c01(ballPos.z + 0.5);
-            this.outs.radius.value      = c01(r / Math.max(s * 2, 1e-6));
-            this.outs.radiusDelta.value = c01(radiusDelta / 5.0);
-            this.outs.speed.value       = c01(speedMag / 8.0);
-            this.outs.accel.value       = c01(accMag / 50.0);
-            this.outs.curvature.value   = c01(curvature / (Math.PI / 2));
+            this.outs.posX.normalizedValue        = c01(ballPos.x + 0.5);
+            this.outs.posY.normalizedValue        = c01(ballPos.y + 0.5);
+            this.outs.posZ.normalizedValue        = c01(ballPos.z + 0.5);
+            this.outs.radius.normalizedValue      = c01(r / Math.max(s * 2, 1e-6));
+            this.outs.radiusDelta.normalizedValue = c01(radiusDelta / 5.0);
+            this.outs.speed.normalizedValue       = c01(speedMag / 8.0);
+            this.outs.accel.normalizedValue       = c01(accMag / 50.0);
+            this.outs.curvature.normalizedValue   = c01(curvature / (Math.PI / 2));
             pulser.update([
-                this.outs.posX.value, this.outs.posY.value, this.outs.posZ.value, this.outs.radius.value,
-                this.outs.radiusDelta.value, this.outs.speed.value, this.outs.accel.value, this.outs.curvature.value,
+                this.outs.posX.normalizedValue, this.outs.posY.normalizedValue, this.outs.posZ.normalizedValue, this.outs.radius.normalizedValue,
+                this.outs.radiusDelta.normalizedValue, this.outs.speed.normalizedValue, this.outs.accel.normalizedValue, this.outs.curvature.normalizedValue,
             ], dt);
 
             // 4. Boids : l'essaim chasse la boule (no-op si désactivé) puis
             //    ses métriques agrégées partent en automation.
             this.swarm.update(gui.ballRoot.position, dt);
             const bm = this.swarm.computeMetrics();
-            this.boidOuts.boidCentroidX.value  = bm.centroidX;
-            this.boidOuts.boidCentroidY.value  = bm.centroidY;
-            this.boidOuts.boidCentroidZ.value  = bm.centroidZ;
-            this.boidOuts.boidDispersion.value = bm.dispersion;
-            this.boidOuts.boidAlignment.value  = bm.alignment;
-            this.boidOuts.boidVorticity.value  = bm.vorticity;
+            this.boidOuts.boidCentroidX.normalizedValue  = bm.centroidX;
+            this.boidOuts.boidCentroidY.normalizedValue  = bm.centroidY;
+            this.boidOuts.boidCentroidZ.normalizedValue  = bm.centroidZ;
+            this.boidOuts.boidDispersion.normalizedValue = bm.dispersion;
+            this.boidOuts.boidAlignment.normalizedValue  = bm.alignment;
+            this.boidOuts.boidVorticity.normalizedValue  = bm.vorticity;
 
             // 5. Feedback continu.
             //    PAS d'auto-rotation au repos : la forme reste stable pour que

@@ -292,7 +292,12 @@ class SequencerN3D implements Node3D{
                     id: `sequencer_note_${n}_${s}`,
                     meshes: [note_pad],
                     getLabel() { return `${gui.NOTE_NAME[sequencer.notes_midi[n]%12]} n°${s+1}` },
-                    getStepCount() { return 2 },
+
+                    getMin() { return 0 },
+                    getMax() { return 1 },
+                    getStepSize() { return 1 },
+                    getExponant() { return 1 },
+
                     getValue() { return step_note_states[n] ? 1 : 0 },
                     setValue(v){ sequencer.set_on(s, n, v<.5 ? false : true) },
                     stringify(v) { return v<.5 ? "Off" : "On" },
@@ -304,16 +309,19 @@ class SequencerN3D implements Node3D{
         // Create note sliders
         for(let n=0; n<gui.noteSliders.length; n++){
             const slider = gui.noteSliders[n]
-            let midi_to_v = (v: number) => v/128
-            let v_to_midi = (v: number) => Math.min(127, Math.max(0, Math.floor(v*128)))
             context.createParameter({
                 id: `sequencer_note_midi_${n}`,
                 meshes: [slider],
                 getLabel() { return `Note ${n+1}` },
-                getStepCount() { return 128 },
-                getValue() { return midi_to_v(sequencer.notes_midi[n]) },
-                setValue(v){ sequencer.set_midi(n, v_to_midi(v)) },
-                stringify(v) { return `${gui.NOTE_NAME[v_to_midi(v)%12]} ${Math.ceil(v_to_midi(v)/12)} (${v_to_midi(v)})` },
+
+                getMin() { return 0 },
+                getMax() { return 127 },
+                getStepSize() { return 1 },
+                getExponant() { return 1 },
+
+                getValue() { return sequencer.notes_midi[n] },
+                setValue(v){ sequencer.set_midi(n, v) },
+                stringify(v) { return `${gui.NOTE_NAME[v%12]} ${Math.ceil(v/12)} (${v})` },
             })
             sequencer.set_midi(n, sequencer.notes_midi[n])
         }
@@ -329,7 +337,6 @@ class SequencerN3D implements Node3D{
             ()=>sequencer.duration_multiplier,
             ()=>"Duration Multiplier",
             "x",
-            false
         ))
 
         const interval = setInterval(()=>{

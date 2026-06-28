@@ -189,48 +189,31 @@ export class ContextMenuSystem {
                 { text: "🎲100%", color: "#70e7ff", width: 1, onClick:  async()=>{
                     if(!target) return
                     for(const p of target.parameters.values()){
-                        const stepcount = p.config.getStepCount() || 1000
-                        let v = Math.random()
-                        v = v - v % (1/stepcount)
-                        if(v < 0) v = 0
-                        if(v > 1) v = 1
-                        p.setValue(v)
+                        p.setNormalizedValue(Math.random())
                     }
                 }},
                 { text: "🧬20%", color: "#70e7ff", onClick: async()=>{
                     if(!target) return
                     for(const p of target.parameters.values()){
-                        const stepcount = p.config.getStepCount() || 1000
-                        let step = Math.max(.2,2/stepcount)
-                        let v = p.getValue() + (Math.random()-0.5)*2*step
-                        v = v - v % (1/stepcount)
-                        if(v < 0) v = 0
-                        if(v > 1) v = 1
-                        p.setValue(v)
+                        const step = Math.max(p.getNormalizedValue()*2, .2)
+                        let v = p.getNormalizedValue() + (Math.random()-0.5)*2*step
+                        p.setNormalizedValue(v)
                     }
                 }},
                 { text: "🧬10%", color: "#70e7ff", onClick: async()=>{
                     if(!target) return
                     for(const p of target.parameters.values()){
-                        const stepcount = p.config.getStepCount() || 1000
-                        let step = Math.max(.1,2/stepcount)
-                        let v = p.getValue() + (Math.random()-0.5)*2*step
-                        v = v - v % (1/stepcount)
-                        if(v < 0) v = 0
-                        if(v > 1) v = 1
-                        p.setValue(v)
+                        const step = Math.max(p.getNormalizedValue()*2, .1)
+                        let v = p.getNormalizedValue() + (Math.random()-0.5)*2*step
+                        p.setNormalizedValue(v)
                     }
                 }},
                 { text: "🧬5%", color: "#70e7ff", onClick: async()=>{
                     if(!target) return
                     for(const p of target.parameters.values()){
-                        const stepcount = p.config.getStepCount() || 1000
-                        let step = Math.max(.05,2/stepcount)
-                        let v = p.getValue() + (Math.random()-0.5)*2*step
-                        v = v - v % (1/stepcount)
-                        if(v < 0) v = 0
-                        if(v > 1) v = 1
-                        p.setValue(v)
+                        const step = Math.max(p.getNormalizedValue()*2, .05)
+                        let v = p.getNormalizedValue() + (Math.random()-0.5)*2*step
+                        p.setNormalizedValue(v)
                     }
                 }},
             ]

@@ -8,6 +8,15 @@ import { Node3DInstance } from "./Node3DInstance"
 
 const highlightColor = Color3.Blue()
 
+export enum ParameterChangeMode{
+    /** The parameter value is changed by automation, such as a sequencer or an LFO. */
+    AUTOMATION,
+    /** The parameter value is changed by direct user interaction (by dragging the parameter), such as dragging the parameter. */
+    DIRECT_MANUAL,
+    /** The parameter value is changed by user interaction. */
+    MANUAL,
+}
+
 
 /**
  * A simple parameter whose value is changed by dragging it.
@@ -103,17 +112,20 @@ export class N3DParameterInstance {
             const relativeDirection = new Vector3()
             const temp = new Vector3()
 
+            const isButton = ()=>{
+                return stepSize>=(this.getMax()-this.getMin())
+            }
+
             const drag = new InputGrabBehavior(
                 input=>{
                     visual.offset(1)
                 
-                    const stepCount = config.getStepCount()
-                    if(stepCount<=1){
-                        stepSize = 0.001
-                        changeFactor = 0.2
+                    stepSize = config.getStepSize()
+                    if(stepSize<=0){
+                        stepSize = 0.001*(this.getMax()-this.getMin())
+                        changeFactor = 0.2*(this.getMax()-this.getMin())
                     }
                     else{
-                        stepSize = 1/(stepCount-1)
                         changeFactor = stepSize*4
                     }
                     startingValue = config.getValue() + stepSize/2
@@ -121,8 +133,8 @@ export class N3DParameterInstance {
                     changeFactor*=2
 
                     // If stepCount is 2, the value is directly changed
-                    if(stepSize==1){
-                        this.setValue(config.getValue()<.5 ? 1 : 0)
+                    if(isButton()){
+                        this.setValue(config.getValue()<(this.getMax()+this.getMin())/2 ? this.getMax() : this.getMin())
                         updateText()
                     }
                     
@@ -134,7 +146,7 @@ export class N3DParameterInstance {
                 },
                 input=>{
                     // If stepCount is 2, do nothing on drag
-                    if(stepSize==1)return
+                    if(isButton())return
 
                     // Get ray relative to the parameter
                     Vector3.TransformCoordinatesToRef(input.origin, reverseMatrix, relativePosition)
@@ -153,8 +165,8 @@ export class N3DParameterInstance {
 
                     let newvalue = (startingValue + offset * changeFactor)
                     newvalue = newvalue - newvalue % stepSize
-                    newvalue = Math.max(0, Math.min(1, newvalue))
-                    this.setValue(newvalue)
+                    newvalue = Math.max(this.getMin(), Math.min(this.getMax(), newvalue))
+                    this.setValue(newvalue, ParameterChangeMode.DIRECT_MANUAL)
                     draggable.rotationQuaternion = null
                     updateText()
                 },
@@ -177,32 +189,74 @@ export class N3DParameterInstance {
         }
     }
 
-    /**
-     * Set value and sync if needed.
-     * Don't works if the parameter is locked.
-     * @param value 
-     */
-    setValue(value: number){
-        if(this.isLocked) return
-        this.config.setValue(value)
-        this.onValueChanged.notifyObservers(value)
-        this.node3d.onParameterChanged.notifyObservers({ id: this.config.id, value })
-        if(!this.config.notSynced) this.node3d.set_state("node3d_parameter_"+this.config.id)
+    //// Real value ////
+    /** Set the value of the parameter. */
+    setValue(value: number, type: ParameterChangeMode = ParameterChangeMode.DIRECT_MANUAL){
+        // Filter
+        let v = value
+        if(v<this.config.getMin()) v = this.config.getMin()
+        if(v>this.config.getMax()) v = this.config.getMax()
+        if(this.config.getStepSize()>0) v = Math.round(v/this.config.getStepSize())*this.config.getStepSize()
+        
+        // Set the value
+        if(type==ParameterChangeMode.DIRECT_MANUAL || type==ParameterChangeMode.MANUAL){
+            if(this.isLocked && type==ParameterChangeMode.DIRECT_MANUAL) return
+            this.config.setValue(v)
+            this.onValueChanged.notifyObservers(v)
+            this.node3d.onParameterChanged.notifyObservers({ id: this.config.id, value: v })
+            if(!this.config.notSynced) this.node3d.set_state("node3d_parameter_"+this.config.id)
+        }
+        else if(type==ParameterChangeMode.AUTOMATION) this.config.setValue(value, true)
     }
 
-    /**
-     * Set value without syncing, used for automated changes (eg. when receiving state from other clients).
-     * @param value 
-     */
-    setValueAutomated(value: number){
-        this.config.setValue(value, true)
-    }
-
-    /**
-     * Get the current value of the parameter.
-     */
+    /** Get the current value of the parameter. */
     getValue(): number{
         return this.config.getValue()
+    }
+
+    /** Get the maximum value of the parameter. */
+    getMax(): number{
+        return this.config.getMax()
+    }
+
+    /** Get the minimum value of the parameter. */
+    getMin(): number{
+        return this.config.getMin()
+    }
+
+    /** Get the step size of the parameter. */
+    getStepSize(): number{
+        return this.config.getStepSize()
+    }
+
+    /** Get the exponent of the parameter. */
+    getExponant(): number{
+        return this.config.getExponant()
+    }
+
+    //// Normalized value ////
+    /** Set the normalized value of the parameter. */
+    setNormalizedValue(value: number, type: ParameterChangeMode = ParameterChangeMode.DIRECT_MANUAL){
+        let n = value
+        if(n<0) n = 0
+        if(n>1) n = 1
+        n = Math.pow(n, 1/this.getExponant())
+        const v = this.getMin() + n * (this.getMax() - this.getMin())
+        this.setValue(v,type)
+    }
+
+    /** Get the normalized value of the parameter. */
+    getNormalizedValue(): number{
+        const v = this.getValue()
+        const n = (v - this.getMin()) / (this.getMax() - this.getMin())
+        return Math.pow(n, this.getExponant())
+    }
+
+    /** Get the normalized step size of the parameter. */
+    getNormalizedStepSize(): number{
+        const stepSize = this.getStepSize()
+        if(stepSize<=0) return 0
+        return stepSize / (this.getMax() - this.getMin())
     }
 
     readonly dispose

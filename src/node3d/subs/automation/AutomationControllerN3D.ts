@@ -74,24 +74,31 @@ export class AutomationControllerN3D implements Node3D {
             "automation_controller_output",
             [gui.output],
             "Automation Output",
-            1
         )
         context.createConnectable(output)
 
         // Parameter
+        let _currentValue = 0.5
+        output.modify(c => c.setValue(output.denormalize(_currentValue, output.settingsOrDefault)))
         context.createParameter({
             id: "automation_parameter",
             meshes: [gui.rotator],
-            getLabel() { return output.name },
-            getStepCount() { return output.stepCount },
-            getValue() { return output.value },
+
+            getMin() { return output.settingsOrDefault.getMin() },
+            getMax() { return output.settingsOrDefault.getMax() },
+            getExponant() { return output.settingsOrDefault.getExponant() },
+
+            getLabel() { return output.settingsOrDefault.getLabel() },
+            getStepSize() { return output.settingsOrDefault.getStepSize() },
+            getValue() { return output.denormalize(_currentValue, output.settingsOrDefault) },
             setValue(value) {
-                output.value = value
+                _currentValue = output.normalize(value, output.settingsOrDefault)
+                output.modify(c => c.setValue(output.denormalize(_currentValue, output.settingsOrDefault)))
                 gui.rotator.rotation.y = value * Math.PI - Math.PI/2
             },
-            stringify(value) { return output.stringify(value) },
+            stringify(value) { return output.settingsOrDefault.stringify(value) },
         })
-        gui.rotator.rotation.y = 1 * Math.PI - Math.PI/2
+        gui.rotator.rotation.y = .5 * Math.PI - Math.PI/2
     }
 
     async setState(key: string, value: any) { }
