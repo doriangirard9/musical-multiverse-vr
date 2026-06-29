@@ -7,7 +7,8 @@ import {
     Quaternion, Color3,
     Vector2,
     Observer,
-    Observable
+    Observable,
+    Color4
 } from "@babylonjs/core";
 import { Node3DConnectable } from "../Node3DConnectable";
 import { Node3DParameter } from "../Node3DParameter";
@@ -23,7 +24,7 @@ import { Doc } from "yjs";
 import { Synchronized } from "../../network/sync/Synchronized";
 import { N3DHighlighter } from "./utils/N3DHighlighter";
 import { N3DShared } from "./N3DShared";
-import { AutomationN3DConnectable } from "../tools";
+import { AutomationN3DConnectable, MeshUtils } from "../tools";
 import { SceneManager } from "../../app/SceneManager.ts";
 import { InputManager } from "../../xr/inputs/InputManager.ts";
 import { BoxWave } from "../../world/BoxWave.ts";
@@ -33,6 +34,7 @@ import { ChoiceMenu } from "../../menus/ChoiceMenu.ts";
 import { ShakeBehavior } from "../../behaviours/ShakeBehavior.ts";
 import { N3DConnectionInstance } from "./N3DConnectionInstance.ts";
 import { N3DButtonInstance } from "./N3DButtonInstance.ts";
+import { AudioWorldSystem } from "../../app/AudioDestinationSystem.ts";
 
 export class Node3DInstance implements Synchronized {
 
@@ -53,6 +55,7 @@ export class Node3DInstance implements Synchronized {
     private declare root_transform: TransformNode
     private highlighter!: N3DHighlighter
     private observers = new Set<Observer<any>>()
+    private disposables = new Set<() => void>()
     public on_dispose = () => { }
 
     async instantiate() {
@@ -88,142 +91,180 @@ export class Node3DInstance implements Synchronized {
 
 
         // Node related things
-        this.node = await this.factory.create({
-            audioCtx: this.shared.audioContext,
-            audioEngine: this.shared.audioEngine,
-            groupId: this.shared.groupId,
-            tools,
-            inputs: InputManager.getInstance(),
+        // TODO: Better exception handling
+        try{
+            this.node = await this.factory.create({
+                audioCtx: this.shared.audioContext,
+                audioEngine: this.shared.audioEngine,
+                groupId: this.shared.groupId,
+                tools,
+                inputs: InputManager.getInstance(),
 
-            // The WAM's name
-            setLabel(label: string) {
-                root_transform.name = `${label} root`
-            },
+                // The WAM's name
+                setLabel(label: string) {
+                    root_transform.name = `${label} root`
+                },
 
-            // Draggable parameters
-            createParameter(info: Node3DParameter) {
-                const param = new N3DParameterInstance(instance, instance.root_transform, highlightLayer, utilityLayer, info)
-                instance.parameters.set(info.id, param)
-                let last_value = 0
-                const connectableinfo = new AutomationN3DConnectable.Input(
-                    `${info.id}_connectable`,
-                    info.meshes,
-                    "",
-                    {
-                        getName() { return info.getLabel() },
-                        getStepCount() { return info.getStepCount() },
-                        stringify(value) { return info.stringify(value) },
-                        setValue(value) { 
-                            param.setValueAutomated(value)
-                            last_value = value
-                         },
-                        lock(isLocked) {
-                            if(!isLocked) param.setValue(last_value)
-                            param.isLocked = isLocked
+                // Draggable parameters
+                createParameter(info: Node3DParameter) {
+                    const param = new N3DParameterInstance(instance, instance.root_transform, highlightLayer, utilityLayer, info)
+                    instance.parameters.set(info.id, param)
+                    let last_value = 0
+                    const connectableinfo = new AutomationN3DConnectable.Input(
+                        `${info.id}_connectable`,
+                        info.meshes,
+                        "",
+                        {
+                            getName() { return info.getLabel() },
+                            getStepCount() { return info.getStepCount() },
+                            stringify(value) { return info.stringify(value) },
+                            setValue(value) { 
+                                param.setValueAutomated(value)
+                                last_value = value
+                            },
+                            lock(isLocked) {
+                                if(!isLocked) param.setValue(last_value)
+                                param.isLocked = isLocked
+                            },
                         },
-                    },
-                )
-                const connectable = new N3DConnectableInstance(instance, connectableinfo, highlightLayer, utilityLayer, IOEventBus.getInstance(), true, false)
-                instance.connectables.set(connectableinfo.id, connectable)
-            },
-            removeParameter(id: Node3DParameter["id"]) {
-                instance.parameters.get(id)?.dispose()
-                instance.parameters.delete(id)
-                instance.connectables.get(`${id}_connectable`)?.dispose()
-            },
+                    )
+                    const connectable = new N3DConnectableInstance(instance, connectableinfo, highlightLayer, utilityLayer, IOEventBus.getInstance(), true, false)
+                    instance.connectables.set(connectableinfo.id, connectable)
+                },
+                removeParameter(id: Node3DParameter["id"]) {
+                    instance.parameters.get(id)?.dispose()
+                    instance.parameters.delete(id)
+                    instance.connectables.get(`${id}_connectable`)?.dispose()
+                },
 
-            // Les outputs et inputs que l'on peut connecter
-            createConnectable(info: Node3DConnectable) {
-                const connectable = new N3DConnectableInstance(instance, info, highlightLayer, utilityLayer, IOEventBus.getInstance())
-                instance.connectables.set(info.id, connectable)
-            },
-            removeConnectable(id: Node3DConnectable["id"]) {
-                instance.connectables.get(id)?.dispose()
-                instance.connectables.delete(id)
-            },
+                // Connectable outputs and inputs
+                createConnectable(info: Node3DConnectable) {
+                    const connectable = new N3DConnectableInstance(instance, info, highlightLayer, utilityLayer, IOEventBus.getInstance())
+                    instance.connectables.set(info.id, connectable)
+                },
+                removeConnectable(id: Node3DConnectable["id"]) {
+                    instance.connectables.get(id)?.dispose()
+                    instance.connectables.delete(id)
+                },
 
-            createButton(info) {
-                const button = new N3DButtonInstance(instance, instance.root_transform, highlightLayer, utilityLayer, info)
-                instance.buttons.set(info.id, button)
-            },
-            removeButton(id) {
-                instance.buttons.get(id)?.dispose()
-                instance.buttons.delete(id)
-            },
+                createButton(info) {
+                    const button = new N3DButtonInstance(instance, instance.root_transform, highlightLayer, utilityLayer, info)
+                    instance.buttons.set(info.id, button)
+                },
+                removeButton(id) {
+                    instance.buttons.get(id)?.dispose()
+                    instance.buttons.delete(id)
+                },
 
-            // Meshes wrapped by the bounding box (currently a box enclosing them)
-            addToBoundingBox(mesh: AbstractMesh) {
-                instance.boxes.push(mesh)
+                // Meshes that are part of the bounding box
+                // For now the bounding box is a box enclosing them
+                addToBoundingBox(mesh: AbstractMesh) {
+                    instance.boxes.push(mesh)
 
-                instance.updateBoundingBox()
-            },
-            removeFromBoundingBox(mesh: AbstractMesh) {
-                const idx = instance.boxes.indexOf(mesh)
-                if (idx >= 0) instance.boxes.splice(idx, 1)
-                instance.updateBoundingBox()
-            },
+                    instance.updateBoundingBox()
+                },
+                removeFromBoundingBox(mesh: AbstractMesh) {
+                    const idx = instance.boxes.indexOf(mesh)
+                    if (idx >= 0) instance.boxes.splice(idx, 1)
+                    instance.updateBoundingBox()
+                },
 
-            // Afficher un menu ou un message
-            openMenu(choices: { label: string; color?: string, click?: () => void; }[]) {
-                if(lastMenu && lastMenu instanceof ChoiceMenu && lastMenu===menus.current_menu){
-                    lastMenu.set(choices)
-                }
-                else{
-                    const new_menu = new ChoiceMenu(scene, utilityLayer.utilityLayerScene, choices)
-                    lastMenu = new_menu
-                    lastMenu.onHide.addOnce(() => lastMenu = null)
-                    menus.open(new_menu, true)
-                }
-            },
-            closeMenu() {
-                if(menus.current_menu==lastMenu) menus.close()
-            },
-            showMessage(message: string) {
-                menus.showMessage(message)
-            },
-            sendSignal(position, red, green, blue) {
-                SceneManager.getInstance().getWaveGround().putWorldSpace(position, red, green, blue)
-                SceneManager.getInstance().getSoundwaveEmitter().spawn(new Vector2(position.x, position.z), new Color3(red, green, blue))
-                new BoxWave(
-                    instance.boundingBoxMesh,
-                    new Color3(red, green, blue).toColor4(1),
-                    1
-                )
-            },
+                // Show a menu or a message
+                openMenu(choices: { label: string; color?: string, click?: () => void; }[]) {
+                    if(lastMenu && lastMenu instanceof ChoiceMenu && lastMenu===menus.current_menu){
+                        lastMenu.set(choices)
+                    }
+                    else{
+                        const new_menu = new ChoiceMenu(scene, utilityLayer.utilityLayerScene, choices)
+                        lastMenu = new_menu
+                        lastMenu.onHide.addOnce(() => lastMenu = null)
+                        menus.open(new_menu, true)
+                    }
+                },
+                closeMenu() {
+                    if(menus.current_menu==lastMenu) menus.close()
+                },
+                showMessage(message: string) {
+                    menus.showMessage(message)
+                },
+                sendSignal(position, red, green, blue) {
+                    SceneManager.getInstance().getWaveGround().putWorldSpace(position, red, green, blue)
+                    SceneManager.getInstance().getSoundwaveEmitter().spawn(new Vector2(position.x, position.z), new Color3(red, green, blue))
+                    new BoxWave(
+                        instance.boundingBoxMesh,
+                        new Color3(red, green, blue).toColor4(1),
+                        1
+                    )
+                },
 
-            getPlayerPosition() {
-                const xrManager = XRManager.getInstance();
-                if (xrManager.xrHelper && xrManager.xrHelper.baseExperience) {
-                    const vrCamera = xrManager.xrHelper.baseExperience.camera;
-                    return { position: vrCamera.globalPosition.clone(), rotation: vrCamera.absoluteRotation.clone() }
-                }
-                else return { position: Vector3.Zero(), rotation: Quaternion.Identity() }
-            },
+                getPlayerPosition() {
+                    const xrManager = XRManager.getInstance();
+                    if (xrManager.xrHelper && xrManager.xrHelper.baseExperience) {
+                        const vrCamera = xrManager.xrHelper.baseExperience.camera;
+                        return { position: vrCamera.globalPosition.clone(), rotation: vrCamera.absoluteRotation.clone() }
+                    }
+                    else return { position: Vector3.Zero(), rotation: Quaternion.Identity() }
+                },
 
-            getPosition() {
-                return { position: instance.root_transform.absolutePosition.clone(), rotation: instance.root_transform.absoluteRotationQuaternion.clone() }
-            },
+                getPosition() {
+                    return { position: instance.root_transform.absolutePosition.clone(), rotation: instance.root_transform.absoluteRotationQuaternion.clone() }
+                },
 
-            delete() {
-                instance.dispose()
-            },
+                delete() {
+                    instance.dispose()
+                },
 
-            notifyStateChange(key: string) {
-                instance.set_state(key)
-            },
+                notifyStateChange(key: string) {
+                    instance.set_state(key)
+                },
 
-            observe(observable, observer) {
-                const o = observable.add(observer)
-                instance.observers.add(o)
-                return o 
-            },
+                observe(observable, observer) {
+                    const o = observable.add(observer)
+                    instance.observers.add(o)
+                    return o 
+                },
 
-        }, this.gui)
+                createOutputNode(position, forward) {
+                    const output = AudioWorldSystem.getInstance().createSoundOutput(position, forward)
+
+                    const dispose = ()=>{
+                        output.dispose()
+                        instance.disposables.delete(dispose)
+                    }
+                    instance.disposables.add(dispose)
+                    
+                    return {
+                        pannerNode: output.pannerNode,
+                        dispose: dispose
+                    }
+                },
+
+                addFilter(input, output, order) {
+                    const disposeFilter = AudioWorldSystem.getInstance().addFilter(input, output, order)
+                    
+                    const dispose = ()=>{
+                        disposeFilter()
+                        instance.disposables.delete(dispose)
+                    }
+
+                    instance.disposables.add(dispose)
+                    
+                    return dispose
+                },
+
+            }, this.gui)
+        }catch(e){
+            this.gui.dispose()
+            gui_root_transform.dispose()
+            root_transform.dispose()
+            throw e
+        }
     }
 
     //// BOUNDING BOX ////
     private boxes = [] as AbstractMesh[]
     private bounding_mesh = null as null | Mesh
+    private red_bounding_mesh = null as null | Mesh
     private bounding_box = null as null | BoundingBox
     private doUpdateBoundingBox = false
     private shake: ShakeBehavior|null = null
@@ -236,6 +277,7 @@ export class Node3DInstance implements Synchronized {
         if (this.bounding_mesh) this.shared.shadowGenerator.removeShadowCaster(this.bounding_mesh)
         this.bounding_box?.dispose()
         this.bounding_mesh?.dispose()
+        this.red_bounding_mesh?.dispose()
 
 
         // Update bounds shape
@@ -253,7 +295,7 @@ export class Node3DInstance implements Synchronized {
         this.bounding_mesh.position.subtractInPlace(bounds.min).subtractInPlace(size)
         //this.bounding_mesh.isVisible = false
         this.bounding_mesh.visibility = 0
-        this.bounding_mesh.receiveShadows
+        this.bounding_mesh.receiveShadows = false
         this.bounding_mesh.checkCollisions = false
         this.bounding_mesh.isPickable = false
 
@@ -261,24 +303,30 @@ export class Node3DInstance implements Synchronized {
 
         this.bounding_box = new BoundingBox(this.bounding_mesh)
 
-        // Shake-to-delete via the shared ShakeBehavior (same gesture for nodes
-        // and cables; tune it there if the shake feels wrong).
-        const bbox = this.boundingBoxMesh
+        // Shake to delete
+        // Shake-to-delete via the shared ShakeBehavior (same gesture for nodes and cables).
+        const bbox = this.bounding_box.boundingBox
+
+        const red_box = this.red_bounding_mesh = bbox.clone("red_box", bbox, true)
+        red_box.makeGeometryUnique()
+        MeshUtils.setColor(red_box, new Color4(1, 0, 0,1))
+        red_box.resetLocalMatrix()
+        red_box.isPickable = false
+        red_box.checkCollisions = false
+        red_box.visibility = 0
+
         this.shake = new ShakeBehavior()
         this.shake.shake_threshold = 5
         bbox.addBehavior(this.shake)
-        this.shake.on_shake = (power, counter) => {
-            bbox.visibility = Math.max(0, 1 - power / 12)
+        this.shake.on_shake = (_, counter) => {
+            red_box.visibility = Math.min(1, counter / 12)
             if(counter>10) this.dispose()
         }
         this.shake.on_stop = (_, __) => {
-            bbox.visibility = .8
-        }
-        this.shake.on_pick = () => {
-            bbox.visibility = .8
+            red_box.visibility = 0
         }
         this.shake.on_drop = () => {
-            bbox.visibility = 1
+            red_box.visibility = 0
         }
 
 
@@ -376,6 +424,8 @@ export class Node3DInstance implements Synchronized {
         this.connectables.forEach(it => it.dispose())
         this.observers.forEach(observable => observable.remove())
         this.observers.clear()
+        this.disposables.forEach(dispose => dispose())
+        this.disposables.clear()
         await this.node.dispose()
         await this.gui.dispose()
     }

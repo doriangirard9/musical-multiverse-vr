@@ -1,5 +1,4 @@
 import { Color3 } from "@babylonjs/core";
-import { ChoiceMenu } from "../menus/ChoiceMenu";
 import { Node3DInstance } from "../node3d/instance/Node3DInstance";
 import { BoxHighlight } from "../world/BoxHighlight";
 import { InputManager } from "../xr/inputs/InputManager";
@@ -11,6 +10,7 @@ import { WamTransportManager } from "./WamTransportManager";
 import { Serialization } from "./Serialization";
 import { N3DLabel } from "../node3d/instance/utils/N3DLabel";
 import { N3DConnectionInstance } from "../node3d/instance/N3DConnectionInstance";
+import { BlocksMenu, BMenuBlock } from "../menus/BlocksMenu";
 
 
 /**
@@ -64,7 +64,7 @@ export class ContextMenuSystem {
     private nodeTarget: Node3DInstance|null = null
     private connectionTarget: N3DConnectionInstance|null = null
     private highlight!: BoxHighlight
-    private menu: ChoiceMenu|null = null
+    private menu: BlocksMenu|null = null
 
     closeMenu(){
         if(this.nodeTarget){
@@ -92,46 +92,53 @@ export class ContextMenuSystem {
 
         // Menu
         const utility = this.scene.getUtilityLayer()
-        this.menu = new ChoiceMenu(utility.originalScene, utility.utilityLayerScene, [])
+        this.menu = new BlocksMenu(utility.originalScene, utility.utilityLayerScene)
 
         function openRemoveConnections(){
             const conns = target.connections
-            const choices: { label: string; color?: string; click?: () => void }[] = [
-                { label: "Pick a connection to delete:", color: "#ffffff" },
-            ]
+            
+            // Connections
+            const items: BMenuBlock[] = []
             for (const c of conns) {
-                const label = N3DLabel.connection(c, target)
-                choices.push({ label, color: "#ffcc55", click: () => {
+                const text = N3DLabel.connection(c, target)
+                items.push({ text, color: "#ffcc55", width:6, onClick: () => {
                     c.remove()
                     that.closeMenu()
-                } })
+                }})
             }
-            choices.push({ label: "← Back", color: "#aaaaaa", click: () => openMenu() })
-            that.menu!.set(choices)
+
+            that.menu!.set({
+                width: 6,
+                items: [
+                    { text: "Pick a connection to delete:", width:6 },
+                    { sub: { width: 6, items }, width:6, height:6 },
+                    { text: "← Back", color: "#aaaaaa", onClick: () => openMenu(), width:6  }
+                ]
+            })
         }
 
         function openMenu(){
-            that.menu!.set([
-                { label: N3DLabel.node(target), color: "#ffffff"},
-
-                { label: "🗑● Delete", color: "#ff6666", click: async()=>{
+            // Node Deletion Menu
+            let deleteMenu: BMenuBlock[] = [
+                { text: "🗑 Delete the node", color: "#ff6666", width: 6, onClick: async()=>{
                     target.dispose()
                     that.closeMenu()
                 }},
 
-                { label: "🗑↔ Delete a connection", color: "#ff6666", click: async()=>{
-                    openRemoveConnections()
+                { text: "↔ Delete a connection", color: "#ff6666", width: 6, onClick: async()=>{
+                        openRemoveConnections()
                 }},
 
-                { label: "🗑↔ Delete ALL connections", color: "#ff6666", click: async()=>{
-                    const conns = target.connections
-                    for (const c of conns) c.remove()
-                    that.closeMenu()
+                { text: "↔ Delete ALL connections", color: "#ff6666", width: 6, onClick: async()=>{
+                        const conns = target.connections
+                        for (const c of conns) c.remove()
+                        that.closeMenu()
                 }},
+            ]
 
-                { label: "---"},
-
-                { label: "📄 Clone", color: "#ffffaa", click: async()=>{
+            // Copy Menu
+            let copyMenu: BMenuBlock[] = [
+                { text: "📄 Clone", color: "#ffffaa", width: 6, onClick: async()=>{
                     if(!target) return
                     const serialized = Serialization.getInstance().save([target], false)
                     const clone = await Serialization.getInstance().load(serialized)
@@ -140,14 +147,113 @@ export class ContextMenuSystem {
                         node.updatePosition()
                     }
                 }},
-                
-                { label: "📋 Copy Structure", color: "#ffffaa", click: async()=>{
+
+                { text: "📋 Copy Node", color: "#ffffaa", width: 6, onClick: async()=>{
+                    if(!target) return
+                    const serialized = Serialization.getInstance().save([target], false)
+                    const head = that.inputs.head.matrix.asArray()
+                    await navigator.clipboard.writeText(JSON.stringify({serialized,head}))
+                }},
+
+                { text: "📋 Copy Structure", color: "#ffffaa", width: 6, onClick: async()=>{
                     if(!target) return
                     const serialized = Serialization.getInstance().save([target], true)
                     const head = that.inputs.head.matrix.asArray()
                     await navigator.clipboard.writeText(JSON.stringify({serialized,head}))
                 }},
-            ])
+            ]
+
+            // Parameters Menu
+            let parametersMenu: BMenuBlock[] = [                
+                { text: "📄 Copy Parameters", color: "#70e7ff", width: 6, onClick: async()=>{
+                    if(!target) return
+                    const parameters = [...target.parameters.entries()]
+                        .map(([k,p])=>[k, p.getValue()])
+                    await navigator.clipboard.writeText(JSON.stringify(Object.fromEntries(parameters)))
+                }},
+
+                { text: "📋 Paste Parameters", color: "#70e7ff", width: 6, onClick: async()=>{
+                    if(!target) return
+                    const text = await navigator.clipboard.readText()
+                    try{
+                        const json = JSON.parse(text)
+                        for(const [k,v] of Object.entries(json))
+                            if(target.parameters.has(k))
+                                if(typeof v == "number")
+                                    target.parameters.get(k)?.setValue(v)
+                    }catch(e){}
+                }},
+
+                { text: "Randomize", color: "#70e7ff", width: 6 },
+                {},
+                { text: "🎲100%", color: "#70e7ff", width: 1, onClick:  async()=>{
+                    if(!target) return
+                    for(const p of target.parameters.values()){
+                        const stepcount = p.config.getStepCount() || 1000
+                        let v = Math.random()
+                        v = v - v % (1/stepcount)
+                        if(v < 0) v = 0
+                        if(v > 1) v = 1
+                        p.setValue(v)
+                    }
+                }},
+                { text: "🧬20%", color: "#70e7ff", onClick: async()=>{
+                    if(!target) return
+                    for(const p of target.parameters.values()){
+                        const stepcount = p.config.getStepCount() || 1000
+                        let step = Math.max(.2,2/stepcount)
+                        let v = p.getValue() + (Math.random()-0.5)*2*step
+                        v = v - v % (1/stepcount)
+                        if(v < 0) v = 0
+                        if(v > 1) v = 1
+                        p.setValue(v)
+                    }
+                }},
+                { text: "🧬10%", color: "#70e7ff", onClick: async()=>{
+                    if(!target) return
+                    for(const p of target.parameters.values()){
+                        const stepcount = p.config.getStepCount() || 1000
+                        let step = Math.max(.1,2/stepcount)
+                        let v = p.getValue() + (Math.random()-0.5)*2*step
+                        v = v - v % (1/stepcount)
+                        if(v < 0) v = 0
+                        if(v > 1) v = 1
+                        p.setValue(v)
+                    }
+                }},
+                { text: "🧬5%", color: "#70e7ff", onClick: async()=>{
+                    if(!target) return
+                    for(const p of target.parameters.values()){
+                        const stepcount = p.config.getStepCount() || 1000
+                        let step = Math.max(.05,2/stepcount)
+                        let v = p.getValue() + (Math.random()-0.5)*2*step
+                        v = v - v % (1/stepcount)
+                        if(v < 0) v = 0
+                        if(v > 1) v = 1
+                        p.setValue(v)
+                    }
+                }},
+            ]
+
+            that.menu!.set({
+                width: 6,
+                items: [
+                    { text: N3DLabel.node(target), color: "#ffffff", width: 5 },
+                    { text: "X", color: "#ff6666", width: 1, onClick: async()=> that.closeMenu()},
+                    {
+                        height: 9,
+                        width: 6,
+                        sub:{
+                            width: 6,
+                            items:[
+                                ...deleteMenu,
+                                ...copyMenu,
+                                ...parametersMenu
+                            ]
+                        }
+                    }
+                ]
+            })
         }    
 
         openMenu()
@@ -170,7 +276,7 @@ export class ContextMenuSystem {
 
         // Menu
         const utility = this.scene.getUtilityLayer()
-        this.menu = new ChoiceMenu(utility.originalScene, utility.utilityLayerScene, [])
+        this.menu = new BlocksMenu(utility.originalScene, utility.utilityLayerScene)
 
 
         function openMenu(){
@@ -178,23 +284,26 @@ export class ContextMenuSystem {
             if(target.inputConnectable?.instance) nodes.push(target.inputConnectable.instance)
             if(target.outputConnectable?.instance) nodes.push(target.outputConnectable.instance)
 
-            that.menu!.set([
-                { label: N3DLabel.connection(target), color: "#ffffff"},
+            that.menu!.set({
+                width: 6,
+                items: [
+                    { text: N3DLabel.connection(target), width:6},
 
-                { label: "🗑↔ Delete", color: "#ff6666", click: async()=>{
-                    target.dispose()
-                    that.closeMenu()
-                }},
+                    { text: "🗑↔ Delete", color: "#ff6666", width:6, onClick: async()=>{
+                        target.dispose()
+                        that.closeMenu()
+                    }},
 
-                { label: "---"},
-                
-                { label: "📋 Copy Structure", color: "#ffffaa", click: async()=>{
-                    if(nodes.length==0) return
-                    const serialized = Serialization.getInstance().save(nodes, true)
-                    const head = that.inputs.head.matrix.asArray()
-                    await navigator.clipboard.writeText(JSON.stringify({serialized,head}))
-                }},
-            ])
+                    { text: "---"},
+                    
+                    { text: "📋 Copy Structure", color: "#ffffaa", width:6, onClick: async()=>{
+                        if(nodes.length==0) return
+                        const serialized = Serialization.getInstance().save(nodes, true)
+                        const head = that.inputs.head.matrix.asArray()
+                        await navigator.clipboard.writeText(JSON.stringify({serialized,head}))
+                    }},
+                ]
+            })
         }    
 
         openMenu()

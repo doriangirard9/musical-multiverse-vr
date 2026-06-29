@@ -1,4 +1,4 @@
-import type { AbstractMesh, Color4, Observer, Quaternion, TransformNode, Vector3 } from "@babylonjs/core";
+import type { AbstractMesh, Color4, Observer, TransformNode, Vector3 } from "@babylonjs/core";
 import type { Node3D, Node3DFactory, Node3DGUI } from "../../Node3D";
 import type { Node3DContext } from "../../Node3DContext";
 import type { Node3DGUIContext } from "../../Node3DGUIContext";
@@ -89,7 +89,8 @@ export class PositionCubeN3DGUI implements Node3DGUI {
         this.outputs = [
             createOutput("position_output_x", new B.Vector3(.55, -.5, -0.25), new B.Color4(0.6, 0, 0, 1)), // X
             createOutput("position_output_y", new B.Vector3(.55, -.5, 0), new B.Color4(0, 0.6, 0, 1)), // Y
-            createOutput("position_output_z", new B.Vector3(.55, -.5, 0.25), new B.Color4(0, 0, 0.6, 1))  // Z
+            createOutput("position_output_z", new B.Vector3(.55, -.5, 0.25), new B.Color4(0, 0, 0.6, 1)),  // Z
+            createOutput("position_output_press", new B.Vector3(.55, -.5, 0.5), new B.Color4(0.6, 0.6, 0.6, 1)),  // Pressing
         ]
 
         this.set(.5,.5,.5)
@@ -164,10 +165,10 @@ export class PositionCubeN3D implements Node3D {
         context.addToBoundingBox(gui.base)
 
         // Créer les sorties d'automation
-        const outputNames = ["X Position", "Y Position", "Z Position"]
+        const outputNames = ["X Position", "Y Position", "Z Position", "Pressure"]
         this.outputs = gui.outputs.map((mesh, i) => {
             const output = new T.AutomationN3DConnectable.Output(
-                `position_${['x', 'y', 'z'][i]}`,
+                `position_${['x', 'y', 'z', 'pressure'][i]}`,
                 [mesh],
                 outputNames[i],
                 0.5
@@ -180,7 +181,7 @@ export class PositionCubeN3D implements Node3D {
         // Détection de position (trigger requis)
         let firstController: ControllerInput | null = null
         let lastObserver: Observer<any> | null = null
-        const press = new T.InputPressBehavior(
+        const press = new T.InputMultiPressBehavior(
             controller=>{
                 if(firstController==null){
                     firstController = controller
@@ -193,6 +194,7 @@ export class PositionCubeN3D implements Node3D {
                             this.outputs[2].value = position.z
                         }
                     })
+                    this.outputs[3].value = 1
                 }
             },
             controller=>{
@@ -200,6 +202,7 @@ export class PositionCubeN3D implements Node3D {
                     lastObserver?.remove()
                     lastObserver = null
                     firstController = null
+                    this.outputs[3].value = 0
                 }
             }
         )

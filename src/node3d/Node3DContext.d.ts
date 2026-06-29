@@ -191,5 +191,23 @@ export interface Node3DContext{
      */
     observe<T>(observable: BABYLON.Observable<T>, observer: (eventData: T, eventState: BABYLON.EventState) => void): BABYLON.Observer<T>
     
+    //// Gestion de l'environnement sonore ////
 
+    /**
+     * Crée un noeud de sortie audio qui peut être utilisé pour envoyer du son dans l'espace 3D.
+     * Le noeud de sortie audio sera positionné à la position spécifiée et orienté dans la direction avant spécifiée.
+     * @param position La position du noeud de sortie audio dans l'espace 3D. Il s'agit d'une fonction qui retourne un Vector3 représentant la position. 
+     * @param forward La direction avant du noeud de sortie audio dans l'espace 3D. Il s'agit d'une fonction qui retourne un Vector3 représentant la direction avant. 
+     */
+    createOutputNode(position:()=>BABYLON.Vector3, forward:()=>BABYLON.Vector3): {pannerNode:PannerNode, dispose():void}
+
+    /**
+     * Ajoute un filtre audio dans l'environnement sonore.
+     * Le filtre est appliqué à la totalité de la scène 3D et n'est pas localisé.
+     * @param input Le noeud d'entrée du filtre.
+     * @param output Le noeud de sortie du filtre.
+     * @param order L'ordre du filtre. Les filtres sont appliqués dans l'ordre croissant.
+     * @returns Une fonction qui permet de retirer le filtre ajouté.
+     */
+    addFilter(input: AudioNode, output: AudioNode, order: number): ()=>void
 }

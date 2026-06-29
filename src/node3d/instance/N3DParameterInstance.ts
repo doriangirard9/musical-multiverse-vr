@@ -1,4 +1,4 @@
-import { ActionManager, Color3, HighlightLayer, Matrix, Observable, TransformNode, UtilityLayerRenderer, Vector3 } from "@babylonjs/core"
+import { Color3, HighlightLayer, Matrix, Observable, TransformNode, UtilityLayerRenderer, Vector3 } from "@babylonjs/core"
 import { NodeCompUtils } from "../tools/utils/NodeCompUtils"
 import { Node3DParameter } from "../Node3DParameter"
 import { N3DText } from "./utils/N3DText"
@@ -74,9 +74,7 @@ export class N3DParameterInstance {
 
         const disposables: (()=>void)[] = []
 
-        for(const draggable of config.meshes){
-            const action = draggable.actionManager ??= new ActionManager(root.getScene())
-        
+        for(const draggable of config.meshes){        
             const hover = new InputHoverBehavior(()=>{
                 updateText()
                 visual.offset(1)
@@ -185,6 +183,13 @@ export class N3DParameterInstance {
      */
     setValueAutomated(value: number){
         this.config.setValue(value, true)
+    }
+
+    /**
+     * Get the current value of the parameter.
+     */
+    getValue(): number{
+        return this.config.getValue()
     }
 
     readonly dispose

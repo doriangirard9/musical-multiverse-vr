@@ -25,6 +25,7 @@ import { MenuSystem } from "./MenuSystem.ts";
 import { ContextMenuSystem } from "./ContextMenuSystem.ts";
 import { HapticContactSystem } from "./HapticContactSystem.ts";
 import { TUTORIAL_KINDS } from "../tutorial/TutorialScenario.ts";
+import { AudioWorldSystem } from "./AudioDestinationSystem.ts";
 
 let _app: App
 
@@ -160,9 +161,10 @@ export class App {
             InputManager.getInstance(),
         )
 
-        XRManager.getInstance().xrHelper.baseExperience.sessionManager.session
-
-        
+        await AudioWorldSystem.initialize(
+            audioContext,
+            InputManager.getInstance(),
+        )
 
         // Get things
         const scene = SceneManager.getInstance().getScene()

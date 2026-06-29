@@ -14,14 +14,14 @@ import { MenuSystem } from "../../app"
  * Handles the visual and logic of connections.
  */
 export class N3DConnectionInstance{
+
     private static readonly DEBUG_LOG = false;
-    private static readonly CENTER_NODE_SIZE_FACTOR = 0.72;
-    private static readonly CENTER_NODE_SCALE_RESPONSE = 0.5;
+    private static readonly CENTER_NODE_SIZE_FACTOR = 3;
 
     private _tube
+    private _center: AbstractMesh
     private shake
     private arrow?: AbstractMesh
-    private centerNode?: AbstractMesh
     public on_dispose = ()=>{}
 
     constructor(
@@ -35,6 +35,11 @@ export class N3DConnectionInstance{
             diameter: .25*Node3DInstance.CONNECTION_SIZE_MULTIPLIER,
             tessellation: 6
         },this.scene)
+
+        this._center = CreateSphere("connection center node", {
+            diameter: .25*Node3DInstance.CONNECTION_SIZE_MULTIPLIER*N3DConnectionInstance.CENTER_NODE_SIZE_FACTOR,
+            segments: 10,
+        }, this.scene)
 
         SceneManager.getInstance().getShadowGenerator().addShadowCaster(this._tube, false)
 
@@ -81,8 +86,8 @@ export class N3DConnectionInstance{
     public contains(mesh: AbstractMesh): boolean {
         return mesh === this._tube
             || mesh.isDescendantOf(this._tube)
-            || mesh === this.centerNode
-            || (!!this.centerNode && mesh.isDescendantOf(this.centerNode))
+            || mesh === this._center
+            || mesh.isDescendantOf(this._center)
     }
 
 
@@ -95,32 +100,6 @@ export class N3DConnectionInstance{
     private buildTimeout?: any
 
     private connectionObject: any = null
-    private centerNodeBaseDiameter = Node3DInstance.CONNECTION_SIZE_MULTIPLIER
-    private inputBaseScale = 1
-    private outputBaseScale = 1
-
-    private getMeshDiameter(mesh: AbstractMesh): number {
-        mesh.computeWorldMatrix(true)
-        const bounds = mesh.getBoundingInfo().boundingBox.extendSizeWorld
-        return Math.max(bounds.x, bounds.y, bounds.z) * 2
-    }
-
-    private getConnectableDiameter(connectable: N3DConnectableInstance): number {
-        const diameters = connectable.config.meshes
-            .map(mesh => this.getMeshDiameter(mesh))
-            .filter(diameter => Number.isFinite(diameter) && diameter > 0)
-
-        if (diameters.length === 0) {
-            return Node3DInstance.CONNECTION_SIZE_MULTIPLIER
-        }
-
-        return Math.max(...diameters)
-    }
-
-    private getNodeScale(connectable: N3DConnectableInstance): number {
-        const scaling = connectable.instance.boundingBoxMesh.scaling
-        return Math.max(scaling.x, scaling.y, scaling.z, 0.0001)
-    }
 
     /**
      * Connect the node to two connectables. No synchronization.
@@ -207,21 +186,10 @@ export class N3DConnectionInstance{
             MeshUtils.setColor(this.arrow, this.color)
         }
 
-        this.inputBaseScale = this.getNodeScale(input)
-        this.outputBaseScale = this.getNodeScale(output)
-        this.centerNodeBaseDiameter = (
-            this.getConnectableDiameter(input) +
-            this.getConnectableDiameter(output)
-        ) / 2 * N3DConnectionInstance.CENTER_NODE_SIZE_FACTOR
-
-        this.centerNode = CreateSphere("connection center node", {
-            diameter: 1,
-            segments: 10,
-        }, this.scene)
-        SceneManager.getInstance().getShadowGenerator().addShadowCaster(this.centerNode, false)
+        SceneManager.getInstance().getShadowGenerator().addShadowCaster(this._center, false)
 
         MeshUtils.setColor(this._tube, this.color)
-        MeshUtils.setColor(this.centerNode, this.color)
+        MeshUtils.setColor(this._center, this.color)
 
         const connection = this
         function movetube(){
@@ -235,14 +203,6 @@ export class N3DConnectionInstance{
                 const pointA = outputMesh.absolutePosition
                 const pointB = connection._tube ? offset.scale(tubeLength).addInPlace(pointA) : inputMesh.absolutePosition
                 const pointC = inputMesh.absolutePosition
-                const inputScaleFactor = connection.getNodeScale(input) / connection.inputBaseScale
-                const outputScaleFactor = connection.getNodeScale(output) / connection.outputBaseScale
-                const averageScaleDelta = (
-                    (inputScaleFactor - 1) +
-                    (outputScaleFactor - 1)
-                ) / 2
-                const centerScaleFactor = 1 + averageScaleDelta * N3DConnectionInstance.CENTER_NODE_SCALE_RESPONSE
-                const centerDiameter = connection.centerNodeBaseDiameter * centerScaleFactor
 
                 const orientation = Quaternion.FromUnitVectorsToRef(Vector3.Up(), offset.normalizeToNew(), new Quaternion())
                 
@@ -251,8 +211,7 @@ export class N3DConnectionInstance{
                 connection._tube.setAbsolutePosition(tubeCenter)
                 connection._tube.rotationQuaternion = orientation
                 connection._tube.scaling.set(1,tubeLength,1)
-                connection.centerNode?.setAbsolutePosition(pointA.add(pointC).scaleInPlace(.5))
-                connection.centerNode?.scaling.setAll(centerDiameter)
+                connection._center.setAbsolutePosition(pointA.add(pointC).scaleInPlace(.5))
 
                 // Move the arrow
                 if(connection.arrow){
@@ -286,8 +245,7 @@ export class N3DConnectionInstance{
             this.observables.forEach(it=>it.remove())
             this.arrow?.dispose()
             this.arrow = undefined
-            this.centerNode?.dispose()
-            this.centerNode = undefined
+            this._center.dispose()
         }
     }
 
@@ -299,11 +257,11 @@ export class N3DConnectionInstance{
 
         const color = Color3.FromHSV(tone*360, 1-strength, 1).toColor4(1).multiplyInPlace(this.color)
         MeshUtils.setColor(this._tube, color)
-        if(this.centerNode) MeshUtils.setColor(this.centerNode, color)
+        if(this._center) MeshUtils.setColor(this._center, color)
 
         this.pulseTimeout = setTimeout(()=>{
             MeshUtils.setColor(this._tube, this.color)
-            if(this.centerNode) MeshUtils.setColor(this.centerNode, this.color)
+            if(this._center) MeshUtils.setColor(this._center, this.color)
         }, 100)
     }
 

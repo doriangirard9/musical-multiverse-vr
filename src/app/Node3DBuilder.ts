@@ -191,6 +191,30 @@ export class Node3DBuilder {
         return null
     }
 
+    private presets = new Map<string, Promise<Record<string,Record<string,number>>>>()
+
+    /**
+     * Get a preset map for a given kind of Node3D. The preset is fetched and cached on the first call.
+     * @param kind The kind of Node3D
+     * @returns The preset map or null if the preset could not be fetched
+     */
+    public getPresets(kind: string): Promise<Record<string,Record<string,number>>>{
+        if (!kind || kind.trim() === "" || kind.length > 20_000) return Promise.resolve({})
+        if(!this.presets.has(kind)){
+            return (async()=>{
+                try{
+                    const content = await fetch(`${SERVER_NAME}/api/presets/${kind}`)
+                    const json = await content.json()
+                    return json
+                }catch(_){
+                    this.presets.delete(kind)
+                    return {}
+                }
+            })()
+        }
+        else return this.presets.get(kind)!
+    }
+
     private factories = new Map<string, Promise<Node3DFactory<Node3DGUI, Node3D> | null>>()
 
     /**
@@ -199,8 +223,8 @@ export class Node3DBuilder {
      * @returns
      */
     public getFactory(kind: string): Promise<Node3DFactory<Node3DGUI, Node3D> | null> {
-        if (!kind || kind.trim() === "" || kind.length > 20_000) return Promise.resolve(null);
-        console.log(`Getting factory for kind: ${kind}`)
+        if (!kind || kind.trim() === "" || kind.length > 20_000) return Promise.resolve(null)
+
         if (!this.factories.has(kind)) {
             const promise = (async () => {
                 const factory = await this.createFactories(kind)

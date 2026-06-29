@@ -58,8 +58,9 @@ class Wam3DGeneratorN3D implements Node3D {
             babylonjs: {
                 root: gui.root,
                 defineField(settings) {
+                    count++
                     context.createParameter({
-                        id: settings.getName(),
+                        id: `param${count}`,
                         meshes: settings.target,
                         getLabel() { return settings.getName() },
                         getStepCount() { return settings.getStepCount() },

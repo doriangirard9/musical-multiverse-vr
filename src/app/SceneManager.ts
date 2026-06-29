@@ -92,6 +92,8 @@ export class SceneManager {
     }
 
     public getScene() { return this.scene }
+
+    public getUtilityScene() { return this.utilityLayer.utilityLayerScene }
     
     public getUtilityLayer() { return this.utilityLayer }
 
