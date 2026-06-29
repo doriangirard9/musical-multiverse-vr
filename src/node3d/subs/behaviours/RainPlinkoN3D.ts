@@ -65,6 +65,7 @@ export class RainPlinkoN3DGUI implements Node3DGUI {
     floorMats!: StandardMaterial[];
 
     // Connectors
+    audioOut!: AbstractMesh;
     midiOut!: AbstractMesh;
     outEnergy!: AbstractMesh;
     outColumn!: AbstractMesh;
@@ -85,7 +86,7 @@ export class RainPlinkoN3DGUI implements Node3DGUI {
     constructor(public factory: RainPlinkoN3DFactory) { }
 
     async init(context: Node3DGUIContext) {
-        const { babylon: B, tools: { ConnectableUtils, MeshUtils, MidiN3DConnectable, AutomationN3DConnectable } } = context;
+        const { babylon: B, tools: { ConnectableUtils, MeshUtils, MidiN3DConnectable, AutomationN3DConnectable, AudioN3DConnectable } } = context;
 
         this.root = new B.TransformNode("rain_plinko_root", context.scene);
 
@@ -151,7 +152,12 @@ export class RainPlinkoN3DGUI implements Node3DGUI {
             this.floorMats.push(mat);
         }
 
-        // Connectors — MIDI out + 3 automation outs along the right edge.
+        // Connectors — audio out (built-in synth) + MIDI out + 3 automation outs.
+        this.audioOut = ConnectableUtils.createOutputMesh("plinko_audio_out", 0.09, context.scene);
+        this.audioOut.parent = this.root;
+        this.audioOut.position.set(0.62, 0.50, 0);
+        MeshUtils.setColor(this.audioOut, AudioN3DConnectable.Color.toColor4());
+
         this.midiOut = ConnectableUtils.createOutputMesh("plinko_midi_out", 0.09, context.scene);
         this.midiOut.parent = this.root;
         this.midiOut.position.set(0.62, 0.30, 0);
@@ -243,6 +249,10 @@ export class RainPlinkoN3D implements Node3D {
     private outColumn!: InstanceType<(typeof AutomationN3DConnectable)["Output"]>;
     private outActivity!: InstanceType<(typeof AutomationN3DConnectable)["Output"]>;
 
+    // Built-in synth so the board makes sound on its own and can wire to a speaker.
+    private audioCtx: AudioContext;
+    private outGain!: GainNode;
+
     private drops: Drop[] = [];
     private splashes: Splash[] = [];
     private spawnAcc = 0;
@@ -253,10 +263,17 @@ export class RainPlinkoN3D implements Node3D {
     private activity = 0;
 
     constructor(context: Node3DContext, private gui: RainPlinkoN3DGUI) {
-        const { tools: T } = context;
+        const { audioCtx, tools: T } = context;
+        this.audioCtx = audioCtx;
         const scene = gui.root.getScene();
 
         context.addToBoundingBox(gui.handle);
+
+        // Built-in synth bus → audio output (wire to a speaker, or ignore it and
+        // use the MIDI output to drive an external synth instead).
+        this.outGain = audioCtx.createGain();
+        this.outGain.gain.value = 0.5;
+        context.createConnectable(new T.AudioN3DConnectable.Output("audioOut", [gui.audioOut], "Audio Out", this.outGain));
 
         // Flatten the BB spawn tilt so the board stands upright facing the player
         // (same observer pattern as AudioPlaque / Superformula).
@@ -491,7 +508,10 @@ export class RainPlinkoN3D implements Node3D {
         const kineticEnergy = 0.5 * drop.mass * speed * speed;
         const vel = Math.max(20, Math.min(127, Math.floor(40 + (kineticEnergy / 8) * 87)));
 
-        // Emit note-on now, note-off after the hold time, to every connected synth.
+        // Built-in synth voice (so the board makes sound by itself).
+        this.playVoice(midi, vel);
+
+        // Also emit MIDI note-on/off to every connected (external) synth.
         this.midiOutput.connections.forEach(conn => {
             const now = conn.context.currentTime;
             conn.scheduleEvents({ type: "wam-midi", time: now, data: { bytes: [0x90, midi, vel] } });
@@ -504,7 +524,28 @@ export class RainPlinkoN3D implements Node3D {
         this.lastColumnNorm = col / (NUM_COLUMNS - 1);
     }
 
+    /** A short triangle-wave ping (mellow raindrop tone) into the audio output. */
+    private playVoice(midi: number, vel: number) {
+        const ctx = this.audioCtx;
+        const t = ctx.currentTime;
+        const freq = 440 * Math.pow(2, (midi - 69) / 12);
+        const peak = Math.max(0.02, (vel / 127) * 0.45);
+
+        const osc = ctx.createOscillator();
+        osc.type = "triangle";
+        osc.frequency.value = freq;
+        const env = ctx.createGain();
+        env.gain.setValueAtTime(0.0001, t);
+        env.gain.exponentialRampToValueAtTime(peak, t + 0.005);
+        env.gain.exponentialRampToValueAtTime(0.0008, t + NOTE_DURATION);
+        osc.connect(env);
+        env.connect(this.outGain);
+        osc.start(t);
+        osc.stop(t + NOTE_DURATION + 0.05);
+    }
+
     async dispose() {
+        try { this.outGain.disconnect(); } catch (_) {}
         for (const d of this.drops) { try { d.mesh.dispose(); d.mat.dispose(); } catch (_) {} }
         for (const s of this.splashes) { try { s.mesh.dispose(); s.mat.dispose(); } catch (_) {} }
     }
@@ -560,8 +601,9 @@ export class RainPlinkoN3DFactory implements Node3DFactory<RainPlinkoN3DGUI, Rai
         3.0,
         "Rain Plinko",
         "A generative rain board: drops fall under gravity and wind, and each impact strikes a " +
-        "column to fire a scale note out the MIDI output (wire it to any synth). Column picks the " +
-        "note, kinetic energy picks the velocity. Tap the board to drop your own raindrop. " +
+        "column to play a scale note. It has a built-in synth (wire the green AUDIO output to a " +
+        "speaker) and also emits MIDI (wire the MIDI output to any synth). Column picks the note, " +
+        "kinetic energy picks the velocity. Tap the board to drop your own raindrop. " +
         "Resize with a two-handed grab.",
     );
 }

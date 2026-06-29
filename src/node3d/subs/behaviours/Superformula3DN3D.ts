@@ -53,12 +53,19 @@ const BOID_MAX = 30;
 // Shape presets (REAL values within the RANGES). The morph smoothing makes
 // transitions between presets fluid.
 const SF3D_PRESETS: Record<string, Record<string, number>> = {
-    "Sphere":   { mA: 8,  n1A: 8,   n2A: 8,   n3A: 8,   mB: 8,  n1B: 8,   n2B: 8,   n3B: 8,   scale: 0.34, speed: 0.5 },
-    "Flower":   { mA: 6,  n1A: 1,   n2A: 1.7, n3A: 1.7, mB: 3,  n1B: 1,   n2B: 1.5, n3B: 1.5, scale: 0.32, speed: 0.6 },
-    "Star":     { mA: 7,  n1A: 0.3, n2A: 0.4, n3A: 0.4, mB: 7,  n1B: 0.3, n2B: 0.4, n3B: 0.4, scale: 0.30, speed: 0.8 },
-    "Crystal":  { mA: 3,  n1A: 0.4, n2A: 0.5, n3A: 0.5, mB: 4,  n1B: 0.4, n2B: 0.5, n3B: 0.5, scale: 0.30, speed: 1.0 },
-    "Asteroid": { mA: 5,  n1A: 1.2, n2A: 2.5, n3A: 0.6, mB: 6,  n1B: 1.5, n2B: 0.6, n3B: 2.2, scale: 0.30, speed: 0.4 },
-    "Galaxy":   { mA: 12, n1A: 0.6, n2A: 1,   n3A: 1,   mB: 2,  n1B: 2,   n2B: 1,   n3B: 1,   scale: 0.36, speed: 2.5 },
+    // Sphere: n2=n3=2 makes |cos|²+|sin|²=1, so the radius is constant (1)
+    // regardless of m and n1 → an exact sphere. (The old n=8 gave a rounded cube.)
+    "Sphere":   { mA: 4,  n1A: 1,   n2A: 2,   n3A: 2,   mB: 4,  n1B: 1,   n2B: 2,   n3B: 2,   scale: 0.34, speed: 0.4 },
+    // Flower: rounded petals around the equator, rounder toward the poles.
+    "Flower":   { mA: 8,  n1A: 1,   n2A: 5,   n3A: 5,   mB: 4,  n1B: 1,   n2B: 2,   n3B: 2,   scale: 0.30, speed: 0.6 },
+    // Star: low n1 with low n2=n3 → sharp spikes in both directions (sea urchin).
+    "Star":     { mA: 6,  n1A: 0.3, n2A: 0.3, n3A: 0.3, mB: 6,  n1B: 0.3, n2B: 0.3, n3B: 0.3, scale: 0.32, speed: 0.8 },
+    // Crystal: high n → flat, faceted sides; m=3/4 → triangular/square facets.
+    "Crystal":  { mA: 3,  n1A: 4.5, n2A: 10,  n3A: 10,  mB: 4,  n1B: 4.5, n2B: 10,  n3B: 10,  scale: 0.30, speed: 1.0 },
+    // Asteroid: asymmetric exponents and differing m per profile → irregular lump.
+    "Asteroid": { mA: 5,  n1A: 0.7, n2A: 1.5, n3A: 2.5, mB: 7,  n1B: 0.9, n2B: 2.5, n3B: 1.2, scale: 0.30, speed: 0.4 },
+    // Galaxy: many thin lobes around the equator (high m, low n1), rounded poles.
+    "Galaxy":   { mA: 12, n1A: 0.5, n2A: 1.5, n3A: 1.5, mB: 2,  n1B: 1,   n2B: 2,   n3B: 2,   scale: 0.36, speed: 2.0 },
 };
 
 const norm   = (key: RangeKey, v: number) => (v - RANGES[key].min) / (RANGES[key].max - RANGES[key].min);
