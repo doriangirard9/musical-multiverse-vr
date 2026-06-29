@@ -1,4 +1,4 @@
-import { Color3, Color4, StandardMaterial } from "@babylonjs/core";
+import { Color3, Color4, StandardMaterial, DynamicTexture } from "@babylonjs/core";
 import type { Node3D, Node3DFactory, Node3DGUI } from "../../Node3D";
 import type { Node3DContext } from "../../Node3DContext";
 import type { Node3DGUIContext } from "../../Node3DGUIContext";
@@ -45,6 +45,7 @@ export class ScreenN3D implements Node3D {
             color: videoColor,
             connectAsInput: () => {
                 console.log("[Screen] DEBUG: connectAsInput called (providing self)");
+                this.showLoading();
                 return this;
             },
             connectAsOutput: () => { },
@@ -72,16 +73,42 @@ export class ScreenN3D implements Node3D {
         }
         this.currentInstanceId = instanceId;
         (this as any)._hasLoggedMissing = false;
+        (this as any)._attachedInstanceId = null;
+        // Show loading in case we're restoring a session (connectAsInput may not fire)
+        this.showLoading();
         this.refresh();
+    }
+
+    private showLoading() {
+        const scene = this.gui.display.getScene();
+        const mat = new StandardMaterial("screenLoadingMat", scene);
+        const dt = new DynamicTexture("screenLoadingDT", { width: 1024, height: 512 }, scene, false);
+        mat.diffuseTexture = dt;
+        mat.emissiveTexture = dt;
+        mat.emissiveColor = new Color3(1, 1, 1);
+        mat.disableLighting = true;
+        mat.backFaceCulling = false;
+        this.gui.display.material = mat;
+
+        const ctx = dt.getContext();
+        // Flip the drawing context vertically to counter the plane's UV mapping
+        ctx.translate(0, 512);
+        ctx.scale(1, -1);
+        
+        ctx.fillStyle = "#111111";
+        ctx.fillRect(0, 0, 1024, 512);
+        ctx.font = "bold 60px Arial";
+        ctx.fillStyle = "#BB66FF";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText("Loading, wait a few seconds...", 512, 256);
+        dt.update(false);
     }
 
     private stopVideo() {
         console.log("[Screen] DEBUG: stopping video");
         this.currentInstanceId = null;
         (this as any)._attachedInstanceId = null;
-        // Use a proper black material instead of vertex colors.
-        // MeshUtils.setColor sets vertex color data to black, which persists
-        // on the mesh and multiplies with any future texture, making it invisible.
         const scene = this.gui.display.getScene();
         const mat = new StandardMaterial("screenBlackMat", scene);
         mat.emissiveColor = new Color3(0, 0, 0);
@@ -105,8 +132,8 @@ export class ScreenN3D implements Node3D {
         );
 
         if (renderer) {
-            if ((this as any)._attachedInstanceId !== this.currentInstanceId) {
-                console.log(`[Screen] DEBUG: Shared renderer found for ${this.currentInstanceId}. Attaching to mesh.`);
+            if ((renderer as any).hasFrames && (this as any)._attachedInstanceId !== this.currentInstanceId) {
+                console.log(`[Screen] DEBUG: Shared renderer found for ${this.currentInstanceId} AND has frames. Attaching to mesh.`);
                 renderer.attachToMesh(this.gui.display);
                 (this as any)._attachedInstanceId = this.currentInstanceId;
             }

@@ -85,8 +85,29 @@ export class VideoWamRenderer {
         if (outputs && outputs[0]) {
             this.renderer.render(outputs[0]);
             this.texture.update();
+            
+            if (!this.hasFrames) {
+                const gl = this.renderer.gl;
+                const pixels = new Uint8Array(4);
+                // Read a single pixel from the center of the canvas
+                const cx = Math.floor(gl.drawingBufferWidth / 2);
+                const cy = Math.floor(gl.drawingBufferHeight / 2);
+                gl.readPixels(cx, cy, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+                
+                // Butterchurn outputs various dark/grey noise frames during compilation (e.g. 12,16,17 or 72,85,85).
+                // We wait until the center pixel has at least one color channel brighter than 100 (approx 40% brightness).
+                // This guarantees we only switch when the actual vibrant shader starts rendering.
+                const isValid = pixels[0] > 100 || pixels[1] > 100 || pixels[2] > 100;
+                
+                if (isValid) {
+                    console.log(`[VideoWamRenderer] DEBUG: Valid frame detected! RGB: ${pixels[0]}, ${pixels[1]}, ${pixels[2]}`);
+                    this.hasFrames = true;
+                }
+            }
         } 
     }
+
+    public hasFrames = false;
 
     public getCanvas() {
         return this.canvas;
