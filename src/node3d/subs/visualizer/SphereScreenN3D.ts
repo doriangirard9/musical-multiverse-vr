@@ -1,4 +1,4 @@
-import { Color3, Color4 } from "@babylonjs/core";
+import { Color3, Color4, StandardMaterial } from "@babylonjs/core";
 import type { Node3D, Node3DFactory, Node3DGUI } from "../../Node3D";
 import type { Node3DContext } from "../../Node3DContext";
 import type { Node3DGUIContext } from "../../Node3DGUIContext";
@@ -65,6 +65,12 @@ export class SphereScreenN3D implements Node3D {
     private stopVideo() {
         this.currentInstanceId = null;
         (this as any)._attachedInstanceId = null;
+        // Replace video material with a black one to stop rendering
+        const scene = this.gui.display.getScene();
+        const mat = new StandardMaterial("sphereBlackMat", scene);
+        mat.emissiveColor = new Color3(0, 0, 0);
+        mat.disableLighting = true;
+        this.gui.display.material = mat;
     }
 
     private refresh() {

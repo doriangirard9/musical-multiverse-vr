@@ -97,6 +97,15 @@ export class VideoWamRenderer {
     }
 
     public attachToMesh(mesh: AbstractMesh) {
+        // Remove stale vertex color data (e.g. set to black by stopVideo)
+        // that would otherwise multiply with and zero-out the video texture.
+        // useVertexColors lives on AbstractMesh, NOT on StandardMaterial.
+        mesh.useVertexColors = false;
+        const m = mesh as any;
+        if (m.removeVerticesData && m.isVerticesDataPresent && m.isVerticesDataPresent("color")) {
+            m.removeVerticesData("color");
+        }
+
         const mat = new StandardMaterial(`wam-video-mat-${mesh.name}`, this.scene);
         mat.diffuseTexture = this.texture;
         mat.emissiveTexture = this.texture;

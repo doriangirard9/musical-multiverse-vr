@@ -1,4 +1,4 @@
-import { Color3, Color4 } from "@babylonjs/core";
+import { Color3, Color4, StandardMaterial } from "@babylonjs/core";
 import type { Node3D, Node3DFactory, Node3DGUI } from "../../Node3D";
 import type { Node3DContext } from "../../Node3DContext";
 import type { Node3DGUIContext } from "../../Node3DGUIContext";
@@ -71,6 +71,7 @@ export class ScreenN3D implements Node3D {
             return;
         }
         this.currentInstanceId = instanceId;
+        (this as any)._hasLoggedMissing = false;
         this.refresh();
     }
 
@@ -78,8 +79,14 @@ export class ScreenN3D implements Node3D {
         console.log("[Screen] DEBUG: stopping video");
         this.currentInstanceId = null;
         (this as any)._attachedInstanceId = null;
-        const { tools: T } = this.context;
-        T.MeshUtils.setColor(this.gui.display, new Color4(0, 0, 0, 1));
+        // Use a proper black material instead of vertex colors.
+        // MeshUtils.setColor sets vertex color data to black, which persists
+        // on the mesh and multiplies with any future texture, making it invisible.
+        const scene = this.gui.display.getScene();
+        const mat = new StandardMaterial("screenBlackMat", scene);
+        mat.emissiveColor = new Color3(0, 0, 0);
+        mat.disableLighting = true;
+        this.gui.display.material = mat;
     }
 
     private refresh() {
