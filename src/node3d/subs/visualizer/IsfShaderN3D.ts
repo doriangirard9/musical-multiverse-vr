@@ -186,8 +186,6 @@ export class IsfShaderN3D implements Node3D {
     private selectedShader: string | null = null;
     private currentInputs: any[] = [];
     private paramValues: Record<string, number> = {};
-    private currentPage = 0;
-    private readonly itemsPerPage = 4;
     private pendingScreens: any[] = [];
     private pendingInputId: string | null = null;
 
@@ -354,6 +352,9 @@ export class IsfShaderN3D implements Node3D {
                     // Wait for shaders to become available (awaitable with retries)
                     await this.waitForShaders();
 
+                    // Wait for the WAM to load its default shader internally so it doesn't overwrite our synced state
+                    await new Promise(r => setTimeout(r, 1500));
+
                     // Mark WAM as ready and replay any queued state
                     await this.flushPendingState();
                 }
@@ -416,26 +417,17 @@ export class IsfShaderN3D implements Node3D {
 
     private openShaderMenu() {
         if (this.presets.length === 0) {
-            this.context.showMessage("Shaders not ready...");
+            this.context.showMessage("Presets not ready...");
             return;
         }
-        this.context.closeMenu();
-        const start = this.currentPage * this.itemsPerPage;
-        const end = start + this.itemsPerPage;
-        const pageItems = this.presets.slice(start, end);
+        
         const choices: any[] = [];
-        if (this.currentPage > 0) {
-            choices.push({ label: "[ PREV ]", click: () => { this.currentPage--; this.openShaderMenu(); } });
-        }
-        pageItems.forEach(name => {
+        this.presets.forEach(name => {
             const shortName = name.length > 30 ? name.substring(0, 27) + "..." : name;
             choices.push({ label: shortName, click: () => this.selectPreset(name) });
         });
-        if (end < this.presets.length) {
-            choices.push({ label: "[ NEXT ]", click: () => { this.currentPage++; this.openShaderMenu(); } });
-        }
-        choices.push({ label: "❌ Cancel", click: () => this.context.closeMenu() });
-        this.context.openMenu(choices);
+        
+        this.context.openMenu(choices, { showCloseBar: true, dragToScroll: true });
     }
 
     private async selectPreset(name: string) {
@@ -447,12 +439,10 @@ export class IsfShaderN3D implements Node3D {
                 } else {
                     await this.activeWamNode.setState({ shaderSelect: index });
                 }
-                this.context.showMessage(`Active: ${name}`);
                 this.selectedShader = name;
                 this.gui.updateLabel(name);
                 this.context.notifyStateChange("selectedShader");
             }
-            this.context.closeMenu();
         }
     }
 

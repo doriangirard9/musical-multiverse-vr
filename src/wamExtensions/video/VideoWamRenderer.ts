@@ -11,9 +11,11 @@ export class VideoWamRenderer {
     private pluginId: string;
     private inputPluginId: string | null = null;
     private inputTexture: WebGLTexture | null = null;
+    private isButterchurn: boolean;
 
     constructor(private scene: Scene, delegate: VideoDelegate, pluginId: string, audioCtx: AudioContext) {
         this.delegate = delegate;
+        this.isButterchurn = pluginId.toLowerCase().includes('butterchurn');
         this.audioCtx = audioCtx;
         this.pluginId = pluginId;
         
@@ -96,8 +98,11 @@ export class VideoWamRenderer {
                 
                 // Butterchurn outputs various dark/grey noise frames during compilation (e.g. 12,16,17 or 72,85,85).
                 // We wait until the center pixel has at least one color channel brighter than 100 (approx 40% brightness).
-                // This guarantees we only switch when the actual vibrant shader starts rendering.
-                const isValid = pixels[0] > 100 || pixels[1] > 100 || pixels[2] > 100;
+                // For other WAMs like ISF Shader, we assume they are ready as soon as they output any frame.
+                let isValid = true;
+                if (this.isButterchurn) {
+                    isValid = pixels[0] > 100 || pixels[1] > 100 || pixels[2] > 100;
+                }
                 
                 if (isValid) {
                     console.log(`[VideoWamRenderer] DEBUG: Valid frame detected! RGB: ${pixels[0]}, ${pixels[1]}, ${pixels[2]}`);

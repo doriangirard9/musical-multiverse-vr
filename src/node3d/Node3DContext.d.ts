@@ -127,7 +127,7 @@ export interface Node3DContext{
      * La fonction action est appelée après que le menu soit fermé.
      * @param choices Les choix du menu.
      */
-    openMenu(choices: {label:string, color?:string, click?:()=>void}[]): void
+    openMenu(choices: {label:string, color?:string, click?:()=>void}[], options?: { showCloseBar?: boolean, dragToScroll?: boolean }): void
 
     /**
      * Ferme le menu ouvert actuellement. Si celui-ci a été ouvert par cette Node3D.
