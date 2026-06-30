@@ -1,8 +1,8 @@
 import { Color3, DynamicTexture, Mesh, MeshBuilder, Observer, Scene, StandardMaterial, TransformNode } from "@babylonjs/core"
-import { Node3D, Node3DFactory, Node3DGUI } from "../Node3D"
-import { Node3DContext } from "../Node3DContext"
-import { Node3DGUIContext } from "../Node3DGUIContext"
-import { AudioAnalyser } from "../../utils/AudioAnalyser"
+import { Node3D, Node3DFactory, Node3DGUI } from "../../Node3D"
+import { Node3DContext } from "../../Node3DContext"
+import { Node3DGUIContext } from "../../Node3DGUIContext"
+import { AudioAnalyser } from "../../../utils/AudioAnalyser"
 
 const PANEL_WIDTH   = 0.45
 const PANEL_HEIGHT  = 0.9
@@ -358,7 +358,7 @@ function dbToTextColor(db: number): string {
 export const LiveGainN3DFactory: Node3DFactory<LiveGainN3DGUI, Node3D> = {
     label: "Live Gain",
     description: "Vertical level meter with peak-hold and dBFS readout. Audio passes through unchanged.",
-    tags: ["visualizer", "audio", "meter", "vu", "gain", "db"],
+    tags: ["visualizer", "audio", "effect", "meter", "vu", "gain", "db"],
     createGUI: async (context) => {
         const gui = new LiveGainN3DGUI()
         await gui.init(context)

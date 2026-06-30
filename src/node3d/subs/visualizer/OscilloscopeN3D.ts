@@ -1,8 +1,8 @@
 import { Color3, DynamicTexture, Mesh, MeshBuilder, Observer, Scene, StandardMaterial, TransformNode } from "@babylonjs/core"
-import { Node3D, Node3DFactory, Node3DGUI } from "../Node3D"
-import { Node3DContext } from "../Node3DContext"
-import { Node3DGUIContext } from "../Node3DGUIContext"
-import { AudioAnalyser } from "../../utils/AudioAnalyser"
+import { Node3D, Node3DFactory, Node3DGUI } from "../../Node3D"
+import { Node3DContext } from "../../Node3DContext"
+import { Node3DGUIContext } from "../../Node3DGUIContext"
+import { AudioAnalyser } from "../../../utils/AudioAnalyser"
 
 const PANEL_WIDTH  = 1.2
 const PANEL_HEIGHT = 0.6
@@ -50,6 +50,7 @@ export class OscilloscopeN3DGUI implements Node3DGUI {
     #buildPanel(scene: Scene): void {
         this.panel = MeshBuilder.CreateBox("oscilloscope panel",
             { width: PANEL_WIDTH, height: PANEL_HEIGHT, depth: PANEL_DEPTH }, scene)
+        this.panel.rotation.x = Math.PI/2
         this.panel.parent = this.root
 
         this.texture = new DynamicTexture("oscilloscope screen",
@@ -192,7 +193,7 @@ export class OscilloscopeN3D implements Node3D {
 export const OscilloscopeN3DFactory: Node3DFactory<OscilloscopeN3DGUI, Node3D> = {
     label: "Oscilloscope",
     description: "Live time-domain waveform display with phosphor trail. Passes audio straight through.",
-    tags: ["visualizer", "audio", "oscilloscope", "waveform"],
+    tags: ["visualizer", "audio", "consumer", "oscilloscope", "waveform"],
     createGUI: async (context) => {
         const gui = new OscilloscopeN3DGUI()
         await gui.init(context)

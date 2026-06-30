@@ -3,6 +3,7 @@ import { Button, Container, Image, InputText, Rectangle, ScrollViewer, StackPane
 import { Node3dManager } from "../app/Node3dManager"
 import { AbstractMenu } from "./AbstractMenu"
 import { Node3DFactory } from "../node3d/Node3D"
+import { Visualizer } from "@magenta/music"
 
 export class ShopMenu extends AbstractMenu {
 
@@ -234,6 +235,7 @@ export class ShopMenu extends AbstractMenu {
                     Audio: {
                         Generator: [],
                         Effect: [],
+                        Visualizer: [],
                         Other: [],
                     },
                     MIDI: {
@@ -252,10 +254,13 @@ export class ShopMenu extends AbstractMenu {
                     },
                 }
 
+
                 for (const [kind,{tags}] of entries) {
+                                    console.log("::", kind, tags)
+
                     const target = [] as string[][]
 
-                    if (tags.includes("consumer")) target.push(menus.Output.Output)
+                    if (tags.includes("consumer") && !tags.includes("visualizer")) target.push(menus.Output.Output)
 
                     if (tags.includes("automation")) target.push(menus.Automation.Automation)
 
@@ -266,16 +271,20 @@ export class ShopMenu extends AbstractMenu {
                         else if (tags.includes("instrument")) target.push(menus.MIDI.Instrument)
                         else target.push(menus.MIDI.Other)
                     }
-                    else if (tags.includes("audio")) {
+
+                    if (tags.includes("audio")) {
                         if (tags.includes("generator")) target.push(menus.Audio.Generator)
+                        else if (tags.includes("visualizer")) target.push(menus.Audio.Visualizer)
                         else if (tags.includes("effect")) target.push(menus.Audio.Effect)
                         else target.push(menus.Audio.Other)
                     }
-                    else if (tags.includes("video")) {
+
+                    if (tags.includes("video")) {
                         if (tags.includes("generator")) target.push(menus.Video.Generator)
                         else if (tags.includes("effect")) target.push(menus.Video.Effect)
                         else target.push(menus.Video.Other)
                     }
+
                     if (target.length === 0) target.push(menus.Other.Other)
 
                     new Set(target).forEach(t => t.push(kind))

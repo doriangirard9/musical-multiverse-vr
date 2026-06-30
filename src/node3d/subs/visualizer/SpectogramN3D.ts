@@ -1,8 +1,8 @@
 import { Color3, DynamicTexture, Mesh, MeshBuilder, Observer, Scene, StandardMaterial, TransformNode } from "@babylonjs/core"
-import { Node3D, Node3DFactory, Node3DGUI } from "../Node3D"
-import { Node3DContext } from "../Node3DContext"
-import { Node3DGUIContext } from "../Node3DGUIContext"
-import { AudioAnalyser } from "../../utils/AudioAnalyser"
+import { Node3D, Node3DFactory, Node3DGUI } from "../../Node3D"
+import { Node3DContext } from "../../Node3DContext"
+import { Node3DGUIContext } from "../../Node3DGUIContext"
+import { AudioAnalyser } from "../../../utils/AudioAnalyser"
 
 const PANEL_WIDTH  = 1.2
 const PANEL_HEIGHT = 0.6
@@ -45,6 +45,7 @@ export class SpectogramN3DGUI implements Node3DGUI {
     #buildPanel(scene: Scene): void {
         this.panel = MeshBuilder.CreateBox("spectogram panel",
             { width: PANEL_WIDTH, height: PANEL_HEIGHT, depth: PANEL_DEPTH }, scene)
+        this.panel.rotation.x = Math.PI/2
         this.panel.parent = this.root
 
         this.texture = new DynamicTexture("spectogram screen",
@@ -187,7 +188,7 @@ function magnitudeToColor(m: number): [number, number, number] {
 export const SpectogramN3DFactory: Node3DFactory<SpectogramN3DGUI, Node3D> = {
     label: "Spectogram",
     description: "Scrolling time × frequency heatmap of incoming audio. Passes audio straight through.",
-    tags: ["visualizer", "audio", "spectrum", "fft", "spectogram"],
+    tags: ["visualizer", "audio", "consumer", "spectrum", "fft", "spectogram"],
     createGUI: async (context) => {
         const gui = new SpectogramN3DGUI()
         await gui.init(context)

@@ -1,8 +1,8 @@
 import { Color3, Mesh, MeshBuilder, Observer, Scene, StandardMaterial, TransformNode } from "@babylonjs/core"
-import { Node3D, Node3DFactory, Node3DGUI } from "../Node3D"
-import { Node3DContext } from "../Node3DContext"
-import { Node3DGUIContext } from "../Node3DGUIContext"
-import { AudioAnalyser } from "../../utils/AudioAnalyser"
+import { Node3D, Node3DFactory, Node3DGUI } from "../../Node3D"
+import { Node3DContext } from "../../Node3DContext"
+import { Node3DGUIContext } from "../../Node3DGUIContext"
+import { AudioAnalyser } from "../../../utils/AudioAnalyser"
 
 const BAR_COUNT = 32
 const PANEL_WIDTH = 1
@@ -47,6 +47,7 @@ export class SpectrumBarsN3DGUI implements Node3DGUI {
         mat.diffuseColor = new Color3(0.05, 0.05, 0.08)
         mat.emissiveColor = new Color3(0.02, 0.02, 0.04)
         this.panel.material = mat
+        this.panel.rotation.x = Math.PI/2
         this.panel.parent = this.root
     }
 
@@ -156,7 +157,7 @@ export class SpectrumBarsN3D implements Node3D {
 export const SpectrumBarsN3DFactory: Node3DFactory<SpectrumBarsN3DGUI, Node3D> = {
     label: "Spectrum Bars",
     description: "Displays the live frequency spectrum of incoming audio as a row of vertical bars while passing audio straight through.",
-    tags: ["visualizer", "audio", "spectrum", "fft"],
+    tags: ["visualizer", "audio", "consumer", "spectrum", "fft"],
     createGUI: async (context) => {
         const gui = new SpectrumBarsN3DGUI()
         await gui.init(context)
