@@ -12,14 +12,14 @@ import { HyperparamSpec } from "./types";
 
 /** MusicRNN (Famille 1) — mélodie / impro / batterie. */
 export const RNN_HYPERPARAMS: HyperparamSpec[] = [
-    { name: "temperature", displayName: "Température", description: "Chaos vs prévisibilité du tirage softmax (1.0 = naturel)", min: 0.1, max: 2.5, default: 1.0 },
-    { name: "density", displayName: "Densité", description: "Proportion de notes jouées (8 = toutes ; en baissant, les subdivisions faibles disparaissent d'abord)", min: 1, max: 8, default: 8 },
-    { name: "octaveCenter", displayName: "Octave centrale", description: "Pitch MIDI médian (60 = Do4). Ignoré en mode batterie.", min: 48, max: 84, default: 60 },
-    { name: "pitchRange", displayName: "Tessiture", description: "Demi-tons d'étendue autour de l'octave centrale", min: 12, max: 60, default: 36 },
+    { name: "temperature", displayName: "Temperature", description: "Chaos vs predictability of the softmax draw (1.0 = natural)", min: 0.1, max: 2.5, default: 1.0 },
+    { name: "density", displayName: "Density", description: "Proportion of notes played (8 = all; lowering drops the weak subdivisions first)", min: 1, max: 8, default: 8 },
+    { name: "octaveCenter", displayName: "Center Octave", description: "Median MIDI pitch (60 = C4). Ignored in drum mode.", min: 48, max: 84, default: 60 },
+    { name: "pitchRange", displayName: "Pitch Range", description: "Semitone span around the center octave", min: 12, max: 60, default: 36 },
 ];
 
-/** MusicVAE (Famille 2) — espace latent. */
+/** MusicVAE (Family 2) — latent space. */
 export const VAE_HYPERPARAMS: HyperparamSpec[] = [
-    { name: "temperature", displayName: "Température", description: "Diversité du décodage (0 = déterministe, haut = varié)", min: 0.0, max: 1.5, default: 0.5 },
-    { name: "morph", displayName: "Morph latent", description: "Position dans l'espace latent entre deux phrases-ancres (0 = A, 1 = B). Le geste morphe la musique.", min: 0.0, max: 1.0, default: 0.5 },
+    { name: "temperature", displayName: "Temperature", description: "Decoding diversity (0 = deterministic, high = varied)", min: 0.0, max: 1.5, default: 0.5 },
+    { name: "morph", displayName: "Latent Morph", description: "Position in latent space between two anchor phrases (0 = A, 1 = B). The gesture morphs the music.", min: 0.0, max: 1.0, default: 0.5 },
 ];

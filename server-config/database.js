@@ -22,6 +22,7 @@ function initDatabase() {
     // Enable WAL mode for better concurrent read performance
     db.exec('PRAGMA journal_mode = WAL');
     db.exec('PRAGMA foreign_keys = ON');
+    db.exec('PRAGMA wal_autocheckpoint = 256');
 
     // Create tables
     db.exec(`
@@ -60,6 +61,7 @@ function initDatabase() {
             max_users INTEGER DEFAULT 32,
             share_token TEXT UNIQUE,
             crdt_data TEXT,
+            is_temporary INTEGER DEFAULT 0,
             created_at TEXT DEFAULT (datetime('now')),
             updated_at TEXT DEFAULT (datetime('now'))
         );
@@ -105,15 +107,30 @@ function initDatabase() {
         CREATE INDEX IF NOT EXISTS idx_authorized_users_user_id ON authorized_users(user_id);
     `);
 
-    // Initialize system user and public sandbox session
+    // Migration : is_temporary pour les bases existantes (même idiome que is_locked)
+    try {
+        const cols = db.prepare('PRAGMA table_info(sessions)').all();
+        if (!cols.some(col => col.name === 'is_temporary')) {
+            db.prepare('ALTER TABLE sessions ADD COLUMN is_temporary INTEGER DEFAULT 0').run();
+            console.log('[Database] Added is_temporary column to sessions table');
+        }
+    } catch (e) {
+        if (!e.message.includes('duplicate column name')) {
+            console.warn('[Database] Migration error (non-critical):', e.message);
+        }
+    }
+
+    // Initialize system user and public sandbox session (version de main).
+    // Les sessions TEMPORAIRES réutilisent ce 'system-project' réservé (cf.
+    // routes/sessions.js) → pas de projet jetable supplémentaire à créer.
     try {
         const crypto = require('crypto');
         const bcrypt = require('bcrypt');
-        
+
         const systemUserId = 'system-user';
         const systemProjectId = 'system-project';
         const publicSandboxSessionId = 'public-sandbox';
-        
+
         // Check if system user exists
         const existingUser = db.prepare('SELECT id FROM users WHERE id = ?').get(systemUserId);
         if (!existingUser) {
@@ -126,7 +143,7 @@ function initDatabase() {
             `).run(systemUserId, 'system', 'system@wamjam.local', passwordHash);
             console.log('[Database] Created system user');
         }
-        
+
         // Check if system project exists
         const existingProject = db.prepare('SELECT id FROM projects WHERE id = ?').get(systemProjectId);
         if (!existingProject) {
@@ -136,7 +153,7 @@ function initDatabase() {
             `).run(systemProjectId, 'System', 'System-managed projects', systemUserId);
             console.log('[Database] Created system project');
         }
-        
+
         // Check if public sandbox session exists
         const existingSession = db.prepare('SELECT id FROM sessions WHERE id = ?').get(publicSandboxSessionId);
         if (!existingSession) {

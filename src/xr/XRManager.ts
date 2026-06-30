@@ -7,7 +7,7 @@ import {Nullable} from "@babylonjs/core";
 export class XRManager {
     private static _instance: XRManager;
     public xrInputManager!: XRInputManager;
-    public xrHelper!: B.WebXRDefaultExperience;
+    public xrHelper?: B.WebXRDefaultExperience;
     public handTracking!: B.WebXRHandTracking
     private _scene!: B.Scene;
     public xrFeaturesManager!: B.WebXRFeaturesManager;
@@ -29,7 +29,7 @@ export class XRManager {
     /**
      * Initialize the WebXR experience, XRInputs and XR features
      */
-    public async init(scene: B.Scene, audioEngine: B.AudioEngineV2): Promise<void> {
+    public async init(scene: B.Scene, audioEngine: B.AudioEngineV2): Promise<boolean> {
         this._scene = scene;
 
         try {
@@ -77,6 +77,7 @@ export class XRManager {
                         // Offset spawn position if another avatar is already at our location
                         try {
                             // Dynamic import to avoid circular dependency
+                            // TODO: What the fuck. 
                             import("../app/AvatarSystem").then(({ AvatarSystem }) => {
                                 AvatarSystem.getInstance().offsetSpawnIfNeeded();
                             });
@@ -108,8 +109,11 @@ export class XRManager {
             });
             audioEngine.listener.attach(this.xrHelper.baseExperience.camera);
 
+            return true;
         } catch (error) {
             console.error("XR initialization failed:", error);
+            this.xrHelper = undefined;
+            return false;
         }
     }
 

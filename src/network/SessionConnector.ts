@@ -20,6 +20,13 @@ export class SessionConnector {
     private saveInterval: ReturnType<typeof setInterval> | null = null;
     private isConnected = false;
     private sessionLocked = false;
+    private hasPendingSave = false;
+    private lastSavedSnapshot: string | null = null;
+    /** Session temporaire (éphémère) → aucune sauvegarde, état jamais persisté. */
+    private isTemporary = false;
+    private readonly handleDocUpdate = () => {
+        this.hasPendingSave = true;
+    };
 
     constructor(
         private readonly sessionId: string,
@@ -44,6 +51,8 @@ export class SessionConnector {
         this.participantId = joinInfo.participantId;
         this.isConnected = true;
         this.sessionLocked = joinInfo.sessionLocked || false;
+        this.isTemporary = !!joinInfo.isTemporary;
+        if (this.isTemporary) console.log('[SessionConnector] TEMPORARY session — no saving, state not persisted.');
 
         return {
             participantId: this.participantId,
@@ -61,12 +70,14 @@ export class SessionConnector {
      */
     async initCRDTState(participantNumber: number, crdtData?: string): Promise<void> {
         const sessionState = this.doc.getMap('session_state');
+        const startedAt = performance.now()
+        const stamp = (label: string) => `${label} (${((performance.now() - startedAt) / 1000).toFixed(1)}s)`
 
         console.log(`[SessionConnector] initCRDTState called. Participant #${participantNumber}. Data size: ${crdtData ? crdtData.length : 0} bytes`);
 
         // 2. Protocol logic based on participant number
         if (participantNumber === 1) {
-            this.updateLoadingText('Initializing session...');
+            this.updateLoadingText(stamp('Initializing session state...'));
             console.log('[SessionConnector] We are participant #1 (Leader). Hydrating state...');
             
             // We are the first. Load CRDT data if it exists.
@@ -77,6 +88,7 @@ export class SessionConnector {
                 try {
                     const parsedData = JSON.parse(crdtData);
                     console.log(`[SessionConnector] CRDT data parsed successfully. Nodes: ${parsedData.nodes?.length || 0}, Connections: ${parsedData.connections?.length || 0}`);
+                    this.updateLoadingText(stamp(`Restoring ${parsedData.nodes?.length || 0} nodes and ${parsedData.connections?.length || 0} connections...`));
                     
                     // Suppress ONLY node3d sync during DB load
                     const network = NetworkManager.getInstance();
@@ -111,7 +123,7 @@ export class SessionConnector {
             }
         } else {
             console.log(`[SessionConnector] We are participant #${participantNumber}. Waiting for leader to set ready state...`);
-            this.updateLoadingText('Please wait, synchronizing with peers...');
+            this.updateLoadingText(stamp('Waiting for host synchronization...'));
             
             // We are NOT the first. Wait for session_state == 'ready' with failover.
             const rejoinNeeded = await this.waitForReadyWithFailover(sessionState, crdtData === undefined);
@@ -154,8 +166,10 @@ export class SessionConnector {
         // 3. Start Heartbeat
         this.startHeartbeat();
 
-        // 4. Start auto-save
-        this.startAutoSave();
+        // 4. Start auto-save — SAUF si la session est temporaire (jamais persistée).
+        if (!this.isTemporary) {
+            this.startAutoSave();
+        }
     }
 
     /**
@@ -167,6 +181,7 @@ export class SessionConnector {
         this.isConnected = false;
         if (this.heartbeatInterval) clearInterval(this.heartbeatInterval);
         if (this.saveInterval) clearInterval(this.saveInterval);
+        this.doc.off('update', this.handleDocUpdate);
 
         // Best effort synchronous leave for beforeunload
         const data = new Blob([JSON.stringify({ participantId: this.participantId })], {
@@ -180,6 +195,7 @@ export class SessionConnector {
 
         return new Promise<boolean>((resolve) => {
             let failoverTriggered = false;
+            const startedAt = performance.now()
 
             const observer = () => {
                 if (sessionState.get('status') === 'ready') {
@@ -196,6 +212,7 @@ export class SessionConnector {
                     clearInterval(leaderCheckInterval);
                     return;
                 }
+                this.updateLoadingText(`Waiting for synchronization... ${((performance.now() - startedAt) / 1000).toFixed(1)}s`);
 
                 // Only trigger failover if no CRDT data was received from leader
                 if (!noDataReceived) {
@@ -247,30 +264,45 @@ export class SessionConnector {
             return;
         }
 
+        this.doc.off('update', this.handleDocUpdate);
+        this.doc.on('update', this.handleDocUpdate);
+        this.lastSavedSnapshot = this.captureSnapshot();
+        this.hasPendingSave = false;
+
         // Save every 30 seconds
         this.saveInterval = setInterval(async () => {
             if (!this.isConnected || !this.participantId) return;
+            if (!this.hasPendingSave) return;
             
             try {
-                // Get all node instances from the network sync manager
-                const network = NetworkManager.getInstance();
-                const nodes: Node3DInstance[] = [];
-                for (const [, instance] of network.node3d.nodes.entries()) {
-                    nodes.push(instance);
-                }
+                this.hasPendingSave = false;
+                const json = this.captureSnapshot();
+                if (!json) return;
+                if (json === this.lastSavedSnapshot) return;
                 
-                if (nodes.length === 0) return; // Don't save empty state aggressively
-                
-                const description = Serialization.getInstance().save(nodes, false);
-                const json = JSON.stringify(description);
-                
-                console.log(`[SessionConnector] Auto-saving ${nodes.length} nodes...`);
+                const nodeCount = JSON.parse(json).nodes?.length ?? 0;
+                console.log(`[SessionConnector] Auto-saving ${nodeCount} nodes...`);
                 await this.api.saveCRDT(this.sessionId, this.participantId, json);
+                this.lastSavedSnapshot = json;
                 console.log('[SessionConnector] Auto-save successful.');
             } catch (e) {
                 console.error('[SessionConnector] Auto-save failed:', e);
+                this.hasPendingSave = true;
             }
-        }, 10000);
+        }, 30000);
+    }
+
+    private captureSnapshot(): string | null {
+        const network = NetworkManager.getInstance();
+        const nodes: Node3DInstance[] = [];
+        for (const [, instance] of network.node3d.nodes.entries()) {
+            nodes.push(instance);
+        }
+
+        if (nodes.length === 0) return null;
+
+        const description = Serialization.getInstance().save(nodes, false);
+        return JSON.stringify(description);
     }
 
     /**

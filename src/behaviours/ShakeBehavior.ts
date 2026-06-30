@@ -1,4 +1,4 @@
-import {AbstractMesh, Behavior, CreateSphere, Vector3} from "@babylonjs/core"
+import {AbstractMesh, Behavior, Vector3} from "@babylonjs/core"
 import { InputGrabBehavior } from "../xr/inputs/tools/InputGrabBehavior"
 import { PointerInput } from "../xr/inputs/PointerInput"
 
@@ -45,7 +45,7 @@ export class ShakeBehavior implements Behavior<AbstractMesh> {
     private shake_counter = 0
     private interval : any = null
 
-    private grab
+    private grab: InputGrabBehavior
     
     constructor(){
         this.grab = new InputGrabBehavior(
@@ -76,12 +76,16 @@ export class ShakeBehavior implements Behavior<AbstractMesh> {
     }
 
     onGrab(){
+        if(this.interval!==null){
+            clearInterval(this.interval)
+            this.interval = null
+        }
         this.on_pick()
         this.shake_power = 0
         this.interval = setInterval(() => {
             this.setShakePower(Math.floor(this.shake_power * 0.9))
             if(this.shake_power<0.01) this.shake_counter = 0
-            else{
+            else if(this.shake_power>=this.shake_threshold){
                 this.shake_counter = this.shake_counter + 1
                 this.on_shake(this.shake_power, this.shake_counter)
             }
@@ -125,13 +129,21 @@ export class ShakeBehavior implements Behavior<AbstractMesh> {
     onUp(){
         this.setShakePower(0)
         this.on_drop()
-        clearInterval(this.interval)
+        if(this.interval!==null){
+            clearInterval(this.interval)
+            this.interval = null
+        }
     }
 
     detach(): void {
         this.attachedNode?.removeBehavior(this.grab);
     }
 
-    init(): void { }
+    init(): void {
+        this.shake_power = 0
+        this.shake_counter = 0
+        this.interval = null
+        this.attachedNode = null
+    }
 
 }

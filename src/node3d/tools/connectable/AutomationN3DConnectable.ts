@@ -43,6 +43,7 @@ export namespace AutomationN3DConnectable {
         get color() { return AutomationN3DConnectable.Color }
 
         connectAsInput(): AutomationInputInfo {
+            this.parameter.lock(true)
             return {
                 id: this,
                 sender: this.parameter.setValue,
@@ -51,7 +52,6 @@ export namespace AutomationN3DConnectable {
                 getStepCount: this.parameter.getStepCount,
                 remove: () => { },
             }
-            this.parameter.lock(true)
         }
 
         connectAsOutput(): void { }

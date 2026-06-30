@@ -22,7 +22,12 @@ import { TargetManager } from "./TargetManager.ts";
 import { BabylonsJSFix } from "./BabylonsJSFix.ts";
 import { PointerVisualSystem } from "./PointerVisualSystem.ts";
 import { MenuSystem } from "./MenuSystem.ts";
-import { MessageMenu } from "../menus/MessageMenu.ts";
+import { ContextMenuSystem } from "./ContextMenuSystem.ts";
+import { HapticContactSystem } from "./HapticContactSystem.ts";
+import { TUTORIAL_KINDS } from "../tutorial/TutorialScenario.ts";
+import { AudioWorldSystem } from "./AudioDestinationSystem.ts";
+import { MicrophoneSystem } from "./MicrophoneSystem.ts";
+import { VoiceChatSystem } from "./VoiceChatSystem.ts";
 
 let _app: App
 
@@ -42,30 +47,39 @@ export class App {
         return App.instance;
     }
 
-    public async start(participantId: string, roomName: string, doc: Doc): Promise<void> {
+    public async start(
+        participantId: string,
+        roomName: string,
+        doc: Doc,
+        options: { tutorial?: boolean; onProgress?: (text: string, progress: number, detail?: string) => void } = {},
+    ): Promise<void> {
         App.instance = this
+        const startedAt = performance.now()
+        const totalSteps = 13
+        let currentStep = 0
+        const report = (text: string, detail: string = '') => {
+            currentStep += 1
+            const elapsed = ((performance.now() - startedAt) / 1000).toFixed(1)
+            options.onProgress?.(text, Math.round((currentStep / totalSteps) * 100), detail || `elapsed ${elapsed}s`)
+        }
         
         const username = RandomUtils.randomName()
         const usercolor = RandomUtils.randomColor()
 
         // Intialization of scene
+        report("Preparing 3D scene")
         await SceneManager.initialize()
 
 
         // Initialization of Audio Context
+        report("Preparing audio engine")
         const audioContext = new AudioContext()
-        await new Promise<void>(r=>{
-            window.addEventListener('click',
-                async() => {
-                    await audioContext.resume();
-                    r()
-                }, 
-                { once: true }
-            )
-        })
+        this.armAudioContextResume(audioContext)
         
         const audioEngine = await CreateAudioEngineAsync({audioContext})
-        await audioEngine.unlockAsync()
+        void audioEngine.unlockAsync().catch(e =>
+            console.warn('[App] Audio engine unlock deferred until interaction:', e)
+        )
 
 
         // Request wake lock and setup audio context state handling
@@ -75,73 +89,102 @@ export class App {
 
         BabylonsJSFix.fix()
 
+        report("Preparing XR runtime")
         UIManager.initialize()
         await XRManager.getInstance()!!.init(SceneManager.getInstance().getScene(), audioEngine);
 
-        InputManager.create(XRManager.getInstance().xrHelper, [
+        report("Preparing inputs")
+        InputManager.create(XRManager.getInstance().xrHelper ?? null, [
             SceneManager.getInstance().getScene(),
             SceneManager.getInstance().getUtilityLayer().utilityLayerScene
         ])
 
+        report("Preparing menus")
         await MenuSystem.initialize(
             SceneManager.getInstance(),
         )
 
+        report("Preparing node graph")
         await Node3dManager.initialize(audioContext, audioEngine)
         
         PlayerManager.initialize(participantId)
         NetworkManager.initialize(participantId, roomName, doc)
         ConnectionManager.initialize()
 
+        report("Preparing networking")
         await AppOrchestrator.initialize()
 
         SceneManager.getInstance().start()
 
-        await DrawingSystem.initialize(
+        report("Preparing collaboration tools")
+        await Promise.all([
+            DrawingSystem.initialize(
+                NetworkManager.getInstance(),
+                InputManager.getInstance(),
+                SceneManager.getInstance(),
+                usercolor,
+            ),
+            AvatarSystem.initialize(
+                NetworkManager.getInstance(),
+                InputManager.getInstance(),
+                SceneManager.getInstance(),
+                NetworkEventBus.getInstance(),
+                username,
+                usercolor,
+            ),
+            ShopMenuSystem.initialize(
+                SceneManager.getInstance(),
+                InputManager.getInstance(),
+                Node3dManager.getInstance(),
+                MenuSystem.getInstance(),
+                options.tutorial ? { allowedKinds: new Set(Object.values(TUTORIAL_KINDS)) } : {},
+            ),
+            TargetManager.initialize(
+                SceneManager.getInstance(),
+                InputManager.getInstance(),
+                Node3dManager.getInstance(),
+            ),
+            PointerVisualSystem.initialize(
+                SceneManager.getInstance(),
+                InputManager.getInstance(),
+            ),
+            HapticContactSystem.initialize(
+                InputManager.getInstance(),
+                WamTransportManager.getInstance(audioContext),
+            ),
+            AudioWorldSystem.initialize(
+                audioContext,
+                InputManager.getInstance(),
+            ),
+        ])
+
+        report("Preparing voice tools")
+        MicrophoneSystem.initialize(audioContext)
+        VoiceChatSystem.initialize(
+            audioContext,
             NetworkManager.getInstance(),
-            InputManager.getInstance(),
+            AvatarSystem.getInstance(),
             SceneManager.getInstance(),
-            usercolor,
         )
 
-        await AvatarSystem.initialize(
-            NetworkManager.getInstance(),
-            InputManager.getInstance(),
-            SceneManager.getInstance(),
-            NetworkEventBus.getInstance(),
-            username,
-            usercolor,
-        )
-
-        await ShopMenuSystem.initialize(
-            SceneManager.getInstance(),
-            InputManager.getInstance(),
-            Node3dManager.getInstance(),
-            MenuSystem.getInstance(),
-        )
-
-        await TargetManager.initialize(
-            SceneManager.getInstance(),
-            InputManager.getInstance(),
-            Node3dManager.getInstance(),
-        )
-
-        await PointerVisualSystem.initialize(
-            SceneManager.getInstance(),
-            InputManager.getInstance(),
-        )
-
-        await HandMenuSystem.initialize(
-            SceneManager.getInstance(),
-            InputManager.getInstance(),
-            WamTransportManager.getInstance(audioContext),
-            Node3dManager.getInstance(),
-            ShopMenuSystem.getInstance(),
-            TargetManager.getInstance(),
-            PointerVisualSystem.getInstance(),
-        )
-
-        
+        report("Preparing hand controls")
+        await Promise.all([
+            HandMenuSystem.initialize(
+                SceneManager.getInstance(),
+                InputManager.getInstance(),
+                WamTransportManager.getInstance(audioContext),
+                Node3dManager.getInstance(),
+                ShopMenuSystem.getInstance(),
+            ),
+            ContextMenuSystem.initialize(
+                SceneManager.getInstance(),
+                InputManager.getInstance(),
+                WamTransportManager.getInstance(audioContext),
+                Node3dManager.getInstance(),
+                TargetManager.getInstance(),
+                MenuSystem.getInstance(),
+            ),
+        ])
 
         // Get things
         const scene = SceneManager.getInstance().getScene()
@@ -150,6 +193,7 @@ export class App {
         const node3dShared = node3dBuilder.getShared()
         
         // create 3D controller button labels
+        report("Preparing controller hints")
         this.controlsUI = new ControlsUISystem();
         
         // Setup X button to toggle controls UI
@@ -167,7 +211,10 @@ export class App {
                 if(prompt) node3dManager.addNode3d(`${prompt}`, new Vector3(0,0,5))
             }
             else if(e.key=="i"){
-                scene.debugLayer.show()
+                await SceneManager.getInstance().toggleInspector()
+            }
+            else if(e.key=="o"){
+                NetworkManager.getInstance().doc
             }
             // else if(e.key=="q"){
             //     let prompt = window.prompt("Enter URL to import:")
@@ -217,7 +264,31 @@ export class App {
         })
 
         MenuSystem.getInstance().showMessage("Welcome to the Musical Multiverse VR!", "white")
+        report("Session scene ready")
 
+    }
+
+    private armAudioContextResume(audioContext: AudioContext): void {
+        const resume = async () => {
+            if (audioContext.state === 'running') return
+            try {
+                await audioContext.resume()
+                cleanup()
+                console.log('[App] AudioContext resumed after user interaction')
+            } catch (e) {
+                console.warn('[App] AudioContext resume deferred:', e)
+            }
+        }
+        const cleanup = () => {
+            window.removeEventListener('pointerdown', resume)
+            window.removeEventListener('touchend', resume)
+            window.removeEventListener('keydown', resume)
+        }
+
+        window.addEventListener('pointerdown', resume, { passive: true })
+        window.addEventListener('touchend', resume, { passive: true })
+        window.addEventListener('keydown', resume)
+        void resume()
     }
 
     /**

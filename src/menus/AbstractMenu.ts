@@ -1,10 +1,13 @@
-import { CreatePlane, Mesh, Scene, Quaternion, Vector3, Observable } from "@babylonjs/core"
-import { AdvancedDynamicTexture, Control, Rectangle } from "@babylonjs/gui"
+import { CreatePlane, Mesh, Scene, Quaternion, Vector3, Observable, TransformNode } from "@babylonjs/core"
+import { AdvancedDynamicTexture, Control, Rectangle, ScrollViewer } from "@babylonjs/gui"
 import { InputToPointerBehavior } from "../xr/inputs/tools/InputToPointer"
 import { PointerInput } from "../xr/inputs/PointerInput"
 import { N3DText } from "../node3d/instance/utils/N3DText"
+import { InputHoverBehavior } from "../node3d/tools"
+import { InputManager } from "../xr/inputs"
 
 export class AbstractMenu {
+    protected root!: TransformNode
     protected plane!: Mesh
     protected texture!: AdvancedDynamicTexture
     protected label?: N3DText
@@ -25,10 +28,51 @@ export class AbstractMenu {
      * @param textureResolution Base texture resolution (width). Height is calculated from plane aspect ratio
      */
     protected initPanel(name: string, width: number, height: number, textureResolution: number = 512) {
-        this.plane = CreatePlane(name, { width, height }, this.renderScene)
+        // Dispose if already initialized
+        if(this.root) this.root.dispose()
+        if(this.plane) this.plane.dispose()
+        if(this.texture) this.texture.dispose()
+        if(this.label) this.label.dispose()
+
+        this.root = new TransformNode(name, this.scene)
+        
+        this.plane = CreatePlane(name, { width:1, height:1 }, this.renderScene)
+        this.plane.parent = this.root
+        this.plane.scaling.set(width, height, 1)
 
         if(this.options.interactable ?? true){
-            this.plane.addBehavior(new InputToPointerBehavior())
+            // Inputs to pointer behavior
+            const pointer_controls = new InputToPointerBehavior()
+            this.plane.addBehavior(pointer_controls)
+
+            // Scroll
+            const SCROLL_RATE = 0.05
+
+            const inputs = InputManager.getInstance()
+
+            let scrollinterval: {remove():void}|null = null
+            let scrollinterval2: {remove():void}|null = null
+            const hover = new InputHoverBehavior(
+                ()=>{
+                    scrollinterval = inputs.right.thumbstick.setPullInterval(50, (_x,y)=>{
+                        this.scrollByFraction(-y * SCROLL_RATE)
+                    })
+                    scrollinterval2 = inputs.screen.thumbstick.setPullInterval(50, (_x,y)=>{
+                        this.scrollByFraction(-y * SCROLL_RATE)
+                    })
+                },
+                ()=>{
+                    if(scrollinterval){
+                        scrollinterval.remove()
+                        scrollinterval = null
+                    }
+                    if(scrollinterval2){
+                        scrollinterval2.remove()
+                        scrollinterval2 = null
+                    }
+                },
+            )
+            this.plane.addBehavior(hover)
         }
         else{
             this.plane.isPickable = false
@@ -42,6 +86,12 @@ export class AbstractMenu {
             textureResolution,
             textureHeight
         )
+    }
+
+    protected resizePanel(width: number, height: number, textureResolution: number = 512) {
+        this.plane.scaling.set(width, height, 1)
+        const textureHeight = Math.round(textureResolution * (height / width))
+        this.texture.scaleTo(textureResolution, textureHeight)
     }
 
     /**
@@ -132,12 +182,12 @@ export class AbstractMenu {
                 .multiplyInPlace(Quaternion.FromEulerAngles(0.1, 0, 0))
 
             // Smooth positioning
-            const positionDiff = Vector3.DistanceSquared(this.plane.position, targetPosition)
+            const positionDiff = Vector3.DistanceSquared(this.root.position, targetPosition)
             if (positionDiff > 0.4) {
-                this.plane.position.scaleInPlace(.95).addInPlace(targetPosition.scaleInPlace(.05))
+                this.root.position.scaleInPlace(.95).addInPlace(targetPosition.scaleInPlace(.05))
             }
 
-            this.plane.rotationQuaternion = targetRotation
+            this.root.rotationQuaternion = targetRotation
         })
 
         return o
@@ -186,10 +236,10 @@ export class AbstractMenu {
                 * .8 + .2 // To 0.2..1
             )
                 
-            this.plane.scaling.setAll(.15*sizeMultiplier)
+            this.root.scaling.setAll(.15*sizeMultiplier)
 
             // Rotate
-            this.plane.rotationQuaternion = Quaternion.FromLookDirectionLH(
+            this.root.rotationQuaternion = Quaternion.FromLookDirectionLH(
                 head.direction.scale(-1),
                 head_up
             )
@@ -198,7 +248,7 @@ export class AbstractMenu {
         const o2 = pointer.onMove.add(() => {
             // Place
             const targetPosition = pointer.forward.scale(-.1).addInPlace(pointer.origin)
-            this.plane.position.scaleInPlace(.2).addInPlace(targetPosition.scaleInPlace(.8))
+            this.root.position.scaleInPlace(.2).addInPlace(targetPosition.scaleInPlace(.8))
         })
 
         return {
@@ -209,6 +259,21 @@ export class AbstractMenu {
             }
         }
     }
+
+    // Scroll
+    /** Subclasses set this to their scrollable content so thumbsticks can scroll it. */
+    public scrollViewer?: ScrollViewer
+
+    /** Scroll the menu by a fraction of its range (joystick scrolling). No-op if
+     *  the menu has no scroll or no overflow. dy>0 scrolls down, dy<0 scrolls up. */
+    public scrollByFraction(dy: number): void {
+        const bar = this.scrollViewer?.verticalBar
+        if (!bar) return
+        const min = bar.minimum ?? 0
+        const max = bar.maximum ?? 1
+        bar.value = Math.max(min, Math.min(max, bar.value + dy * (max - min)))
+    }
+
 
     /**
      * Dispose all resources

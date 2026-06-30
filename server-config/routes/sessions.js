@@ -21,6 +21,7 @@ router.get('/public', (req, res) => {
             JOIN projects p ON s.project_id = p.id
             JOIN users u ON p.owner_id = u.id
             WHERE s.is_public = 1
+              AND s.is_temporary = 0
             ORDER BY participant_count DESC, s.created_at DESC
         `).all();
         res.json({ sessions });
@@ -106,6 +107,37 @@ router.post('/', requireAuth, (req, res) => {
         res.status(201).json({ session });
     } catch (error) {
         console.error('[Sessions] Create error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+/**
+ * POST /api/sessions/temporary
+ * Crée une session 100% NON PERSISTANTE (éphémère). Pas de projet requis
+ * (référence le projet système réservé 'system-project'), accessible aux invités
+ * (optionalAuth). Son crdt_data n'est jamais écrit (cf. /save) et elle est
+ * supprimée dès qu'elle se vide (cf. heartbeat).
+ * Body: { name?, maxUsers? }
+ */
+router.post('/temporary', optionalAuth, (req, res) => {
+    try {
+        const { name, maxUsers = 32 } = req.body || {};
+        const db = getDb();
+
+        const id = uuidv4();
+        const shareToken = crypto.randomBytes(16).toString('hex');
+        const sessionName = (name && name.trim())
+            || `Session temporaire ${new Date().toISOString().slice(11, 19)}`;
+
+        db.prepare(`
+            INSERT INTO sessions (id, project_id, name, is_public, max_users, share_token, is_temporary)
+            VALUES (?, 'system-project', ?, 1, ?, ?, 1)
+        `).run(id, sessionName, maxUsers, shareToken);
+
+        const session = db.prepare('SELECT * FROM sessions WHERE id = ?').get(id);
+        res.status(201).json({ session });
+    } catch (error) {
+        console.error('[Sessions] Create temporary error:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 });
@@ -238,6 +270,7 @@ router.post('/:id/join', optionalAuth, (req, res) => {
             sessionName: session.name,
             maxUsers: session.max_users,
             sessionLocked: session.is_locked ? true : false,
+            isTemporary: !!session.is_temporary,
         };
 
         // If this is the first participant, send CRDT data
@@ -357,19 +390,27 @@ router.post('/:id/save', (req, res) => {
         const participant = db.prepare('SELECT * FROM session_participants WHERE participant_id = ? AND session_id = ?').get(participantId, req.params.id);
         if (!participant) return res.status(403).json({ error: 'Not a participant of this session' });
 
-        // Special handling for public-sandbox: don't persist to DB
+        // Special handling for public-sandbox: don't persist to DB (main)
         if (req.params.id === 'public-sandbox') {
             return res.json({ message: 'Saved (public sandbox - not persisted to DB)' });
         }
 
-        // Check if session is locked: don't persist to DB
-        const sessionLock = db.prepare('SELECT is_locked FROM sessions WHERE id = ?').get(req.params.id);
-        if (sessionLock?.is_locked) {
+        // Sessions VERROUILLÉES (main) ou TEMPORAIRES (nous) → jamais persistées.
+        const meta = db.prepare('SELECT is_locked, is_temporary FROM sessions WHERE id = ?').get(req.params.id);
+        if (meta?.is_temporary) {
+            return res.json({ message: 'Temporary session — not persisted' });
+        }
+        if (meta?.is_locked) {
             return res.json({ message: 'Saved (session locked - not persisted to DB)' });
         }
 
-        // Data loss protection
+        // Skip no-op saves early to avoid unnecessary WAL growth and updated_at churn
         const session = db.prepare('SELECT crdt_data FROM sessions WHERE id = ?').get(req.params.id);
+        if (session?.crdt_data === crdtData) {
+            return res.json({ message: 'Saved (unchanged snapshot skipped)' });
+        }
+
+        // Data loss protection
         if (session?.crdt_data) {
             try {
                 const oldData = JSON.parse(session.crdt_data);

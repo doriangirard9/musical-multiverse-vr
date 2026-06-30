@@ -188,29 +188,78 @@ export class HyperKeyboardN3D implements Node3D {
     constructor(private context: Node3DContext, private gui: HyperKeyboardN3DGUI) {
         const { tools: T } = context
 
+        const keyboard = this
+
         // Hitbox
         context.addToBoundingBox(gui.base)
 
-        // Keys
+        // Detect key press
         gui.forKeys((x, y, z, key) => {
-            const hover = new T.InputHoverBehavior(
-                () =>  this.setHighlighted(x, y, z, true),
-                () => this.setHighlighted(x, y, z, false),
-            )
+            ;(key.metadata??={}).hyperkeyboard = {keyboard, x, y, z}
+        })
 
-            const press = new T.InputMultiPressBehavior(
-                () => this.set(x, y, z, true),
-                () => this.set(x, y, z, false),
-            )
+        function getKey(mesh: AbstractMesh|null|undefined) {
+            if(!mesh) return null
+            if(!mesh.metadata?.hyperkeyboard) return null
+            if(mesh.metadata.hyperkeyboard.keyboard !== keyboard) return null
+            return {
+                mesh,
+                x: mesh.metadata.hyperkeyboard.x as number,
+                y: mesh.metadata.hyperkeyboard.y as number,
+                z: mesh.metadata.hyperkeyboard.z as number,
+            }
+        }
 
-            key .addBehavior(hover) .addBehavior(press)
+        // Touch and press
+        for(const controller of context.inputs.controllers){
+            // Highlight
+            if(controller.pointer.touchedMesh){
+                const key = getKey(controller.pointer.touchedMesh)
+                if(key) this.setHighlighted(key.x, key.y, key.z, true)
+            }
 
-            this.observers.push({
-                remove: () => {
-                    key .removeBehavior(hover) .removeBehavior(press)
+            const on_hover = controller.pointer.onNewTouch.add((touch) => {
+                const prev = getKey(touch.previousMesh)
+                if(prev) this.setHighlighted(prev.x, prev.y, prev.z, false)
+                const now = getKey(touch.touchedMesh)
+                if(now) this.setHighlighted(now.x, now.y, now.z, true)
+            })
+            
+            // Touch
+            if(controller.trigger.isPressed()){
+                const key = getKey(controller.pointer.touchedMesh)
+                if(key) this.set(key.x, key.y, key.z, true)
+            }
+
+            const on_touch = controller.pointer.onNewTouch.add((touch) => {
+                if(controller.trigger.isPressed()){
+                    const prev = getKey(touch.previousMesh)
+                    if(prev) this.set(prev.x, prev.y, prev.z, false)
+
+                    const now = getKey(touch.touchedMesh)
+                    if(now) this.set(now.x, now.y, now.z, true)
                 }
             })
-        })
+
+            const on_down = controller.trigger.onDown.add(() => {
+                const key = getKey(controller.pointer.touchedMesh)
+                if(key) this.set(key.x, key.y, key.z, true)
+            })
+
+            const on_up = controller.trigger.onUp.add(() => {
+                const key = getKey(controller.pointer.touchedMesh)
+                if(key) this.set(key.x, key.y, key.z, false)
+            })
+            
+            this.observers.push({
+                remove: () => {
+                    on_hover.remove()
+                    on_touch.remove()
+                    on_down.remove()
+                    on_up.remove()
+                }
+            })
+        }
 
         // Outputs
         this.output = new T.MidiN3DConnectable.ListOutput(

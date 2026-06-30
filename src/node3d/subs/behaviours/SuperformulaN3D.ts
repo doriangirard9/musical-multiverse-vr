@@ -7,9 +7,22 @@ import type { Node3DContext } from "../../Node3DContext";
 import type { Node3DGUIContext } from "../../Node3DGUIContext";
 import type { AutomationN3DConnectable } from "../../tools";
 import { BoidSwarm } from "./steering/Boid";
+import { setupInstrumentControls, makeClusterButtons, OutputPulser, type TunableParam, type ClusterButtons } from "./instrumentControls";
 
 // Redimensionnement désormais à deux mains (hôte) → plus de poignée par item.
 const BOID_MAX = 30;
+
+// Shape presets (superformula recipes, REAL values).
+const SF2D_PRESETS: Record<string, Record<string, number>> = {
+    "5-point Star":   { m: 5,  n1: 1.5, n2: 1.5, n3: 1.5, scale: 0.40, speed: 1.5 },
+    // ⚠ n2=n3=2 gives |cos|²+|sin|²=1 (Pythagorean identity) = a PERFECT CIRCLE,
+    // whatever m is. For a real triangle (3 sides), n ≠ 2: here a Gielis-style
+    // rounded triangle (m=3, moderate n1, high n2=n3 → straight sides).
+    "Triangle":       { m: 3,  n1: 5,   n2: 10,  n3: 10,  scale: 0.40, speed: 1.2 },
+    "12-petal Flower":{ m: 12, n1: 1,   n2: 1,   n3: 1,   scale: 0.42, speed: 1.0 },
+    "Crystal":        { m: 4,  n1: 0.3, n2: 0.3, n3: 0.3, scale: 0.38, speed: 1.8 },
+    "Eye / Leaf":     { m: 2,  n1: 4,   n2: 0.5, n3: 0.5, scale: 0.40, speed: 1.0 },
+};
 
 // ─── Superformula math ────────────────────────────────────────────────────────
 //
@@ -97,6 +110,7 @@ export class SuperformulaN3DGUI implements Node3DGUI {
     btnBoidRemove!: AbstractMesh;
     boidToggleMat!: StandardMaterial;
     boidContainer!: TransformNode;
+    cluster!: ClusterButtons;
 
     // Ball halo for that soft-glow look (parented to ballRoot)
     ballHalo!: AbstractMesh;
@@ -360,6 +374,9 @@ export class SuperformulaN3DGUI implements Node3DGUI {
         // Container for boid meshes so they scale with gui.root
         this.boidContainer = new B.TransformNode("sf_boid_container", context.scene);
         this.boidContainer.parent = this.root;
+
+        // Cluster standard ? · Presets · 🎲 · ↺ — haut-centre
+        this.cluster = makeClusterButtons(B, context.scene, this.root, { x: -0.24, y: 0.45, z: 0 });
     }
 
     /**
@@ -517,6 +534,7 @@ export class SuperformulaN3D implements Node3D {
         }
 
         // ── Knob parameters (6) ───────────────────────────────────────────────
+        const tunables: TunableParam[] = [];
         const setupKnob = (
             id: string, label: string, mesh: AbstractMesh,
             range: keyof typeof RANGES,
@@ -527,23 +545,25 @@ export class SuperformulaN3D implements Node3D {
             const updateVisual = () => mesh.scaling.setAll(0.5 + norm(range, getter()) * 0.6);
             updateVisual();
 
+            const setNorm = (v01: number) => {
+                setter(denorm(range, v01));
+                updateVisual();
+                this.curveDirty = true;
+                context.notifyStateChange(id);
+            };
             context.createParameter({
                 id,
                 meshes: [mesh],
                 getLabel: () => label,
                 getStepCount: () => stepCount,
                 getValue: () => norm(range, getter()),
-                setValue: (v01: number) => {
-                    setter(denorm(range, v01));
-                    updateVisual();
-                    this.curveDirty = true;
-                    context.notifyStateChange(id);
-                },
+                setValue: setNorm,
                 stringify: (v01: number) => {
                     const real = denorm(range, v01);
                     return `${label}: ${real.toFixed(decimals)}`;
                 },
             });
+            tunables.push({ name: id, min: RANGES[range].min, max: RANGES[range].max, getNorm: () => norm(range, getter()), setNorm });
         };
 
         setupKnob("m",     "Petals (m)",     gui.knobM,     "m",      20, 1, () => this.m,     v => this.m     = v);
@@ -604,6 +624,32 @@ export class SuperformulaN3D implements Node3D {
             },
             release: () => {},
         });
+
+        // ── Standard cluster: ? · Presets · 🎲 · ↺ (applies "5-point Star" on spawn) ─
+        setupInstrumentControls(context, {
+            title: "Superformula",
+            description: "Controller based on the Gielis superformula. A ball travels along " +
+                "a parametric curve shaped by 6 knobs; its motion produces 8 automation " +
+                "metrics you can wire to any WAM parameter. Boids mode included.",
+            legend: [
+                { swatch: "🟡", name: "Gold knobs (left)", role: "Shape: m (petals), n1 (sharpness), n2 (width), n3 (height)" },
+                { swatch: "🟠", name: "Orange knobs (right)", role: "Ball scale and speed" },
+                { swatch: "🔵", name: "Top-left discs", role: "Boids: on/off, +, −" },
+                { swatch: "🟢", name: "Bottom spheres", role: "Automation outputs: posX/Y, radius, Δradius, speeds, accel., curvature (+ boids)" },
+                { swatch: "✋", name: "Frame", role: "Two-handed grab = resize; bin button or vigorous shake = delete" },
+            ],
+            presets: SF2D_PRESETS,
+            defaultPreset: "5-point Star",
+            params: tunables,
+            helpBtn: gui.cluster.helpBtn,
+            presetBtn: gui.cluster.presetBtn,
+            mutateBtn: gui.cluster.mutateBtn,
+            resetBtn: gui.cluster.resetBtn,
+        });
+        const pulser = new OutputPulser([
+            gui.outPosX, gui.outPosY, gui.outRadius, gui.outRadiusDelta,
+            gui.outAngularVel, gui.outSpeed, gui.outAcceleration, gui.outCurvature,
+        ]);
 
         // ── Per-frame loop ────────────────────────────────────────────────────
         //
@@ -705,6 +751,7 @@ export class SuperformulaN3D implements Node3D {
             sendIfChanged(this.outSpeed,        "speed",       nSpeed);
             sendIfChanged(this.outAcceleration, "accel",       nAccel);
             sendIfChanged(this.outCurvature,    "curvature",   nCurvature);
+            pulser.update([nPosX, nPosY, nRadius, nRadiusDelta, nAngVel, nSpeed, nAccel, nCurvature], dt);
 
             // Boid swarm chases the playhead ball (no-op when boidMode is OFF)
             this.swarm.update(gui.ballRoot.position, dt);

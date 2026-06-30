@@ -51,7 +51,7 @@ export class InputMultiGrabBehavior implements Behavior<AbstractMesh> {
         this.moveObservers.delete(pointer);
     }
 
-    attachedNode: AbstractMesh
+    attachedNode!: AbstractMesh
 
     attach(target: AbstractMesh): void {
         this.detach()
@@ -63,6 +63,13 @@ export class InputMultiGrabBehavior implements Behavior<AbstractMesh> {
             inputs.onTriggerDown.add(e => {
                 const pointer = e.pressable.controller?.pointer;
                 if (!pointer) return;
+                // [YASSINE_CEST_LA]
+                // Pas acceptable, il faut bien séparer les responsabilités.
+                // Cette classe doit fonctionner indépendemment de la logique de l'application,
+                // et ne pas dépendre d'un état global.
+                // En plus Buffa l'a implémenté d'une meilleur manière, donc c'est bon dans tous les 
+                // cas. Voir: AbstractPointerInput.PickPredicate
+                // J'AI SUPPRIME : if (IOEventBus.getInstance().isConnectionDragActive()) return;
                 if (pointer.targetMesh === target) {
                     this.add(pointer);
                 }

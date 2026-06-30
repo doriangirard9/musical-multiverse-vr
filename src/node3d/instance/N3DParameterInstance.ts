@@ -1,4 +1,4 @@
-import { ActionManager, Color3, HighlightLayer, Matrix, TransformNode, UtilityLayerRenderer, Vector3 } from "@babylonjs/core"
+import { Color3, HighlightLayer, Matrix, Observable, TransformNode, UtilityLayerRenderer, Vector3 } from "@babylonjs/core"
 import { NodeCompUtils } from "../tools/utils/NodeCompUtils"
 import { Node3DParameter } from "../Node3DParameter"
 import { N3DText } from "./utils/N3DText"
@@ -7,7 +7,6 @@ import { InputGrabBehavior } from "../../xr/inputs/tools/InputGrabBehavior"
 import { Node3DInstance } from "./Node3DInstance"
 
 const highlightColor = Color3.Blue()
-
 
 
 /**
@@ -86,9 +85,7 @@ export class N3DParameterInstance {
 
         const disposables: (()=>void)[] = []
 
-        for(const draggable of config.meshes){
-            const action = draggable.actionManager ??= new ActionManager(root.getScene())
-        
+        for(const draggable of config.meshes){        
             const hover = new InputHoverBehavior(()=>{
                 updateText()
                 visual.offset(1)
@@ -99,6 +96,7 @@ export class N3DParameterInstance {
             let startingValue = 0
             let stepSize = 0.01
             let changeFactor = 0
+            let grabY = 0   // world-space controller Y captured at grab start
 
             const reverseMatrix = Matrix.Identity()
             const relativePosition = new Vector3()
@@ -129,6 +127,7 @@ export class N3DParameterInstance {
                     }
                     
                     reverseMatrix.copyFrom(input.matrix).invertToRef(reverseMatrix)
+                    grabY = input.origin.y
                 },
                 ()=>{
                     visual.offset(-1)
@@ -136,13 +135,18 @@ export class N3DParameterInstance {
                 input=>{
                     // If stepCount is 2, do nothing on drag
                     if(stepSize==1)return
-                    
+
+                    // Get ray relative to the parameter
                     Vector3.TransformCoordinatesToRef(input.origin, reverseMatrix, relativePosition)
                     Vector3.TransformNormalToRef(input.forward, reverseMatrix, relativeDirection)
                     
                     const fromOffset = config.fromOffset ?? ((posOffset, dirOffset) => {
-                        temp.copyFrom(dirOffset).scaleInPlace(2).addInPlace(posOffset)
-                        return temp.y
+                        // Project to ground plane
+                        const ground_length = Math.abs(Math.pow(dirOffset.x,2) + Math.pow(dirOffset.z,2))
+                        const corrected_length = Math.min(1/ground_length,10)
+
+                        temp.copyFrom(dirOffset).scaleInPlace(corrected_length).addInPlace(posOffset)
+                        return -temp.y
                     })
 
                     const offset = fromOffset(relativePosition, relativeDirection)
@@ -181,6 +185,8 @@ export class N3DParameterInstance {
     setValue(value: number){
         if(this.isLocked) return
         this.config.setValue(value)
+        this.onValueChanged.notifyObservers(value)
+        this.node3d.onParameterChanged.notifyObservers({ id: this.config.id, value })
         if(!this.config.notSynced) this.node3d.set_state("node3d_parameter_"+this.config.id)
     }
 
@@ -192,9 +198,17 @@ export class N3DParameterInstance {
         this.config.setValue(value, true)
     }
 
+    /**
+     * Get the current value of the parameter.
+     */
+    getValue(): number{
+        return this.config.getValue()
+    }
+
     readonly dispose
     readonly text
     readonly highlight
     readonly visual
+    readonly onValueChanged = new Observable<number>()
 
 }

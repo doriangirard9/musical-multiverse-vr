@@ -6,11 +6,11 @@ import { PointerInput } from "../xr/inputs"
 
 
 /**
- * The 3D drawing functionnality. It allows to draw with the controllers in the scene.
- * Manager for drawing in the 3D world.
- * It allows users to create and manipulate 3D curves that are synchronized across the network.
- * It uses the Curve3D class to represent individual curves and manages their synchronization using the NetworkManager.
- * It also handles user inputs related to drawing, allowing users to create and modify curves in real-time.
+ * The pointer visual system is responsible for creating and managing the visual representation
+ * of pointers in the scene.
+ * The pointers are not shared online.
+ * The {@link AvatarSystem} is reponsible for creating and managing the visual representation
+ * of other players' pointers in the scene.
  */
 export class PointerVisualSystem {
 

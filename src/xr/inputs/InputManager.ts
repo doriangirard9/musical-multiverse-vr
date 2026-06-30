@@ -4,7 +4,7 @@
  * @module inputs
  */
 
-import { AbstractMesh, Immutable, Observable, Scene, Vector3, WebXRDefaultExperience, WebXRInputSource } from "@babylonjs/core";
+import { AbstractMesh, Immutable, Nullable, Observable, Scene, Vector3, WebXRDefaultExperience, WebXRInputSource } from "@babylonjs/core";
 import { ButtonInput, ButtonInputEvent } from "./ButtonInput";
 import { PressableInputEvent } from "./PressableInput";
 import { AxisInputEvent } from "./AxisInput";
@@ -39,7 +39,7 @@ export class InputManager {
         
     public static getInstance(): InputManager { return this.instance }
 
-    public static create(xrHelper: WebXRDefaultExperience, scene: Scene[]) { this.instance = new InputManager(xrHelper, scene) }
+    public static create(xrHelper: Nullable<WebXRDefaultExperience>, scene: Scene[]) { this.instance = new InputManager(xrHelper, scene) }
     
     
     //// OBSERVERS ////
@@ -90,7 +90,10 @@ export class InputManager {
     readonly onThumbstickChange = new Observable<AxisInputEvent>()
 
     /** The observable that is notified when any pointer input gets a new target. */
-    readonly onNewtarget = new Observable<PointerInput>()
+    readonly onNewTarget = new Observable<PointerInput>()
+
+    /** The observable that is notified when any pointer input touch a new target. */
+    readonly onNewTouch = new Observable<PointerInput>()
 
     /** The observable that is notified when a target is entered for the first time since the last exit. */
     readonly onEnterTarget = new Observable<{target:AbstractMesh,pointer:PointerInput}>()
@@ -101,10 +104,15 @@ export class InputManager {
     /** A list of the meshes currently being pointed at by any controller. */
     get pointedMeshes() { return Array.from(this._pointeds.keys()) }
 
+    /** A list of the meshes currently being touched by any controller. */
+    get touchedMeshes() { return Array.from(this._toucheds.keys()) }
+
     private _pointeds = new Map<AbstractMesh,number>()
 
+    private _toucheds = new Map<AbstractMesh,number>()
+
     private constructor(
-        xrHelper: WebXRDefaultExperience,
+        xrHelper: Nullable<WebXRDefaultExperience>,
         scenes: Scene[],
     ){
         const im = this
@@ -130,7 +138,7 @@ export class InputManager {
             controller.onPressableChange.add((event) => im.onPressableChange.notifyObservers(event))
 
             controller.pointer.onNewTarget.add((event) =>{
-                im.onNewtarget.notifyObservers(event)
+                im.onNewTarget.notifyObservers(event)
                 
                 // Previous
                 if(event.previousMesh!=null){
@@ -151,13 +159,33 @@ export class InputManager {
                     im._pointeds.set(event.targetMesh, newCount)
                 }
             })
+
+            controller.pointer.onNewTouch.add((event) =>{
+                im.onNewTouch.notifyObservers(event)
+
+                // Previous
+                if(event.previousMesh!=null){
+                    const newCount = (im._toucheds.get(event.previousMesh)??1)-1
+                    if(newCount==0){
+                        im._toucheds.delete(event.previousMesh)
+                    }
+                    else im._toucheds.set(event.previousMesh, newCount)
+                }
+                // New
+                if(event.targetMesh!=null){
+                    const newCount = (im._toucheds.get(event.targetMesh)??0)+1
+                    im._toucheds.set(event.targetMesh, newCount)
+                }
+            })
         }
 
         // Register document observers : based on key presses and mouse events
         this._registerDocument(scenes)
         
         // Register XR observers : based on XR controller events
-        this._registerXR(xrHelper, XRManager.getInstance(), scenes)
+        if (xrHelper) {
+            this._registerXR(xrHelper, XRManager.getInstance(), scenes)
+        }
 
         // General scene control : based on camera per example
         this._registerScene(scenes)
@@ -197,7 +225,7 @@ export class InputManager {
             ["arrowleft", "arrowright", "arrowup", "arrowdown"],
         )
 
-        im.left.thumbstick._registerMouseWheelObserver()
+        im.right.thumbstick._registerMouseWheelObserver()
     }
 
     _registerXR(xrHelper: WebXRDefaultExperience, xrManager: XRManager, scenes: Scene[]){

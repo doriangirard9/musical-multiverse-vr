@@ -54,7 +54,7 @@ export class InputPressBehavior implements Behavior<AbstractMesh> {
         this.attachedNode = target
         const inputs = InputManager.getInstance()
         this.observables.push(
-            inputs.onNewtarget.add(e => {
+            inputs.onNewTarget.add(e => {
                 if(e.previousMesh===target || e.targetMesh===target) this.checkPressed(inputs, target)
             }),
             inputs.onTriggerDown.add(e =>{

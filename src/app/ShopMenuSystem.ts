@@ -1,3 +1,4 @@
+import { Observable } from "@babylonjs/core"
 import { InputManager } from "../xr/inputs/InputManager"
 import { SceneManager } from "./SceneManager"
 import { Node3dManager } from "./Node3dManager"
@@ -25,12 +26,16 @@ export class ShopMenuSystem {
 
     // Menu
     public menu?: ShopMenu
+    readonly onOpened = new Observable<void>()
+    readonly onItemSelected = new Observable<string>()
+    readonly onNavigationSelected = new Observable<{ level: "menu" | "submenu", label: string }>()
 
     constructor(
         readonly scene: SceneManager,
         readonly inputs: InputManager,
         readonly nodeManager: Node3dManager,
         readonly menus: MenuSystem,
+        readonly options: { allowedKinds?: ReadonlySet<string> } = {},
     ){
         InputManager.getInstance().a_button.onDown.add(()=>{
             this.toggle()
@@ -39,11 +44,20 @@ export class ShopMenuSystem {
 
     toggle(){
         if(!this.menu){
-            this.menu = new ShopMenu(this.scene.getScene(), SceneManager.getInstance().getUtilityLayer().utilityLayerScene)
+            this.menu = new ShopMenu(
+                this.scene.getScene(),
+                SceneManager.getInstance().getUtilityLayer().utilityLayerScene,
+                this.options.allowedKinds,
+            )
+            this.menu.onItemSelected.add(kind => this.onItemSelected.notifyObservers(kind))
+            this.menu.onNavigationSelected.add(event => this.onNavigationSelected.notifyObservers(event))
         }
 
         if(this.menus.current_menu===this.menu) this.menus.close()
-        else this.menus.open(this.menu, false)
+        else {
+            this.menus.open(this.menu, false)
+            this.onOpened.notifyObservers()
+        }
     }
 
     isOpened(){

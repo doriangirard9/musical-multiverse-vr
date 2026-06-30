@@ -48,7 +48,7 @@ export class InputMultiPressBehavior implements Behavior<AbstractMesh> {
         this.attachedNode = target
         const inputs = InputManager.getInstance()
         this.observables.push(
-            inputs.onNewtarget.add(e => {
+            inputs.onNewTarget.add(e => {
                 if(e.targetMesh===target && e.controller.trigger.isPressed()) this.add(e.controller)
                 if(e.previousMesh===target && e.controller.trigger.isPressed()) this.remove(e.controller)
             }),

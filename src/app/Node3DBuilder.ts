@@ -12,12 +12,16 @@ import { NoteBoxN3DFactory } from "../node3d/subs/NoteBoxN3D.ts";
 import { SpeakerN3DFactory } from "../node3d/subs/speaker/SpeakerN3D.ts";
 import { PianoRollN3DFactory } from "../node3d/subs/PianoRoll/PianoRoll3d.ts";
 import { DrumKitN3DFactory } from "../node3d/subs/drumkit/DrumKitN3D.ts";
-import { ButterchurnN3DFactory } from "../node3d/subs/visualizer/ButterchurnN3D.ts";
-import { IsfShaderN3DFactory } from "../node3d/subs/visualizer/IsfShaderN3D.ts";
-import { ScreenN3DFactory } from "../node3d/subs/visualizer/ScreenN3D.ts";
-import { BoxScreenN3DFactory } from "../node3d/subs/visualizer/BoxScreenN3D.ts";
-import { SphereScreenN3DFactory } from "../node3d/subs/visualizer/SphereScreenN3D.ts";
-import { CylinderScreenN3DFactory } from "../node3d/subs/visualizer/CylinderScreenN3D.ts";
+import { ButterchurnN3DFactory } from "../node3d/subs/video/ButterchurnN3D.ts";
+import { IsfShaderN3DFactory } from "../node3d/subs/video/IsfShaderN3D.ts";
+import { ScreenN3DFactory } from "../node3d/subs/video/ScreenN3D.ts";
+import { BoxScreenN3DFactory } from "../node3d/subs/video/BoxScreenN3D.ts";
+import { SphereScreenN3DFactory } from "../node3d/subs/video/SphereScreenN3D.ts";
+import { CylinderScreenN3DFactory } from "../node3d/subs/video/CylinderScreenN3D.ts";
+import { SpectrumBarsN3DFactory } from "../node3d/subs/visualizer/SpectrumBarsN3D.ts";
+import { OscilloscopeN3DFactory } from "../node3d/subs/visualizer/OscilloscopeN3D.ts";
+import { SpectogramN3DFactory } from "../node3d/subs/visualizer/SpectogramN3D.ts";
+import { LiveGainN3DFactory } from "../node3d/subs/visualizer/LiveGainN3D.ts";
 import { LivePianoN3DFactory } from "../node3d/subs/note_generator/LivePianoN3D.ts";
 import { HyperKeyboardN3DFactory } from "../node3d/subs/note_generator/HyperKeyboardN3D.ts";
 import { DrumPlateKitN3DFactory } from "../node3d/subs/note_generator/DrumPlateKitN3D.ts";
@@ -66,7 +70,7 @@ export class Node3DBuilder {
      * Some of the valid kinds of Node3D.
      */
     FACTORY_KINDS = [
-        "audiooutput", "oscillator", "maracas", "livepiano", "notesbox", "pianoroll", "drumkit", "pro54michel", "butterchurn", "screen", "box_screen", "sphere_screen", "cylinder_screen", "isf_shader",
+        "audiooutput", "oscillator", "maracas", "livepiano", "notesbox", "pianoroll", "drumkit", "pro54michel", "butterchurn", "screen", "box_screen", "sphere_screen", "cylinder_screen", "isf_shader", "spectrum_bars", "oscilloscope", "spectogram", "livegain",
         "hyperkeyboard", "drumplatekit", "automation_controller", "the_cube", "harp", "large_harp", "voice", "gaze", "sequencer12", "sequencer16", "audio_plaque", "superformula", "superformula3d", "fluid_field", "ai_composer", "ai_composer_improv", "ai_composer_drums", "ai_composer_basic", "ai_composer_vae",
         ...Object.keys(examples).map(k => `wam3d-${k}`),
         ...SERVER_KINDS.map(k => `server-${k}`),
@@ -149,6 +153,10 @@ export class Node3DBuilder {
         if (kind == "box_screen") return BoxScreenN3DFactory
         if (kind == "sphere_screen") return SphereScreenN3DFactory
         if (kind == "cylinder_screen") return CylinderScreenN3DFactory
+        if (kind == "spectrum_bars") return SpectrumBarsN3DFactory
+        if (kind == "oscilloscope")  return OscilloscopeN3DFactory
+        if (kind == "spectogram")    return SpectogramN3DFactory
+        if (kind == "livegain")      return LiveGainN3DFactory
         if (kind == "hyperkeyboard") return HyperKeyboardN3DFactory.SIMPLE
         if (kind == "drumplatekit") return DrumPlateKitN3DFactory.SMALL
         if (kind == "automation_controller") return AutomationControllerN3DFactory
@@ -166,6 +174,17 @@ export class Node3DBuilder {
         if (kind.startsWith("wam3d-")) {
             const config = (examples as Record<string, WAMGuiInitCode>)[kind.substring(6)]
             if (!config) return null
+
+            // TODO: SUPPRIMER CA, on peut pas mettre du scotch DANS le code parce qu'un
+            // node3d est mal implémenté.
+            if (kind === "wam3d-Drum") {
+                return await Wam3DGeneratorN3DFactory.create({
+                    ...config,
+                    name: "Drum",
+                    description: "Drum sampler controlled by MIDI.",
+                    tags: ["audio", "midi", "instrument", "drum"],
+                } as WAMGuiInitCode)
+            }
             return await Wam3DGeneratorN3DFactory.create(config)
         }
 
@@ -178,6 +197,30 @@ export class Node3DBuilder {
         return null
     }
 
+    private presets = new Map<string, Promise<Record<string,Record<string,number>>>>()
+
+    /**
+     * Get a preset map for a given kind of Node3D. The preset is fetched and cached on the first call.
+     * @param kind The kind of Node3D
+     * @returns The preset map or null if the preset could not be fetched
+     */
+    public getPresets(kind: string): Promise<Record<string,Record<string,number>>>{
+        if (!kind || kind.trim() === "" || kind.length > 20_000) return Promise.resolve({})
+        if(!this.presets.has(kind)){
+            return (async()=>{
+                try{
+                    const content = await fetch(`${SERVER_NAME}/api/presets/${kind}`)
+                    const json = await content.json()
+                    return json
+                }catch(_){
+                    this.presets.delete(kind)
+                    return {}
+                }
+            })()
+        }
+        else return this.presets.get(kind)!
+    }
+
     private factories = new Map<string, Promise<Node3DFactory<Node3DGUI, Node3D> | null>>()
 
     /**
@@ -186,8 +229,8 @@ export class Node3DBuilder {
      * @returns
      */
     public getFactory(kind: string): Promise<Node3DFactory<Node3DGUI, Node3D> | null> {
-        if (!kind || kind.trim() === "" || kind.length > 20_000) return Promise.resolve(null);
-        console.log(`Getting factory for kind: ${kind}`)
+        if (!kind || kind.trim() === "" || kind.length > 20_000) return Promise.resolve(null)
+
         if (!this.factories.has(kind)) {
             const promise = (async () => {
                 const factory = await this.createFactories(kind)

@@ -27,6 +27,16 @@ export class ControllerInput {
     /** Observable that notifies when any of the pressable(squeeze and trigger) inputs change state. */
     readonly onPressableChange = new Observable<PressableInputEvent>()
 
+    /**
+     * Trigger a haptic pulse on the controller. The intensity and duration of the pulse can be specified.
+     * @param intensity The intensity of the haptic pulse. Should be between 0 and 1.
+     * @param duration The duration of the haptic pulse in milliseconds.
+     * @param id The id of the haptic actuator to use. If the controller has multiple haptic actuators, this can be used to specify which one to use. Defaults to 0.
+     */
+    pulse(intensity: number, duration: number, id: number = 0) {
+        this.onHapticPulse.notifyObservers({id, intensity, duration})
+    }
+
     constructor(
         /** The side of the controller. Can be "left" or "right". */
         readonly side: "left"|"right"|"none",
@@ -41,14 +51,29 @@ export class ControllerInput {
         }
     }
 
+    private onHapticPulse = new Observable<{id:number, intensity:number, duration:number}>()
+
     _registerXRObserver(controller: WebXRInputSource, scenes: Scene[]): { remove(): void } {
         if(controller.motionController!!.handedness!==this.side) return { remove: () => {} }
+        
+        // Controls
         const observers = [
             this.pointer._registerXRObserver(controller, scenes),
             this.trigger._registerXRObserver(controller.motionController!!),
             this.squeeze._registerXRObserver(controller.motionController!!),
             this.thumbstick._registerXRObserver(controller.motionController!!),
         ]
+
+        // Haptic
+        const haptic = controller.motionController?.gamepadObject?.hapticActuators
+        if(haptic && haptic.length>0) {
+            observers.push(
+                this.onHapticPulse.add(event =>{
+                    haptic[event.id%haptic.length].pulse(event.intensity, event.duration)
+                })
+            )
+        }
+
         return {
             remove() {
                 observers.forEach(o => o.remove())

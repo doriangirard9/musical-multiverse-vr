@@ -7,6 +7,7 @@ import type { Node3DContext } from "../../Node3DContext";
 import type { Node3DGUIContext } from "../../Node3DGUIContext";
 import type { AutomationN3DConnectable } from "../../tools";
 import { BoidSwarm } from "./steering/Boid";
+import { setupInstrumentControls, makeClusterButtons, OutputPulser, type TunableParam, type ClusterButtons } from "./instrumentControls";
 
 // ─── Superformula3DN3D — supershape de Gielis en 3D ──────────────────────────
 //
@@ -73,6 +74,17 @@ const SHAPE_KEYS: RangeKey[] = ["mA", "n1A", "n2A", "n3A", "mB", "n1B", "n2B", "
 
 const BOID_MAX = 30;
 
+// Shape presets (REAL values within the RANGES). The morph smoothing makes
+// transitions between presets fluid.
+const SF3D_PRESETS: Record<string, Record<string, number>> = {
+    "Sphere":   { mA: 8,  n1A: 8,   n2A: 8,   n3A: 8,   mB: 8,  n1B: 8,   n2B: 8,   n3B: 8,   scale: 0.34, speed: 0.5 },
+    "Flower":   { mA: 6,  n1A: 1,   n2A: 1.7, n3A: 1.7, mB: 3,  n1B: 1,   n2B: 1.5, n3B: 1.5, scale: 0.32, speed: 0.6 },
+    "Star":     { mA: 7,  n1A: 0.3, n2A: 0.4, n3A: 0.4, mB: 7,  n1B: 0.3, n2B: 0.4, n3B: 0.4, scale: 0.30, speed: 0.8 },
+    "Crystal":  { mA: 3,  n1A: 0.4, n2A: 0.5, n3A: 0.5, mB: 4,  n1B: 0.4, n2B: 0.5, n3B: 0.5, scale: 0.30, speed: 1.0 },
+    "Asteroid": { mA: 5,  n1A: 1.2, n2A: 2.5, n3A: 0.6, mB: 6,  n1B: 1.5, n2B: 0.6, n3B: 2.2, scale: 0.30, speed: 0.4 },
+    "Galaxy":   { mA: 12, n1A: 0.6, n2A: 1,   n3A: 1,   mB: 2,  n1B: 2,   n2B: 1,   n3B: 1,   scale: 0.36, speed: 2.5 },
+};
+
 const norm   = (key: RangeKey, v: number) => (v - RANGES[key].min) / (RANGES[key].max - RANGES[key].min);
 const denorm = (key: RangeKey, t: number) => RANGES[key].min + Math.max(0, Math.min(1, t)) * (RANGES[key].max - RANGES[key].min);
 
@@ -127,6 +139,9 @@ export class Superformula3DN3DGUI implements Node3DGUI {
     boidToggleMat!: StandardMaterial;
     outBoidCx!: AbstractMesh;  outBoidCy!: AbstractMesh;  outBoidCz!: AbstractMesh;
     outBoidDisp!: AbstractMesh; outBoidAlign!: AbstractMesh; outBoidVort!: AbstractMesh;
+
+    // Cluster standard : ? · Presets · 🎲 · ↺
+    cluster!: ClusterButtons;
 
     // Buffers réutilisés du mesh (positions/normales/couleurs ; indices fixes)
     private positions!: Float32Array;
@@ -364,6 +379,9 @@ export class Superformula3DN3DGUI implements Node3DGUI {
         this.btnBoidRemove = mkDisc("sf3d_boid_remove", 0.08, new Color3(0.85, 0.2, 0.3));
         this.btnBoidRemove.position.set(-0.22, 0.70, 0);
 
+        // Cluster standard ? · Presets · 🎲 · ↺ — au-dessus de la cage, centré
+        this.cluster = makeClusterButtons(B, scene, this.root, { x: -0.24, y: 0.86, z: 0 });
+
         // L'essaim vit dans l'espace de la forme (suit sa rotation, comme la boule)
         this.boidContainer = new B.TransformNode("sf3d_boid_container", scene);
         this.boidContainer.parent = this.shapeRoot;
@@ -538,37 +556,44 @@ export class Superformula3DN3D implements Node3D {
 
         // ── Knobs (10) — la cible bouge, la forme suit en douceur ─────────────
         const knobDefs: [RangeKey, string, number][] = [
-            ["mA",  "Pétales A (m)",     1],
-            ["n1A", "Tranchant A (n1)",  2],
-            ["n2A", "Largeur A (n2)",    2],
-            ["n3A", "Hauteur A (n3)",    2],
-            ["mB",  "Pétales B (m)",     1],
-            ["n1B", "Tranchant B (n1)",  2],
-            ["n2B", "Largeur B (n2)",    2],
-            ["n3B", "Hauteur B (n3)",    2],
-            ["scale", "Échelle",         2],
-            ["speed", "Vitesse",         2],
-            ["ballX", "Boule X",         2],
-            ["ballY", "Boule Y",         2],
-            ["ballZ", "Boule Z",         2],
+            ["mA",  "Petals A (m)",      1],
+            ["n1A", "Sharpness A (n1)",  2],
+            ["n2A", "Width A (n2)",      2],
+            ["n3A", "Height A (n3)",     2],
+            ["mB",  "Petals B (m)",      1],
+            ["n1B", "Sharpness B (n1)",  2],
+            ["n2B", "Width B (n2)",      2],
+            ["n3B", "Height B (n3)",     2],
+            ["scale", "Scale",           2],
+            ["speed", "Speed",           2],
+            ["ballX", "Ball X",          2],
+            ["ballY", "Ball Y",          2],
+            ["ballZ", "Ball Z",          2],
         ];
+        // Paramètres pilotables par le cluster (presets/mutation) : la FORME
+        // uniquement (on exclut ballX/Y/Z qui sont de la performance live).
+        const tunables: TunableParam[] = [];
         for (const [key, label, decimals] of knobDefs) {
             const mesh = gui.knobs[key];
             const updateVisual = () => mesh.scaling.setAll(0.6 + norm(key, this.target[key]) * 0.6);
             updateVisual();
+            const setNorm = (v01: number) => {
+                this.target[key] = denorm(key, v01);
+                updateVisual();
+                context.notifyStateChange(key);
+            };
             context.createParameter({
                 id: key,
                 meshes: [mesh],
                 getLabel: () => label,
                 getStepCount: () => 0,
                 getValue: () => norm(key, this.target[key]),
-                setValue: (v01: number) => {
-                    this.target[key] = denorm(key, v01);
-                    updateVisual();
-                    context.notifyStateChange(key);
-                },
+                setValue: setNorm,
                 stringify: (v01: number) => `${label}: ${denorm(key, v01).toFixed(decimals)}`,
             });
+            if (key !== "ballX" && key !== "ballY" && key !== "ballZ") {
+                tunables.push({ name: key, min: RANGES[key].min, max: RANGES[key].max, getNorm: () => norm(key, this.target[key]), setNorm });
+            }
         }
 
         // (Redimensionnement à deux mains géré par l'hôte → pas de userScale.)
@@ -631,6 +656,37 @@ export class Superformula3DN3D implements Node3D {
             this.boidOuts[id] = out;
             context.createConnectable(out);
         }
+
+        // ── Standard cluster: ? · Presets · 🎲 · ↺ (applies "Flower" on spawn) ─
+        setupInstrumentControls(context, {
+            title: "Superformula 3D",
+            description: "3D Gielis supershape. The 8 knobs sculpt the surface " +
+                "(2 profiles A/B); it morphs smoothly. A ball travels over the surface, " +
+                "its 3D motion metrics come out as automation. Ball X/Y/Z aim at a point " +
+                "(centered = auto spiral). 3D boids mode.",
+            legend: [
+                { swatch: "🟡", name: "Gold knobs (left)", role: "Profile A: m, n1, n2, n3 (equator shape)" },
+                { swatch: "🟣", name: "Magenta knobs (right)", role: "Profile B: m, n1, n2, n3 (meridian shape)" },
+                { swatch: "🟠", name: "Orange knobs (bottom)", role: "Ball scale and speed" },
+                { swatch: "🌸", name: "Pink knobs", role: "Ball X/Y/Z — aim at a surface point; centered = auto spiral" },
+                { swatch: "🔵", name: "Top-left discs", role: "3D boids: on/off, +, −" },
+                { swatch: "🟢", name: "Bottom spheres", role: "Automation outputs: posX/Y/Z, radius, speed, accel., curvature (+ boid metrics)" },
+                { swatch: "✋", name: "Cage", role: "Two-handed grab = resize; bin button or vigorous shake = delete" },
+            ],
+            presets: SF3D_PRESETS,
+            defaultPreset: "Flower",
+            params: tunables,
+            helpBtn: gui.cluster.helpBtn,
+            presetBtn: gui.cluster.presetBtn,
+            mutateBtn: gui.cluster.mutateBtn,
+            resetBtn: gui.cluster.resetBtn,
+        });
+
+        // Pulse des 8 sorties motion ∝ valeur (on voit l'activité d'un coup d'œil)
+        const pulser = new OutputPulser([
+            gui.outPosX, gui.outPosY, gui.outPosZ, gui.outRadius,
+            gui.outRadiusDelta, gui.outSpeed, gui.outAcceleration, gui.outCurvature,
+        ]);
 
         console.log("[Superformula3D] SPAWNED");
 
@@ -750,6 +806,10 @@ export class Superformula3DN3D implements Node3D {
             this.outs.speed.value       = c01(speedMag / 8.0);
             this.outs.accel.value       = c01(accMag / 50.0);
             this.outs.curvature.value   = c01(curvature / (Math.PI / 2));
+            pulser.update([
+                this.outs.posX.value, this.outs.posY.value, this.outs.posZ.value, this.outs.radius.value,
+                this.outs.radiusDelta.value, this.outs.speed.value, this.outs.accel.value, this.outs.curvature.value,
+            ], dt);
 
             // 4. Boids : l'essaim chasse la boule (no-op si désactivé) puis
             //    ses métriques agrégées partent en automation.
@@ -843,15 +903,14 @@ export class Superformula3DN3DFactory implements Node3DFactory<Superformula3DN3D
     static DEFAULT = new Superformula3DN3DFactory(
         3.0,
         "Superformula 3D",
-        "Supershape de Gielis en 3D (produit sphérique de deux superformules). " +
-        "8 knobs sculptent la surface (2 profils), qui MORPHE en douceur sous les " +
-        "yeux (couleurs par rayon + wireframe lumineux). Un playhead parcourt la " +
-        "surface en spirale ; 8 métriques de mouvement 3D (X, Y, Z, rayon, " +
-        "vitesse…) sortent en automation. Potards roses Boule X/Y/Z : centrés = " +
-        "spirale auto, déviés = la boule vise ce point de la surface (pilotables " +
-        "à la main ou par automation). Mode BOIDS 3D : un essaim chasse la boule " +
-        "dans la cage (toggle + boutons ±), 6 métriques d'essaim en automation " +
-        "(centroïde X/Y/Z, dispersion, alignement, vorticité). Redimensionnement " +
-        "à deux mains.",
+        "3D Gielis supershape (spherical product of two superformulas). 8 knobs " +
+        "sculpt the surface (2 profiles); it MORPHS smoothly before your eyes " +
+        "(radius-based colors + glowing wireframe). A playhead spirals over the " +
+        "surface; 8 3D motion metrics (X, Y, Z, radius, speed…) come out as " +
+        "automation. Pink Ball X/Y/Z knobs: centered = auto spiral, off-center = " +
+        "the ball aims at that surface point (drive by hand or automation). 3D " +
+        "BOIDS mode: a swarm chases the ball inside the cage (toggle + ± buttons), " +
+        "6 swarm metrics as automation (centroid X/Y/Z, dispersion, alignment, " +
+        "vorticity). Two-handed resize.",
     );
 }

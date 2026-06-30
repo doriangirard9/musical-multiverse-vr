@@ -2,6 +2,7 @@ const { getDb } = require('./database');
 
 const HEARTBEAT_TTL_SECONDS = 30;
 const CLEANUP_INTERVAL_MS = 10000; // Run cleanup every 10 seconds
+const TEMPORARY_SESSION_JOIN_GRACE_SECONDS = 300;
 
 let cleanupInterval = null;
 
@@ -17,12 +18,42 @@ function cleanupStaleParticipants() {
         WHERE last_heartbeat < datetime('now', '-${HEARTBEAT_TTL_SECONDS} seconds')
     `);
     const result = stmt.run();
-    
+
     if (result.changes > 0) {
         console.log(`[Heartbeat] Cleaned up ${result.changes} stale participant(s)`);
     }
 
     return result.changes;
+}
+
+/**
+ * Supprime les sessions TEMPORAIRES qui n'ont plus aucun participant — elles
+ * s'évaporent quand le dernier joueur part (vraie session éphémère). On laisse
+ * une grâce de 5 min après création pour laisser aux casques le temps de
+ * charger la page, d'accepter le certificat et d'autoriser WebAudio/WebXR.
+ * @returns {number} Nombre de sessions temporaires supprimées
+ */
+function cleanupEmptyTemporarySessions() {
+    const db = getDb();
+    const stmt = db.prepare(`
+        DELETE FROM sessions
+        WHERE is_temporary = 1
+          AND created_at < datetime('now', '-${TEMPORARY_SESSION_JOIN_GRACE_SECONDS} seconds')
+          AND NOT EXISTS (
+              SELECT 1 FROM session_participants p WHERE p.session_id = sessions.id
+          )
+    `);
+    const result = stmt.run();
+    if (result.changes > 0) {
+        console.log(`[Heartbeat] Removed ${result.changes} empty temporary session(s)`);
+    }
+    return result.changes;
+}
+
+/** Une passe de nettoyage : participants périmés puis sessions temporaires vides. */
+function runCleanup() {
+    cleanupStaleParticipants();
+    cleanupEmptyTemporarySessions();
 }
 
 /**
@@ -35,7 +66,7 @@ function startHeartbeatService() {
     }
 
     console.log(`[Heartbeat] Starting cleanup service (TTL=${HEARTBEAT_TTL_SECONDS}s, interval=${CLEANUP_INTERVAL_MS}ms)`);
-    cleanupInterval = setInterval(cleanupStaleParticipants, CLEANUP_INTERVAL_MS);
+    cleanupInterval = setInterval(runCleanup, CLEANUP_INTERVAL_MS);
 }
 
 /**
@@ -53,5 +84,7 @@ module.exports = {
     startHeartbeatService,
     stopHeartbeatService,
     cleanupStaleParticipants,
+    cleanupEmptyTemporarySessions,
     HEARTBEAT_TTL_SECONDS,
+    TEMPORARY_SESSION_JOIN_GRACE_SECONDS,
 };

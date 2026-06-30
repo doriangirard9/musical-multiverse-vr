@@ -1,4 +1,7 @@
 {
+  "name": "Pro54",
+  "description": "Polyphonic synthesizer controlled by MIDI.",
+  "tags": ["audio", "midi", "instrument"],
   "aspect_ratio": 2,
   "size": 0.77,
   "bottom_color": "#e68e2f",

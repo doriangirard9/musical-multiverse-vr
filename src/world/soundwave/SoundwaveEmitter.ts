@@ -1,4 +1,5 @@
 import { Color3, CreatePolygon, Scene, Vector2, Vector3 } from "@babylonjs/core"
+import earcut from "earcut";
 
 
 export class SoundwaveEmitter {
@@ -22,7 +23,7 @@ export class SoundwaveEmitter {
             outside.push(new Vector3(x, 0, y))
             inside.push(new Vector3(x*0.8, 0, y*0.8))
         }
-        this.base_model = CreatePolygon("polygon", {shape: outside, holes: [inside], depth:.05}, scene)
+        this.base_model = CreatePolygon("polygon", {shape: outside, holes: [inside], depth:.05}, scene, earcut)
         this.base_model.isPickable = false
         this.base_model.checkCollisions = false
         this.base_model.position.y = 99999

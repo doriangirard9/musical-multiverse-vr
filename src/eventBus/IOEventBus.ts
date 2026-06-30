@@ -11,6 +11,7 @@ export type IOEventPayload = {
 };
 export class IOEventBus extends BaseEventBus<IOEventPayload> {
     private static instance: IOEventBus;
+    // [YASSINE_CEST_LA] private activeConnectionPointer: PointerInput | null = null;
 
     private constructor() {
         super();
@@ -22,4 +23,20 @@ export class IOEventBus extends BaseEventBus<IOEventPayload> {
         }
         return IOEventBus.instance;
     }
+
+    // [YASSINE_CEST_LA]
+    // Ca n'a rien à faire là, c'est complètement aléatoire comme emplacement.
+    // 
+    // Dejà corrigé en plus, voir : AbstractPointerInput.PickPredicate
+    // public setActiveConnectionPointer(pointer: PointerInput | null): void {
+    //     this.activeConnectionPointer = pointer;
+    // }
+
+    // public getActiveConnectionPointer(): PointerInput | null {
+    //     return this.activeConnectionPointer;
+    // }
+
+    // public isConnectionDragActive(): boolean {
+    //     return this.activeConnectionPointer !== null;
+    // }
 }
