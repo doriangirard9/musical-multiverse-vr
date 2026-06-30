@@ -170,12 +170,12 @@ export class Node3DInstance implements Synchronized {
                 },
 
                 // Afficher un menu ou un message
-                openMenu(choices: { label: string; color?: string, click?: () => void; }[]) {
+                openMenu(choices: { label: string; color?: string, click?: () => void; }[], options?: { showCloseBar?: boolean, dragToScroll?: boolean }) {
                     if(lastMenu && lastMenu instanceof ChoiceMenu && lastMenu===menus.current_menu){
                         lastMenu.set(choices)
                     }
                     else{
-                        const new_menu = new ChoiceMenu(scene, utilityLayer.utilityLayerScene, choices)
+                        const new_menu = new ChoiceMenu(scene, utilityLayer.utilityLayerScene, choices, options)
                         lastMenu = new_menu
                         lastMenu.onHide.addOnce(() => lastMenu = null)
                         menus.open(new_menu, true)
