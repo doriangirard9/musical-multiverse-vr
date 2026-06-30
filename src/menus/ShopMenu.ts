@@ -403,13 +403,13 @@ export class ShopMenu extends AbstractMenu {
             this.label!.hide()
             this.label!.updatePosition()
         }
-        container.pointerUpAnimation = () => {
+        container.onPointerUpObservable.add(()=>{
             if (this.spawnedThisOpen) return   // ignore duplicate pointer-up events
             this.spawnedThisOpen = true
             this.onItemSelected.notifyObservers(kind)
             this.hide()
             Node3dManager.getInstance().addNode3d(kind, this.plane.absolutePosition.clone())
-        }
+        })
 
         container.addControl(uiThumbnail)
         uiThumbnail.width = "70%"

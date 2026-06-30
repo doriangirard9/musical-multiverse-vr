@@ -38,6 +38,8 @@ import { EffectProfile, EffectSystem } from "../../visual/effects";
 import { Node3DGraph, NodeView, Role } from "../graph/Node3DGraph";
 import { nodeViewOf } from "../graph/Node3DGraphAdapter";
 import { AudioAnalyser, AudioSignalSnapshot } from "../../utils/AudioAnalyser";
+import { AudioWorldSystem } from "../../app/AudioDestinationSystem.ts";
+
 
 // ---------------------------------------------------------------------------
 // Per-node visual profiles. Driven by graph state (inValidPath) + role
@@ -216,6 +218,7 @@ export class Node3DInstance implements Synchronized {
     private declare root_transform: TransformNode
     private highlighter!: N3DHighlighter
     private observers = new Set<Observer<any>>()
+    private disposables = new Set<() => void>()
     public on_dispose = () => { }
 
     /**
@@ -341,12 +344,12 @@ export class Node3DInstance implements Synchronized {
                 },
 
                 // Afficher un menu ou un message
-                openMenu(choices: { label: string; color?: string, click?: () => void; }[]) {
+                openMenu(choices: { label: string; color?: string, click?: () => void; }[], options?: { showCloseBar?: boolean, dragToScroll?: boolean }) {
                     if(lastMenu && lastMenu instanceof ChoiceMenu && lastMenu===menus.current_menu){
                         lastMenu.set(choices)
                     }
                     else{
-                        const new_menu = new ChoiceMenu(scene, utilityLayer.utilityLayerScene, choices)
+                        const new_menu = new ChoiceMenu(scene, utilityLayer.utilityLayerScene, choices, options)
                         lastMenu = new_menu
                         lastMenu.onHide.addOnce(() => lastMenu = null)
                         menus.open(new_menu, true)
@@ -395,12 +398,40 @@ export class Node3DInstance implements Synchronized {
                     return o 
                 },
 
+                createOutputNode(position, forward) {
+                    const output = AudioWorldSystem.getInstance().createSoundOutput(position, forward)
+
+                    const dispose = ()=>{
+                        output.dispose()
+                        instance.disposables.delete(dispose)
+                    }
+                    instance.disposables.add(dispose)
+                    
+                    return {
+                        pannerNode: output.pannerNode,
+                        dispose: dispose
+                    }
+                },
+
+                addFilter(input, output, order) {
+                    const disposeFilter = AudioWorldSystem.getInstance().addFilter(input, output, order)
+                    
+                    const dispose = ()=>{
+                        disposeFilter()
+                        instance.disposables.delete(dispose)
+                    }
+
+                    instance.disposables.add(dispose)
+                    
+                    return dispose
+                },
+
             }, this.gui)
         }catch(e){
             this.gui.dispose()
             gui_root_transform.dispose()
             root_transform.dispose()
-            return
+            throw e
         }
 
         // Audio reactivity: tap an analyser onto whichever audio connectable
@@ -645,6 +676,8 @@ export class Node3DInstance implements Synchronized {
         this.connectables.forEach(it => it.dispose())
         this.observers.forEach(observable => observable.remove())
         this.observers.clear()
+        this.disposables.forEach(dispose => dispose())
+        this.disposables.clear()
         await this.node.dispose()
         await this.gui.dispose()
     }

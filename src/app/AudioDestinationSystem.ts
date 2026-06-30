@@ -28,6 +28,7 @@ export class AudioWorldSystem {
 
     // Public API
 
+    // TODO: utiliser ça au lieu de audioCtx.destination dans SpeakerN3D pour que le son passe par les filtres
     /** The destination node of the audio world. All audio sources should be connected to this node. */
     get destination(){
         return this._destinationNode
@@ -74,12 +75,16 @@ export class AudioWorldSystem {
     ){
         setInterval(()=>this.tick(1/UPDATE_FREQUENCY), 1000/UPDATE_FREQUENCY)
         this._destinationNode = audioContext.createGain()
-        this.updateFilters()
+        this._destinationNode.connect(audioContext.destination)
     }
 
     tick(delta: number){
         const audioCtx = this.audioContext
         const head = this.inputs.head
+
+        const now = audioCtx.currentTime
+        const after = now + delta
+
         for(const [parameter, value] of [
             [audioCtx.listener.positionX, head.origin.x],
             [audioCtx.listener.positionY, head.origin.y],
@@ -93,8 +98,10 @@ export class AudioWorldSystem {
             [audioCtx.listener.upY, head.up.y],
             [audioCtx.listener.upZ, -head.up.z],
         ] as [AudioParam,number][]){
-            // setTargetAtTime change le paramètre de manière progressive et évite les "pop"
-            parameter.setTargetAtTime(value, audioCtx.currentTime, delta*.9)
+            parameter.cancelAndHoldAtTime(now)
+            parameter.setValueAtTime((parameter as any)['_prevValue']??0, now)
+            ;(parameter as any)['_prevValue'] = value
+            parameter.linearRampToValueAtTime(value, after)
         }
     }
 
@@ -131,15 +138,18 @@ export class AudioWorldSystem {
         const pannerNode = this.audioContext.createPanner()
 
         pannerNode.panningModel = 'HRTF'
-        pannerNode.distanceModel = 'exponential'
+        pannerNode.distanceModel = 'linear'
         pannerNode.refDistance = 5 // Distance de référence pour réduire le volume
-        pannerNode.maxDistance = 200 // Distance maximale à laquelle le son sera réduit, passé cette distance le son ne sera pas réduit
-        pannerNode.rolloffFactor = 3 // Vitesse de décroissance du volume en fonction de la distance
+        pannerNode.maxDistance = 6 // Distance maximale à laquelle le son sera réduit, passé cette distance le son ne sera pas réduit
+        pannerNode.rolloffFactor = 1 // Vitesse de décroissance du volume en fonction de la distance
 
         pannerNode.connect(this._destinationNode)
 
         const _position = position()
         const _forward = forward()
+
+        const now = this.audioContext.currentTime
+        const after = now + (1/UPDATE_FREQUENCY)
 
         const interval = setInterval(()=>{
             for(const [parameter, value] of [
@@ -151,8 +161,10 @@ export class AudioWorldSystem {
                 [pannerNode.orientationY, _forward.y],
                 [pannerNode.orientationZ, -_forward.z],
             ] as [AudioParam,number][]){
-                // setTargetAtTime change le paramètre de manière progressive et évite les "pop"
-                parameter.setTargetAtTime(value, this.audioContext.currentTime, (1/UPDATE_FREQUENCY)*.9)
+                parameter.cancelAndHoldAtTime(now)
+                parameter.setValueAtTime((parameter as any)['_prevValue']??0, now)
+                ;(parameter as any)['_prevValue'] = value
+                parameter.linearRampToValueAtTime(value, after)
             }
         }, 1000/UPDATE_FREQUENCY)
 
