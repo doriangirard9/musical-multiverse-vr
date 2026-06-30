@@ -1,10 +1,6 @@
 import * as B from "@babylonjs/core";
-import {Inspector} from "@babylonjs/inspector";
-import HavokPhysics from "@babylonjs/havok";
-import { HavokPlugin } from "@babylonjs/core/Physics/v2/Plugins/havokPlugin";
 // // Enable GLTF/GLB loader for loading controller models from WebXR Input registry
 import '@babylonjs/loaders/glTF';
-import '@babylonjs/core/Materials/Node/Blocks';
 import { WaveGround } from "../world/ground/WaveGround.ts";
 import { SoundwaveEmitter } from "../world/soundwave/SoundwaveEmitter.ts";
 
@@ -24,22 +20,21 @@ export class SceneManager {
     //@ts-ignore
     private readonly ground
     private physicsInitialized: boolean = false
+    private physicsInitPromise: Promise<void> | null = null
 
 
     private constructor(canvas: HTMLCanvasElement) {
         this.canvas = canvas
         this.engine = new B.Engine(this.canvas, true, { stencil: true })
         this.scene = new B.Scene(this.engine)
+        this.ensureFrameObservable(this.scene)
         this.scene.detachControl()
         this.shadowGenerator = this.initializeShadowGenerator()
         this.ground = this.createGround()
         this.utilityLayer = new B.UtilityLayerRenderer(this.scene)
+        this.ensureFrameObservable(this.utilityLayer.utilityLayerScene)
 
         this.scene.clearColor = new B.Color4(0.15, 0.15, 0.15, 1);
-        
-        // Initialize physics asynchronously
-        this.initializePhysics();
-
         // Handle window resize
         window.addEventListener("resize", () => {
             this.engine.resize();
@@ -48,11 +43,7 @@ export class SceneManager {
         // Enable inspector on 'U' key press
         window.addEventListener("keydown", (event: KeyboardEvent) => {
             if (event.code === "KeyU") {
-                if (Inspector.IsVisible) {
-                    Inspector.Hide();
-                } else {
-                    Inspector.Show(this.scene, { overlay: true, handleResize: true });
-                }
+                this.toggleInspector();
             }
         });
 
@@ -65,6 +56,15 @@ export class SceneManager {
                 return oldLastCreatedScene?.get?.apply(B.EngineStore) ?? null
             },
         })
+    }
+
+    public async toggleInspector(): Promise<void> {
+        const { Inspector } = await import("@babylonjs/inspector");
+        if (Inspector.IsVisible) {
+            Inspector.Hide();
+        } else {
+            Inspector.Show(this.scene, { overlay: true, handleResize: true });
+        }
     }
 
     public static async initialize() {
@@ -106,9 +106,21 @@ export class SceneManager {
     /**
      * Initialize Havok physics engine
      */
+    public async ensurePhysicsInitialized(): Promise<void> {
+        if (this.physicsInitialized) return
+        if (!this.physicsInitPromise) {
+            this.physicsInitPromise = this.initializePhysics()
+        }
+        await this.physicsInitPromise
+    }
+
     private async initializePhysics(): Promise<void> {
         try {
             console.log("[SceneManager] Initializing Havok physics...");
+            const [{ default: HavokPhysics }, { HavokPlugin }] = await Promise.all([
+                import("@babylonjs/havok"),
+                import("@babylonjs/core/Physics/v2/Plugins/havokPlugin"),
+            ])
             const havokInstance = await HavokPhysics();
             const hk = new HavokPlugin(true, havokInstance);
             this.scene.enablePhysics(new B.Vector3(0, -9.8, 0), hk);
@@ -124,11 +136,24 @@ export class SceneManager {
             );
         } catch (error) {
             console.error("[SceneManager] Failed to initialize Havok physics:", error);
+        } finally {
+            if (!this.physicsInitialized) {
+                this.physicsInitPromise = null
+            }
         }
     }
 
     public isPhysicsReady(): boolean {
         return this.physicsInitialized;
+    }
+
+    private ensureFrameObservable(scene: B.Scene): void {
+        const sceneAny = scene as B.Scene & {
+            onAfterPhysicsObservable?: typeof scene.onBeforeRenderObservable
+        }
+        if (!sceneAny.onAfterPhysicsObservable) {
+            sceneAny.onAfterPhysicsObservable = scene.onBeforeRenderObservable
+        }
     }
 
 

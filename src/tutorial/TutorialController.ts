@@ -51,7 +51,8 @@ export class TutorialController {
     }
 
     static startWhenInXR(audioContext: AudioContext): void {
-        const baseExperience = XRManager.getInstance().xrHelper.baseExperience
+        const baseExperience = XRManager.getInstance().xrHelper?.baseExperience
+        if (!baseExperience) return
         if (baseExperience.state === WebXRState.IN_XR) {
             TutorialController.start(audioContext)
             return

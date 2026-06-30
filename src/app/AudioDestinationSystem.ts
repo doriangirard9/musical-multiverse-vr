@@ -10,6 +10,8 @@ const UPDATE_FREQUENCY = 10 //Hz
  * - Sound spatialization
  */
 export class AudioWorldSystem {
+    private static readonly DEFAULT_FORWARD = new Vector3(0, 0, 1)
+    private static readonly DEFAULT_UP = new Vector3(0, 1, 0)
 
 
 
@@ -81,27 +83,24 @@ export class AudioWorldSystem {
     tick(delta: number){
         const audioCtx = this.audioContext
         const head = this.inputs.head
-
-        const now = audioCtx.currentTime
-        const after = now + delta
+        const origin = this.sanitizeVector(head.origin, Vector3.Zero())
+        const forward = this.sanitizeDirection(head.forward, AudioWorldSystem.DEFAULT_FORWARD)
+        const up = this.sanitizeDirection(head.up, AudioWorldSystem.DEFAULT_UP)
 
         for(const [parameter, value] of [
-            [audioCtx.listener.positionX, head.origin.x],
-            [audioCtx.listener.positionY, head.origin.y],
-            [audioCtx.listener.positionZ, -head.origin.z],
+            [audioCtx.listener.positionX, origin.x],
+            [audioCtx.listener.positionY, origin.y],
+            [audioCtx.listener.positionZ, -origin.z],
 
-            [audioCtx.listener.forwardX, head.forward.x],
-            [audioCtx.listener.forwardY, head.forward.y],
-            [audioCtx.listener.forwardZ, -head.forward.z],
+            [audioCtx.listener.forwardX, forward.x],
+            [audioCtx.listener.forwardY, forward.y],
+            [audioCtx.listener.forwardZ, -forward.z],
 
-            [audioCtx.listener.upX, head.up.x],
-            [audioCtx.listener.upY, head.up.y],
-            [audioCtx.listener.upZ, -head.up.z],
+            [audioCtx.listener.upX, up.x],
+            [audioCtx.listener.upY, up.y],
+            [audioCtx.listener.upZ, -up.z],
         ] as [AudioParam,number][]){
-            parameter.cancelAndHoldAtTime(now)
-            parameter.setValueAtTime((parameter as any)['_prevValue']??0, now)
-            ;(parameter as any)['_prevValue'] = value
-            parameter.linearRampToValueAtTime(value, after)
+            this.safeRamp(parameter, value, audioCtx.currentTime, delta)
         }
     }
 
@@ -117,10 +116,10 @@ export class AudioWorldSystem {
         // Cleanup
         let previous: AudioNode = this._destinationNode
         for(const filter of this._currentFilters){
-            previous.disconnect(filter.input)
+            this.safeDisconnect(previous, filter.input)
             previous = filter.output
         }
-        previous.disconnect(this.audioContext.destination)
+        this.safeDisconnect(previous, this.audioContext.destination)
 
         // Setup
         this._currentFilters = this._filters.sort((a,b)=>a.order-b.order)
@@ -130,6 +129,14 @@ export class AudioWorldSystem {
             previous = filter.output
         }
         previous.connect(this.audioContext.destination)
+    }
+
+    private safeDisconnect(source: AudioNode, destination: AudioNode){
+        try{
+            source.disconnect(destination)
+        }catch{
+            // Some browsers throw when disconnecting a pair that was never connected.
+        }
     }
 
 
@@ -144,27 +151,19 @@ export class AudioWorldSystem {
         pannerNode.rolloffFactor = 1 // Vitesse de décroissance du volume en fonction de la distance
 
         pannerNode.connect(this._destinationNode)
-
-        const _position = position()
-        const _forward = forward()
-
-        const now = this.audioContext.currentTime
-        const after = now + (1/UPDATE_FREQUENCY)
-
         const interval = setInterval(()=>{
+            const currentPosition = this.sanitizeVector(position(), Vector3.Zero())
+            const currentForward = this.sanitizeDirection(forward(), AudioWorldSystem.DEFAULT_FORWARD)
             for(const [parameter, value] of [
-                [pannerNode.positionX, _position.x],
-                [pannerNode.positionY, _position.y],
-                [pannerNode.positionZ, -_position.z],
+                [pannerNode.positionX, currentPosition.x],
+                [pannerNode.positionY, currentPosition.y],
+                [pannerNode.positionZ, -currentPosition.z],
 
-                [pannerNode.orientationX, _forward.x],
-                [pannerNode.orientationY, _forward.y],
-                [pannerNode.orientationZ, -_forward.z],
+                [pannerNode.orientationX, currentForward.x],
+                [pannerNode.orientationY, currentForward.y],
+                [pannerNode.orientationZ, -currentForward.z],
             ] as [AudioParam,number][]){
-                parameter.cancelAndHoldAtTime(now)
-                parameter.setValueAtTime((parameter as any)['_prevValue']??0, now)
-                ;(parameter as any)['_prevValue'] = value
-                parameter.linearRampToValueAtTime(value, after)
+                this.safeRamp(parameter, value, this.audioContext.currentTime, 1/UPDATE_FREQUENCY)
             }
         }, 1000/UPDATE_FREQUENCY)
 
@@ -177,5 +176,44 @@ export class AudioWorldSystem {
         }
         
     }
-}
 
+    private sanitizeVector(vector: Vector3, fallback: Vector3): Vector3 {
+        if (!this.isFiniteNumber(vector.x) || !this.isFiniteNumber(vector.y) || !this.isFiniteNumber(vector.z)) {
+            return fallback.clone()
+        }
+        return vector.clone()
+    }
+
+    private sanitizeDirection(vector: Vector3, fallback: Vector3): Vector3 {
+        const safe = this.sanitizeVector(vector, fallback)
+        if (safe.lengthSquared() < 0.000001) {
+            return fallback.clone()
+        }
+        return safe.normalize()
+    }
+
+    private safeRamp(parameter: AudioParam, value: number, time: number, delta: number): void {
+        if (!this.isFiniteNumber(value)) return
+        const previous = this.isFiniteNumber((parameter as any)._prevValue) ? (parameter as any)._prevValue : parameter.value
+        const after = time + Math.max(delta, 1 / UPDATE_FREQUENCY) * 0.9
+
+        try {
+            if (typeof parameter.cancelAndHoldAtTime === "function") parameter.cancelAndHoldAtTime(time)
+            else parameter.cancelScheduledValues(time)
+            parameter.setValueAtTime(previous, time)
+            parameter.linearRampToValueAtTime(value, after)
+            ;(parameter as any)._prevValue = value
+        } catch {
+            try {
+                parameter.setTargetAtTime(value, time, Math.max(delta * 0.5, 0.01))
+                ;(parameter as any)._prevValue = value
+            } catch {
+                // Ignore browser-specific AudioParam scheduling failures rather than crashing the session.
+            }
+        }
+    }
+
+    private isFiniteNumber(value: number): boolean {
+        return Number.isFinite(value)
+    }
+}
