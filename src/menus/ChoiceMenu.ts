@@ -90,15 +90,13 @@ export class ChoiceMenu extends AbstractMenu {
                 const button = Button.CreateSimpleButton(buttonInfo.label, buttonInfo.label)
                 styleButton(button, buttonInfo)
 
-                const b = button.pointerUpAnimation
-                button.pointerUpAnimation = ()=>{
-                    b()
+                button.onPointerUpObservable.add(()=>{
                     try{
                         buttonInfo.click?.()
                     }catch(e){
                         console.error("Error in button click handler:", e)
                     }
-                }
+                })
                 
                 this.buttons.addControl(button)
             }
