@@ -167,6 +167,15 @@ export class AvatarSystem {
         })
     }
 
+    findAvatarByPlayerId(playerId: string): Avatar | undefined {
+        for (const [id, avatar] of this.manager.entries()) {
+            if (this.manager.getData(id) === playerId) {
+                return avatar
+            }
+        }
+        return undefined
+    }
+
     private static _instance?: AvatarSystem
 
     static async initialize(...network: ConstructorParameters<typeof AvatarSystem>){
