@@ -34,6 +34,170 @@ import { ChoiceMenu } from "../../menus/ChoiceMenu.ts";
 import { ShakeBehavior } from "../../behaviours/ShakeBehavior.ts";
 import { N3DConnectionInstance } from "./N3DConnectionInstance.ts";
 import { N3DButtonInstance } from "./N3DButtonInstance.ts";
+import { EffectProfile, EffectSystem } from "../../visual/effects";
+import { Node3DGraph, NodeView, Role } from "../graph/Node3DGraph";
+import { nodeViewOf } from "../graph/Node3DGraphAdapter";
+import { AudioAnalyser, AudioSignalSnapshot } from "../../utils/AudioAnalyser";
+import { AudioWorldSystem } from "../../app/AudioDestinationSystem.ts";
+
+
+// ---------------------------------------------------------------------------
+// Per-node visual profiles. Driven by graph state (inValidPath) + role
+// inferred from connectables. Each profile is a (id, effects) bundle handed
+// to EffectSystem; effects layer continuous breathing (corona) with
+// event-driven punches (spark, wave) so silence shows nothing and loud
+// passages show plenty.
+// ---------------------------------------------------------------------------
+
+/**
+ * Source node: small breathing corona whose color tracks the live spectrum.
+ * No sparks here — generator-type sources (NoteBox, Oscillator, sequencers)
+ * tend to read as "always busy" when the spark trigger fires on any flux,
+ * so the visual would be permanent noise rather than a meaningful accent.
+ */
+const SOURCE_NODE_PROFILE: EffectProfile = {
+    id: 'node_source',
+    effects: {
+        audio_corona: {
+            radiusSource: 'strength',
+            baseRadius: 0.35,
+            peakRadius: 0.65,
+            thickness: 0.035,
+            colorMode: 'spectrum',
+            spectrumGain: 2.6,
+            spectrumBassGain: 1.3,
+            spectrumMidGain: 1.4,
+            spectrumTrebleGain: 1.8,
+            brightness: 1.0,
+            brightnessSource: 'strength',
+            floorBrightness: 0.0,
+            peakBrightness: 0.7,
+            secondary: false,
+            smoothing: 100,
+        },
+    },
+}
+
+/**
+ * Sink node: full visual presence.
+ * - audio_corona: continuously-modulated halo whose color comes from the
+ *   live spectrum (R=bass, G=mid, B=treble). Sustained presence that *is*
+ *   the harmonic content.
+ * - audio_scale: bounding box (and the GLB inside it) rides the kick (bass).
+ * - audio_spark: spectrum-colored particle bursts on flux onsets.
+ * - audio_wave: rare high-threshold ring explosions, per-ring spectrum-colored.
+ */
+const SINK_NODE_PROFILE: EffectProfile = {
+    id: 'node_sink',
+    effects: {
+        audio_corona: {
+            radiusSource: 'strength',
+            baseRadius: 0.45,
+            peakRadius: 0.95,
+            thickness: 0.045,
+            colorMode: 'spectrum',
+            spectrumGain: 2.8,
+            spectrumBassGain: 1.2,
+            spectrumMidGain: 1.6,
+            spectrumTrebleGain: 2.4,
+            spectrumFloor: 0.04,
+            brightness: 1.3,
+            brightnessSource: 'strength',
+            floorBrightness: 0.0,
+            peakBrightness: 0.95,
+            secondary: true,
+            secondaryScale: 0.6,
+            smoothing: 90,
+        },
+        audio_scale: {
+            source: 'bass',
+            baseScale: 1,
+            peakScale: 1.4,
+            attack: 25,
+            release: 240,
+            threshold: 0.02,
+            autoNormalize: true,
+            peakHalfLife: 1800,
+            response: 'linear',
+        },
+        audio_spark: {
+            triggerSource: 'flux',
+            triggerThreshold: 0.28,
+            refractory: 80,
+            burstCount: 18,
+            capacity: 140,
+            minSize: 0.045,
+            maxSize: 0.11,
+            minLifeTime: 0.35,
+            maxLifeTime: 0.8,
+            emitPower: 2.0,
+            emitRadius: 0.18,
+            colorMode: 'spectrum',
+            spectrumGain: 3.2,
+            spectrumBassGain: 1.0,
+            spectrumMidGain: 1.5,
+            spectrumTrebleGain: 2.2,
+            brightness: 1.4,
+        },
+        audio_wave: {
+            source: 'flux',
+            lifetime: 1800,
+            startDiameter: 0.35,
+            endDiameter: 3.2,
+            thickness: 0.05,
+            threshold: 0.55,
+            sensitivity: 2.0,
+            refractory: 700,
+            envelopeHalfLife: 800,
+            maxRings: 6,
+            colorMode: 'spectrum',
+            spectrumGain: 3.0,
+            spectrumBassGain: 1.2,
+            spectrumMidGain: 1.5,
+            spectrumTrebleGain: 2.2,
+            brightness: 1.2,
+            thicknessSource: 'bass',
+            thicknessReactivity: 2.2,
+        },
+    },
+}
+
+/** Visualizer node: silent, lets the visualizer GUI itself carry the visuals. */
+const VIZ_NODE_PROFILE: EffectProfile = {
+    id: 'node_viz',
+    effects: {},
+}
+
+/**
+ * Mid-chain effect node: no per-node visuals. Cable visuals already convey
+ * what's flowing through; piling sparks on every intermediate node clutters
+ * the chain.
+ */
+const EFFECT_NODE_PROFILE: EffectProfile = {
+    id: 'node_effect',
+    effects: {},
+}
+
+/** Orphan / standalone: no effects. */
+const MUTED_NODE_PROFILE: EffectProfile = {
+    id: 'node_muted',
+    effects: {},
+}
+
+/**
+ * Pick the per-node visual profile from graph state + role. Invalid path →
+ * muted (dormant); valid path → role-based character.
+ */
+function profileForNode(role: Role, inValidPath: boolean): EffectProfile {
+    if (!inValidPath) return MUTED_NODE_PROFILE
+    switch (role) {
+        case 'source':     return SOURCE_NODE_PROFILE
+        case 'sink':       return SINK_NODE_PROFILE
+        case 'effect':     return EFFECT_NODE_PROFILE
+        case 'visualizer': return VIZ_NODE_PROFILE
+        default:           return MUTED_NODE_PROFILE
+    }
+}
 
 export class Node3DInstance implements Synchronized {
 
@@ -54,7 +218,19 @@ export class Node3DInstance implements Synchronized {
     private declare root_transform: TransformNode
     private highlighter!: N3DHighlighter
     private observers = new Set<Observer<any>>()
+    private disposables = new Set<() => void>()
     public on_dispose = () => { }
+
+    /**
+     * Live audio-feature snapshot from the analyser tapped onto this node's
+     * primary audio path. Returns null for nodes with no audio connectable
+     * (purely structural / control-only nodes). Cheap; safe per frame —
+     * cable EffectSystems pull this each tick to colour and time their
+     * visuals to what's actually flowing through.
+     */
+    public getAudioSnapshot(): AudioSignalSnapshot | null {
+        return this._audioAnalyser?.snapshot() ?? null
+    }
 
     async instantiate() {
         const { scene, highlightLayer, utilityLayer, babylon, tools } = this.shared
@@ -168,12 +344,12 @@ export class Node3DInstance implements Synchronized {
                 },
 
                 // Afficher un menu ou un message
-                openMenu(choices: { label: string; color?: string, click?: () => void; }[]) {
+                openMenu(choices: { label: string; color?: string, click?: () => void; }[], options?: { showCloseBar?: boolean, dragToScroll?: boolean }) {
                     if(lastMenu && lastMenu instanceof ChoiceMenu && lastMenu===menus.current_menu){
                         lastMenu.set(choices)
                     }
                     else{
-                        const new_menu = new ChoiceMenu(scene, utilityLayer.utilityLayerScene, choices)
+                        const new_menu = new ChoiceMenu(scene, utilityLayer.utilityLayerScene, choices, options)
                         lastMenu = new_menu
                         lastMenu.onHide.addOnce(() => lastMenu = null)
                         menus.open(new_menu, true)
@@ -222,12 +398,76 @@ export class Node3DInstance implements Synchronized {
                     return o 
                 },
 
+                createOutputNode(position, forward) {
+                    const output = AudioWorldSystem.getInstance().createSoundOutput(position, forward)
+
+                    const dispose = ()=>{
+                        output.dispose()
+                        instance.disposables.delete(dispose)
+                    }
+                    instance.disposables.add(dispose)
+                    
+                    return {
+                        pannerNode: output.pannerNode,
+                        dispose: dispose
+                    }
+                },
+
+                addFilter(input, output, order) {
+                    const disposeFilter = AudioWorldSystem.getInstance().addFilter(input, output, order)
+                    
+                    const dispose = ()=>{
+                        disposeFilter()
+                        instance.disposables.delete(dispose)
+                    }
+
+                    instance.disposables.add(dispose)
+                    
+                    return dispose
+                },
+
             }, this.gui)
         }catch(e){
             this.gui.dispose()
             gui_root_transform.dispose()
             root_transform.dispose()
+            throw e
         }
+
+        // Audio reactivity: tap an analyser onto whichever audio connectable
+        // best represents this node (output for sources, input for sinks).
+        //
+        // updateBoundingBoxNow already ran during factory.create() (via
+        // addToBoundingBox), constructing the EffectSystem and activating it
+        // with a static signal. Now that the connectables exist and we can
+        // attach an analyser, re-activate with the live snapshot provider so
+        // every effect (and every downstream cable) sees real audio data.
+        const audioNode = this.findAudioNodeToMonitor()
+        if (audioNode !== null) {
+            const analyser = new AudioAnalyser(this.shared.audioContext)
+            this._audioAnalyser = analyser
+            analyser.tap(audioNode)
+            this._nodeEffect?.activate(() => analyser.snapshot())
+        }
+    }
+
+    /**
+     * Pick the audio connectable to monitor: output side for sources, input
+     * side for sinks. Effects with both pick output (lets cables downstream
+     * see the processed signal).
+     */
+    private findAudioNodeToMonitor(): AudioNode | null {
+        let outputAudio: AudioNode | null = null
+        let inputAudio: AudioNode | null = null
+        for (const c of this.connectables.values()) {
+            const cfg = c.config as { type: string | Symbol, direction: string, audioNode?: unknown }
+            if (cfg.type !== 'audio') continue
+            const node = cfg.audioNode
+            if ((node instanceof AudioNode) === false) continue
+            if (cfg.direction === 'output' && outputAudio === null) outputAudio = node as AudioNode
+            else if (cfg.direction === 'input' && inputAudio === null) inputAudio = node as AudioNode
+        }
+        return outputAudio ?? inputAudio
     }
 
     //// BOUNDING BOX ////
@@ -237,11 +477,18 @@ export class Node3DInstance implements Synchronized {
     private bounding_box = null as null | BoundingBox
     private doUpdateBoundingBox = false
     private shake: ShakeBehavior|null = null
+    private _nodeEffect: EffectSystem | null = null
+    private _audioAnalyser: AudioAnalyser | null = null
+    private static readonly _graph = new Node3DGraph()
 
     get boundingBoxMesh() { return this.bounding_box!!.boundingBox }
 
     private updateBoundingBoxNow() {
         if (this.disposed) return
+
+        // The bounding mesh gets recreated; the effect attached to it must too.
+        this._nodeEffect?.dispose()
+        this._nodeEffect = null
 
         if (this.bounding_mesh) this.shared.shadowGenerator.removeShadowCaster(this.bounding_mesh)
         this.bounding_box?.dispose()
@@ -308,6 +555,35 @@ export class Node3DInstance implements Synchronized {
 
         // Shadow Generator
         this.shared.shadowGenerator.addShadowCaster(this.bounding_mesh, false)
+
+        // Per-node effect — provider polled each frame and rebuilds on profile
+        // id flip (e.g. when the graph rewires and this node's role changes).
+        // Activated with whatever live or static signal source is currently
+        // available; instantiate() upgrades to the analyser-backed provider
+        // once the connectables exist.
+        const view = nodeViewOf(this)
+        this._nodeEffect = EffectSystem.forMesh(
+            this.shared.scene, this.bounding_mesh, null,
+            () => Color3.White().toColor4(1),
+            () => this._currentNodeProfile(view),
+        )
+        const analyser = this._audioAnalyser
+        if (analyser !== null) {
+            this._nodeEffect.activate(() => analyser.snapshot())
+        } else {
+            this._nodeEffect.activate({ strength: 0, tone: 0 })
+        }
+    }
+
+    /**
+     * Profile selection per frame. Role + graph-validity decide whether this
+     * node plays its full character (in a valid source→sink chain) or sits
+     * muted (orphan / standalone). Shake-warning is handled separately by
+     * the red bounding box mesh, so no flag here.
+     */
+    private _currentNodeProfile(view: NodeView): EffectProfile {
+        const graph = Node3DInstance._graph
+        return profileForNode(graph.roleOf(view), graph.inValidPath(view))
     }
 
     /** Every connection touching this node (deduplicated across all its ports). */
@@ -389,6 +665,10 @@ export class Node3DInstance implements Synchronized {
         this.disposed = true
         this.set_state("delete")
         this.highlighter.dispose()
+        this._nodeEffect?.dispose()
+        this._nodeEffect = null
+        this._audioAnalyser?.dispose()
+        this._audioAnalyser = null
         this.bounding_box?.dispose()
         this.bounding_mesh?.dispose()
         this.parameters.forEach(it => it.dispose())
@@ -396,6 +676,8 @@ export class Node3DInstance implements Synchronized {
         this.connectables.forEach(it => it.dispose())
         this.observers.forEach(observable => observable.remove())
         this.observers.clear()
+        this.disposables.forEach(dispose => dispose())
+        this.disposables.clear()
         await this.node.dispose()
         await this.gui.dispose()
     }

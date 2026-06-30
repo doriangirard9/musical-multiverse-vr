@@ -66,6 +66,10 @@ const BUILTIN_FACTORY_LOADERS: Record<string, () => Promise<Node3DFactory<Node3D
     fluid_field: async () => (await import("../node3d/subs/behaviours/FluidFieldN3D.ts")).FluidFieldN3DFactory.DEFAULT,
     particle: async () => (await import("../node3d/subs/particle/ParticleEmitterN3D.ts")).default,
     sync_debug: async () => (await import("../node3d/subs/debug/SyncDebugN3D.ts")).SyncDebugN3DFactory,
+    spectrum_bars: async () => (await import("../node3d/subs/SpectrumBarsN3D.ts")).SpectrumBarsN3DFactory,
+    oscilloscope: async () => (await import("../node3d/subs/OscilloscopeN3D.ts")).OscilloscopeN3DFactory,
+    spectogram: async () => (await import("../node3d/subs/SpectogramN3D.ts")).SpectogramN3DFactory,
+    livegain: async () => (await import("../node3d/subs/LiveGainN3D.ts")).LiveGainN3DFactory,
 };
 
 const SERVER_KINDS: string[] = await fetch(`${SERVER_NAME}/api/configs/`).then(r => r.json())
@@ -124,7 +128,7 @@ export class Node3DBuilder {
      * Some of the valid kinds of Node3D.
      */
     FACTORY_KINDS = [
-        "audiooutput", "oscillator", "maracas", "livepiano", "notesbox", "pianoroll", "drumkit", "pro54michel", "butterchurn", "screen", "box_screen", "sphere_screen", "cylinder_screen", "isf_shader",
+        "audiooutput", "oscillator", "maracas", "livepiano", "notesbox", "pianoroll", "drumkit", "pro54michel", "butterchurn", "screen", "box_screen", "sphere_screen", "cylinder_screen", "isf_shader", "spectrum_bars", "oscilloscope", "spectogram", "livegain",
         "hyperkeyboard", "drumplatekit", "automation_controller", "the_cube", "harp", "large_harp", "voice", "gaze", "sequencer12", "sequencer16", "audio_plaque", "superformula", "superformula3d", "fluid_field", "ai_composer", "ai_composer_improv", "ai_composer_drums", "ai_composer_basic", "ai_composer_vae",
         ...WAM3D_EXAMPLE_NAMES.map(k => `wam3d-${k}`),
         ...SERVER_KINDS.map(k => `server-${k}`),

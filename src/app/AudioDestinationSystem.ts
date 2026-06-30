@@ -30,6 +30,7 @@ export class AudioWorldSystem {
 
     // Public API
 
+    // TODO: utiliser ça au lieu de audioCtx.destination dans SpeakerN3D pour que le son passe par les filtres
     /** The destination node of the audio world. All audio sources should be connected to this node. */
     get destination(){
         return this._destinationNode
@@ -76,7 +77,7 @@ export class AudioWorldSystem {
     ){
         setInterval(()=>this.tick(1/UPDATE_FREQUENCY), 1000/UPDATE_FREQUENCY)
         this._destinationNode = audioContext.createGain()
-        this.updateFilters()
+        this._destinationNode.connect(audioContext.destination)
     }
 
     tick(delta: number){
@@ -99,7 +100,7 @@ export class AudioWorldSystem {
             [audioCtx.listener.upY, up.y],
             [audioCtx.listener.upZ, -up.z],
         ] as [AudioParam,number][]){
-            this.safeSetTarget(parameter, value, audioCtx.currentTime, delta*.9)
+            this.safeRamp(parameter, value, audioCtx.currentTime, delta)
         }
     }
 
@@ -144,13 +145,12 @@ export class AudioWorldSystem {
         const pannerNode = this.audioContext.createPanner()
 
         pannerNode.panningModel = 'HRTF'
-        pannerNode.distanceModel = 'exponential'
+        pannerNode.distanceModel = 'linear'
         pannerNode.refDistance = 5 // Distance de référence pour réduire le volume
-        pannerNode.maxDistance = 200 // Distance maximale à laquelle le son sera réduit, passé cette distance le son ne sera pas réduit
-        pannerNode.rolloffFactor = 3 // Vitesse de décroissance du volume en fonction de la distance
+        pannerNode.maxDistance = 6 // Distance maximale à laquelle le son sera réduit, passé cette distance le son ne sera pas réduit
+        pannerNode.rolloffFactor = 1 // Vitesse de décroissance du volume en fonction de la distance
 
         pannerNode.connect(this._destinationNode)
-
         const interval = setInterval(()=>{
             const currentPosition = this.sanitizeVector(position(), Vector3.Zero())
             const currentForward = this.sanitizeDirection(forward(), AudioWorldSystem.DEFAULT_FORWARD)
@@ -163,7 +163,7 @@ export class AudioWorldSystem {
                 [pannerNode.orientationY, currentForward.y],
                 [pannerNode.orientationZ, -currentForward.z],
             ] as [AudioParam,number][]){
-                this.safeSetTarget(parameter, value, this.audioContext.currentTime, (1/UPDATE_FREQUENCY)*.9)
+                this.safeRamp(parameter, value, this.audioContext.currentTime, 1/UPDATE_FREQUENCY)
             }
         }, 1000/UPDATE_FREQUENCY)
 
@@ -192,9 +192,25 @@ export class AudioWorldSystem {
         return safe.normalize()
     }
 
-    private safeSetTarget(parameter: AudioParam, value: number, time: number, smoothing: number): void {
+    private safeRamp(parameter: AudioParam, value: number, time: number, delta: number): void {
         if (!this.isFiniteNumber(value)) return
-        parameter.setTargetAtTime(value, time, smoothing)
+        const previous = this.isFiniteNumber((parameter as any)._prevValue) ? (parameter as any)._prevValue : parameter.value
+        const after = time + Math.max(delta, 1 / UPDATE_FREQUENCY) * 0.9
+
+        try {
+            if (typeof parameter.cancelAndHoldAtTime === "function") parameter.cancelAndHoldAtTime(time)
+            else parameter.cancelScheduledValues(time)
+            parameter.setValueAtTime(previous, time)
+            parameter.linearRampToValueAtTime(value, after)
+            ;(parameter as any)._prevValue = value
+        } catch {
+            try {
+                parameter.setTargetAtTime(value, time, Math.max(delta * 0.5, 0.01))
+                ;(parameter as any)._prevValue = value
+            } catch {
+                // Ignore browser-specific AudioParam scheduling failures rather than crashing the session.
+            }
+        }
     }
 
     private isFiniteNumber(value: number): boolean {

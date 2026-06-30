@@ -104,7 +104,12 @@ export class InputManager {
     /** A list of the meshes currently being pointed at by any controller. */
     get pointedMeshes() { return Array.from(this._pointeds.keys()) }
 
+    /** A list of the meshes currently being touched by any controller. */
+    get touchedMeshes() { return Array.from(this._toucheds.keys()) }
+
     private _pointeds = new Map<AbstractMesh,number>()
+
+    private _toucheds = new Map<AbstractMesh,number>()
 
     private constructor(
         xrHelper: Nullable<WebXRDefaultExperience>,
@@ -157,6 +162,20 @@ export class InputManager {
 
             controller.pointer.onNewTouch.add((event) =>{
                 im.onNewTouch.notifyObservers(event)
+
+                // Previous
+                if(event.previousMesh!=null){
+                    const newCount = (im._toucheds.get(event.previousMesh)??1)-1
+                    if(newCount==0){
+                        im._toucheds.delete(event.previousMesh)
+                    }
+                    else im._toucheds.set(event.previousMesh, newCount)
+                }
+                // New
+                if(event.targetMesh!=null){
+                    const newCount = (im._toucheds.get(event.targetMesh)??0)+1
+                    im._toucheds.set(event.targetMesh, newCount)
+                }
             })
         }
 

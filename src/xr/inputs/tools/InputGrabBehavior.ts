@@ -1,4 +1,4 @@
-import { AbstractMesh, Behavior } from "@babylonjs/core";
+import { AbstractMesh, Behavior, Nullable } from "@babylonjs/core";
 import { InputManager } from "../InputManager";
 import { PointerInput } from "../PointerInput";
 
@@ -23,6 +23,8 @@ export class InputGrabBehavior implements Behavior<AbstractMesh> {
         /** Called if the target is grabbed, and the pointer that is grabbing it moves. */
         private onMove?: (pointer:PointerInput)=>void,
     ){}
+    
+    attachedNode: Nullable<AbstractMesh> = null;
 
     get name(){ return this.constructor.name }
 
@@ -32,7 +34,12 @@ export class InputGrabBehavior implements Behavior<AbstractMesh> {
 
     observables: {remove():void}[] = []
 
-    init(): void {}
+    init(): void {
+        this.attachedNode = null;
+        this.grabbed = null;
+        this.moveObserver = null;
+        this.observables = [];
+    }
 
     attachedNode: AbstractMesh
 
