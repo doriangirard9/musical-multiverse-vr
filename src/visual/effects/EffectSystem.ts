@@ -79,7 +79,7 @@ export class EffectSystem implements Tickable {
             this._signal.velocity = sig.velocity
             this._signal.activity = sig.activity
         }
-        this._signal.pointed = InputManager.getInstance().isPointedAt(this._ctx.primaryMesh)
+        this._signal.pointed = InputManager.getInstance().pointedMeshes.includes(this._ctx.primaryMesh)
         for (const e of this._effects) e.update(this._signal)
     }
 

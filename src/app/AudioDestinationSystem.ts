@@ -106,29 +106,23 @@ export class AudioWorldSystem {
 
     private _currentFilters: {input: AudioNode, output: AudioNode, order: number}[] = []
 
-    /** Tracks whether a filter graph is currently wired, so the first run skips teardown of a graph that does not exist yet. */
-    private _isWired = false
-
     private updateFilters(){
-        // Cleanup. Skipped on the first run, before any graph has been wired.
-        if(this._isWired === true){
-            let previous: AudioNode = this._destinationNode
-            for(const filter of this._currentFilters){
-                previous.disconnect(filter.input)
-                previous = filter.output
-            }
-            previous.disconnect(this.audioContext.destination)
+        // Cleanup
+        let previous: AudioNode = this._destinationNode
+        for(const filter of this._currentFilters){
+            previous.disconnect(filter.input)
+            previous = filter.output
         }
+        previous.disconnect(this.audioContext.destination)
 
         // Setup
         this._currentFilters = this._filters.sort((a,b)=>a.order-b.order)
-        let previous: AudioNode = this._destinationNode
+        previous = this._destinationNode
         for(const filter of this._currentFilters){
             previous.connect(filter.input)
             previous = filter.output
         }
         previous.connect(this.audioContext.destination)
-        this._isWired = true
     }
 
 
