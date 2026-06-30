@@ -9,7 +9,7 @@ import { SyncManager } from "../network/sync/SyncManager";
 import { XRManager } from "../xr/XRManager";
 
 /** Distance below which another avatar is hidden (in meters) */
-const PROXIMITY_HIDE_DISTANCE = 1.0;
+const PROXIMITY_HIDE_DISTANCE = .5;
 
 /**
  * Show animated avatars representing the players in the world.
@@ -76,6 +76,8 @@ export class AvatarSystem {
         this._startProximityFade()
     }
 
+    // TODO: ça n'a rien à faire dans AvatarSystem, ça devrait être dans XRManager ou InputManager à la limite
+    // Là, y a vraiment aucun rapport.
     /**
      * Offset the XR camera spawn position so new players don't overlap existing avatars.
      * Called after entering XR. Checks existing avatar positions and shifts if too close.
@@ -131,7 +133,6 @@ export class AvatarSystem {
                             })
                             const newRefSpace = refSpace.getOffsetReferenceSpace(xrOffset)
                             xrManager.xrHelper.baseExperience.sessionManager.referenceSpace = newRefSpace
-                            console.log(`[AvatarSystem] Spawn offset applied: ${offset.toString()}`)
                         }
                         break
                     }

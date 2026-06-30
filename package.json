@@ -34,6 +34,7 @@
     "@tensorflow/tfjs-backend-wasm": "^2.8.6",
     "@webaudiomodules/sdk": "^0.0.12",
     "concurrently": "^9.2.1",
+    "earcut": "^3.0.2",
     "tone": "^15.0.4",
     "uuid": "^11.1.0",
     "wam3dgenerator": "github:Jempasam/3d_wam_editor#semver:0.0.8",

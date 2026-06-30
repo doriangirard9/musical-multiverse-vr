@@ -19,7 +19,7 @@ importers:
         version: 1.3.12
       '@babylonjs/inspector':
         specifier: ^8.56.0
-        version: 8.56.2(0b15a647388be46602af007772aa4951)
+        version: 8.56.2(613acdcc9f5583e560cdc27cff30fdbb)
       '@babylonjs/loaders':
         specifier: ^8.56.0
         version: 8.56.2(@babylonjs/core@8.56.2)(babylonjs-gltf2interface@8.56.2)
@@ -38,6 +38,9 @@ importers:
       concurrently:
         specifier: ^9.2.1
         version: 9.2.1
+      earcut:
+        specifier: ^3.0.2
+        version: 3.0.2
       tone:
         specifier: ^15.0.4
         version: 15.1.22
@@ -506,11 +509,6 @@ packages:
       '@types/react-dom': '>=16.9.0 <20.0.0'
       react: '>=16.14.0 <20.0.0'
       react-dom: '>=16.14.0 <20.0.0'
-
-  '@fluentui/react-icons@2.0.328':
-    resolution: {integrity: sha512-HAotR2QQjff1WJmm+QeSIU+3m1SOiz9D2M+u8M+8FWyRsyHjbOpBV9QUrABBH9z9JxyYYOvzLamjHEkIgGKLUA==}
-    peerDependencies:
-      react: '>=16.8.0 <20.0.0'
 
   '@fluentui/react-icons@2.0.331':
     resolution: {integrity: sha512-SY3Js+SW20T0qqt8uo1pWwi1njWisOzblIFqVoACql+ZrcSkXeifI+CQMCVdf5BZTAk0NnsUGb0pV9048SKpZQ==}
@@ -2369,7 +2367,7 @@ snapshots:
     dependencies:
       '@types/emscripten': 1.41.5
 
-  '@babylonjs/inspector@8.56.2(0b15a647388be46602af007772aa4951)':
+  '@babylonjs/inspector@8.56.2(613acdcc9f5583e560cdc27cff30fdbb)':
     dependencies:
       '@babylonjs/addons': 8.56.2(@babylonjs/core@8.56.2)
       '@babylonjs/core': 8.56.2
@@ -2380,7 +2378,7 @@ snapshots:
       '@babylonjs/serializers': 8.56.2(@babylonjs/core@8.56.2)(babylonjs-gltf2interface@8.56.2)
       '@fluentui-contrib/react-virtualizer': 1.0.0(@fluentui/react-shared-contexts@9.26.2(@types/react@19.2.15)(react@19.2.6))(@types/react-dom@19.2.3(@types/react@19.2.15))(@types/react@19.2.15)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       '@fluentui/react-components': 9.73.8(@types/react-dom@19.2.3(@types/react@19.2.15))(@types/react@19.2.15)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(scheduler@0.27.0)
-      '@fluentui/react-icons': 2.0.328(react@19.2.6)
+      '@fluentui/react-icons': 2.0.331(react@19.2.6)
       react: 19.2.6
       react-dom: 19.2.6(react@19.2.6)
       usehooks-ts: 3.1.1(react@19.2.6)
@@ -2894,12 +2892,6 @@ snapshots:
       react-dom: 19.2.6(react@19.2.6)
     transitivePeerDependencies:
       - scheduler
-
-  '@fluentui/react-icons@2.0.328(react@19.2.6)':
-    dependencies:
-      '@griffel/react': 1.7.4(react@19.2.6)
-      react: 19.2.6
-      tslib: 2.8.1
 
   '@fluentui/react-icons@2.0.331(react@19.2.6)':
     dependencies:

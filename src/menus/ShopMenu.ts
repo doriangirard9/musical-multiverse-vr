@@ -1,12 +1,8 @@
 import { Observable, Scene } from "@babylonjs/core"
 import { Button, Container, Image, InputText, Rectangle, ScrollViewer, StackPanel, TextBlock, VirtualKeyboard } from "@babylonjs/gui"
 import { Node3dManager } from "../app/Node3dManager"
-import type { Node3DCatalogEntry } from "../app/Node3DBuilder"
 import { AbstractMenu } from "./AbstractMenu"
-
-const FORCED_MIDI_INSTRUMENT_KINDS = new Set([
-    "server-pro54michel",
-])
+import { Node3DFactory } from "../node3d/Node3D"
 
 export class ShopMenu extends AbstractMenu {
 
@@ -31,16 +27,16 @@ export class ShopMenu extends AbstractMenu {
 
         // All [kind, factory] entries, populated once the factories load. Used
         // by the search bar to filter across every category at once.
-        let allEntries: Node3DCatalogEntry[] = []
+        let allEntries: [string,Node3DFactory<any,any>][] = []
         // Kinds of the currently selected category, restored when search clears.
         let categoryKinds: string[] = []
 
         // Item List
         const items = new Container()
 
-        const setItems = (kinds: string[]) => {
+        const setItems = async(kinds: string[]) => {
             items.clearControls()
-            const list = this.createItemList(4, kinds)
+            const list = await this.createItemList(4, kinds)
             this.place(list, 0, 0, 100, 100)
             items.addControl(list)
         }
@@ -59,11 +55,12 @@ export class ShopMenu extends AbstractMenu {
             const q = raw.trim().toLowerCase()
             if (!q) { setItems(categoryKinds); return }
             const matches = allEntries
-                .filter(({ kind, label, tags }) =>
-                    label?.toLowerCase().includes(q) ||
-                    kind.toLowerCase().includes(q) ||
-                    tags.some(t => t.toLowerCase().includes(q)))
-                .map(entry => entry.kind)
+                .filter(([kind,factory]) =>
+                    kind?.toLowerCase().includes(q) ||
+                    factory.label.toLowerCase().includes(q) ||
+                    factory.description.toLowerCase().includes(q) ||
+                    factory.tags.some(t => t.toLowerCase().includes(q)))
+                .map(entry => entry[0])
             setItems(matches)
         }
 
@@ -217,9 +214,14 @@ export class ShopMenu extends AbstractMenu {
                 const kinds = this.allowedKinds
                     ? builder.FACTORY_KINDS.filter(kind => this.allowedKinds!.has(kind))
                     : builder.FACTORY_KINDS
-                const entries = kinds
-                    .map(kind => builder.getCatalogEntry(kind))
-                    .filter((entry): entry is Node3DCatalogEntry => entry != null)
+                
+
+                const entries = await (async()=>{
+                    const promises = kinds.map(kind => builder.getFactory(kind).then(it=>[kind,it] as [string,Node3DFactory<any,any>|null]))
+                    const factories = (await Promise.all(promises))
+                        .filter(([_,factory]) => factory != null) as [string,Node3DFactory<any,any>][]
+                    return factories
+                })();
 
                 allEntries = entries
 
@@ -250,19 +252,14 @@ export class ShopMenu extends AbstractMenu {
                     },
                 }
 
-                for (const { kind, tags } of entries) {
+                for (const [kind,{tags}] of entries) {
                     const target = [] as string[][]
-
-                    // Some remote WAM descriptors expose incomplete tags. Keep
-                    // their automatic classification, but guarantee that known
-                    // MIDI instruments remain discoverable in the expected tab.
-                    if (FORCED_MIDI_INSTRUMENT_KINDS.has(kind)) {
-                        target.push(menus.MIDI.Instrument)
-                    }
 
                     if (tags.includes("consumer")) target.push(menus.Output.Output)
 
                     if (tags.includes("automation")) target.push(menus.Automation.Automation)
+
+                    if (tags.includes("instrument")) target.push(menus.MIDI.Instrument)
 
                     if (tags.includes("midi")) {
                         if (tags.includes("generator")) target.push(menus.MIDI.Generator)
@@ -356,9 +353,10 @@ export class ShopMenu extends AbstractMenu {
             return stack
         })
 
-        for (const kind of kinds) {
-            const item = this.createItem(kind)
-            if (!item) continue
+        Promise.all(kinds.map(async kind=>{
+            const item = await this.createItem(kind)
+            if (!item) return
+
             item.width = "150px"
             item.height = "150px"
 
@@ -371,13 +369,13 @@ export class ShopMenu extends AbstractMenu {
                 }
             }
             stack[index].addControl(item)
-        }
+        }))
 
         return root
     }
 
-    private createItem(kind: string) {
-        const entry = Node3dManager.getInstance().builder.getCatalogEntry(kind)
+    private async createItem(kind: string) {
+        const entry = await Node3dManager.getInstance().builder.getFactory(kind)
         if (!entry) return
 
         const thumbnailUrl = Node3dManager.getInstance().builder.getThumbnail(kind)

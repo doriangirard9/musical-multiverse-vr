@@ -150,6 +150,7 @@ export class App {
             ),
             HapticContactSystem.initialize(
                 InputManager.getInstance(),
+                WamTransportManager.getInstance(audioContext),
             ),
             AudioWorldSystem.initialize(
                 audioContext,

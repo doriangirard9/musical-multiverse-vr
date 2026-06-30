@@ -77,6 +77,7 @@ export class XRManager {
                         // Offset spawn position if another avatar is already at our location
                         try {
                             // Dynamic import to avoid circular dependency
+                            // TODO: What the fuck. 
                             import("../app/AvatarSystem").then(({ AvatarSystem }) => {
                                 AvatarSystem.getInstance().offsetSpawnIfNeeded();
                             });
