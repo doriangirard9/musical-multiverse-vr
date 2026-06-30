@@ -18,6 +18,10 @@ import { ScreenN3DFactory } from "../node3d/subs/visualizer/ScreenN3D.ts";
 import { BoxScreenN3DFactory } from "../node3d/subs/visualizer/BoxScreenN3D.ts";
 import { SphereScreenN3DFactory } from "../node3d/subs/visualizer/SphereScreenN3D.ts";
 import { CylinderScreenN3DFactory } from "../node3d/subs/visualizer/CylinderScreenN3D.ts";
+import { SpectrumBarsN3DFactory } from "../node3d/subs/SpectrumBarsN3D.ts";
+import { OscilloscopeN3DFactory } from "../node3d/subs/OscilloscopeN3D.ts";
+import { SpectogramN3DFactory } from "../node3d/subs/SpectogramN3D.ts";
+import { LiveGainN3DFactory } from "../node3d/subs/LiveGainN3D.ts";
 import { LivePianoN3DFactory } from "../node3d/subs/note_generator/LivePianoN3D.ts";
 import { HyperKeyboardN3DFactory } from "../node3d/subs/note_generator/HyperKeyboardN3D.ts";
 import { DrumPlateKitN3DFactory } from "../node3d/subs/note_generator/DrumPlateKitN3D.ts";
@@ -66,7 +70,7 @@ export class Node3DBuilder {
      * Some of the valid kinds of Node3D.
      */
     FACTORY_KINDS = [
-        "audiooutput", "oscillator", "maracas", "livepiano", "notesbox", "pianoroll", "drumkit", "pro54michel", "butterchurn", "screen", "box_screen", "sphere_screen", "cylinder_screen", "isf_shader",
+        "audiooutput", "oscillator", "maracas", "livepiano", "notesbox", "pianoroll", "drumkit", "pro54michel", "butterchurn", "screen", "box_screen", "sphere_screen", "cylinder_screen", "isf_shader", "spectrum_bars", "oscilloscope", "spectogram", "livegain",
         "hyperkeyboard", "drumplatekit", "automation_controller", "the_cube", "harp", "large_harp", "voice", "gaze", "sequencer12", "sequencer16", "audio_plaque", "superformula", "superformula3d", "fluid_field", "ai_composer", "ai_composer_improv", "ai_composer_drums", "ai_composer_basic", "ai_composer_vae",
         ...Object.keys(examples).map(k => `wam3d-${k}`),
         ...SERVER_KINDS.map(k => `server-${k}`),
@@ -149,6 +153,10 @@ export class Node3DBuilder {
         if (kind == "box_screen") return BoxScreenN3DFactory
         if (kind == "sphere_screen") return SphereScreenN3DFactory
         if (kind == "cylinder_screen") return CylinderScreenN3DFactory
+        if (kind == "spectrum_bars") return SpectrumBarsN3DFactory
+        if (kind == "oscilloscope")  return OscilloscopeN3DFactory
+        if (kind == "spectogram")    return SpectogramN3DFactory
+        if (kind == "livegain")      return LiveGainN3DFactory
         if (kind == "hyperkeyboard") return HyperKeyboardN3DFactory.SIMPLE
         if (kind == "drumplatekit") return DrumPlateKitN3DFactory.SMALL
         if (kind == "automation_controller") return AutomationControllerN3DFactory
