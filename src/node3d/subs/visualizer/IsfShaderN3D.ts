@@ -347,7 +347,10 @@ export class IsfShaderN3D implements Node3D {
                     }
                     this.pendingScreens = [];
 
-                    this.activeWamNode.addEventListener('shader-changed', () => this.rebuildParameters());
+                    this.activeWamNode.addEventListener('shader-changed', () => {
+                        // Add a small delay to ensure module.parser is fully updated by the WAM
+                        setTimeout(() => this.rebuildParameters(), 100);
+                    });
 
                     // Wait for shaders to become available (awaitable with retries)
                     await this.waitForShaders();
@@ -503,8 +506,9 @@ export class IsfShaderN3D implements Node3D {
                     this.gui.updateLabel(value);
                 }
             }
-            // Wait for the shader-changed event + rebuildParameters to complete
-            await new Promise(r => setTimeout(r, 500));
+            // Wait for the WAM to finish compiling the new shader
+            await new Promise(r => setTimeout(r, 600));
+            this.rebuildParameters();
         }
         if (key === "paramValues" && typeof value === "object" && value !== null) {
             for (const [paramId, paramVal] of Object.entries(value)) {
