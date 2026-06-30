@@ -1,5 +1,7 @@
-// Central configuration for XR Drum Kit
-// All magic numbers and configuration values in one place for easy tuning
+// Central configuration for XR Drum Kit.
+// All magic numbers and configuration values in one place for easy tuning.
+
+const DRUMKIT_MODEL_URL = (await import("./drum3DModel.glb?url")).default;
 
 export const DRUMKIT_CONFIG = {
     // Physics configuration
@@ -106,8 +108,7 @@ export const DRUMKIT_CONFIG = {
     
     // Drum kit 3D model configuration
     model: {
-        path: "/drum_3D_model/",
-        fileName: "drum3DModel.glb",
+        url: DRUMKIT_MODEL_URL,
         scaleFactor: 0.7, // Overall scale for the entire drum kit
     },
     
