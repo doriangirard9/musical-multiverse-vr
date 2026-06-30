@@ -57,7 +57,7 @@ class XRDrumKit {
     throne : TransformNode | undefined;
     throneController: ThroneController | undefined; // Controller for sitting/standing functionality
     throneUI: ThroneUI | undefined; // UI for throne interaction prompts
-    path = DRUMKIT_CONFIG.model.path; // Path to the 3D model folder
+    glbUrl = DRUMKIT_CONFIG.model.url; // Path to the 3D model file
     log = false;
     scaleFactor: number = DRUMKIT_CONFIG.model.scaleFactor; // Scale factor for physics trigger shapes (0.7 = 70% of visual size)
     //xrLogger: XRLogger;
@@ -82,7 +82,7 @@ class XRDrumKit {
      */
     async loadMesh(): Promise<AbstractMesh[]> {
         return new Promise((resolve, reject) => {
-            const meshTask = this.assetsManager.addMeshTask("drum3DModel", "", this.path, DRUMKIT_CONFIG.model.fileName);
+            const meshTask = this.assetsManager.addMeshTask("drum3DModel", "", "", this.glbUrl);
             
             //@ts-ignore
             meshTask.onError = (task, message, exception) => {
