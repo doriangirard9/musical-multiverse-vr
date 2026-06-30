@@ -74,7 +74,7 @@ router.post('/register', async (req, res) => {
             secure: options.ENV === 'production',
             sameSite: 'lax',
             maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-            path: '/api/auth',
+            path: '/',
         });
 
         res.status(201).json({
@@ -127,7 +127,7 @@ router.post('/login', async (req, res) => {
             secure: options.ENV === 'production',
             sameSite: 'lax',
             maxAge: 7 * 24 * 60 * 60 * 1000,
-            path: '/api/auth',
+            path: '/',
         });
 
         res.json({
@@ -207,7 +207,7 @@ router.post('/logout', async (req, res) => {
             }
         }
 
-        res.clearCookie('refreshToken', { path: '/api/auth' });
+        res.clearCookie('refreshToken', { path: '/' });
         res.json({ message: 'Logged out' });
     } catch (error) {
         console.error('[Auth] Logout error:', error);

@@ -11,6 +11,7 @@ import { TargetManager } from "./TargetManager"
 import { BoxHighlight } from "../world/BoxHighlight"
 import { PointerVisualSystem } from "./PointerVisualSystem"
 import { ChoiceMenu, MenuButton as ChoiceMenuButton } from "../menus/ChoiceMenu"
+import { NoteUtils } from "../node3d/tools";
 
 
 /**
@@ -275,6 +276,13 @@ class TransportMenu{
         }})
         buttons.push({ label: "-", color: "#ffffbb", click: ()=>{
             this.transport.setTimeSignature(Math.max(1, ts.numerator-1), ts.denominator)
+        }})
+
+        // Gamme
+        const notes = NoteUtils
+        buttons.push({ label: notes.getSelectedGamme().label, color: "#d982c6", click: ()=>{
+            notes.setSelectedGammeIndex(notes.getSelectedGammeIndex()+1)
+            this.updateMenu()
         }})
 
 

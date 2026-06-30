@@ -85,7 +85,7 @@ export class MenuSystem {
         )
         setTimeout(() => {
             if(menu.isVisible) menu.hide()
-        }, 7000)
+        }, 600)
         this.open(menu)
     }
     

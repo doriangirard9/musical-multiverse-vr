@@ -4,14 +4,14 @@
 export class LoadingOverlay {
     private element: HTMLDivElement | null = null;
 
-    show(container: HTMLElement, text: string = 'Loading...'): void {
+    show(container: HTMLElement, text: string = 'Loading...', showSpinner: boolean = true): void {
         this.hide();
 
         const el = document.createElement('div');
         el.className = 'wj-loading-overlay';
         el.id = 'wj-loading-overlay';
         el.innerHTML = `
-            <div class="wj-spinner"></div>
+            ${showSpinner ? '<div class="wj-spinner"></div>' : ''}
             <div class="wj-loading-text" id="wj-loading-text">${this.escapeHtml(text)}</div>
         `;
 

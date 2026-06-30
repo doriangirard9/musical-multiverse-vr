@@ -75,6 +75,9 @@ export class N3DConnectableInstance {
         }
 
         for(const mesh of meshes) {
+            mesh.metadata = mesh.metadata || {}
+            mesh.metadata.isConnectablePort = true
+
             if(!targetOnly){
                 const grab = new InputGrabBehavior(
                     pointer => onpickdown(pointer),

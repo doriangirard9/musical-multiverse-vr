@@ -5,6 +5,7 @@ import {SceneManager} from "../../app/SceneManager.ts";
 import {PlayerManager} from "../../app/PlayerManager.ts";
 import { HoldableBehaviour } from "./HoldableBehaviour.ts";
 import { InputHoverBehavior } from "../../xr/inputs/tools/InputHoverBehavior.ts";
+import { IOEventBus } from "../../eventBus/IOEventBus.ts";
 
 
 /**
@@ -18,6 +19,7 @@ export class BoundingBox {
     private scene : Scene = SceneManager.getInstance().getScene();
     readonly holdable: HoldableBehaviour
     public boundingBox!: B.AbstractMesh;
+    private unsubscribeIO?: () => void;
 
     public on_move = ()=>{}
 
@@ -76,6 +78,10 @@ export class BoundingBox {
             updateVisibility()
         })
         
+        // Prevent bounding box from blocking connections
+        this.unsubscribeIO = IOEventBus.getInstance().on('IO_CONNECT', (payload) => {
+            this.boundingBox.isPickable = payload.pickType !== 'down';
+        });
     }
 
     private positionBoundingBoxInFrontOfPlayer(): void {
@@ -99,6 +105,7 @@ export class BoundingBox {
 
 
     public dispose(): void {
+        this.unsubscribeIO?.();
         this.boundingBox?.dispose()
     }
 

@@ -1,0 +1,17 @@
+{
+    "identifier": "com.sofiane.isf-video-suite",
+    "name": "ISF Video Shader WAM",
+    "vendor": "User",
+    "description": "2D ISF Shader plugin with audio reactivity and video chaining.",
+    "version": "1.0.0",
+    "apiVersion": "2.0.0",
+    "thumbnail": "assets/screenshot.png",
+    "keywords": ["video", "shader", "isf", "2d", "audio-reactive"],
+    "isInstrument": false,
+    "hasVideoInput": true,
+    "hasVideoOutput": true,
+    "hasAudioInput": true,
+    "hasAudioOutput": false,
+    "hasMidiInput": false,
+    "hasMidiOutput": false
+}

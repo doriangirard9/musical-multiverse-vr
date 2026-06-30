@@ -30,8 +30,24 @@ export default defineConfig(({ mode }) => ({
   esbuild: {
     target: "es2022"
   },
+  // Polyfill du global Node pour les dépendances transitives de Magenta
+  // (typedarray-pool, ndarray-fft, ndarray-resample assument `global`).
+  // Sans ça : ReferenceError au moment du chargement du chunk Magenta.
+  define: {
+    global: 'globalThis',
+  },
   optimizeDeps: {
     exclude: ['@babylonjs/havok'],
+    // Pré-bundle des SOUS-MODULES Magenta (pas le barrel complet qui tire
+    // l'audio → OfflineAudioContext, incompatible worker) + TF.js + backend
+    // WASM. Leur format mixte ESM/CJS exige le pré-bundling esbuild.
+    include: [
+      '@magenta/music/esm/music_rnn',
+      '@magenta/music/esm/music_vae',
+      '@magenta/music/esm/core/sequences',
+      '@tensorflow/tfjs',
+      '@tensorflow/tfjs-backend-wasm',
+    ],
     esbuildOptions: {
       target: "es2022",
     }

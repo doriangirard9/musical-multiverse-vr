@@ -7,10 +7,8 @@ import type { AutomationN3DConnectable } from "../../tools";
 import type { PointerInput } from "../../../xr/inputs/PointerInput";
 import { BoidSwarm } from "./steering/Boid";
 
-// ── Runtime resize bounds (multiplier applied on top of gui.root's normal scale) ──
-const RESIZE_MIN = 0.5;
-const RESIZE_MAX = 2.0;
-const RESIZE_DEFAULT = 1.0;
+// Le redimensionnement se fait désormais à DEUX MAINS (TwoPointerHoldBehaviour
+// au niveau de l'hôte) → plus de poignée de resize par instrument.
 const BOID_MAX = 30;
 
 // ─── GUI (pure visuals + coordinate helper) ───────────────────────────────────
@@ -39,8 +37,7 @@ export class AudioPlaqueN3DGUI implements Node3DGUI {
     ball!:     AbstractMesh;
     ballHalo!: AbstractMesh;
 
-    // Runtime UI: resize handle (bottom-right corner) + 3 boid buttons (top-left)
-    resizeHandle!: AbstractMesh;
+    // Runtime UI: 3 boid buttons (top-left)
     btnBoidToggle!: AbstractMesh;
     btnBoidAdd!:    AbstractMesh;
     btnBoidRemove!: AbstractMesh;
@@ -188,19 +185,7 @@ export class AudioPlaqueN3DGUI implements Node3DGUI {
         haloMat.disableLighting = true;
         this.ballHalo.material = haloMat;
 
-        // ── Resize handle (bottom-right corner) ───────────────────────────────
-        //
-        //   Drag-controlled by a Node3DParameter the logic class registers.  Maps
-        //   the host's 0..1 value to a [RESIZE_MIN..RESIZE_MAX] multiplier on
-        //   gui.root.scaling.  All children — plaque, ball, knobs, connectors,
-        //   boids — scale together so the layout stays internally consistent.
-        //
-        this.resizeHandle = B.MeshBuilder.CreateSphere("plaque_resize", { diameter: 0.08 }, context.scene);
-        this.resizeHandle.parent = this.root;
-        this.resizeHandle.position.set(0.65, -0.65, 0);
-        const resizeMat = new StandardMaterial("resize_mat", context.scene);
-        resizeMat.emissiveColor = new Color3(0.85, 0.3, 0.95);   // violet
-        this.resizeHandle.material = resizeMat;
+        // (Plus de poignée de resize : redimensionnement à deux mains via l'hôte.)
 
         // ── Boid controls (top-left column) ───────────────────────────────────
         //
@@ -338,7 +323,6 @@ export class AudioPlaqueN3D implements Node3D {
     private boidVortOut!:  InstanceType<(typeof AutomationN3DConnectable)["Output"]>;
 
     // Runtime UI state — synced across peers
-    private userScale = RESIZE_DEFAULT;
     private boidMode  = false;
     private boidCount = 5;
 
@@ -462,39 +446,8 @@ export class AudioPlaqueN3D implements Node3D {
             context.createConnectable(o);
         }
 
-        // ── Resize handle parameter ───────────────────────────────────────────
-        //
-        //   Maps host's normalised 0..1 value to a [RESIZE_MIN .. RESIZE_MAX]
-        //   scale multiplier on gui.root.
-        //
-        //   IMPORTANT: we do NOT trigger a bounding-box recompute here.
-        //   Node3DInstance.updateBoundingBoxNow() disposes the old outer BB
-        //   mesh, and Babylon's Mesh.dispose() cascades into children by default
-        //   — that would wipe the entire Node3D mesh tree (root_transform,
-        //   gui.root, plaque, ball, trail, all connectors).  Letting the BB
-        //   keep its spawn-time size is fine: at 0.5×–2.0× scale the BB may
-        //   be slightly off, but every interactive child is individually
-        //   pickable so dragging still works fine via any of them.
-        //
-        const applyScale = (s: number) => {
-            this.userScale = Math.max(RESIZE_MIN, Math.min(RESIZE_MAX, s));
-            gui.root.scaling.setAll(this.userScale);
-        };
-        applyScale(this.userScale);
-
-        context.createParameter({
-            id: "userScale",
-            meshes: [gui.resizeHandle],
-            getLabel: () => "Resize",
-            getStepCount: () => 0,
-            getValue: () => (this.userScale - RESIZE_MIN) / (RESIZE_MAX - RESIZE_MIN),
-            setValue: (v01: number) => {
-                applyScale(RESIZE_MIN + v01 * (RESIZE_MAX - RESIZE_MIN));
-                context.notifyStateChange("userScale");
-            },
-            stringify: (v01: number) =>
-                `Size: ${(RESIZE_MIN + v01 * (RESIZE_MAX - RESIZE_MIN)).toFixed(2)}x`,
-        });
+        // (Redimensionnement à deux mains géré par l'hôte → pas de paramètre
+        //  userScale ici.)
 
         // ── Boid swarm + controls ─────────────────────────────────────────────
         //
@@ -728,11 +681,10 @@ export class AudioPlaqueN3D implements Node3D {
     }
 
     // ── State sync (synced across peers) ──────────────────────────────────────
-    getStateKeys(): string[] { return ["userScale", "boidMode", "boidCount"]; }
+    getStateKeys(): string[] { return ["boidMode", "boidCount"]; }
 
     async getState(key: string): Promise<Serializable | void> {
         switch (key) {
-            case "userScale": return this.userScale;
             case "boidMode":  return this.boidMode;
             case "boidCount": return this.boidCount;
         }
@@ -740,11 +692,6 @@ export class AudioPlaqueN3D implements Node3D {
 
     async setState(key: string, value: Serializable | undefined): Promise<void> {
         switch (key) {
-            case "userScale":
-                if (typeof value !== "number") return;
-                this.userScale = Math.max(RESIZE_MIN, Math.min(RESIZE_MAX, value));
-                this.gui.root.scaling.setAll(this.userScale);
-                return;
             case "boidMode":
                 if (typeof value !== "boolean") return;
                 this.boidMode = value;
@@ -799,22 +746,13 @@ export class AudioPlaqueN3DFactory implements Node3DFactory<AudioPlaqueN3DGUI, A
         return new AudioPlaqueN3D(context, gui);
     }
 
-    static SMALL = new AudioPlaqueN3DFactory(
-        2.0,
-        "Small Audio Plaque",
-        "Compact 2D XY pad. Audio passes through; X/Y ball position exposed as automation outputs.",
-    );
-
+    // Single canonical instance — resize via two-handed grab (host-level).
     static DEFAULT = new AudioPlaqueN3DFactory(
         3.0,
         "Audio Plaque",
-        "2D XY pad. Audio passes through unchanged; the ball's X and Y positions " +
-        "(0..1) are exposed as automation outputs you can wire to any WAM parameter.",
-    );
-
-    static LARGE = new AudioPlaqueN3DFactory(
-        5.0,
-        "Large Audio Plaque",
-        "Wall-sized 2D XY pad for fine-grained control. Same audio + automation contract as the default.",
+        "2D XY pad with a ball that tracks the controller laser. Audio passes through " +
+        "unchanged; the ball's X and Y positions (0..1) plus 5 boid-swarm metrics are " +
+        "exposed as automation outputs you can wire to any WAM parameter. " +
+        "Resize with a two-handed grab.",
     );
 }

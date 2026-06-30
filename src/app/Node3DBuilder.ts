@@ -30,9 +30,11 @@ import { SyncDebugN3DFactory } from "../node3d/subs/debug/SyncDebugN3D.ts";
 import { AbstractMesh, CreatePlane, Vector4, VertexBuffer } from "@babylonjs/core";
 import { TextureAtlas } from "../utils/atlas.ts";
 import { AutoDispose } from "../utils/auto_dispose.ts";
-import { SwarmThereminN3DFactory } from "../node3d/subs/behaviours/SwarmThereminN3D.ts";
 import { AudioPlaqueN3DFactory } from "../node3d/subs/behaviours/AudioPlaqueN3D.ts";
 import { SuperformulaN3DFactory } from "../node3d/subs/behaviours/SuperformulaN3D.ts";
+import { Superformula3DN3DFactory } from "../node3d/subs/behaviours/Superformula3DN3D.ts";
+import { FluidFieldN3DFactory } from "../node3d/subs/behaviours/FluidFieldN3D.ts";
+import { AIComposerN3DFactory } from "../node3d/subs/ai/AIComposerN3D.ts";
 import ParticleEmitterN3DFactory from "../node3d/subs/particle/ParticleEmitterN3D.ts";
 import { N3DThumbnailRenderer } from "../world/renderer/N3DThumbnailRenderer.ts";
 import { SERVER_NAME } from "../options.ts";
@@ -65,7 +67,7 @@ export class Node3DBuilder {
      */
     FACTORY_KINDS = [
         "audiooutput", "oscillator", "maracas", "livepiano", "notesbox", "pianoroll", "drumkit", "pro54michel", "butterchurn", "screen", "box_screen", "sphere_screen", "cylinder_screen", "isf_shader",
-        "hyperkeyboard", "drumplatekit", "automation_controller", "the_cube", "harp", "large_harp", "voice", "gaze", "sequencer12", "sequencer16", "audio_plaque", "superformula",
+        "hyperkeyboard", "drumplatekit", "automation_controller", "the_cube", "harp", "large_harp", "voice", "gaze", "sequencer12", "sequencer16", "audio_plaque", "superformula", "superformula3d", "fluid_field", "ai_composer", "ai_composer_improv", "ai_composer_drums", "ai_composer_basic", "ai_composer_vae",
         ...Object.keys(examples).map(k => `wam3d-${k}`),
         ...SERVER_KINDS.map(k => `server-${k}`),
     ]
@@ -125,7 +127,13 @@ export class Node3DBuilder {
         // Builtin
         if (kind == "audio_plaque") return AudioPlaqueN3DFactory.DEFAULT;
         if (kind == "superformula") return SuperformulaN3DFactory.DEFAULT;
-        if (kind == "swarmtheremin") return SwarmThereminN3DFactory;
+        if (kind == "superformula3d") return Superformula3DN3DFactory.DEFAULT;
+        if (kind == "fluid_field") return FluidFieldN3DFactory.DEFAULT;
+        if (kind == "ai_composer") return AIComposerN3DFactory.MELODY;
+        if (kind == "ai_composer_improv") return AIComposerN3DFactory.IMPROV;
+        if (kind == "ai_composer_drums") return AIComposerN3DFactory.DRUMS;
+        if (kind == "ai_composer_basic") return AIComposerN3DFactory.BASIC;
+        if (kind == "ai_composer_vae") return AIComposerN3DFactory.VAE;
         if (kind == "audiooutput") return SpeakerN3DFactory
         if (kind == "sequencer" || kind == "sequencer12") return Sequencer12N3DFactory
         if (kind == "sequencer16") return Sequencer16N3DFactory
@@ -141,7 +149,7 @@ export class Node3DBuilder {
         if (kind == "box_screen") return BoxScreenN3DFactory
         if (kind == "sphere_screen") return SphereScreenN3DFactory
         if (kind == "cylinder_screen") return CylinderScreenN3DFactory
-        if (kind == "hyperkeyboard") return HyperKeyboardN3DFactory.SMALL
+        if (kind == "hyperkeyboard") return HyperKeyboardN3DFactory.SIMPLE
         if (kind == "drumplatekit") return DrumPlateKitN3DFactory.SMALL
         if (kind == "automation_controller") return AutomationControllerN3DFactory
         if (kind == "the_cube") return PositionCubeN3DFactory.DEFAULT

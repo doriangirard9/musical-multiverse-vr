@@ -10,6 +10,7 @@ export * from "./connectable/ConnectableUtils"
 export * from "./utils/MeshUtils"
 export * from "./utils/StateUtils"
 export * from "./utils/InputUtils"
+export * from "./utils/NoteUtils"
 
 // GUI Components
 export * from "./gui"

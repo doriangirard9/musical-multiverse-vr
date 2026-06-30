@@ -7,6 +7,7 @@ interface ProjectInfo {
     name: string;
     description: string;
     session_count: number;
+    sessions?: Array<{ id: string; name: string; is_public: number; is_locked?: number; created_at: string }>;
 }
 
 /**
@@ -15,6 +16,7 @@ interface ProjectInfo {
 export class ProjectsPage {
     private element: HTMLDivElement | null = null;
     private projects: ProjectInfo[] = [];
+    private openSessions: Set<string> = new Set(); // Track which project sessions are expanded
 
     constructor(
         private readonly api: ApiClient,
@@ -148,36 +150,161 @@ export class ProjectsPage {
                 return;
             }
 
-            listEl.innerHTML = this.projects.map(p => `
+            // Fetch sessions for each project
+            const projectsWithSessions = await Promise.all(
+                this.projects.map(async (p) => {
+                    try {
+                        const sessionsData = await this.api.request<{ sessions: ProjectInfo['sessions'] }>('GET', `/sessions/project/${p.id}`);
+                        return { ...p, sessions: sessionsData.sessions };
+                    } catch {
+                        return { ...p, sessions: [] };
+                    }
+                })
+            );
+
+            listEl.innerHTML = projectsWithSessions.map(p => `
                 <div class="wj-card" style="margin-bottom: 16px;">
-                    <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <div>
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 12px;">
+                        <div style="flex: 1;">
                             <h3 style="margin:0; font-family:var(--font); color:var(--text-primary); font-size:16px;">${this.escapeHtml(p.name)}</h3>
                             ${p.description ? `<p style="margin:4px 0 0 0; font-family:var(--font); color:var(--text-secondary); font-size:13px;">${this.escapeHtml(p.description)}</p>` : ''}
                         </div>
                         <div style="display:flex; gap:8px;">
-                            <span class="wj-badge" style="background:var(--bg-hover); color:var(--text-secondary);">${p.session_count} sessions</span>
+                            <button class="wj-btn wj-btn-secondary wj-btn-toggle-sessions" data-project-id="${p.id}" title="Toggle sessions">
+                                ${p.session_count} sessions
+                            </button>
+                            <button class="wj-btn wj-btn-secondary wj-btn-rename-proj" data-project-id="${p.id}" title="Rename project">Rename</button>
                             <button class="wj-btn wj-btn-secondary wj-btn-new-session" data-project-id="${p.id}">+ Session</button>
                             <button class="wj-btn wj-btn-danger wj-btn-delete-proj" data-project-id="${p.id}">Delete</button>
                         </div>
                     </div>
+
+                    <!-- Collapsible Sessions List -->
+                    <div class="wj-sessions-list" data-project-id="${p.id}" style="display:${this.openSessions.has(p.id) ? 'block' : 'none'}; border-top: 1px solid var(--bg-hover); padding-top: 12px; margin-top: 12px;">
+                        ${p.sessions && p.sessions.length > 0 ? p.sessions.map(s => `
+                            <div class="wj-session-item" data-session-id="${s.id}" style="display:flex; justify-content:space-between; align-items:center; padding:8px; background:var(--bg-hover); border-radius:4px; margin-bottom:8px; cursor:pointer;">
+                                <div style="flex:1; overflow:hidden;">
+                                    <div style="font-weight:500; color:var(--text-primary);">${this.escapeHtml(s.name)}</div>
+                                    <div style="font-size:12px; color:var(--text-secondary);">${s.is_public ? 'Public' : 'Private'}${s.is_locked ? ' • Locked' : ''}</div>
+                                </div>
+                                <div style="display:flex; gap:6px; margin-left:12px;">
+                                    <button class="wj-btn wj-btn-mini wj-btn-rename-session" data-session-id="${s.id}" data-session-name="${this.escapeHtml(s.name)}" title="Rename session" style="background:#333; color:#fff; border:none;">Rename</button>
+                                    <button class="wj-btn wj-btn-mini wj-btn-toggle-lock-session" data-session-id="${s.id}" data-locked="${s.is_locked ? '1' : '0'}" title="Toggle lock" style="background:#333; color:#fff; border:none;">${s.is_locked ? 'Unlock' : 'Lock'}</button>
+                                    <button class="wj-btn wj-btn-mini wj-btn-delete-session" data-session-id="${s.id}" title="Delete session" style="background:#dc3545; color:#fff; border:none;">Delete</button>
+                                    <button class="wj-btn wj-btn-mini wj-btn-open-session" data-session-id="${s.id}" title="Open session" style="background:#333; color:#fff; border:none; padding:4px 8px;">Open</button>
+                                </div>
+                            </div>
+                        `).join('') : '<div style="color:var(--text-secondary); font-size:13px; padding:8px;">No sessions yet</div>'}
+                    </div>
                 </div>
             `).join('');
 
-            // Bind New Session buttons
+            // Bind events
+            listEl.querySelectorAll('.wj-btn-toggle-sessions').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const projectId = (btn as HTMLElement).dataset.projectId;
+                    if (projectId) {
+                        // Toggle the open state in memory
+                        if (this.openSessions.has(projectId)) {
+                            this.openSessions.delete(projectId);
+                        } else {
+                            this.openSessions.add(projectId);
+                        }
+                        // Update the DOM without full reload
+                        const sessionsList = listEl.querySelector(`.wj-sessions-list[data-project-id="${projectId}"]`) as HTMLElement;
+                        if (sessionsList) {
+                            sessionsList.style.display = this.openSessions.has(projectId) ? 'block' : 'none';
+                        }
+                    }
+                });
+            });
+
+            listEl.querySelectorAll('.wj-btn-rename-proj').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const projectId = (btn as HTMLElement).dataset.projectId;
+                    const project = this.projects.find(p => p.id === projectId);
+                    if (projectId && project && project.name) {
+                        this.showRenameProjectModal(el, projectId, project.name);
+                    }
+                });
+            });
+
             listEl.querySelectorAll('.wj-btn-new-session').forEach(btn => {
-                btn.addEventListener('click', () => {
+                btn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
                     const projectId = (btn as HTMLElement).dataset.projectId;
                     if (projectId) this.showNewSessionModal(el, projectId);
                 });
             });
 
-            // Bind Delete buttons
             listEl.querySelectorAll('.wj-btn-delete-proj').forEach(btn => {
-                btn.addEventListener('click', () => {
+                btn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
                     const projectId = (btn as HTMLElement).dataset.projectId;
                     if (projectId && confirm('Are you sure? This will delete the project and all its sessions.')) {
                         this.handleDeleteProject(el, projectId);
+                    }
+                });
+            });
+
+            listEl.querySelectorAll('.wj-btn-rename-session').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const sessionId = (btn as HTMLElement).dataset.sessionId;
+                    const sessionName = (btn as HTMLElement).dataset.sessionName || '';
+                    if (sessionId) this.showRenameSessionModal(el, sessionId, sessionName);
+                });
+            });
+
+            listEl.querySelectorAll('.wj-btn-toggle-lock-session').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const sessionId = (btn as HTMLElement).dataset.sessionId;
+                    const isLocked = (btn as HTMLElement).dataset.locked === '1';
+                    if (sessionId) this.handleToggleLockSession(el, sessionId, !isLocked);
+                });
+            });
+
+            listEl.querySelectorAll('.wj-btn-delete-session').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const sessionId = (btn as HTMLElement).dataset.sessionId;
+                    if (sessionId && confirm('Delete this session? This cannot be undone.')) {
+                        this.handleDeleteSession(el, sessionId);
+                    }
+                });
+            });
+
+            listEl.querySelectorAll('.wj-btn-open-session').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const sessionId = (btn as HTMLElement).dataset.sessionId;
+                    if (sessionId) {
+                        this.router.navigate(ROUTES.APP, { session: sessionId });
+                    }
+                });
+            });
+
+            listEl.querySelectorAll('.wj-session-item').forEach(item => {
+                (item as HTMLElement).addEventListener('click', (e) => {
+                    // Only navigate if clicking directly on the item, not on buttons or their children
+                    const target = e.target as HTMLElement;
+                    if (target.tagName === 'BUTTON' || target.closest('button')) {
+                        return;
+                    }
+                    const sessionId = (item as HTMLElement).dataset.sessionId;
+                    if (sessionId) {
+                        this.router.navigate(ROUTES.APP, { session: sessionId });
                     }
                 });
             });
@@ -277,5 +404,67 @@ export class ProjectsPage {
         const div = document.createElement('div');
         div.textContent = str;
         return div.innerHTML;
+    }
+
+    private showRenameProjectModal(el: HTMLElement, projectId: string, currentName: string): void {
+        const newName = prompt('Enter new project name:', currentName);
+        if (newName && newName.trim() && newName !== currentName) {
+            this.handleRenameProject(el, projectId, newName.trim());
+        }
+    }
+
+    private async handleRenameProject(el: HTMLElement, projectId: string, newName: string): Promise<void> {
+        const errorEl = el.querySelector('#wj-projects-error') as HTMLElement;
+        try {
+            await this.api.request('PUT', `/projects/${projectId}`, { name: newName });
+            await this.loadProjects(el);
+        } catch (e) {
+            const msg = e instanceof ApiError ? e.message : 'Failed to rename project';
+            errorEl.textContent = msg;
+            errorEl.classList.add('wj-visible');
+        }
+    }
+
+    private showRenameSessionModal(el: HTMLElement, sessionId: string, currentName: string): void {
+        const newName = prompt('Enter new session name:', currentName);
+        if (newName && newName.trim() && newName !== currentName) {
+            this.handleRenameSession(el, sessionId, newName.trim());
+        }
+    }
+
+    private async handleRenameSession(el: HTMLElement, sessionId: string, newName: string): Promise<void> {
+        const errorEl = el.querySelector('#wj-projects-error') as HTMLElement;
+        try {
+            await this.api.request('PUT', `/sessions/${sessionId}`, { name: newName });
+            await this.loadProjects(el);
+        } catch (e) {
+            const msg = e instanceof ApiError ? e.message : 'Failed to rename session';
+            errorEl.textContent = msg;
+            errorEl.classList.add('wj-visible');
+        }
+    }
+
+    private async handleToggleLockSession(el: HTMLElement, sessionId: string, shouldLock: boolean): Promise<void> {
+        const errorEl = el.querySelector('#wj-projects-error') as HTMLElement;
+        try {
+            await this.api.request('PUT', `/sessions/${sessionId}`, { isLocked: shouldLock });
+            await this.loadProjects(el);
+        } catch (e) {
+            const msg = e instanceof ApiError ? e.message : 'Failed to lock/unlock session';
+            errorEl.textContent = msg;
+            errorEl.classList.add('wj-visible');
+        }
+    }
+
+    private async handleDeleteSession(el: HTMLElement, sessionId: string): Promise<void> {
+        const errorEl = el.querySelector('#wj-projects-error') as HTMLElement;
+        try {
+            await this.api.request('DELETE', `/sessions/${sessionId}`);
+            await this.loadProjects(el);
+        } catch (e) {
+            const msg = e instanceof ApiError ? e.message : 'Failed to delete session';
+            errorEl.textContent = msg;
+            errorEl.classList.add('wj-visible');
+        }
     }
 }

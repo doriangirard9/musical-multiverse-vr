@@ -23,7 +23,7 @@ export class RegisterPage {
             <div class="wj-container">
                 <div class="wj-card">
                     <h1 class="wj-title">Create Account</h1>
-                    <p class="wj-subtitle">Join WamJam Party</p>
+                    <p class="wj-subtitle">Join WAM Jam Party</p>
 
                     <div id="wj-register-error" class="wj-error"></div>
 

@@ -150,6 +150,20 @@ export class Avatar implements Synchronized{
         this.root.setEnabled(DEBUG_MODE||visible)
     }
 
+    /** Get the current head position (for proximity checks by other systems) */
+    getHeadPosition(): Vector3 {
+        return this.head.position.clone()
+    }
+
+    /** Hide this avatar when the local player is too close (prevents seeing inside the 3D model).
+     *  Uses setEnabled for reliability with InstancedMesh + PBR materials. */
+    setProximityHidden(hidden: boolean) {
+        if (this._proximityHidden === hidden) return  // No change
+        this._proximityHidden = hidden
+        this.root.setEnabled(!hidden)
+    }
+    private _proximityHidden = false
+
     // Sync
     private set_state?: (key: string) => void
 
@@ -386,6 +400,13 @@ export class AvaterPart{
         return Object.keys(this.model[kind]??{})
     }
 
+    /** Set visibility (0-1) for proximity fade */
+    setVisibility(visibility: number) {
+        for (const entry of Object.values(this.instances)) {
+            if (entry) entry.mesh.visibility = visibility
+        }
+    }
+
     dispose(){
         for(const entry of Object.values(this.instances)){
             entry?.mesh.dispose()
@@ -442,6 +463,12 @@ export class AvaterPointer{
         
     }
 
+    /** Set visibility (0-1) for proximity fade */
+    setVisibility(visibility: number) {
+        this.instance.visibility = visibility
+        this.instanceSphere.visibility = visibility * 0.5  // sphere was already semi-transparent
+    }
+
     dispose(){
         this.instance.dispose()
     }
@@ -494,6 +521,11 @@ export class AvatarLabel{
     set position(value: Vector3){ this.plane.position.copyFrom(value) }
     
     get root(){ return this.plane as TransformNode }
+
+    /** Set visibility (0-1) for proximity fade */
+    setVisibility(visibility: number) {
+        this.plane.visibility = visibility
+    }
 
     dispose(){
         this.plane.dispose()
