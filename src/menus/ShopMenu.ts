@@ -1,5 +1,5 @@
 import { Observable, Scene } from "@babylonjs/core"
-import { Button, Container, Image, InputText, Rectangle, ScrollViewer, StackPanel, TextBlock, VirtualKeyboard } from "@babylonjs/gui"
+import { Button, Container, Control, Image, InputText, Rectangle, ScrollViewer, StackPanel, TextBlock, VirtualKeyboard } from "@babylonjs/gui"
 import { Node3dManager } from "../app/Node3dManager"
 import { AbstractMenu } from "./AbstractMenu"
 
@@ -101,6 +101,7 @@ export class ShopMenu extends AbstractMenu {
         let searchTimer: ReturnType<typeof setTimeout> | undefined
         search.onTextChangedObservable.add(() => {
             updateKbVisible()
+            clearBtn.isVisible = search.text.length > 0
             clearTimeout(searchTimer)
             searchTimer = setTimeout(() => runSearch(search.text), 140)
         })
@@ -111,10 +112,17 @@ export class ShopMenu extends AbstractMenu {
         doneBtn.background = "rgb(20,70,40,0.7)"
         doneBtn.onPointerUpObservable.add(() => dismissKeyboard())
 
+        // Inline clear icon, rendered INSIDE the input's right edge (not a
+        // separate panel — that read as a "close shop" button). Only shown when
+        // there is a query; tapping it empties the field.
         const clearBtn = Button.CreateSimpleButton("search_clear", "✕")
-        clearBtn.color = "white"
-        clearBtn.background = "rgb(90,20,20,0.7)"
+        clearBtn.color = "#cfd8dc"
+        clearBtn.background = "rgb(255,255,255,0.14)"
+        clearBtn.thickness = 0
+        clearBtn.cornerRadius = 18
+        clearBtn.isVisible = false
         clearBtn.onPointerUpObservable.add(() => { search.text = "" })
+        if (clearBtn.textBlock) clearBtn.textBlock.fontSize = 22
 
 
         // Sub menu
@@ -178,11 +186,16 @@ export class ShopMenu extends AbstractMenu {
         this.place(searchRow, 0, 0, 100, 9)
         this.texture.addControl(searchRow)
         searchRow.addControl(search)
-        this.place(search, 1, 0, 72, 100)
-        searchRow.addControl(doneBtn)
-        this.place(doneBtn, 74, 0, 12, 100)
+        this.place(search, 1, 0, 84, 100)
+        // ✕ sits INSIDE the input, near its right edge (added after `search` so it
+        // renders on top). Centered as a compact chip rather than a full-height bar.
         searchRow.addControl(clearBtn)
-        this.place(clearBtn, 87, 0, 12, 100)
+        this.place(clearBtn, 76, 0, 8, 100)
+        clearBtn.verticalAlignment = Control.VERTICAL_ALIGNMENT_CENTER
+        clearBtn.top = "0%"
+        clearBtn.height = "64%"
+        searchRow.addControl(doneBtn)
+        this.place(doneBtn, 86, 0, 13, 100)
 
         const topbar = this.rect()
         this.place(topbar, 0, 9, 100, 14)
