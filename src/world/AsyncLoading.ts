@@ -1,4 +1,4 @@
-import { AbstractMesh, Color4, CreateCylinder, CreatePolygon, InstancedMesh, Mesh, Scene, TransformNode, Vector3 } from "@babylonjs/core";
+import { AbstractMesh, Color4, CreatePolygon, Mesh, Scene, TransformNode, Vector3 } from "@babylonjs/core";
 import earcut from "earcut";
 import { MeshUtils } from "../node3d/tools/utils/MeshUtils";
 
