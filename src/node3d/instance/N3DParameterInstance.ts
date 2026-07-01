@@ -155,7 +155,7 @@ export class N3DParameterInstance {
                     newvalue = newvalue - newvalue % stepSize
                     newvalue = Math.max(0, Math.min(1, newvalue))
                     this.setValue(newvalue)
-                    draggable.rotationQuaternion = null
+                    //TODO: pk j'ai mit ça déjà : draggable.rotationQuaternion = null
                     updateText()
                 },
             )
