@@ -47,7 +47,6 @@ export class SpectrumBarsN3DGUI implements Node3DGUI {
         mat.diffuseColor = new Color3(0.05, 0.05, 0.08)
         mat.emissiveColor = new Color3(0.02, 0.02, 0.04)
         this.panel.material = mat
-        this.panel.rotation.x = Math.PI/2
         this.panel.parent = this.root
     }
 

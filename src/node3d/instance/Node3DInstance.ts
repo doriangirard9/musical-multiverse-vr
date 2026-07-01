@@ -221,6 +221,13 @@ export class Node3DInstance implements Synchronized {
     private disposables = new Set<() => void>()
     public on_dispose = () => { }
 
+
+    /** On node3d move. Pass the bounding box mesh. */
+    readonly onMove = new Observable<AbstractMesh>()
+
+    /** On node3d disposed. */
+    readonly onDispose = new Observable<void>()
+
     /**
      * Live audio-feature snapshot from the analyser tapped onto this node's
      * primary audio path. Returns null for nodes with no audio connectable
@@ -481,6 +488,7 @@ export class Node3DInstance implements Synchronized {
     private _audioAnalyser: AudioAnalyser | null = null
     private static readonly _graph = new Node3DGraph()
 
+    /** Get the bounding box mesh for this node. Unstable, can be regenerated.*/
     get boundingBoxMesh() { return this.bounding_box!!.boundingBox }
 
     private updateBoundingBoxNow() {
@@ -552,6 +560,12 @@ export class Node3DInstance implements Synchronized {
         // On position change
         this.set_state("position")
         this.bounding_box.on_move = () => this.set_state("position")
+
+        // On move observable
+        this.bounding_box.boundingBox.onAfterWorldMatrixUpdateObservable.add(() => {
+            this.onMove.notifyObservers(this.bounding_box!!.boundingBox)
+        })
+        this.onMove.notifyObservers(this.bounding_box!!.boundingBox)
 
         // Shadow Generator
         this.shared.shadowGenerator.addShadowCaster(this.bounding_mesh, false)
@@ -661,6 +675,7 @@ export class Node3DInstance implements Synchronized {
 
     public async dispose() {
         if (this.disposed) return
+        this.onDispose.notifyObservers()
         this.on_dispose()
         this.disposed = true
         this.set_state("delete")
