@@ -67,9 +67,9 @@ export class ThroneUI {
         
         console.log("[ThroneUI] Sit prompt created and added");
         
-        // "Hold B to leave drums" prompt (shows when sitting)
+        // "Hold X to leave drums" prompt (shows when sitting)
         this.leavePrompt = new GUI.TextBlock();
-        this.leavePrompt.text = "Hold B to leave the drums";
+        this.leavePrompt.text = "Hold X to leave the drums";
         this.leavePrompt.color = "white";
         this.leavePrompt.fontSize = 80; // Larger for 3D space
         this.leavePrompt.fontFamily = "Arial";
@@ -104,7 +104,7 @@ export class ThroneUI {
         
         // Text inside circle
         this.standUpText = new GUI.TextBlock();
-        this.standUpText.text = "Hold B\nto stand up";
+        this.standUpText.text = "Hold X\nto stand up";
         this.standUpText.color = "white";
         this.standUpText.fontSize = 60; // Larger for 3D space
         this.standUpText.fontFamily = "Arial";
@@ -178,7 +178,7 @@ export class ThroneUI {
             }
         }
         
-        // Show "Hold B to leave" when sitting but NOT holding B
+        // Show "Hold X to leave" when sitting but NOT holding X
         if (this.leavePrompt) {
             const shouldShow = isSitting && standUpProgress === 0;
             if (this.leavePrompt.isVisible !== shouldShow) {
@@ -209,7 +209,7 @@ export class ThroneUI {
             this.standUpFill.height = `${fillSize}px`;
             
             // Update text to show percentage
-            this.standUpText.text = `Hold B\n${Math.round(fillPercent)}%`;
+            this.standUpText.text = `Hold X\n${Math.round(fillPercent)}%`;
         }
     }
     
