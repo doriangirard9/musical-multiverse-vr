@@ -49,13 +49,7 @@ export class N3DThumbnailRenderer {
         const gui = await factory.createGUI(this.ctx)
         if(!gui.root) throw new Error("Failed to create GUI for thumbnail rendering")
         gui.root.position.copyFromFloats(0,-100,0)
-        // The thumbnail camera looks straight down, but a node's interactive face
-        // is at -Z (spawn orients +Z away from the player). Lay the node on its
-        // back so the front face points up (-Z → +Y) and faces the camera.
-        gui.root.rotationQuaternion = B.Quaternion.FromUnitVectorsToRef(
-            new B.Vector3(0, 0, -1), new B.Vector3(0, 1, 0), new B.Quaternion(),
-        )
-
+    
         // Render
         const image = await this.aggregator.draw(gui.root)
 
