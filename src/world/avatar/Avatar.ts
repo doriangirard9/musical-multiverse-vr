@@ -157,6 +157,7 @@ export class Avatar implements Synchronized{
 
     /** Hide this avatar when the local player is too close (prevents seeing inside the 3D model).
      *  Uses setEnabled for reliability with InstancedMesh + PBR materials. */
+    // TODO: Mal nommé, on doit nommer selon ce que ça fait, pas selon pourquoi on l'utilise
     setProximityHidden(hidden: boolean) {
         if (this._proximityHidden === hidden) return  // No change
         this._proximityHidden = hidden

@@ -2,10 +2,8 @@ import { Observable, Scene } from "@babylonjs/core"
 import { Button, Container, Control, Image, InputText, Rectangle, ScrollViewer, StackPanel, TextBlock, VirtualKeyboard } from "@babylonjs/gui"
 import { Node3dManager } from "../app/Node3dManager"
 import { AbstractMenu } from "./AbstractMenu"
-
-const FORCED_MIDI_INSTRUMENT_KINDS = new Set([
-    "server-pro54michel",
-])
+import { Node3DFactory } from "../node3d/Node3D"
+import { Visualizer } from "@magenta/music"
 
 export class ShopMenu extends AbstractMenu {
 
@@ -30,16 +28,16 @@ export class ShopMenu extends AbstractMenu {
 
         // All [kind, factory] entries, populated once the factories load. Used
         // by the search bar to filter across every category at once.
-        let allEntries: { kind: string; factory: { label: string; tags: string[] } }[] = []
+        let allEntries: [string,Node3DFactory<any,any>][] = []
         // Kinds of the currently selected category, restored when search clears.
         let categoryKinds: string[] = []
 
         // Item List
         const items = new Container()
 
-        const setItems = (kinds: string[]) => {
+        const setItems = async(kinds: string[]) => {
             items.clearControls()
-            const list = this.createItemList(4, kinds)
+            const list = await this.createItemList(4, kinds)
             this.place(list, 0, 0, 100, 100)
             items.addControl(list)
         }
@@ -58,11 +56,12 @@ export class ShopMenu extends AbstractMenu {
             const q = raw.trim().toLowerCase()
             if (!q) { setItems(categoryKinds); return }
             const matches = allEntries
-                .filter(({ kind, factory }) =>
-                    factory.label?.toLowerCase().includes(q) ||
-                    kind.toLowerCase().includes(q) ||
+                .filter(([kind,factory]) =>
+                    kind?.toLowerCase().includes(q) ||
+                    factory.label.toLowerCase().includes(q) ||
+                    factory.description.toLowerCase().includes(q) ||
                     factory.tags.some(t => t.toLowerCase().includes(q)))
-                .map(e => e.kind)
+                .map(entry => entry[0])
             setItems(matches)
         }
 
@@ -229,14 +228,16 @@ export class ShopMenu extends AbstractMenu {
                 const kinds = this.allowedKinds
                     ? builder.FACTORY_KINDS.filter(kind => this.allowedKinds!.has(kind))
                     : builder.FACTORY_KINDS
-                const factories = (await Promise.all(kinds.map(async kind => {
-                    const factory = await builder.getFactory(kind)
-                    if (factory == null) return null
-                    else return [kind, factory] as const
-                })))
-                    .filter(it => it != null)
+                
 
-                allEntries = factories.map(([kind, factory]) => ({ kind, factory }))
+                const entries = await (async()=>{
+                    const promises = kinds.map(kind => builder.getFactory(kind).then(it=>[kind,it] as [string,Node3DFactory<any,any>|null]))
+                    const factories = (await Promise.all(promises))
+                        .filter(([_,factory]) => factory != null) as [string,Node3DFactory<any,any>][]
+                    return factories
+                })();
+
+                allEntries = entries
 
                 const menus = {
                     Video: {
@@ -247,6 +248,7 @@ export class ShopMenu extends AbstractMenu {
                     Audio: {
                         Generator: [],
                         Effect: [],
+                        Visualizer: [],
                         Other: [],
                     },
                     MIDI: {
@@ -265,35 +267,37 @@ export class ShopMenu extends AbstractMenu {
                     },
                 }
 
-                for (const [kind, factory] of factories) {
+
+                for (const [kind,{tags}] of entries) {
+                                    console.log("::", kind, tags)
+
                     const target = [] as string[][]
 
-                    // Some remote WAM descriptors expose incomplete tags. Keep
-                    // their automatic classification, but guarantee that known
-                    // MIDI instruments remain discoverable in the expected tab.
-                    if (FORCED_MIDI_INSTRUMENT_KINDS.has(kind)) {
-                        target.push(menus.MIDI.Instrument)
-                    }
+                    if (tags.includes("consumer") && !tags.includes("visualizer")) target.push(menus.Output.Output)
 
-                    if (factory.tags.includes("consumer")) target.push(menus.Output.Output)
+                    if (tags.includes("automation")) target.push(menus.Automation.Automation)
 
-                    if (factory.tags.includes("automation")) target.push(menus.Automation.Automation)
+                    if (tags.includes("instrument")) target.push(menus.MIDI.Instrument)
 
-                    if (factory.tags.includes("midi")) {
-                        if (factory.tags.includes("generator")) target.push(menus.MIDI.Generator)
-                        else if (factory.tags.includes("instrument")) target.push(menus.MIDI.Instrument)
+                    if (tags.includes("midi")) {
+                        if (tags.includes("generator")) target.push(menus.MIDI.Generator)
+                        else if (tags.includes("instrument")) target.push(menus.MIDI.Instrument)
                         else target.push(menus.MIDI.Other)
                     }
-                    else if (factory.tags.includes("audio")) {
-                        if (factory.tags.includes("generator")) target.push(menus.Audio.Generator)
-                        else if (factory.tags.includes("effect")) target.push(menus.Audio.Effect)
+
+                    if (tags.includes("audio")) {
+                        if (tags.includes("generator")) target.push(menus.Audio.Generator)
+                        else if (tags.includes("visualizer")) target.push(menus.Audio.Visualizer)
+                        else if (tags.includes("effect")) target.push(menus.Audio.Effect)
                         else target.push(menus.Audio.Other)
                     }
-                    else if (factory.tags.includes("video")) {
-                        if (factory.tags.includes("generator")) target.push(menus.Video.Generator)
-                        else if (factory.tags.includes("effect")) target.push(menus.Video.Effect)
+
+                    if (tags.includes("video")) {
+                        if (tags.includes("generator")) target.push(menus.Video.Generator)
+                        else if (tags.includes("effect")) target.push(menus.Video.Effect)
                         else target.push(menus.Video.Other)
                     }
+
                     if (target.length === 0) target.push(menus.Other.Other)
 
                     new Set(target).forEach(t => t.push(kind))
@@ -371,9 +375,10 @@ export class ShopMenu extends AbstractMenu {
             return stack
         })
 
-        Promise.all(kinds.map(async kind => {
+        Promise.all(kinds.map(async kind=>{
             const item = await this.createItem(kind)
             if (!item) return
+
             item.width = "150px"
             item.height = "150px"
 
@@ -392,48 +397,85 @@ export class ShopMenu extends AbstractMenu {
     }
 
     private async createItem(kind: string) {
-        const factory = await Node3dManager.getInstance().builder.getFactory(kind)
-        if (!factory) return
+        const entry = await Node3dManager.getInstance().builder.getFactory(kind)
+        if (!entry) return
 
-        const url = await Node3dManager.getInstance().builder.getThumbnail(kind).then(it => it?.url)
-
-        const uiThumbnail = new Image("thumb", url)
-        const uiName = new TextBlock("name", factory.label)
+        const thumbnailUrl = Node3dManager.getInstance().builder.getThumbnail(kind)
+        const previewFrame = new Rectangle("thumb_frame")
+        const uiThumbnail = new TextBlock("thumb", entry.tags.includes("midi") ? "MIDI" : entry.tags.includes("audio") ? "AUDIO" : entry.tags.includes("video") ? "VIDEO" : "NODE")
+        const uiPreview = new Image("thumb_preview")
+        const uiName = new TextBlock("name", entry.label)
 
         const container = new Button("container")
+        container.thickness = 1
+        container.cornerRadius = 18
+        container.color = "rgba(255,255,255,0.16)"
+        container.background = "rgba(255,255,255,0.04)"
         container.pointerEnterAnimation = () => {
-            container.background = "rgb(255,255,255,0.2)"
+            container.background = "rgba(255,255,255,0.16)"
+            container.color = "rgba(86,214,201,0.9)"
             this.label!.set([
-                { content: factory.label },
-                { content: factory.description, size: .5 },
-                { content: factory.tags.join(", "), size: .4, color: "#ffffff9d" },
+                { content: entry.label },
+                { content: entry.description, size: .5 },
+                { content: entry.tags.join(", "), size: .4, color: "#ffffff9d" },
             ])
             this.label!.show()
             this.label!.updatePosition()
         }
         container.pointerOutAnimation = () => {
-            container.background = "rgb(0,0,0,0)"
+            container.background = "rgba(255,255,255,0.04)"
+            container.color = "rgba(255,255,255,0.16)"
             this.label!.hide()
             this.label!.updatePosition()
         }
-        container.pointerUpAnimation = () => {
+        container.onPointerUpObservable.add(()=>{
             if (this.spawnedThisOpen) return   // ignore duplicate pointer-up events
             this.spawnedThisOpen = true
             this.onItemSelected.notifyObservers(kind)
             this.hide()
-            Node3dManager.getInstance().addNode3d(kind, this.plane.absolutePosition.clone())
-        }
+            Node3dManager.getInstance().addNode3d(kind, this._plane.absolutePosition.clone())
+        })
 
-        container.addControl(uiThumbnail)
+        container.addControl(previewFrame)
+        previewFrame.width = "74%"
+        previewFrame.height = "66%"
+        previewFrame.top = "-8%"
+        previewFrame.thickness = 1
+        previewFrame.cornerRadius = 16
+        previewFrame.color = "rgba(255,255,255,0.12)"
+        previewFrame.background = "rgba(4,10,14,0.58)"
+
+        previewFrame.addControl(uiPreview)
+        uiPreview.width = "100%"
+        uiPreview.height = "100%"
+        uiPreview.stretch = Image.STRETCH_UNIFORM
+        uiPreview.isVisible = false
+
+        previewFrame.addControl(uiThumbnail)
         uiThumbnail.width = "70%"
         uiThumbnail.height = "70%"
+        uiThumbnail.color = "white"
+        uiThumbnail.fontSize = 22
+        uiThumbnail.textHorizontalAlignment = TextBlock.HORIZONTAL_ALIGNMENT_CENTER
+        uiThumbnail.textVerticalAlignment = TextBlock.VERTICAL_ALIGNMENT_CENTER
 
         container.addControl(uiName)
         uiName.verticalAlignment = TextBlock.VERTICAL_ALIGNMENT_BOTTOM
         uiName.color = "white"
         uiName.fontSize = 14
+        uiName.textWrapping = true
         container.width = "100%"
-        uiName.height = "20%"
+        uiName.height = "26%"
+
+        void thumbnailUrl.then(result => {
+            if (!result?.url) return
+            uiPreview.source = result.url
+            uiPreview.isVisible = true
+            uiThumbnail.isVisible = false
+        }).catch(() => {
+            uiPreview.isVisible = false
+            uiThumbnail.isVisible = true
+        })
 
         return container
     }

@@ -1,13 +1,3 @@
-/**
- * @module WamJamParty
- */
-
-export * as inputs from "./xr/inputs"
-export * as node3dapi from "./node3d/node3dapi.ts"
-export * as app from "./app"
-
-
-import { App } from "./app/App.ts";
 import { HashRouter } from "./router/HashRouter.ts";
 import { ROUTES } from "./router/routes.ts";
 import { ApiClient } from "./auth/ApiClient.ts";
@@ -17,12 +7,7 @@ import { RegisterPage } from "./ui/pages/RegisterPage.ts";
 import { SessionBrowserPage } from "./ui/pages/SessionBrowserPage.ts";
 import { ProjectsPage } from "./ui/pages/ProjectsPage.ts";
 import { LoadingOverlay } from "./ui/pages/LoadingOverlay.ts";
-import { SessionHUD } from "./ui/pages/SessionHUD.ts";
-import { SessionConnector } from "./network/SessionConnector.ts";
 import { SessionAPIClient } from "./network/SessionAPIClient.ts";
-import { Node3dManager } from "./app/Node3dManager.ts";
-import { TutorialController } from "./tutorial/TutorialController.ts";
-import * as Y from 'yjs';
 import { installConsoleFilter } from "./utils/logger.ts";
 
 installConsoleFilter();
@@ -69,9 +54,9 @@ let onload = async() => {
     const sessionBrowserPage = new SessionBrowserPage(authService, apiClient, router);
     const projectsPage = new ProjectsPage(apiClient, router);
     const loadingOverlay = new LoadingOverlay();
-    const sessionHud = new SessionHUD(apiClient, router);
+    let sessionHud: any = null;
 
-    let activeConnector: SessionConnector | null = null;
+    let activeConnector: any = null;
 
     // 4. Try to restore session
     await authService.tryRestoreSession();
@@ -87,7 +72,7 @@ let onload = async() => {
         
         // If leaving the app route, disconnect and hide HUD
         if (prevRoute?.path === ROUTES.APP && route.path !== ROUTES.APP) {
-            sessionHud.hide();
+            sessionHud?.hide();
             if (activeConnector) {
                 await activeConnector.leave();
                 activeConnector = null;
@@ -138,24 +123,44 @@ let onload = async() => {
                 }
 
                 if (!appStarted) {
-                    loadingOverlay.show(appRoot!, 'Connecting to session...');
+                    loadingOverlay.show(appRoot!, 'Connecting to session...', true, 6, 'Preparing runtime imports...');
                     
                     try {
+                        loadingOverlay.update('Loading session runtime...', 10, 'Importing VR, sync and tutorial modules...')
+                        const [
+                            { App },
+                            { SessionHUD },
+                            { SessionConnector },
+                            { Node3dManager },
+                            { TutorialController },
+                            Y,
+                        ] = await Promise.all([
+                            import("./app/App.ts"),
+                            import("./ui/pages/SessionHUD.ts"),
+                            import("./network/SessionConnector.ts"),
+                            import("./app/Node3dManager.ts"),
+                            import("./tutorial/TutorialController.ts"),
+                            import("yjs"),
+                        ]);
+                        sessionHud ??= new SessionHUD(apiClient, router);
+
                         const doc = new Y.Doc();
                         activeConnector = new SessionConnector(
                             sessionId,
                             shareToken,
                             doc,
                             sessionApiClient,
-                            (text) => loadingOverlay.updateText(text)
+                            (text) => loadingOverlay.update(text, 92, 'Synchronizing shared state...')
                         );
 
+                        loadingOverlay.update('Connecting to session...', 18, 'Joining the room and checking access...')
                         const connectionInfo = await activeConnector.connect();
-                        
-                        loadingOverlay.show(appRoot!, 'Click anywhere on the page to start', false);
 
                         const newApp = new App();
-                        await newApp.start(connectionInfo.participantId, sessionId, doc, { tutorial: tutorialMode });
+                        await newApp.start(connectionInfo.participantId, sessionId, doc, {
+                            tutorial: tutorialMode,
+                            onProgress: (text, progress, detail) => loadingOverlay.update(text, 18 + Math.round(progress * 0.62), detail ?? ''),
+                        });
                         appStarted = true;
 
                         // Show the leave button and prepare for sync
@@ -172,12 +177,12 @@ let onload = async() => {
                         sessionHud.show(appRoot!, sessionId, connectionInfo.sessionName, connectionInfo.maxUsers, connectionInfo.participantNumber);
 
                         // Now that Node3dManager is initialized, we can hydrate the CRDT state
-                        loadingOverlay.show(appRoot!, 'Checking session state...', true);
+                        loadingOverlay.update('Checking session state...', 88, 'Restoring shared graph and waiting for peers if needed...')
                         await activeConnector.initCRDTState(connectionInfo.participantNumber, connectionInfo.crdtData);
                         if (tutorialMode) {
                             TutorialController.startWhenInXR(Node3dManager.getInstance().getAudioContext());
                         }
-                        loadingOverlay.show(appRoot!, 'Session ready ! Click on the headset icon below to enter VR.', false);
+                        loadingOverlay.show(appRoot!, 'Session ready ! Click on the headset icon below to enter VR.', false, 100, 'Audio will unlock on your first interaction if needed.')
 
                         
                         // Remove spinner if it exists
@@ -209,5 +214,5 @@ let onload = async() => {
     router.init();
 };
 
-if(document.readyState === "complete") onload();
-else window.addEventListener("load", onload);
+if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", onload, { once: true });
+else onload();

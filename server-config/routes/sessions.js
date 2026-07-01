@@ -404,8 +404,13 @@ router.post('/:id/save', (req, res) => {
             return res.json({ message: 'Saved (session locked - not persisted to DB)' });
         }
 
-        // Data loss protection
+        // Skip no-op saves early to avoid unnecessary WAL growth and updated_at churn
         const session = db.prepare('SELECT crdt_data FROM sessions WHERE id = ?').get(req.params.id);
+        if (session?.crdt_data === crdtData) {
+            return res.json({ message: 'Saved (unchanged snapshot skipped)' });
+        }
+
+        // Data loss protection
         if (session?.crdt_data) {
             try {
                 const oldData = JSON.parse(session.crdt_data);

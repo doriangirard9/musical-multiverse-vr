@@ -106,7 +106,7 @@ export class IsfShaderN3DGUI implements Node3DGUI {
         nameMat.useAlphaFromDiffuseTexture = true;
         namePlane.material = nameMat;
 
-        const nctx = nameTexture.getContext();
+        const nctx = nameTexture.getContext() as CanvasRenderingContext2D;
         nctx.clearRect(0, 0, 512, 128);
         nctx.font = "bold 60px Arial";
         nctx.fillStyle = "white";
@@ -128,7 +128,7 @@ export class IsfShaderN3DGUI implements Node3DGUI {
         this._scrollOffset = 0;
 
         // Measure text width
-        const ctx = this.labelTexture.getContext();
+        const ctx = this.labelTexture.getContext() as CanvasRenderingContext2D;
         ctx.font = "bold 80px Arial";
         this._textWidth = ctx.measureText(text).width;
         const canvasWidth = this.labelTexture.getSize().width;
@@ -157,7 +157,7 @@ export class IsfShaderN3DGUI implements Node3DGUI {
     }
 
     private _drawLabel() {
-        const ctx = this.labelTexture.getContext();
+        const ctx = this.labelTexture.getContext() as CanvasRenderingContext2D;
         const size = this.labelTexture.getSize();
         ctx.clearRect(0, 0, size.width, size.height);
         ctx.fillStyle = "rgba(0,0,0,0.7)";
@@ -186,8 +186,6 @@ export class IsfShaderN3D implements Node3D {
     private selectedShader: string | null = null;
     private currentInputs: any[] = [];
     private paramValues: Record<string, number> = {};
-    private currentPage = 0;
-    private readonly itemsPerPage = 4;
     private pendingScreens: any[] = [];
     private pendingInputId: string | null = null;
 
@@ -196,7 +194,7 @@ export class IsfShaderN3D implements Node3D {
     private wamReady = false;
 
     constructor(private context: Node3DContext, private gui: IsfShaderN3DGUI) {
-        const { tools: T, babylon: B } = context;
+        const { tools: T } = context;
         context.addToBoundingBox(gui.block);
 
         // Audio Input
@@ -349,10 +347,16 @@ export class IsfShaderN3D implements Node3D {
                     }
                     this.pendingScreens = [];
 
-                    this.activeWamNode.addEventListener('shader-changed', () => this.rebuildParameters());
+                    this.activeWamNode.addEventListener('shader-changed', () => {
+                        // Add a small delay to ensure module.parser is fully updated by the WAM
+                        setTimeout(() => this.rebuildParameters(), 100);
+                    });
 
                     // Wait for shaders to become available (awaitable with retries)
                     await this.waitForShaders();
+
+                    // Wait for the WAM to load its default shader internally so it doesn't overwrite our synced state
+                    await new Promise(r => setTimeout(r, 1500));
 
                     // Mark WAM as ready and replay any queued state
                     await this.flushPendingState();
@@ -416,26 +420,17 @@ export class IsfShaderN3D implements Node3D {
 
     private openShaderMenu() {
         if (this.presets.length === 0) {
-            this.context.showMessage("Shaders not ready...");
+            this.context.showMessage("Presets not ready...");
             return;
         }
-        this.context.closeMenu();
-        const start = this.currentPage * this.itemsPerPage;
-        const end = start + this.itemsPerPage;
-        const pageItems = this.presets.slice(start, end);
+        
         const choices: any[] = [];
-        if (this.currentPage > 0) {
-            choices.push({ label: "[ PREV ]", click: () => { this.currentPage--; this.openShaderMenu(); } });
-        }
-        pageItems.forEach(name => {
+        this.presets.forEach(name => {
             const shortName = name.length > 30 ? name.substring(0, 27) + "..." : name;
             choices.push({ label: shortName, click: () => this.selectPreset(name) });
         });
-        if (end < this.presets.length) {
-            choices.push({ label: "[ NEXT ]", click: () => { this.currentPage++; this.openShaderMenu(); } });
-        }
-        choices.push({ label: "❌ Cancel", click: () => this.context.closeMenu() });
-        this.context.openMenu(choices);
+        
+        this.context.openMenu(choices, { showCloseBar: true, dragToScroll: true });
     }
 
     private async selectPreset(name: string) {
@@ -447,12 +442,10 @@ export class IsfShaderN3D implements Node3D {
                 } else {
                     await this.activeWamNode.setState({ shaderSelect: index });
                 }
-                this.context.showMessage(`Active: ${name}`);
                 this.selectedShader = name;
                 this.gui.updateLabel(name);
                 this.context.notifyStateChange("selectedShader");
             }
-            this.context.closeMenu();
         }
     }
 
@@ -513,8 +506,9 @@ export class IsfShaderN3D implements Node3D {
                     this.gui.updateLabel(value);
                 }
             }
-            // Wait for the shader-changed event + rebuildParameters to complete
-            await new Promise(r => setTimeout(r, 500));
+            // Wait for the WAM to finish compiling the new shader
+            await new Promise(r => setTimeout(r, 600));
+            this.rebuildParameters();
         }
         if (key === "paramValues" && typeof value === "object" && value !== null) {
             for (const [paramId, paramVal] of Object.entries(value)) {

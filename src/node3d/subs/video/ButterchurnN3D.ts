@@ -78,7 +78,7 @@ export class ButterchurnN3DGUI implements Node3DGUI {
         nameMat.useAlphaFromDiffuseTexture = true;
         namePlane.material = nameMat;
 
-        const nctx = nameTexture.getContext();
+        const nctx = nameTexture.getContext() as CanvasRenderingContext2D;
         nctx.clearRect(0, 0, 512, 128);
         nctx.font = "bold 60px Arial";
         nctx.fillStyle = "white";
@@ -100,7 +100,7 @@ export class ButterchurnN3DGUI implements Node3DGUI {
         this._scrollOffset = 0;
 
         // Measure text width
-        const ctx = this.labelTexture.getContext();
+        const ctx = this.labelTexture.getContext() as CanvasRenderingContext2D;
         ctx.font = "bold 80px Arial";
         this._textWidth = ctx.measureText(text).width;
         const canvasWidth = this.labelTexture.getSize().width;
@@ -129,7 +129,7 @@ export class ButterchurnN3DGUI implements Node3DGUI {
     }
 
     private _drawLabel() {
-        const ctx = this.labelTexture.getContext();
+        const ctx = this.labelTexture.getContext() as CanvasRenderingContext2D;
         const size = this.labelTexture.getSize();
         ctx.clearRect(0, 0, size.width, size.height);
         ctx.fillStyle = "rgba(0,0,0,0.7)";
@@ -155,8 +155,6 @@ export class ButterchurnN3D implements Node3D {
     private activeWamNode: any = null;
     private presets: string[] = [];
     private selectedPreset: string | null = null;
-    private currentPage = 0;
-    private readonly itemsPerPage = 4;
     private pendingScreens: any[] = [];
 
     // Pending state: queued setState calls received before WAM is ready
@@ -268,22 +266,14 @@ export class ButterchurnN3D implements Node3D {
             this.context.showMessage("Presets not ready...");
             return;
         }
-        const start = this.currentPage * this.itemsPerPage;
-        const end = start + this.itemsPerPage;
-        const pageItems = this.presets.slice(start, end);
+        
         const choices: any[] = [];
-        if (this.currentPage > 0) {
-            choices.push({ label: "[ PREV ]", click: () => { this.currentPage--; this.openShaderMenu(); } });
-        }
-        pageItems.forEach(name => {
+        this.presets.forEach(name => {
             const shortName = name.length > 30 ? name.substring(0, 27) + "..." : name;
             choices.push({ label: shortName, click: () => this.selectPreset(name) });
         });
-        if (end < this.presets.length) {
-            choices.push({ label: "[ NEXT ]", click: () => { this.currentPage++; this.openShaderMenu(); } });
-        }
-        choices.push({ label: "❌ Cancel", click: () => this.context.closeMenu() });
-        this.context.openMenu(choices);
+        
+        this.context.openMenu(choices, { showCloseBar: true, dragToScroll: true });
     }
 
     private async selectPreset(name: string) {
@@ -291,8 +281,6 @@ export class ButterchurnN3D implements Node3D {
             await this.activeWamNode.setState({ preset: name });
             this.selectedPreset = name;
             this.gui.updateLabel(name);
-            this.context.showMessage(`Active: ${name}`);
-            this.context.closeMenu();
             this.context.notifyStateChange("selectedPreset");
         }
     }

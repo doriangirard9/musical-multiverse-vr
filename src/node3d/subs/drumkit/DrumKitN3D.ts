@@ -51,16 +51,8 @@ export class DrumKitN3DGUI implements Node3DGUI {
      * Initialize the actual drumkit (called from Node3D constructor with audioContext)
      */
     async initDrumKit(scene: Scene) {
-
-        // CRITICAL: Wait for physics to be ready
         const sceneManager = (await import('../../../app/SceneManager')).SceneManager.getInstance();
-        let attempts = 0;
-        while (!sceneManager.isPhysicsReady() && attempts < 50) {
-            console.log("[DrumKitN3DGUI] Waiting for physics engine...");
-            await new Promise(resolve => setTimeout(resolve, 100));
-            attempts++;
-        }
-
+        await sceneManager.ensurePhysicsInitialized()
         if (!sceneManager.isPhysicsReady()) {
             console.error("[DrumKitN3DGUI] Physics engine failed to initialize!");
             throw new Error("Physics engine not available - cannot create drumkit");
@@ -70,6 +62,9 @@ export class DrumKitN3DGUI implements Node3DGUI {
         // Get XR instance from XRManager
         const xrManager = XRManager.getInstance();
         const xr = xrManager.xrHelper;
+        if (!xr) {
+            throw new Error("XR experience is not initialized yet");
+        }
 
         // Get physics plugin
         let hk = scene.getPhysicsEngine()?.getPhysicsPlugin();
