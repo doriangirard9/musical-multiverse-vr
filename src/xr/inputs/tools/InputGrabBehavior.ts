@@ -41,8 +41,6 @@ export class InputGrabBehavior implements Behavior<AbstractMesh> {
         this.observables = [];
     }
 
-    attachedNode: AbstractMesh
-
     attach(target: AbstractMesh): void {
         this.detach()
         this.attachedNode = target

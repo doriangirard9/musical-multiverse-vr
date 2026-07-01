@@ -1,4 +1,4 @@
-import { AbstractMesh, Behavior } from "@babylonjs/core";
+import { AbstractMesh, Behavior, Nullable } from "@babylonjs/core";
 import { InputManager } from "../InputManager";
 import { ControllerInput } from "../ControllerInput";
 
@@ -27,7 +27,7 @@ export class InputMultiPressBehavior implements Behavior<AbstractMesh> {
 
     controllers: Set<ControllerInput> = new Set()
 
-    attachedNode: AbstractMesh
+    attachedNode: Nullable<AbstractMesh> = null
 
     add(controller: ControllerInput) {
         if(!this.controllers.has(controller)) {

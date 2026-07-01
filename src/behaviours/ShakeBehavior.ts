@@ -1,4 +1,4 @@
-import {AbstractMesh, Behavior, Vector3} from "@babylonjs/core"
+import {AbstractMesh, Behavior, Nullable, Vector3} from "@babylonjs/core"
 import { InputGrabBehavior } from "../xr/inputs/tools/InputGrabBehavior"
 import { PointerInput } from "../xr/inputs/PointerInput"
 
@@ -39,7 +39,7 @@ export class ShakeBehavior implements Behavior<AbstractMesh> {
 
     name = "shakeBehavior";
 
-    attachedNode : AbstractMesh | null = null
+    attachedNode: Nullable<AbstractMesh> = null
 
     private shake_power = 0
     private shake_counter = 0

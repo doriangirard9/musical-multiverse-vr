@@ -90,7 +90,7 @@ export class ScreenN3D implements Node3D {
         mat.backFaceCulling = false;
         this.gui.display.material = mat;
 
-        const ctx = dt.getContext();
+        const ctx = dt.getContext() as CanvasRenderingContext2D;
         // Flip the drawing context vertically to counter the plane's UV mapping
         ctx.translate(0, 512);
         ctx.scale(1, -1);

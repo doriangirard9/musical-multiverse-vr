@@ -75,7 +75,8 @@ public showMessage(messageText: string, duration: number=0): void {
     private _messagePlaneObserver: B.Nullable<B.Observer<B.Scene>> = null;
 
     private _positionMessageInFrontOfCamera(messagePlane: B.Mesh): void {
-        const camera = this._xrManager.xrHelper.baseExperience.camera;
+        const camera = this._getCamera();
+        if (!camera) return;
         const distanceFromCamera = 2;
         /**
          * https://doc.babylonjs.com/features/featuresDeepDive/mesh/billboardMode
@@ -93,8 +94,13 @@ public showMessage(messageText: string, duration: number=0): void {
     }
 
     private _updateMessagePosition(messagePlane: B.Mesh, distanceFromCamera: number): void {
-        const camera = this._xrManager.xrHelper.baseExperience.camera;
+        const camera = this._getCamera();
+        if (!camera) return;
         messagePlane.position = camera.getFrontPosition(distanceFromCamera);
+    }
+
+    private _getCamera(): B.Camera | null {
+        return this._xrManager.xrHelper?.baseExperience.camera ?? null;
     }
 
     private _removeMessagePlaneObserver(): void {
