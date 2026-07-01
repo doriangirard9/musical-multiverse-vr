@@ -1,16 +1,15 @@
-import { AbstractMesh, CreatePlane, TransformNode } from "@babylonjs/core"
+import { AbstractMesh, CreatePlane, Ray, TransformNode } from "@babylonjs/core"
 import { Node3DNetwork } from "../network/Node3DNetwork"
 import { SceneManager } from "./SceneManager"
 import { Node3DInstance } from "../node3d/instance/Node3DInstance"
 import { BlocksMenu, BMenuMenu } from "../menus/BlocksMenu"
-import { InputManager } from "../xr/inputs"
 import { TargetManager } from "./TargetManager"
 import { ContextMenuSystem } from "./ContextMenuSystem"
 import { Serialization } from "./Serialization"
 
 
 const DEBUG_BAR_MENU = false
-
+const HOVERING_DETECTION_SIZE = 1.3
 
 /**
  * The BarMenuSystem is responsible for creating and managing the bar menus for each Node3DInstance in the scene.
@@ -35,8 +34,6 @@ export class BarMenuSystem {
     }
 
 
-    private dispose = ()=>{}
-
     constructor(
         private scenes: SceneManager,
         private nodes: Node3DNetwork,
@@ -46,22 +43,30 @@ export class BarMenuSystem {
         for(const target of targets.controllerToTarget.values()){
             target.onNewTarget.add(target=>{
                 if(target.new.node){
-                    if(this.dispose){
-                        this.dispose()
-                        this.dispose = ()=>{}
-                    }
-                    const dispose = this.createMenuFor(target.new.node)
-                    this.dispose = dispose
+                    this.createMenuFor(target.new.node)
                 }
             })
         }
     }
 
+    private showns = new Set<Node3DInstance>()
+
     private createMenuFor(node: Node3DInstance){
+        if(this.showns.has(node)) return
+        
+        const that = this
+        
         let plane = CreatePlane("node3d-plane", {size:1}, this.scenes.getScene())
         plane.visibility = DEBUG_BAR_MENU ? 0.5 : 0
         plane.isPickable = false
         plane.billboardMode = AbstractMesh.BILLBOARDMODE_ALL
+
+        let collisionPlane = CreatePlane("node3d-plane-collision", {size:1}, this.scenes.getScene())
+        collisionPlane.visibility = DEBUG_BAR_MENU ? 0.5 : 0
+        collisionPlane.isPickable = false
+        collisionPlane.billboardMode = AbstractMesh.BILLBOARDMODE_ALL
+        collisionPlane.parent = plane
+        collisionPlane.scaling.setAll(HOVERING_DETECTION_SIZE)
 
         // Place the bounding plane
         const placeMenu = (mesh:AbstractMesh)=>{
@@ -71,7 +76,7 @@ export class BarMenuSystem {
                 const cube_diagonal = Math.sqrt(face_diagonal*face_diagonal + size*size)
                 // The plane should perfectly cover the bounding box, for any rotation.
                 // But because of perspective, we need to make it slightly larger.
-                return cube_diagonal*1.1
+                return cube_diagonal
             })()
             const center = mesh.absolutePosition
             plane.scaling.copyFromFloats(diameter, diameter, diameter)
@@ -79,20 +84,37 @@ export class BarMenuSystem {
         }
         const o = node.onMove.add(placeMenu)
         placeMenu(node.boundingBoxMesh)
+        this.showns.add(node)
 
         // Create the menu
         const disposeMenu = this.createMenu(plane, node)
         
         let hasDisposed = false
-        let dispose = ()=>{
+        function dispose(){
             if(hasDisposed) return
             hasDisposed = true
             disposeMenu()
             node.onMove.remove(o)
             plane.dispose()
             node.onDispose.removeCallback(dispose)
+            that.showns.delete(node)
         }
         node.onDispose.addOnce(dispose)
+
+        // Dispose when pointers are out
+        setTimeout(function fn(){
+            if(hasDisposed) return
+            let pointed = false
+            for(const [controller,_] of that.targets.controllerToTarget){
+                const pt = controller.pointer
+                const ray = new Ray(pt.origin, pt.forward)
+                if(ray.intersectsMesh(collisionPlane, true).hit) pointed = true
+            }
+            if(!pointed) dispose()
+            setTimeout(fn, 50)
+        },50)
+
+
         return dispose
     }
 
