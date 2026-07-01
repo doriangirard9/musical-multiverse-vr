@@ -131,8 +131,8 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     {
         id: "play-first-note",
         title: "Tester le circuit incomplet",
-        objective: "Appuyez sur quelques touches du piano.",
-        hint: "Vous ne devriez encore rien entendre : le signal audio n’a pas encore de destination.",
+        objective: "Pointez une touche du LivePiano avec votre manette, puis jouez avec la gâchette.",
+        hint: "Vous ne devriez encore rien entendre : le signal audio n’a pas encore de destination. Chaque touche se joue en la pointant puis en appuyant sur la gâchette.",
         success: "Les notes circulent, mais l’absence de son est normale : il manque encore une sortie audio.",
     },
     {
@@ -160,23 +160,23 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     },
     {
         id: "remove-output-connection",
-        title: "Supprimer un câble",
-        objective: "Visez le câble, le delay ou le Speaker, appuyez sur Y, puis choisissez Delete a connection.",
-        hint: "Si le menu du câble n’apparaît pas, ouvrez le menu contextuel du delay ou du Speaker : l’option Delete a connection y est aussi.",
-        success: "Parfait. Vous savez maintenant retirer une connexion devenue inutile.",
+        title: "Supprimer une connexion",
+        objective: "Visez le Speaker pour faire apparaître sa barre flottante, ouvrez l’icône des réglages, puis choisissez Delete a connection.",
+        hint: "La barre flottante sert aux actions rapides sur un module. Si vous supprimez le Speaker par erreur avec la croix rouge, il sera remis en place automatiquement.",
+        success: "Parfait. Vous savez maintenant retirer une connexion depuis les actions du module.",
     },
     {
         id: "restore-output-connection",
         title: "Reconnecter proprement",
         objective: "Reliez à nouveau la sortie du delay à l’entrée du Speaker.",
-        hint: "Reprenez le même geste de connexion : trigger maintenu sur une boule, visée de l’autre boule, puis relâchez.",
-        success: "Très bien. Vous savez maintenant couper puis réparer une chaîne audio.",
+        hint: "Reprenez le même geste : maintenez le trigger sur une boule, visez l’autre, puis relâchez. Si le Speaker a été supprimé par erreur, il a déjà été remis à sa place.",
+        success: "Très bien. Vous savez maintenant couper puis réparer proprement la fin d’une chaîne audio.",
     },
     {
         id: "play-chain",
         title: "Jouer en direct",
         objective: "Jouez quelques notes et expérimentez librement avec votre chaîne.",
-        hint: "Prenez votre temps : cette étape sert à vous habituer au jeu en direct, sans vous presser.",
+        hint: "Pointez les touches avec la manette puis jouez avec la gâchette. Prenez votre temps : cette étape sert à vous habituer au jeu en direct, sans vous presser.",
         success: "Votre premier instrument modulaire fonctionne.",
     },
     {
@@ -203,8 +203,8 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     {
         id: "change-tempo",
         title: "Changer le tempo",
-        objective: "Ouvrez les réglages du transport et changez le BPM, puis prenez le temps d’écouter l’effet sur le beat.",
-        hint: "Écoutez le beat et observez le pulse accélérer ou ralentir avant de passer à la suite.",
+        objective: "Depuis le menu de la main gauche, ouvrez les réglages du transport puis changez le BPM.",
+        hint: "Le BPM se trouve dans les réglages du transport, pas dans le shop. Écoutez le beat et observez le pulse accélérer ou ralentir avant de passer à la suite.",
         success: "Le beat et le pulse suivent bien votre nouveau tempo.",
     },
     {
