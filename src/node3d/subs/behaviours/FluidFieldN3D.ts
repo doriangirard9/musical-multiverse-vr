@@ -9,42 +9,14 @@ import type { AutomationN3DConnectable, MidiN3DConnectable } from "../../tools";
 import type { PointerInput } from "../../../xr/inputs/PointerInput";
 import { setupInstrumentControls, makeClusterButtons, OutputPulser, type TunableParam, type ClusterButtons } from "./instrumentControls";
 
-// ─── FluidFieldN3D — champ de fluide Perlin réactif ──────────────────────────
-//
-//   Port du sketch p5.js "Perlin Noise Fluid Field" vers wamjamparty.
-//
-//   LE MODÈLE (fidèle au sketch) :
-//     • Une grille de vecteurs à deux couches :
-//         baseGrid — courants de fond en bruit de Perlin 3D (z = temps),
-//         wakeGrid — perturbations injectées (vortex du joueur, sillages des
-//                    boids), amorties chaque pas par la viscosité.
-//     • Pointer le laser sur le canvas + gâchette → VORTEX tangentiel injecté
-//       sous le pointeur (l'équivalent du mouseIsPressed du sketch).
-//     • Des boids suivent le courant total et laissent des remous (splat).
-//
-//   L'ADAPTATION wamjamparty (idiome AudioPlaque) :
-//     • Grand canvas = DynamicTexture (2D) sur une plaque 1.6×1.0, montée sur
-//       une plaque-poignée arrière (seule cible de la bounding box) — les
-//       rayons atteignent le canvas, les knobs et les connecteurs directement.
-//     • La chaîne WAM codée en dur du sketch devient des SORTIES D'AUTOMATION :
-//         disturbance — Σ|wake| normalisé (lac calme 0 → tempête 1)
-//                       (le sketch la mappait sur cutoff + overdrive)
-//         curl        — rotationnel moyen |∇×F| (tourbillons)
-//                       (le sketch : résonance + temps de delay)
-//         swarmX/Y    — centre de masse des boids (0..1)
-//     • Le panoramique du sketch (Mapping C) devient RÉEL : le passthrough
-//       audio traverse un StereoPannerNode piloté par swarmX.
-//     • Le drone du sketch (Sol grave retriggé chaque seconde) devient une
-//       sortie MIDI + bouton play/stop : câbler vers un synthé (Pro54) et
-//       renvoyer son audio dans la plaque → le patch original complet.
-//
-//   SIMULATION À PAS FIXE (1/60 s, comme p5) : toutes les constantes du
-//   sketch (viscosité par frame, vitesses en px/frame…) gardent leur sens.
+// Reactive Perlin fluid field (port of the "Perlin Noise Fluid Field" p5 sketch).
+// A two-layer vector grid (Perlin base currents + an injected, viscosity-damped
+// wake layer); pointing the laser + trigger injects a vortex, and boids follow
+// the total flow. The sketch's hard-wired WAM chain becomes automation outputs
+// (disturbance, curl, swarm X/Y), a real stereo panner on the passthrough, and a
+// MIDI drone output. Fixed-step simulation (1/60 s) keeps the sketch constants valid.
 
-// ── Bruit de Perlin 3D (improved Perlin + fbm 4 octaves, sortie ~[0,1]) ──────
-// p5.noise() est un bruit fractal [0,1] ; on reproduit le caractère avec un
-// Perlin classique sommé sur 4 octaves (falloff 0.5), table de permutation
-// mélangée par xorshift déterministe.
+// 3D Perlin noise (improved Perlin + 4-octave fbm, output ~[0,1]).
 class Perlin3 {
     private p = new Uint8Array(512);
     constructor(seed = 1337) {
@@ -92,32 +64,32 @@ class Perlin3 {
     }
 }
 
-// ── Knobs (plages du sketch, valeurs par défaut identiques) ──────────────────
+// Knobs (sketch ranges, same defaults)
 const RANGES = {
-    noiseScale:     { min: 0.01, max: 0.20, default: 0.05 },   // échelle du Perlin
-    noiseSpeed:     { min: 0.0,  max: 0.02, default: 0.002 },  // évolution (z) par pas
-    viscosity:      { min: 0.80, max: 0.99, default: 0.92 },   // amortissement des remous
-    vortexRadius:   { min: 30,   max: 200,  default: 100 },    // px canvas
+    noiseScale:     { min: 0.01, max: 0.20, default: 0.05 },   // Perlin scale
+    noiseSpeed:     { min: 0.0,  max: 0.02, default: 0.002 },  // evolution (z) per step
+    viscosity:      { min: 0.80, max: 0.99, default: 0.92 },   // wake damping
+    vortexRadius:   { min: 30,   max: 200,  default: 100 },    // canvas px
     vortexStrength: { min: 0.5,  max: 10,   default: 5 },
-    boidSpeed:      { min: 1,    max: 15,   default: 6 },      // px/pas (comme p5)
-    splatStrength:  { min: 0,    max: 2,    default: 0.5 },    // sillage des boids
-    droneNote:      { min: 24,   max: 60,   default: 31 },     // Sol grave du sketch
+    boidSpeed:      { min: 1,    max: 15,   default: 6 },      // px/step
+    splatStrength:  { min: 0,    max: 2,    default: 0.5 },    // boid wake
+    droneNote:      { min: 24,   max: 60,   default: 31 },     // low G (sketch drone)
 } as const;
 type RangeKey = keyof typeof RANGES;
 const norm   = (k: RangeKey, v: number) => (v - RANGES[k].min) / (RANGES[k].max - RANGES[k].min);
 const denorm = (k: RangeKey, t: number) => RANGES[k].min + Math.max(0, Math.min(1, t)) * (RANGES[k].max - RANGES[k].min);
 
-// Redimensionnement à deux mains géré par l'hôte → plus de poignée par item.
+// Resizing is two-handed (host-level); no per-instrument handle.
 
-// ── Canvas / grille (1200×750, res 25 dans le sketch → réduit pour le Quest) ──
-const TEX_W = 800, TEX_H = 500;       // même ratio 1.6:1
-const CELL = 20;                       // résolution de la grille (px)
+// Canvas / grid (downscaled from the sketch's 1200x750 for the Quest)
+const TEX_W = 800, TEX_H = 500;       // same 1.6:1 ratio
+const CELL = 20;                       // grid resolution (px)
 const COLS = Math.floor(TEX_W / CELL) + 1;   // 41
 const ROWS = Math.floor(TEX_H / CELL) + 1;   // 26
-const SIM_STEP = 1 / 60;               // pas fixe : les constantes p5 restent valides
+const SIM_STEP = 1 / 60;               // fixed step: keeps the p5 constants valid
 const BOID_DEFAULT = 30, BOID_STEP = 10, BOID_MAX = 80;
 
-// Presets de comportement (valeurs RÉELLES dans les plages de RANGES + boidCount).
+// Behaviour presets (REAL values within RANGES + boidCount).
 const FLUID_PRESETS: Record<string, Record<string, number>> = {
     "Calm Lake":   { noiseScale: 0.04, noiseSpeed: 0.001, viscosity: 0.95, vortexRadius: 100, vortexStrength: 3,  boidSpeed: 3,  splatStrength: 0.2, droneNote: 31, boidCount: 15 },
     "River":       { noiseScale: 0.05, noiseSpeed: 0.003, viscosity: 0.92, vortexRadius: 120, vortexStrength: 5,  boidSpeed: 6,  splatStrength: 0.5, droneNote: 31, boidCount: 30 },
@@ -126,11 +98,11 @@ const FLUID_PRESETS: Record<string, Record<string, number>> = {
     "Dense Swarm": { noiseScale: 0.06, noiseSpeed: 0.005, viscosity: 0.90, vortexRadius: 120, vortexStrength: 6,  boidSpeed: 14, splatStrength: 2,   droneNote: 31, boidCount: 80 },
 };
 
-// Plaque locale : 1.6 × 1.0 (les helpers de projection clampent sur ces moitiés)
+// Local plaque 1.6 x 1.0 (projection helpers clamp to these halves)
 const HALF_W = 0.8, HALF_H = 0.5;
 
-// Palette des flèches : sarcelle (calme) → rouge (tempête), pré-calculée en
-// 24 niveaux pour éviter de fabriquer des chaînes rgba par cellule par frame.
+// Arrow palette teal (calm) → red (storm), precomputed in 24 levels to avoid
+// building rgba strings per cell per frame.
 const ARROW_LUT: string[] = [];
 for (let i = 0; i < 24; i++) {
     const t = i / 23;
@@ -139,7 +111,7 @@ for (let i = 0; i < 24; i++) {
     ARROW_LUT.push(`rgba(${r},${g},${b},${a})`);
 }
 
-// ── Boid du sketch (espace canvas en px, intégration par pas fixe) ───────────
+// Boid (canvas px space, fixed-step integration)
 class FluidBoid {
     x: number; y: number; vx: number; vy: number;
     constructor(x: number, y: number) {
@@ -154,8 +126,8 @@ export class FluidFieldN3DGUI implements Node3DGUI {
     root!: TransformNode;
     get worldSize() { return this.factory.size; }
 
-    handle!: AbstractMesh;       // plaque-poignée arrière (bounding box)
-    plaque!: AbstractMesh;       // le grand canvas (pickable — cible du laser)
+    handle!: AbstractMesh;       // backing handle (bounding box)
+    plaque!: AbstractMesh;       // canvas plane (pickable — laser target)
     tex!: DynamicTexture;
     ctx!: CanvasRenderingContext2D;
 
@@ -182,7 +154,7 @@ export class FluidFieldN3DGUI implements Node3DGUI {
 
         this.root = new B.TransformNode("fluid_root", scene);
 
-        // ── Plaque-poignée arrière (seule cible de la bounding box) ───────────
+        // Backing handle (the only bounding-box target)
         this.handle = B.MeshBuilder.CreateBox("fluid_handle", {
             width: 1.5, height: 0.95, depth: 0.04,
         }, scene);
@@ -191,21 +163,19 @@ export class FluidFieldN3DGUI implements Node3DGUI {
         this.handle.material = context.materialMat;
         this.handle.isPickable = false;
 
-        // ── Le grand canvas : DynamicTexture émissive sur une plaque 1.6×1.0 ──
+        // Canvas: emissive DynamicTexture on a 1.6x1.0 plane
         this.plaque = B.MeshBuilder.CreatePlane("fluid_plaque", {
             width: HALF_W * 2, height: HALF_H * 2, sideOrientation: 2,
         }, scene);
         this.plaque.parent = this.root;
-        this.plaque.isPickable = true;   // cible du laser (vortex)
+        this.plaque.isPickable = true;   // laser target (vortex)
 
         this.tex = new DynamicTexture("fluid_tex", { width: TEX_W, height: TEX_H }, scene, false);
         this.ctx = this.tex.getContext() as CanvasRenderingContext2D;
-        // Dessiner un premier frame + update() IMMÉDIATEMENT : sans ça la
-        // DynamicTexture n'est jamais "ready" tant que la logique (render loop)
-        // ne tourne pas — or le RENDU DE VIGNETTE du shop n'instancie que la GUI
-        // (pas la logique). Une texture jamais-ready y bloque le render-to-texture
-        // → la vignette ne se termine pas → l'instrument n'apparaît pas du tout
-        // dans le menu. Un fond dessiné une fois rend la texture ready d'emblée.
+        // Draw one frame + update() immediately so the texture is "ready": the
+        // shop thumbnail renderer instantiates only the GUI (not the render
+        // loop), and a never-ready texture would stall the thumbnail and hide
+        // the instrument from the menu.
         this.ctx.fillStyle = "rgb(15,15,20)";
         this.ctx.fillRect(0, 0, TEX_W, TEX_H);
         this.tex.update();
@@ -217,7 +187,7 @@ export class FluidFieldN3DGUI implements Node3DGUI {
         mat.backFaceCulling = false;
         this.plaque.material = mat;
 
-        // ── Cadre lumineux (sarcelle, comme l'AudioPlaque) ────────────────────
+        // Glowing teal frame
         const edgeMat = new StandardMaterial("fluid_edge_mat", scene);
         edgeMat.emissiveColor = new Color3(0, 0.9, 0.8);
         edgeMat.disableLighting = true;
@@ -236,7 +206,7 @@ export class FluidFieldN3DGUI implements Node3DGUI {
             e.isPickable = false;
         }
 
-        // ── Connecteurs audio (passthrough avec panner stéréo) ────────────────
+        // Audio connectors (passthrough with a stereo panner)
         const audioColor = (() => { const c = AudioN3DConnectable.Color; return new Color4(c.r, c.g, c.b, 1); })();
         this.audioIn = ConnectableUtils.createInputMesh("fluid_audio_in", 0.08, scene);
         this.audioIn.parent = this.root;
@@ -248,7 +218,7 @@ export class FluidFieldN3DGUI implements Node3DGUI {
         this.audioOut.position.set(0.95, 0.35, 0);
         MeshUtils.setColor(this.audioOut, audioColor);
 
-        // ── Sortie MIDI (drone) + bouton play/stop — bord supérieur droit ─────
+        // MIDI drone output + play/stop button — top-right
         this.midiOut = ConnectableUtils.createOutputMesh("fluid_midi_out", 0.08, scene);
         this.midiOut.parent = this.root;
         this.midiOut.position.set(0.62, 0.62, 0);
@@ -268,13 +238,13 @@ export class FluidFieldN3DGUI implements Node3DGUI {
         this.btnDrone.position.set(0.42, 0.62, 0);
         this.droneMat = this.btnDrone.material as StandardMaterial;
 
-        // ── Boutons boids ± — bord supérieur gauche ───────────────────────────
+        // Boid +/- buttons — top-left
         this.btnBoidAdd = mkDisc("fluid_boid_add", 0.085, new Color3(0.2, 0.85, 0.35));
         this.btnBoidAdd.position.set(-0.55, 0.62, 0);
         this.btnBoidRemove = mkDisc("fluid_boid_remove", 0.085, new Color3(0.85, 0.2, 0.3));
         this.btnBoidRemove.position.set(-0.40, 0.62, 0);
 
-        // ── Knobs (sphères, idiome plaque/superformula) ───────────────────────
+        // Knobs (spheres)
         const mkKnob = (name: string, color: Color4): AbstractMesh => {
             const k = B.MeshBuilder.CreateSphere(name, { diameter: 0.10 }, scene);
             k.parent = this.root;
@@ -284,12 +254,12 @@ export class FluidFieldN3DGUI implements Node3DGUI {
             k.material = km;
             return k;
         };
-        const teal   = new Color4(0.20, 0.85, 0.75, 1);   // courants de base
-        const red    = new Color4(0.95, 0.25, 0.40, 1);   // physique des remous
-        const orange = new Color4(1.00, 0.65, 0.15, 1);   // entités
+        const teal   = new Color4(0.20, 0.85, 0.75, 1);   // base currents
+        const red    = new Color4(0.95, 0.25, 0.40, 1);   // wake physics
+        const orange = new Color4(1.00, 0.65, 0.15, 1);   // entities
         const gold   = new Color4(0.95, 0.85, 0.20, 1);   // drone
 
-        // Colonne gauche : courants + viscosité ; colonne droite : vortex + boids
+        // Left column: currents + viscosity; right column: vortex + boids
         const leftDefs: [RangeKey, Color4][] = [
             ["noiseScale", teal], ["noiseSpeed", teal], ["viscosity", red], ["splatStrength", orange],
         ];
@@ -307,7 +277,7 @@ export class FluidFieldN3DGUI implements Node3DGUI {
             this.knobs[key] = k;
         });
 
-        // ── Sorties d'automation — rangée du bas ──────────────────────────────
+        // Automation outputs — bottom row
         const mkOut = (name: string, x: number, c: Color4): AbstractMesh => {
             const m = ConnectableUtils.createOutputMesh(name, 0.07, scene);
             m.parent = this.root;
@@ -315,12 +285,12 @@ export class FluidFieldN3DGUI implements Node3DGUI {
             MeshUtils.setColor(m, c);
             return m;
         };
-        this.outDisturbance = mkOut("fluid_out_dist",   -0.45, new Color4(1.00, 0.30, 0.20, 1));  // rouge-orange
+        this.outDisturbance = mkOut("fluid_out_dist",   -0.45, new Color4(1.00, 0.30, 0.20, 1));  // red-orange
         this.outCurl        = mkOut("fluid_out_curl",   -0.15, new Color4(0.70, 0.35, 1.00, 1));  // violet
-        this.outSwarmX      = mkOut("fluid_out_swarmx",  0.15, new Color4(1.00, 0.40, 0.70, 1));  // rose
-        this.outSwarmY      = mkOut("fluid_out_swarmy",  0.45, new Color4(0.40, 0.70, 1.00, 1));  // bleu clair
+        this.outSwarmX      = mkOut("fluid_out_swarmx",  0.15, new Color4(1.00, 0.40, 0.70, 1));  // pink
+        this.outSwarmY      = mkOut("fluid_out_swarmy",  0.45, new Color4(0.40, 0.70, 1.00, 1));  // light blue
 
-        // Cluster standard ? · Presets · 🎲 · ↺ — haut-centre (entre boids et drone)
+        // Standard cluster — top-centre
         this.cluster = makeClusterButtons(B, scene, this.root, { x: -0.24, y: 0.62, z: 0 });
     }
 
@@ -353,12 +323,12 @@ export class FluidFieldN3DGUI implements Node3DGUI {
 // ─── Logic ────────────────────────────────────────────────────────────────────
 
 export class FluidFieldN3D implements Node3D {
-    // Valeurs des knobs (appliquées directement à la simulation)
+    // Knob values (applied directly to the simulation)
     private vals: Record<RangeKey, number> = Object.fromEntries(
         (Object.keys(RANGES) as RangeKey[]).map(k => [k, RANGES[k].default]),
     ) as Record<RangeKey, number>;
 
-    // ── État de la simulation (espace canvas en px, pas fixe 1/60 s) ──────────
+    // Simulation state (canvas px space, fixed 1/60 s step)
     private perlin = new Perlin3();
     private baseX = new Float32Array(COLS * ROWS);
     private baseY = new Float32Array(COLS * ROWS);
@@ -369,12 +339,12 @@ export class FluidFieldN3D implements Node3D {
     private boids: FluidBoid[] = [];
     private boidCount = BOID_DEFAULT;
 
-    // Vortex du joueur (laser + gâchette maintenue)
+    // Player vortex (laser + held trigger)
     private vortexActive = false;
-    private vortexX = 0;   // px canvas
+    private vortexX = 0;   // canvas px
     private vortexY = 0;
 
-    // Métriques lissées (EMA) → sorties d'automation
+    // Smoothed (EMA) metrics → automation outputs
     private dist01 = 0;
     private curl01 = 0;
     private comX01 = 0.5;
@@ -393,8 +363,8 @@ export class FluidFieldN3D implements Node3D {
     private outs: Record<string, InstanceType<(typeof AutomationN3DConnectable)["Output"]>> = {};
     private midiOutput!: InstanceType<(typeof MidiN3DConnectable)["ListOutput"]>;
 
-    // Segments groupés par niveau de couleur — UN stroke() par niveau (24) au
-    // lieu d'un par cellule (~1 000) : crucial pour le canvas 2D sur Quest.
+    // Segments grouped by colour level — one stroke() per level (24) instead of
+    // one per cell (~1000); important for the 2D canvas on Quest.
     private bucketSegs: number[][] = Array.from({ length: ARROW_LUT.length }, () => []);
 
     constructor(context: Node3DContext, private gui: FluidFieldN3DGUI) {
@@ -404,7 +374,7 @@ export class FluidFieldN3D implements Node3D {
 
         context.addToBoundingBox(gui.handle);
 
-        // Aplatit l'inclinaison de spawn (idiome AudioPlaque — pad XY)
+        // Flatten the spawn tilt so the board stands upright facing the player
         let orientObs: Observer<Scene> | null = null;
         orientObs = context.observe(scene.onBeforeRenderObservable, () => {
             let p: TransformNode | null = gui.root.parent as TransformNode | null;
@@ -415,24 +385,24 @@ export class FluidFieldN3D implements Node3D {
             if (orientObs) { scene.onBeforeRenderObservable.remove(orientObs); orientObs = null; }
         });
 
-        // ── Audio : in → panner (piloté par swarmX, Mapping C du sketch) → out ─
+        // Audio: in → panner (driven by swarmX) → out
         this.gainIn = audioCtx.createGain();
         this.panner = audioCtx.createStereoPanner();
         this.gainOut = audioCtx.createGain();
         this.gainIn.connect(this.panner);
         this.panner.connect(this.gainOut);
         context.createConnectable(new T.AudioN3DConnectable.Input("audioIn", [gui.audioIn], "Audio In", this.gainIn));
-        context.createConnectable(new T.AudioN3DConnectable.Output("audioOut", [gui.audioOut], "Audio Out (panné)", this.gainOut));
+        context.createConnectable(new T.AudioN3DConnectable.Output("audioOut", [gui.audioOut], "Audio Out (panned)", this.gainOut));
 
-        // ── Sortie MIDI du drone ──────────────────────────────────────────────
+        // MIDI drone output
         this.midiOutput = new T.MidiN3DConnectable.ListOutput("midiOut", [gui.midiOut], "Drone MIDI Out");
         context.createConnectable(this.midiOutput);
 
-        // ── 4 sorties d'automation (les mappings du sketch, découplés) ────────
+        // 4 automation outputs
         const A = T.AutomationN3DConnectable.Output;
         const outDefs: [string, AbstractMesh, string, number][] = [
-            ["disturbance", gui.outDisturbance, "Disturbance (énergie)", 0],
-            ["curl",        gui.outCurl,        "Curl (tourbillons)",    0],
+            ["disturbance", gui.outDisturbance, "Disturbance (energy)", 0],
+            ["curl",        gui.outCurl,        "Curl (vortices)",      0],
             ["swarmX",      gui.outSwarmX,      "Swarm Center X",        0.5],
             ["swarmY",      gui.outSwarmY,      "Swarm Center Y",        0.5],
         ];
@@ -442,7 +412,7 @@ export class FluidFieldN3D implements Node3D {
             context.createConnectable(out);
         }
 
-        // ── Knobs ─────────────────────────────────────────────────────────────
+        // Knobs
         const knobLabels: Record<RangeKey, [string, number]> = {
             noiseScale:     ["Noise Scale", 3],
             noiseSpeed:     ["Evolution", 4],
@@ -475,7 +445,7 @@ export class FluidFieldN3D implements Node3D {
             });
             tunables.push({ name: key, min: RANGES[key].min, max: RANGES[key].max, getNorm: () => norm(key, this.vals[key]), setNorm });
         }
-        // boidCount aussi pilotable par les presets/mutation (ex. "Nuée dense")
+        // boidCount is also preset/mutation-controllable (e.g. "Dense Swarm")
         tunables.push({
             name: "boidCount", min: 0, max: BOID_MAX,
             getNorm: () => this.boidCount / BOID_MAX,
@@ -486,7 +456,7 @@ export class FluidFieldN3D implements Node3D {
             },
         });
 
-        // ── Boutons boids ± (par 10, comme l'esprit du sketch) ────────────────
+        // Boid +/- buttons (steps of 10)
         context.createButton({
             id: "boidAdd", meshes: [gui.btnBoidAdd], label: `+ ${BOID_STEP} Boids`,
             color: new Color3(0.2, 0.85, 0.35),
@@ -508,11 +478,11 @@ export class FluidFieldN3D implements Node3D {
             release: () => {},
         });
 
-        // ── Bouton drone (play/stop du Sol grave retriggé) ────────────────────
+        // Drone play/stop button
         const refreshDroneColor = () => {
             gui.droneMat.emissiveColor = this.droneOn
-                ? new Color3(0.9, 0.2, 0.3)    // rouge = en cours
-                : new Color3(0.2, 0.7, 0.3);   // vert = prêt
+                ? new Color3(0.9, 0.2, 0.3)    // red = playing
+                : new Color3(0.2, 0.7, 0.3);   // green = ready
         };
         context.createButton({
             id: "droneToggle", meshes: [gui.btnDrone], label: "Drone on/off",
@@ -520,7 +490,7 @@ export class FluidFieldN3D implements Node3D {
             press: () => {
                 this.droneOn = !this.droneOn;
                 if (this.droneOn) {
-                    this.droneTimer = 10;   // retrigger immédiat au prochain tick
+                    this.droneTimer = 10;   // retrigger on the next tick
                 } else {
                     this.stopDroneNote();
                 }
@@ -531,9 +501,7 @@ export class FluidFieldN3D implements Node3D {
         });
         refreshDroneColor();
 
-        // (Redimensionnement à deux mains géré par l'hôte → pas de userScale.)
-
-        // ── Input : laser + gâchette sur le canvas = vortex (mouseIsPressed) ──
+        // Input: laser + trigger on the canvas injects a vortex
         const pointerToCanvas = (pointer: PointerInput): { x: number, y: number } | null => {
             let local: Vector3 | null = null;
             if (pointer.hit && pointer.targetMesh === gui.plaque) {
@@ -547,11 +515,9 @@ export class FluidFieldN3D implements Node3D {
                 if (tHit < 0) return null;
                 local = gui.projectOntoPlaque(pointer.origin.add(pointer.forward.scale(tHit)));
             }
-            // local (-0.8..0.8, -0.5..0.5) → px canvas.
-            // La texture de Babylon s'affiche miroir-vertical sur la plaque
-            // (canvas y=0 = bas de la plaque) : on envoie donc « manette en
-            // haut » (local.y +) vers le BAS du canvas pour que le vortex
-            // apparaisse bien en haut. X est direct.
+            // local (-0.8..0.8, -0.5..0.5) → canvas px. The texture shows
+            // vertically mirrored (canvas y=0 = bottom), so "controller up"
+            // maps to a higher canvas y; X is direct.
             return {
                 x: (local.x / (HALF_W * 2) + 0.5) * TEX_W,
                 y: (0.5 + local.y / (HALF_H * 2)) * TEX_H,
@@ -597,26 +563,26 @@ export class FluidFieldN3D implements Node3D {
             resetBtn: gui.cluster.resetBtn,
         });
 
-        // Pulse des 4 sorties d'automation ∝ valeur
+        // Pulse the 4 automation outputs by value
         const pulser = new OutputPulser([gui.outDisturbance, gui.outCurl, gui.outSwarmX, gui.outSwarmY], 1);
 
-        // ── Init : boids + premier rendu ──────────────────────────────────────
+        // Init: boids + first render
         this.syncBoidPool();
-        console.log(`[FluidField] SPAWNED (grille ${COLS}×${ROWS}, canvas ${TEX_W}×${TEX_H})`);
+        console.log(`[FluidField] spawned (grid ${COLS}x${ROWS}, canvas ${TEX_W}x${TEX_H})`);
 
-        // ── Boucle : simulation à pas fixe + rendu canvas + sorties ───────────
+        // Loop: fixed-step simulation + canvas render + outputs
         context.observe(scene.onBeforeRenderObservable, () => {
             const dt = Math.min(scene.getEngine().getDeltaTime() / 1000, 0.1);
             if (dt <= 0) return;
 
-            // Simulation à pas fixe 60 Hz (max 3 pas par frame : pas de spirale)
+            // Fixed 60 Hz step (max 3 steps/frame to avoid spiral-of-death)
             this.simAccum = Math.min(this.simAccum + dt, SIM_STEP * 3);
             while (this.simAccum >= SIM_STEP) {
                 this.simAccum -= SIM_STEP;
                 this.simStep();
             }
 
-            // Rendu + sorties (par frame, pas par pas de sim)
+            // Render + outputs (per frame, not per sim step)
             this.render();
             this.outs.disturbance.value = this.dist01;
             this.outs.curl.value        = this.curl01;
@@ -624,10 +590,10 @@ export class FluidFieldN3D implements Node3D {
             this.outs.swarmY.value      = this.comY01;
             pulser.update([this.dist01, this.curl01, this.comX01, this.comY01], dt);
 
-            // Mapping C du sketch : centre de masse → panoramique réel
+            // Swarm centre of mass → stereo pan
             this.panner.pan.value = Math.max(-1, Math.min(1, this.comX01 * 2 - 1));
 
-            // Drone : retrigger toutes les secondes (battement du sketch)
+            // Drone: retrigger every second
             if (this.droneOn) {
                 this.droneTimer += dt;
                 if (this.droneTimer >= 1.0) {
@@ -640,13 +606,13 @@ export class FluidFieldN3D implements Node3D {
         });
     }
 
-    // ── Un pas de simulation (1/60 s — constantes du sketch inchangées) ───────
+    // One simulation step (1/60 s)
     private simStep(): void {
         const scale = this.vals.noiseScale;
         const friction = this.vals.viscosity;
         this.zOff += this.vals.noiseSpeed;
 
-        // 1. Courants de base (Perlin) + amortissement des remous
+        // 1. Base currents (Perlin) + wake damping
         let yOff = 0;
         for (let y = 0; y < ROWS; y++) {
             let xOff = 0;
@@ -663,10 +629,10 @@ export class FluidFieldN3D implements Node3D {
             yOff += scale;
         }
 
-        // 2. Vortex du joueur (tangentiel, décroissant avec la distance)
+        // 2. Player vortex (tangential, falls off with distance)
         if (this.vortexActive) this.applyVortex(this.vortexX, this.vortexY);
 
-        // 3. Boids : suivent le courant total, laissent un sillage, wrap
+        // 3. Boids: follow the total flow, leave a wake, wrap
         const maxSpeed = this.vals.boidSpeed;
         const splat = this.vals.splatStrength;
         const maxForce = 0.5;
@@ -683,7 +649,7 @@ export class FluidFieldN3D implements Node3D {
             b.vx += sx; b.vy += sy;
             const vLen = Math.hypot(b.vx, b.vy);
             if (vLen > maxSpeed) { b.vx = b.vx / vLen * maxSpeed; b.vy = b.vy / vLen * maxSpeed; }
-            // Sillage AVANT de bouger (comme le sketch : splat puis update)
+            // Wake BEFORE moving (splat then update)
             if (splat > 0) {
                 const wi = this.cellIndexAt(b.x, b.y);
                 const wLen = vLen || 1;
@@ -696,10 +662,9 @@ export class FluidFieldN3D implements Node3D {
             comX += b.x; comY += b.y;
         }
 
-        // 4. Métriques → EMA (sorties stables, le brut par frame est nerveux)
+        // 4. Metrics → EMA (stable outputs; the raw per-frame value is jittery)
         let totalDist = 0;
         for (let i = 0; i < this.wakeX.length; i++) totalDist += Math.hypot(this.wakeX[i], this.wakeY[i]);
-        // Calibre du sketch : map(total, 0..500) sur 1 440 cellules → ici ~1 066
         const distRaw = Math.min(1, totalDist / 370);
         const curlRaw = Math.min(1, this.averageCurl() / 0.5);
         const ema = 0.15;
@@ -707,9 +672,7 @@ export class FluidFieldN3D implements Node3D {
         this.curl01 += (curlRaw - this.curl01) * ema;
         if (this.boids.length > 0) {
             this.comX01 += (comX / this.boids.length / TEX_W - this.comX01) * ema;
-            // Même convention d'axe que la projection : haut de la plaque = 1
-            // (le canvas est miroir-vertical, donc canvas-y grand = haut → pas
-            // de « 1 - » ici). swarmX/Y restent cohérents avec l'AudioPlaque.
+            // Canvas is vertically mirrored (large canvas-y = top), so no "1 -" here.
             this.comY01 += (comY / this.boids.length / TEX_H - this.comY01) * ema;
         }
     }
@@ -729,7 +692,7 @@ export class FluidFieldN3D implements Node3D {
                 const d = Math.hypot(mx - px, my - py);
                 if (d < radius) {
                     const i = x + y * COLS;
-                    // Vecteur tangent (rotation autour du pointeur), force ∝ proximité
+                    // Tangent vector (rotation around the pointer), force ∝ proximity
                     let tx = -(py - my), ty = (px - mx);
                     const tLen = Math.hypot(tx, ty) || 1;
                     const f = strength * (1 - d / radius);
@@ -756,14 +719,14 @@ export class FluidFieldN3D implements Node3D {
         return count > 0 ? total / count : 0;
     }
 
-    // ── Rendu canvas (flèches colorées par magnitude + boids + halo vortex) ───
+    // Canvas render (arrows coloured by magnitude + boids + vortex halo)
     private render(): void {
         const ctx = this.gui.ctx;
         ctx.fillStyle = "rgb(15,15,20)";
         ctx.fillRect(0, 0, TEX_W, TEX_H);
         ctx.lineCap = "round";
 
-        // 1er passage : tri des segments par niveau de couleur
+        // Pass 1: bucket segments by colour level
         for (const b of this.bucketSegs) b.length = 0;
         for (let y = 0; y < ROWS; y++) {
             for (let x = 0; x < COLS; x++) {
@@ -771,7 +734,7 @@ export class FluidFieldN3D implements Node3D {
                 const fx = this.baseX[i] + this.wakeX[i];
                 const fy = this.baseY[i] + this.wakeY[i];
                 const mag = Math.hypot(fx, fy);
-                const t = Math.min(1, Math.max(0, (mag - 1) / 4));   // 1..5 → 0..1 (sketch)
+                const t = Math.min(1, Math.max(0, (mag - 1) / 4));   // 1..5 → 0..1
                 const cx = x * CELL + CELL / 2, cy = y * CELL + CELL / 2;
                 const inv = mag || 1;
                 this.bucketSegs[Math.round(t * (ARROW_LUT.length - 1))].push(
@@ -779,7 +742,7 @@ export class FluidFieldN3D implements Node3D {
                 );
             }
         }
-        // 2e passage : un seul stroke par niveau
+        // Pass 2: one stroke per level
         for (let bi = 0; bi < ARROW_LUT.length; bi++) {
             const segs = this.bucketSegs[bi];
             if (segs.length === 0) continue;
@@ -793,7 +756,7 @@ export class FluidFieldN3D implements Node3D {
             ctx.stroke();
         }
 
-        // Boids : triangles blancs orientés selon la vélocité (comme p5)
+        // Boids: white triangles oriented along velocity
         ctx.fillStyle = "rgba(255,255,255,0.9)";
         const r = 4;
         for (const b of this.boids) {
@@ -807,7 +770,7 @@ export class FluidFieldN3D implements Node3D {
             ctx.fill();
         }
 
-        // Halo du vortex pendant l'injection (feedback du geste)
+        // Vortex halo while injecting (gesture feedback)
         if (this.vortexActive) {
             ctx.strokeStyle = "rgba(255,0,85,0.55)";
             ctx.lineWidth = 2;
@@ -819,7 +782,7 @@ export class FluidFieldN3D implements Node3D {
         this.gui.tex.update(false);
     }
 
-    // ── Boids : pool ajusté au compteur ────────────────────────────────────────
+    // Boid pool, sized to boidCount
     private syncBoidPool(): void {
         while (this.boids.length < this.boidCount) {
             this.boids.push(new FluidBoid(Math.random() * TEX_W, Math.random() * TEX_H));
@@ -827,7 +790,7 @@ export class FluidFieldN3D implements Node3D {
         if (this.boids.length > this.boidCount) this.boids.length = this.boidCount;
     }
 
-    // ── Drone MIDI (battement du sketch : off puis on 20 ms plus tard) ────────
+    // Drone MIDI (note-off, then note-on 20 ms later)
     private triggerDroneNote(): void {
         const pitch = Math.round(this.vals.droneNote);
         const now = this.audioCtx.currentTime;

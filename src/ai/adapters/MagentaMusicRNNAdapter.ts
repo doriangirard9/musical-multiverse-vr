@@ -312,6 +312,13 @@ export class MagentaMusicRNNAdapter implements IMusicGeneratorAdapter {
                     : s % half === 0 ? 3 : 4;
                 const maxLevel = Math.floor(keepProb * 4 + 1e-6);
                 playNotes = genNotes.filter(n => level(n.quantizedStartStep ?? 0) <= maxLevel);
+                // Safety net: never thin a chunk down to nothing. If the filter
+                // emptied everything, keep the strongest metric level present so
+                // the part can't fall silent.
+                if (playNotes.length === 0 && genNotes.length > 0) {
+                    const minLevel = Math.min(...genNotes.map(n => level(n.quantizedStartStep ?? 0)));
+                    playNotes = genNotes.filter(n => level(n.quantizedStartStep ?? 0) === minLevel);
+                }
             }
 
             // 6. Conversion en MidiEvent[] (helper partagé : polyphonie,
@@ -386,10 +393,15 @@ export class MagentaMusicRNNAdapter implements IMusicGeneratorAdapter {
             });
             if (e > total) total = e;
         }
+        // Pad the primer up to a whole beat so the model RESUMES on the beat grid.
+        // Otherwise it continues from an off-beat step (e.g. 27) and every generated
+        // hit lands on an odd chunk-relative step, which the metric density filter
+        // (treats step 0 as a beat) then drops — silencing dense parts like drums.
+        const alignedTotal = Math.ceil(total / this.beatSteps) * this.beatSteps;
         return {
             quantizationInfo: { stepsPerQuarter: STEPS_PER_QUARTER },
             notes,
-            totalQuantizedSteps: total,
+            totalQuantizedSteps: alignedTotal,
         } as INoteSequence;
     }
 

@@ -105,8 +105,8 @@ function tubeProfile(speed: number, converging: boolean): EffectProfile {
 }
 
 /**
- * Une connection entre deux connectable de deux Node3D.
- * Gère le visuel et la logique des connections.
+ * A connection between two connectables of two Node3Ds.
+ * Handles the visual and logic of connections.
  */
 export class N3DConnectionInstance{
 
@@ -204,9 +204,9 @@ export class N3DConnectionInstance{
     private _midiTapInstalled: ((...args: unknown[]) => unknown) | null = null
 
     /**
-     * Connect la node3D à deux connections. Pas de synchronisation.
-     * @param cA 
-     * @param cB 
+     * Connect the node to two connectables. No synchronization.
+     * @param cA
+     * @param cB
      * @returns 
      */
     private connect(cA: N3DConnectableInstance, cB: N3DConnectableInstance): boolean{

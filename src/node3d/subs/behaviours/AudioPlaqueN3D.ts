@@ -11,8 +11,7 @@ import { Logger } from "../../../utils/logger";
 
 const log = Logger.get("AudioPlaque");
 
-// Le redimensionnement se fait désormais à DEUX MAINS (TwoPointerHoldBehaviour
-// au niveau de l'hôte) → plus de poignée de resize par instrument.
+// Resizing is two-handed (host-level), so there is no per-instrument handle.
 const BOID_MAX = 30;
 
 // ─── GUI (pure visuals + coordinate helper) ───────────────────────────────────
@@ -190,7 +189,7 @@ export class AudioPlaqueN3DGUI implements Node3DGUI {
         haloMat.disableLighting = true;
         this.ballHalo.material = haloMat;
 
-        // (Plus de poignée de resize : redimensionnement à deux mains via l'hôte.)
+        // (No resize handle: resizing is two-handed via the host.)
 
         // ── Boid controls (top-left column) ───────────────────────────────────
         //
@@ -257,7 +256,7 @@ export class AudioPlaqueN3DGUI implements Node3DGUI {
         this.boidContainer = new B.TransformNode("boid_container", context.scene);
         this.boidContainer.parent = this.root;
 
-        // Cluster standard ? · Presets · 🎲 · ↺ — haut-droite (à droite de X out)
+        // Standard cluster (Help / Presets / Mutate / Reset) — top-right.
         this.cluster = makeClusterButtons(B, context.scene, this.root, { x: 0.28, y: 0.65, z: 0 }, 0.14);
     }
 
@@ -454,8 +453,7 @@ export class AudioPlaqueN3D implements Node3D {
             context.createConnectable(o);
         }
 
-        // (Redimensionnement à deux mains géré par l'hôte → pas de paramètre
-        //  userScale ici.)
+        // (Two-handed resizing is handled by the host — no userScale param here.)
 
         // ── Boid swarm + controls ─────────────────────────────────────────────
         //
