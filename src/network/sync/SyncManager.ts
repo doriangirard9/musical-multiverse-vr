@@ -257,7 +257,7 @@ export class SyncManager<
 
         const newKeys = Object.keys(state)
 
-        const removedKeys = new Set<string>(oldKeys as Iterable<string>)
+        const removedKeys = new Set(oldKeys)
         for(const k of newKeys) removedKeys.delete(k)
 
         for(const k of removedKeys){
