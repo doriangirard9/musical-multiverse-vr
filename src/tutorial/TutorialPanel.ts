@@ -46,7 +46,7 @@ export class TutorialPanel extends AbstractMenu {
         this.place(this.hintText, 4, 70, 92, 17)
         content.addControl(this.hintText)
 
-        this.root.scaling.setAll(0.74)
+        this._root.scaling.setAll(0.74)
         this.show()
 
         const scene = scenes.getScene()
@@ -64,8 +64,8 @@ export class TutorialPanel extends AbstractMenu {
                 .add(forward.scale(1.34))
             target.y = this.fixedHeight
 
-            this.root.position.scaleInPlace(0.82).addInPlace(target.scale(0.18))
-            this.root.rotationQuaternion = Quaternion.FromLookDirectionLH(forward.scale(-1), Vector3.Up())
+            this._root.position.scaleInPlace(0.82).addInPlace(target.scale(0.18))
+            this._root.rotationQuaternion = Quaternion.FromLookDirectionLH(forward.scale(-1), Vector3.Up())
         })
     }
 

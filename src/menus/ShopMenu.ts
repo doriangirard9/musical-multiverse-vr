@@ -420,7 +420,7 @@ export class ShopMenu extends AbstractMenu {
             this.spawnedThisOpen = true
             this.onItemSelected.notifyObservers(kind)
             this.hide()
-            Node3dManager.getInstance().addNode3d(kind, this.plane.absolutePosition.clone())
+            Node3dManager.getInstance().addNode3d(kind, this._plane.absolutePosition.clone())
         })
 
         container.addControl(previewFrame)
