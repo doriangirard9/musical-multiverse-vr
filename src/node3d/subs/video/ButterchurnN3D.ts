@@ -78,7 +78,7 @@ export class ButterchurnN3DGUI implements Node3DGUI {
         nameMat.useAlphaFromDiffuseTexture = true;
         namePlane.material = nameMat;
 
-        const nctx = nameTexture.getContext();
+        const nctx = nameTexture.getContext() as CanvasRenderingContext2D;
         nctx.clearRect(0, 0, 512, 128);
         nctx.font = "bold 60px Arial";
         nctx.fillStyle = "white";
@@ -100,7 +100,7 @@ export class ButterchurnN3DGUI implements Node3DGUI {
         this._scrollOffset = 0;
 
         // Measure text width
-        const ctx = this.labelTexture.getContext();
+        const ctx = this.labelTexture.getContext() as CanvasRenderingContext2D;
         ctx.font = "bold 80px Arial";
         this._textWidth = ctx.measureText(text).width;
         const canvasWidth = this.labelTexture.getSize().width;
@@ -129,7 +129,7 @@ export class ButterchurnN3DGUI implements Node3DGUI {
     }
 
     private _drawLabel() {
-        const ctx = this.labelTexture.getContext();
+        const ctx = this.labelTexture.getContext() as CanvasRenderingContext2D;
         const size = this.labelTexture.getSize();
         ctx.clearRect(0, 0, size.width, size.height);
         ctx.fillStyle = "rgba(0,0,0,0.7)";

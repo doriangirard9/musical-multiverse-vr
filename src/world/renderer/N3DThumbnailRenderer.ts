@@ -48,8 +48,8 @@ export class N3DThumbnailRenderer {
         // Prepare
         const gui = await factory.createGUI(this.ctx)
         if(!gui.root) throw new Error("Failed to create GUI for thumbnail rendering")
-            gui.root.position.copyFromFloats(0,-100,0)
-
+        gui.root.position.copyFromFloats(0,-100,0)
+    
         // Render
         const image = await this.aggregator.draw(gui.root)
 

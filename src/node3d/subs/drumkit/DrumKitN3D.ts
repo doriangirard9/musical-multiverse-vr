@@ -62,6 +62,9 @@ export class DrumKitN3DGUI implements Node3DGUI {
         // Get XR instance from XRManager
         const xrManager = XRManager.getInstance();
         const xr = xrManager.xrHelper;
+        if (!xr) {
+            throw new Error("XR experience is not initialized yet");
+        }
 
         // Get physics plugin
         let hk = scene.getPhysicsEngine()?.getPhysicsPlugin();

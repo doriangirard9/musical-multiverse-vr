@@ -26,7 +26,7 @@ export type BMenuGrid = (BMenuBlock|null)[][]
  * Each block is positioned by its top-left corner in the grid.
  */
 export class BlocksMenu extends AbstractMenu {
-        
+
     constructor(
         scene: Scene,
         renderScene: Scene,
@@ -120,7 +120,6 @@ export class BlocksMenu extends AbstractMenu {
 
         return root
     }
-
     private static setCommon(button: Control, block: BMenuBlock){
         button.isEnabled = !block.disabled
         if(!!block.disabled) button.alpha = 0.5

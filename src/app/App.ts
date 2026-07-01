@@ -28,6 +28,7 @@ import { TUTORIAL_KINDS } from "../tutorial/TutorialScenario.ts";
 import { AudioWorldSystem } from "./AudioDestinationSystem.ts";
 import { MicrophoneSystem } from "./MicrophoneSystem.ts";
 import { VoiceChatSystem } from "./VoiceChatSystem.ts";
+import { BarMenuSystem } from "./BarMenuSystem.ts";
 
 let _app: App
 
@@ -167,7 +168,7 @@ export class App {
             SceneManager.getInstance(),
         )
 
-        report("Preparing hand controls")
+        report("Preparing menus")
         await Promise.all([
             HandMenuSystem.initialize(
                 SceneManager.getInstance(),
@@ -185,6 +186,13 @@ export class App {
                 MenuSystem.getInstance(),
             ),
         ])
+
+        await BarMenuSystem.initialize(
+            SceneManager.getInstance(),
+            NetworkManager.getInstance().node3d,
+            TargetManager.getInstance(),
+            ContextMenuSystem.getInstance(),
+        )
 
         // Get things
         const scene = SceneManager.getInstance().getScene()

@@ -9,7 +9,7 @@ import type { AutomationN3DConnectable } from "../../tools";
 import { BoidSwarm } from "./steering/Boid";
 import { setupInstrumentControls, makeClusterButtons, OutputPulser, type TunableParam, type ClusterButtons } from "./instrumentControls";
 
-// Redimensionnement désormais à deux mains (hôte) → plus de poignée par item.
+// Resizing is two-handed (host-level), so there is no per-instrument handle.
 const BOID_MAX = 30;
 
 // Shape presets (superformula recipes, REAL values).
@@ -319,7 +319,7 @@ export class SuperformulaN3DGUI implements Node3DGUI {
         this.trail.isPickable = false;
         this.trail.alpha      = 1;
 
-        // (Plus de poignée de resize : redimensionnement à deux mains via l'hôte.)
+        // (No resize handle: resizing is two-handed via the host.)
 
         // ── Boid controls — top-left area, far from the 8 motion outputs ──────
         //
@@ -573,7 +573,7 @@ export class SuperformulaN3D implements Node3D {
         setupKnob("scale", "Scale",          gui.knobScale, "scale",  40, 2, () => this.scale, v => this.scale = v);
         setupKnob("speed", "Speed",          gui.knobSpeed, "speed",  60, 2, () => this.speed, v => this.speed = v);
 
-        // ── Boid controls (redimensionnement à deux mains géré par l'hôte) ────
+        // ── Boid controls (two-handed resizing handled by the host) ──────────
         this.swarm = new BoidSwarm(gui.boidContainer, scene);
         this.swarm.setCount(this.boidCount);
         this.swarm.setEnabled(this.boidMode);

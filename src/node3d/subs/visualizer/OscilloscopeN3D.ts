@@ -50,7 +50,6 @@ export class OscilloscopeN3DGUI implements Node3DGUI {
     #buildPanel(scene: Scene): void {
         this.panel = MeshBuilder.CreateBox("oscilloscope panel",
             { width: PANEL_WIDTH, height: PANEL_HEIGHT, depth: PANEL_DEPTH }, scene)
-        this.panel.rotation.x = Math.PI/2
         this.panel.parent = this.root
 
         this.texture = new DynamicTexture("oscilloscope screen",

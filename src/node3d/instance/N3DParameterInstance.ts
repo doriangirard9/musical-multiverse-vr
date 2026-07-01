@@ -8,7 +8,6 @@ import { Node3DInstance } from "./Node3DInstance"
 
 const highlightColor = Color3.Blue()
 
-
 /**
  * A simple parameter whose value is changed by dragging it.
  */
@@ -39,23 +38,17 @@ export class N3DParameterInstance {
         readonly config: Node3DParameter,
     ) {
 
-        /* Parameter value text visual */
-        // Gère l'affichage du texte de la valeur du paramètre
+        // Parameter value text visual
         const text = this.text = new N3DText(`parameter ${config.id}`, config.meshes, utilityLayer.utilityLayerScene)
-        /* */
 
-
-        /* Highlight visual */
-        // Gère l'affichage de la surbrillance du paramètre
+        // Highlight visual
         const highlight = this.highlight = {
             show(){ for(const d of config.meshes) NodeCompUtils.highlight(highlightLayer, d, highlightColor) },
             hide(){ for(const d of config.meshes) NodeCompUtils.unhighlight(highlightLayer, d) },
             dispose(){ for(const d of config.meshes) NodeCompUtils.unhighlight(highlightLayer, d) },
-        } 
-        /* */
+        }
 
-
-        /* Mix visuals */
+        // Combined hover/drag visual state
         const visual = this.visual = {
             stack: 0,
             offset(offset: number){
@@ -69,11 +62,8 @@ export class N3DParameterInstance {
                     text.hide()
                 }
             }
-        } 
-        /* */
+        }
 
-
-        /* Shared functions */
         function updateText(){
             text.updatePosition()
             text.set([
@@ -81,7 +71,6 @@ export class N3DParameterInstance {
                 {content: config.stringify(config.getValue()), size: .7}
             ])
         }
-        /* */
 
         const disposables: (()=>void)[] = []
 
@@ -96,7 +85,6 @@ export class N3DParameterInstance {
             let startingValue = 0
             let stepSize = 0.01
             let changeFactor = 0
-            let grabY = 0   // world-space controller Y captured at grab start
 
             const reverseMatrix = Matrix.Identity()
             const relativePosition = new Vector3()
@@ -127,7 +115,6 @@ export class N3DParameterInstance {
                     }
                     
                     reverseMatrix.copyFrom(input.matrix).invertToRef(reverseMatrix)
-                    grabY = input.origin.y
                 },
                 ()=>{
                     visual.offset(-1)
@@ -139,7 +126,7 @@ export class N3DParameterInstance {
                     // Get ray relative to the parameter
                     Vector3.TransformCoordinatesToRef(input.origin, reverseMatrix, relativePosition)
                     Vector3.TransformNormalToRef(input.forward, reverseMatrix, relativeDirection)
-                    
+
                     const fromOffset = config.fromOffset ?? ((posOffset, dirOffset) => {
                         // Project to ground plane
                         const ground_length = Math.abs(Math.pow(dirOffset.x,2) + Math.pow(dirOffset.z,2))
@@ -155,7 +142,7 @@ export class N3DParameterInstance {
                     newvalue = newvalue - newvalue % stepSize
                     newvalue = Math.max(0, Math.min(1, newvalue))
                     this.setValue(newvalue)
-                    draggable.rotationQuaternion = null
+                    //TODO: pk j'ai mit ça déjà : draggable.rotationQuaternion = null
                     updateText()
                 },
             )

@@ -221,6 +221,13 @@ export class Node3DInstance implements Synchronized {
     private disposables = new Set<() => void>()
     public on_dispose = () => { }
 
+
+    /** On node3d move. Pass the bounding box mesh. */
+    readonly onMove = new Observable<AbstractMesh>()
+
+    /** On node3d disposed. */
+    readonly onDispose = new Observable<void>()
+
     /**
      * Live audio-feature snapshot from the analyser tapped onto this node's
      * primary audio path. Returns null for nodes with no audio connectable
@@ -274,12 +281,12 @@ export class Node3DInstance implements Synchronized {
                 tools,
                 inputs: InputManager.getInstance(),
 
-                // Le nom du wam
+                // The WAM's name
                 setLabel(label: string) {
                     root_transform.name = `${label} root`
                 },
 
-                // Les paramètres draggables
+                // Draggable parameters
                 createParameter(info: Node3DParameter) {
                     const param = new N3DParameterInstance(instance, instance.root_transform, highlightLayer, utilityLayer, info)
                     instance.parameters.set(info.id, param)
@@ -311,7 +318,7 @@ export class Node3DInstance implements Synchronized {
                     instance.connectables.get(`${id}_connectable`)?.dispose()
                 },
 
-                // Les outputs et inputs que l'on peut connecter
+                // Connectable outputs and inputs
                 createConnectable(info: Node3DConnectable) {
                     const connectable = new N3DConnectableInstance(instance, info, highlightLayer, utilityLayer, IOEventBus.getInstance())
                     instance.connectables.set(info.id, connectable)
@@ -330,8 +337,8 @@ export class Node3DInstance implements Synchronized {
                     instance.buttons.delete(id)
                 },
 
-                // Les mesh qui font partis de la bounding box
-                // En attendant la bounding box est une boite qui les englobes
+                // Meshes that are part of the bounding box
+                // For now the bounding box is a box enclosing them
                 addToBoundingBox(mesh: AbstractMesh) {
                     instance.boxes.push(mesh)
 
@@ -343,7 +350,7 @@ export class Node3DInstance implements Synchronized {
                     instance.updateBoundingBox()
                 },
 
-                // Afficher un menu ou un message
+                // Show a menu or a message
                 openMenu(choices: { label: string; color?: string, click?: () => void; }[], options?: { showCloseBar?: boolean, dragToScroll?: boolean }) {
                     if(lastMenu && lastMenu instanceof ChoiceMenu && lastMenu===menus.current_menu){
                         lastMenu.set(choices)
@@ -481,6 +488,7 @@ export class Node3DInstance implements Synchronized {
     private _audioAnalyser: AudioAnalyser | null = null
     private static readonly _graph = new Node3DGraph()
 
+    /** Get the bounding box mesh for this node. Unstable, can be regenerated.*/
     get boundingBoxMesh() { return this.bounding_box!!.boundingBox }
 
     private updateBoundingBoxNow() {
@@ -520,10 +528,7 @@ export class Node3DInstance implements Synchronized {
         this.bounding_box = new BoundingBox(this.bounding_mesh)
 
         // Shake to delete
-        // [YASSINE_CEST_LA] J'ai remplacé par le ShakeBehaviour:
-        //  Meilleur séparation du code, plus flexible, plus réutilisable et comme ça c'est le même comportement
-        //  pour tous ce qui se base sur le shake (cables, bounding box, etc).
-        //  Si le shake marche mal, il faut corriger le ShakeBehaviour.
+        // Shake-to-delete via the shared ShakeBehavior (same gesture for nodes and cables).
         const bbox = this.bounding_box.boundingBox
 
         const red_box = this.red_bounding_mesh = bbox.clone("red_box", bbox, true)
@@ -552,6 +557,12 @@ export class Node3DInstance implements Synchronized {
         // On position change
         this.set_state("position")
         this.bounding_box.on_move = () => this.set_state("position")
+
+        // On move observable
+        this.bounding_box.boundingBox.onAfterWorldMatrixUpdateObservable.add(() => {
+            this.onMove.notifyObservers(this.bounding_box!!.boundingBox)
+        })
+        this.onMove.notifyObservers(this.bounding_box!!.boundingBox)
 
         // Shadow Generator
         this.shared.shadowGenerator.addShadowCaster(this.bounding_mesh, false)
@@ -661,6 +672,7 @@ export class Node3DInstance implements Synchronized {
 
     public async dispose() {
         if (this.disposed) return
+        this.onDispose.notifyObservers()
         this.on_dispose()
         this.disposed = true
         this.set_state("delete")

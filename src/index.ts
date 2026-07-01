@@ -16,7 +16,6 @@ let appStarted = false;
 /**
  * # Plan du code
  * Une description de quelques parties importantes du code.
- *
  * ## Créer un nouvel objet
  * Les objets manipulable et connectables (plugin, sortie audio, clavier,...) sont appelés des
  * Node3D. Pour créer un nouvel objet il faut implémenter les interface Node3D, Node3DFactory et Node3DGUI.
@@ -33,10 +32,7 @@ let appStarted = false;
  * - Node3DManager: Gère les Node3D (connections et node), leur ajout à la scène, leur suppression de la scène, leur synchronisation.
  * - SceneManager: Gère la création de la scène babylonjs
  * - Node3DBuilder: Gère les Node3DFactories, qui permettent d'instantier des Node3D. Les associe à leur identifiant pour pouvoir les instancier à partir de leur identifiant.
- * - 
- * 
  */
-
 
 const DEBUG_LOG = false;
 

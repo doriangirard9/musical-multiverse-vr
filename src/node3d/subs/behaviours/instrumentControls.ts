@@ -2,24 +2,12 @@ import { AbstractMesh, Color3, MeshBuilder, Scene, StandardMaterial, TransformNo
 import * as GUI from "@babylonjs/gui";
 import type { Node3DContext } from "../../Node3DContext";
 
-// ─── instrumentControls — cluster standard partagé par les instruments ───────
-//
-//   Câble le même quatuor de boutons sur chaque instrument :
-//     ?  (aide)      — ouvre un menu : description + LÉGENDE par couleur
-//                      (clic sur une entrée = explication détaillée)
-//     ▦  (presets)   — ouvre un menu de configurations nommées
-//     🎲 (mutate)    — perturbe aléatoirement la config courante
-//     ↺  (reset)     — revient au preset par défaut
-//
-//   Tout passe par les setNorm() des paramètres — c.-à-d. les MÊMES setters
-//   que les potards. Donc les visuels des potards ET la synchro réseau suivent
-//   gratuitement, et le lissage éventuel (Superformula / Fluid Field) rend les
-//   transitions (preset, mutation) fluides au lieu de sauter.
-//
-//   Idiome identique d'un instrument à l'autre → apprentissage transférable
-//   (feedback prof : « trouver les contrôles, comprendre ce qu'ils font »).
+// Shared four-button cluster wired onto every instrument: Help (description +
+// colour legend), Presets, Mutate (random perturbation), Reset. Everything goes
+// through the parameters' setNorm(), so knob visuals and network sync follow for
+// free and any value smoothing keeps preset/mutation transitions fluid.
 
-/** Un paramètre pilotable par le cluster, en espace normalisé [0,1]. */
+/** A cluster-controllable parameter, in normalized [0,1] space. */
 export interface TunableParam {
     name: string;
     min: number;
@@ -28,9 +16,9 @@ export interface TunableParam {
     setNorm(v01: number): void;
 }
 
-/** Une ligne de la légende d'aide (pastille couleur + rôle). */
+/** A legend row: colour swatch + role. */
 export interface LegendEntry {
-    swatch: string;   // pastille emoji (🔵 🟢 🟡 …) ou symbole (✋ 🗑)
+    swatch: string;
     name: string;
     role: string;
 }
@@ -39,15 +27,13 @@ export interface InstrumentControlsOpts {
     title: string;
     description: string;
     legend: LegendEntry[];
-    /** Presets : nom → (nom de param → valeur RÉELLE, dans la plage du param). */
+    /** Presets: name → (param name → REAL value, within the param's range). */
     presets: Record<string, Record<string, number>>;
-    /** Preset appliqué au spawn et par le reset. */
+    /** Preset applied on spawn and by reset. */
     defaultPreset: string;
-    /** Paramètres pilotables (presets / mutation / reset). */
     params: TunableParam[];
-    /** Amplitude de mutation, en fraction de la plage. Défaut 0.18. */
+    /** Mutation amount as a fraction of the range. Default 0.18. */
     mutateAmount?: number;
-    /** Meshes des 4 boutons du cluster (créés par la GUI via makeClusterButtons). */
     helpBtn: AbstractMesh;
     presetBtn: AbstractMesh;
     mutateBtn: AbstractMesh;
@@ -153,11 +139,8 @@ export function setupInstrumentControls(
         context.showMessage("↺ Defaults");
     };
 
-    // ── ? : aide → PANNEAU déroulant complet ───────────────────────────────
-    // showMessage tronquait les longues descriptions (toast). On affiche plutôt
-    // un panneau billboard avec ScrollViewer : la description ENTIÈRE (qui se
-    // renvoie à la ligne) + toute la légende, défilable, lisible. Construit
-    // paresseusement à la première ouverture, basculé à chaque clic sur « ? ».
+    // Help: a scrollable billboard panel with the full description + legend,
+    // built lazily on first open and toggled by the "?" button.
     let helpPanel: AbstractMesh | null = null;
     const buildHelpPanel = () => {
         const scene = opts.helpBtn.getScene();
@@ -166,7 +149,7 @@ export function setupInstrumentControls(
         panel.position.copyFrom(opts.helpBtn.position);
         panel.position.y += 0.95;
         panel.billboardMode = AbstractMesh.BILLBOARDMODE_ALL;
-        panel.isPickable = true;   // pour pouvoir faire défiler à la gâchette
+        panel.isPickable = true;   // pickable so the trigger can scroll it
 
         const tex = GUI.AdvancedDynamicTexture.CreateForMesh(panel, 1024, 768);
         const bg = new GUI.Rectangle();
@@ -197,8 +180,8 @@ export function setupInstrumentControls(
             tb.color = color;
             tb.fontSize = size;
             if (bold) tb.fontWeight = "bold";
-            tb.textWrapping = true;        // renvoi à la ligne…
-            tb.resizeToFit = true;         // …et hauteur auto → rien n'est coupé
+            tb.textWrapping = true;        // wrap + auto-height so nothing is clipped
+            tb.resizeToFit = true;
             tb.width = "940px";
             tb.textHorizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
             tb.paddingBottom = "12px";
@@ -225,7 +208,7 @@ export function setupInstrumentControls(
         release: () => {},
     });
 
-    // ── ▦ : presets ────────────────────────────────────────────────────────
+    // Presets
     context.createButton({
         id: "presets",
         meshes: [opts.presetBtn],
@@ -235,7 +218,7 @@ export function setupInstrumentControls(
         release: () => {},
     });
 
-    // ── 🎲 : mutation aléatoire ────────────────────────────────────────────
+    // Mutate
     context.createButton({
         id: "mutate",
         meshes: [opts.mutateBtn],
@@ -245,7 +228,7 @@ export function setupInstrumentControls(
         release: () => {},
     });
 
-    // ── ↺ : reset ──────────────────────────────────────────────────────────
+    // Reset
     context.createButton({
         id: "reset",
         meshes: [opts.resetBtn],
@@ -255,17 +238,14 @@ export function setupInstrumentControls(
         release: () => {},
     });
 
-    // Spawn sur le preset par défaut → l'instrument est tout de suite agréable.
+    // Apply the default preset on spawn so the instrument is usable immediately.
     applyPreset(opts.defaultPreset);
 
     return { applyPreset, mutate, reset };
 }
 
-// ─── makeClusterButtons — 4 disques alignés, même look partout ────────────────
-//
-//   Couleurs : ? bleu · presets sarcelle · 🎲 violet · reset gris.
-//   `B` = le namespace babylon (context.babylon). Renvoie les 4 meshes à passer
-//   à setupInstrumentControls.
+// Builds the four aligned cluster discs (Help blue, Presets teal, Mutate violet,
+// Reset grey) and returns their meshes for setupInstrumentControls.
 
 export interface ClusterButtons {
     helpBtn: AbstractMesh;
@@ -301,18 +281,15 @@ export function makeClusterButtons(
     };
 }
 
-// ─── OutputPulser — taille des sphères de sortie ∝ valeur courante ────────────
-//
-//   On voit d'un coup d'œil quelles sorties d'automation sont « vivantes » et
-//   à quelle intensité elles émettent (feedback prof : comprendre ce que fait
-//   l'instrument). Lissé pour ne pas trembler.
+// Scales output meshes by their current value (smoothed) so active automation
+// outputs are visible at a glance.
 
 export class OutputPulser {
     private cur: number[];
     constructor(private meshes: AbstractMesh[], private base = 1) {
         this.cur = meshes.map(() => base);
     }
-    /** À appeler chaque frame avec les valeurs 0..1 (même ordre que les meshes). */
+    /** Call each frame with 0..1 values, in the same order as the meshes. */
     update(values: number[], dt: number): void {
         const k = Math.min(1, dt * 10);
         for (let i = 0; i < this.meshes.length; i++) {

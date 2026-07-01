@@ -252,7 +252,7 @@ export class SyncManager<
         const node = this.getNow(id)
         if(!node)return
 
-        const oldKeys = this.shared_state.get(id)?.keys()
+        const oldKeys = this.shared_state.get(id)?.keys() as IterableIterator<string> | undefined
         if(!oldKeys)return
 
         const newKeys = Object.keys(state)
