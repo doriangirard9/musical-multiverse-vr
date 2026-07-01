@@ -77,7 +77,7 @@ export class BoxScreenN3D implements Node3D {
         mat.backFaceCulling = false;
         this.gui.display.material = mat;
 
-        const ctx = dt.getContext();
+        const ctx = dt.getContext() as CanvasRenderingContext2D;
         ctx.translate(0, 512);
         ctx.scale(1, -1);
         

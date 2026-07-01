@@ -1,0 +1,18 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": ["vite/client", "node"],
+    "strict": false,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false
+  },
+  "include": [
+    "src/index.ts",
+    "src/**/*.d.ts",
+    "src/types/**/*.d.ts"
+  ],
+  "exclude": [
+    "src/**/*.test.ts",
+    "src/node3d/subs/functionsequencer/**"
+  ]
+}

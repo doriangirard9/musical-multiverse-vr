@@ -178,6 +178,8 @@ export class N3DConnectionInstance{
 
     get tube(){ return this._tube }
 
+    get guideMesh(){ return this._center }
+
     public contains(mesh: AbstractMesh): boolean {
         return mesh === this._tube
             || mesh.isDescendantOf(this._tube)

@@ -13,7 +13,7 @@ export function withTimeout<T>(
     fallbackValue?: T,
     timeoutMessage: string = "Operation timed out"
 ): Promise<T> {
-    let timeoutId: number
+    let timeoutId: ReturnType<typeof setTimeout>
 
     const timeoutPromise = new Promise<T>((resolve, reject) => {
         timeoutId = setTimeout(() => {

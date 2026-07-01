@@ -14,7 +14,7 @@ export interface MenuButton{
 export class ChoiceMenu extends AbstractMenu {
 
     buttons: StackPanel
-    scrollViewer: ScrollViewer
+    declare scrollViewer: ScrollViewer
 
     constructor(
         scene: Scene,
