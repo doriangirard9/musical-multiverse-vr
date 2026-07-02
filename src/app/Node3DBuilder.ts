@@ -40,6 +40,7 @@ import { Superformula3DN3DFactory } from "../node3d/subs/behaviours/Superformula
 import { FluidFieldN3DFactory } from "../node3d/subs/behaviours/FluidFieldN3D.ts";
 import { RainPlinkoN3DFactory } from "../node3d/subs/behaviours/RainPlinkoN3D.ts";
 import { AIComposerN3DFactory } from "../node3d/subs/ai/AIComposerN3D.ts";
+import { NeuralDrumMachineN3DFactory } from "../node3d/subs/ai/NeuralDrumMachineN3D.ts";
 import ParticleEmitterN3DFactory from "../node3d/subs/particle/ParticleEmitterN3D.ts";
 import { N3DThumbnailRenderer } from "../world/renderer/N3DThumbnailRenderer.ts";
 import { SERVER_NAME } from "../options.ts";
@@ -72,7 +73,7 @@ export class Node3DBuilder {
      */
     FACTORY_KINDS = [
         "audiooutput", "oscillator", "maracas", "livepiano", "notesbox", "pianoroll", "drumkit", "pro54michel", "butterchurn", "screen", "box_screen", "sphere_screen", "cylinder_screen", "isf_shader", "spectrum_bars", "oscilloscope", "spectogram", "livegain",
-        "hyperkeyboard", "drumplatekit", "automation_controller", "the_cube", "harp", "large_harp", "voice", "gaze", "sequencer12", "sequencer16", "audio_plaque", "superformula", "superformula3d", "fluid_field", "rain_plinko", "ai_composer", "ai_composer_improv", "ai_composer_drums", "ai_composer_basic", "ai_composer_vae",
+        "hyperkeyboard", "drumplatekit", "automation_controller", "the_cube", "harp", "large_harp", "voice", "gaze", "sequencer12", "sequencer16", "audio_plaque", "superformula", "superformula3d", "fluid_field", "rain_plinko", "ai_composer", "ai_composer_improv", "ai_composer_drums", "ai_composer_basic", "ai_composer_vae", "neural_drum_machine",
         ...Object.keys(examples).map(k => `wam3d-${k}`),
         ...SERVER_KINDS.map(k => `server-${k}`),
     ]
@@ -140,6 +141,7 @@ export class Node3DBuilder {
         if (kind == "ai_composer_drums") return AIComposerN3DFactory.DRUMS;
         if (kind == "ai_composer_basic") return AIComposerN3DFactory.BASIC;
         if (kind == "ai_composer_vae") return AIComposerN3DFactory.VAE;
+        if (kind == "neural_drum_machine") return NeuralDrumMachineN3DFactory;
         if (kind == "audiooutput") return SpeakerN3DFactory
         if (kind == "sequencer" || kind == "sequencer12") return Sequencer12N3DFactory
         if (kind == "sequencer16") return Sequencer16N3DFactory

@@ -10,7 +10,7 @@ import {
     IMusicGeneratorAdapter, AdapterCapabilities, AdapterTier,
 } from "../IMusicGeneratorAdapter";
 import {
-    MidiEvent, AdapterStats, InitOpts, emptyStats,
+    MidiEvent, AdapterStats, InitOpts, PatternNote, emptyStats,
 } from "../types";
 import { RNN_HYPERPARAMS } from "../hyperparams";
 import { notesToMidiEvents, notesEndStep } from "./noteConversion";
@@ -359,6 +359,53 @@ export class MagentaMusicRNNAdapter implements IMusicGeneratorAdapter {
             this.updateAggregateStats();
 
             return events;
+        } catch (e) {
+            this.stats.failureCount++;
+            throw e;
+        }
+    }
+
+    /**
+     * One-shot pattern completion (drum machine style). Stateless: the
+     * rolling primer used by requestNext is not touched, so a streaming
+     * session and pattern completions never pollute each other.
+     */
+    async generatePattern(seed: PatternNote[], seedSteps: number, genSteps: number, temperature: number): Promise<PatternNote[]> {
+        if (this.rnn === null) {
+            this.stats.failureCount++;
+            throw new Error("MagentaMusicRNNAdapter: init() must be called before generatePattern()");
+        }
+        const tStart = performance.now();
+        try {
+            const primer = {
+                quantizationInfo: { stepsPerQuarter: STEPS_PER_QUARTER },
+                notes: seed.map(n => ({
+                    pitch: n.pitch,
+                    quantizedStartStep: n.startStep,
+                    quantizedEndStep: n.endStep,
+                    velocity: 90,
+                    program: 0,
+                    isDrum: this.isDrums,
+                })),
+                totalQuantizedSteps: seedSteps,
+            } as INoteSequence;
+
+            const generated = await this.rnn.continueSequence(
+                primer, genSteps, temperature, this.chordProgression ?? undefined,
+            );
+            const notes = (generated.notes ?? []).map(n => {
+                const start = n.quantizedStartStep ?? 0;
+                return {
+                    pitch: n.pitch ?? 60,
+                    startStep: start,
+                    endStep: Math.max(start + 1, n.quantizedEndStep ?? start + 1),
+                };
+            });
+
+            this.recordLatency(performance.now() - tStart);
+            this.stats.callCount++;
+            this.updateAggregateStats();
+            return notes;
         } catch (e) {
             this.stats.failureCount++;
             throw e;

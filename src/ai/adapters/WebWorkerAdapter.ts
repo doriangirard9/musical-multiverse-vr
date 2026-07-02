@@ -2,7 +2,7 @@ import {
     IMusicGeneratorAdapter, AdapterCapabilities, AdapterTier,
 } from "../IMusicGeneratorAdapter";
 import {
-    MidiEvent, AdapterStats, InitOpts, emptyStats,
+    MidiEvent, AdapterStats, InitOpts, PatternNote, emptyStats,
 } from "../types";
 import type { MagentaRNNVariant } from "./MagentaMusicRNNAdapter";
 import { RNN_HYPERPARAMS, VAE_HYPERPARAMS } from "../hyperparams";
@@ -187,6 +187,27 @@ export class WebWorkerAdapter implements IMusicGeneratorAdapter {
         }
     }
 
+    /** One-shot pattern completion, delegated to the worker adapter. */
+    async generatePattern(seed: PatternNote[], seedSteps: number, genSteps: number, temperature: number): Promise<PatternNote[]> {
+        if (this.worker === null) {
+            this.stats.failureCount++;
+            throw new Error("WebWorkerAdapter: init() must be called before generatePattern()");
+        }
+        const tStart = performance.now();
+        try {
+            const result = await this.request<{ notes: PatternNote[]; inferenceMs: number }>(
+                (requestId) => ({ type: "generatePattern", requestId, seed, seedSteps, genSteps, temperature }),
+            );
+            this.recordLatency(performance.now() - tStart);
+            this.stats.callCount++;
+            this.updateAggregateStats();
+            return result.notes;
+        } catch (e) {
+            this.stats.failureCount++;
+            throw e;
+        }
+    }
+
     // ── Plomberie worker ──────────────────────────────────────────────────
 
     private request<T>(build: (requestId: number) => any): Promise<T> {
@@ -208,6 +229,9 @@ export class WebWorkerAdapter implements IMusicGeneratorAdapter {
                 break;
             case "notes":
                 this.resolveRequest(msg.requestId, { events: msg.events, inferenceMs: msg.inferenceMs });
+                break;
+            case "pattern":
+                this.resolveRequest(msg.requestId, { notes: msg.notes, inferenceMs: msg.inferenceMs });
                 break;
             case "disposeDone":
                 this.resolveRequest(msg.requestId, undefined);

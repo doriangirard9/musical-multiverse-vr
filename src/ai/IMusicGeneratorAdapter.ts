@@ -1,4 +1,4 @@
-import { MidiEvent, HyperparamSpec, AdapterStats, InitOpts } from "./types";
+import { MidiEvent, HyperparamSpec, AdapterStats, InitOpts, PatternNote } from "./types";
 
 // ─── IMusicGeneratorAdapter ──────────────────────────────────────────────────
 //
@@ -144,4 +144,19 @@ export interface IMusicGeneratorAdapter {
      * (mesurer avec `performance.now()` au début et à la fin).
      */
     requestNext(context: readonly MidiEvent[], dtMs: number): Promise<MidiEvent[]>;
+
+    /**
+     * Optional. One-shot pattern completion, drum machine style: continues
+     * a fixed seed with `genSteps` steps in a single call. Unlike
+     * requestNext, the result replaces a whole pattern region instead of
+     * feeding a rolling stream.
+     *
+     * @param seed        Seed notes occupying steps [0, seedSteps).
+     * @param seedSteps   Length of the seed region in steps.
+     * @param genSteps    Number of steps to generate after the seed.
+     * @param temperature Sampling temperature for this call.
+     * @returns Generated notes with steps relative to the generated
+     *           region start (step 0 = first step after the seed).
+     */
+    generatePattern?(seed: PatternNote[], seedSteps: number, genSteps: number, temperature: number): Promise<PatternNote[]>;
 }

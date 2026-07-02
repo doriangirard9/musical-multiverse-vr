@@ -26,7 +26,7 @@ import { MagentaMusicRNNAdapter } from "../adapters/MagentaMusicRNNAdapter";
 import type { MagentaRNNVariant } from "../adapters/MagentaMusicRNNAdapter";
 import { MusicVAEAdapter } from "../adapters/MusicVAEAdapter";
 import type { IMusicGeneratorAdapter } from "../IMusicGeneratorAdapter";
-import type { MidiEvent } from "../types";
+import type { MidiEvent, PatternNote } from "../types";
 
 export type WorkerModelType = "music_rnn" | "music_vae";
 
@@ -53,12 +53,14 @@ type InMessage =
     | { type: "setHyperparameter"; name: string; value: number }
     | { type: "setMeter"; numerator: number; denominator: number }
     | { type: "requestNext"; requestId: number; context: MidiEvent[]; dtMs: number }
+    | { type: "generatePattern"; requestId: number; seed: PatternNote[]; seedSteps: number; genSteps: number; temperature: number }
     | { type: "dispose"; requestId: number };
 
 type OutMessage =
     | { type: "ready" }                                                  // worker chargé
     | { type: "initDone"; requestId: number; initTimeMs: number; backend: string }
     | { type: "notes"; requestId: number; events: MidiEvent[]; inferenceMs: number }
+    | { type: "pattern"; requestId: number; notes: PatternNote[]; inferenceMs: number }
     | { type: "disposeDone"; requestId: number }
     | { type: "error"; requestId: number; message: string };
 
@@ -117,6 +119,20 @@ self.onmessage = async (e: MessageEvent<InMessage>) => {
                     type: "notes",
                     requestId: msg.requestId,
                     events,
+                    inferenceMs: performance.now() - t0,
+                });
+                break;
+            }
+
+            case "generatePattern": {
+                if (!adapter) throw new Error("worker: adapter non initialisé");
+                if (adapter.generatePattern === undefined) throw new Error("worker: adapter does not support generatePattern");
+                const t0 = performance.now();
+                const notes = await adapter.generatePattern(msg.seed, msg.seedSteps, msg.genSteps, msg.temperature);
+                post({
+                    type: "pattern",
+                    requestId: msg.requestId,
+                    notes,
                     inferenceMs: performance.now() - t0,
                 });
                 break;

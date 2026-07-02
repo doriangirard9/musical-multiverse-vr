@@ -41,6 +41,20 @@ export interface MidiEvent {
 }
 
 /**
+ * A quantized note exchanged by one-shot pattern generation
+ * ({@link IMusicGeneratorAdapter.generatePattern}). Steps are sixteenths
+ * on the model grid, relative to the sequence the note belongs to.
+ */
+export interface PatternNote {
+    /** MIDI pitch 0-127. */
+    pitch: number;
+    /** Start step (inclusive). */
+    startStep: number;
+    /** End step (exclusive). */
+    endStep: number;
+}
+
+/**
  * Spécification d'un hyperparamètre exposé par le modèle au mapping gestes.
  *
  * Sert à la fois à :
