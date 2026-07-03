@@ -1,4 +1,4 @@
-import { AbstractMesh, Behavior } from "@babylonjs/core";
+import { AbstractMesh, Behavior, Nullable } from "@babylonjs/core";
 import { InputManager } from "../InputManager";
 
 
@@ -28,7 +28,7 @@ export class InputHoverBehavior implements Behavior<AbstractMesh> {
 
     init(): void {}
 
-    attachedNode: AbstractMesh
+    attachedNode: Nullable<AbstractMesh> = null
 
     attach(target: AbstractMesh): void {
         this.detach()

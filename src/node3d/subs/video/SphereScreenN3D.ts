@@ -1,10 +1,10 @@
-import { Color3, Color4 } from "@babylonjs/core";
+import { Color3, Color4, StandardMaterial, DynamicTexture } from "@babylonjs/core";
 import type { Node3D, Node3DFactory, Node3DGUI } from "../../Node3D";
 import type { Node3DContext } from "../../Node3DContext";
 import type { Node3DGUIContext } from "../../Node3DGUIContext";
 import type { Node3DConnectable } from "../../Node3DConnectable";
 
-export class BoxScreenN3DGUI implements Node3DGUI {
+export class SphereScreenN3DGUI implements Node3DGUI {
     root
     display
     videoInput
@@ -13,10 +13,10 @@ export class BoxScreenN3DGUI implements Node3DGUI {
 
     constructor(context: Node3DGUIContext) {
         const { babylon: B, tools: T, scene } = context;
-        this.root = new B.TransformNode("box screen root", scene);
+        this.root = new B.TransformNode("sphere screen root", scene);
 
-        // A 3D Cube for video rendering
-        this.display = B.CreateBox("box display", { size: 4 }, scene);
+        // A 3D Sphere for video rendering
+        this.display = B.CreateSphere("sphere display", { diameter: 4 }, scene);
         this.display.parent = this.root;
 
         this.videoInput = B.CreateSphere("video input", { diameter: 0.5 }, scene);
@@ -28,11 +28,11 @@ export class BoxScreenN3DGUI implements Node3DGUI {
     async dispose() { }
 }
 
-export class BoxScreenN3D implements Node3D {
+export class SphereScreenN3D implements Node3D {
     private currentInstanceId: string | null = null;
     private _checkInterval: any = null;
 
-    constructor(private context: Node3DContext, private gui: BoxScreenN3DGUI) {
+    constructor(private context: Node3DContext, private gui: SphereScreenN3DGUI) {
         context.addToBoundingBox(gui.display);
 
         const videoColor = new Color3(0.8, 0.2, 0.8);
@@ -43,8 +43,8 @@ export class BoxScreenN3D implements Node3D {
             type: "video",
             direction: "input",
             color: videoColor,
-            connectAsInput: (source: any) => {
-                console.log("[BoxScreen] DEBUG: connectAsInput called");
+            connectAsInput: () => {
+                this.showLoading();
                 return this;
             },
             connectAsOutput: () => { },
@@ -59,15 +59,45 @@ export class BoxScreenN3D implements Node3D {
     }
 
     public useRenderer(instanceId: string) {
-        console.log(`[BoxScreen] DEBUG: useRenderer triggered with ID: ${instanceId}`);
         this.currentInstanceId = instanceId;
+        (this as any)._attachedInstanceId = null;
+        this.showLoading();
         this.refresh();
     }
 
+    private showLoading() {
+        const scene = this.gui.display.getScene();
+        const mat = new StandardMaterial("sphereLoadingMat", scene);
+        const dt = new DynamicTexture("sphereLoadingDT", { width: 1024, height: 512 }, scene, false);
+        mat.diffuseTexture = dt;
+        mat.emissiveTexture = dt;
+        mat.emissiveColor = new Color3(1, 1, 1);
+        mat.disableLighting = true;
+        mat.backFaceCulling = false;
+        this.gui.display.material = mat;
+
+        const ctx = dt.getContext() as CanvasRenderingContext2D;
+        ctx.translate(0, 512);
+        ctx.scale(1, -1);
+        
+        ctx.fillStyle = "#111111";
+        ctx.fillRect(0, 0, 1024, 512);
+        ctx.font = "bold 60px Arial";
+        ctx.fillStyle = "#BB66FF";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText("Loading, wait a few seconds...", 512, 256);
+        dt.update(false);
+    }
+
     private stopVideo() {
-        console.log("[BoxScreen] DEBUG: stopping video");
         this.currentInstanceId = null;
         (this as any)._attachedInstanceId = null;
+        const scene = this.gui.display.getScene();
+        const mat = new StandardMaterial("sphereBlackMat", scene);
+        mat.emissiveColor = new Color3(0, 0, 0);
+        mat.disableLighting = true;
+        this.gui.display.material = mat;
     }
 
     private refresh() {
@@ -83,7 +113,7 @@ export class BoxScreenN3D implements Node3D {
         );
 
         if (renderer) {
-            if ((this as any)._attachedInstanceId !== this.currentInstanceId) {
+            if ((renderer as any).hasFrames && (this as any)._attachedInstanceId !== this.currentInstanceId) {
                 renderer.attachToMesh(this.gui.display);
                 (this as any)._attachedInstanceId = this.currentInstanceId;
             }
@@ -98,10 +128,10 @@ export class BoxScreenN3D implements Node3D {
     }
 }
 
-export const BoxScreenN3DFactory: Node3DFactory<BoxScreenN3DGUI, BoxScreenN3D> = {
-    label: "Box Screen",
-    description: "Cube-shaped display for video content.",
+export const SphereScreenN3DFactory: Node3DFactory<SphereScreenN3DGUI, SphereScreenN3D> = {
+    label: "Sphere Screen",
+    description: "Spherical display for video content.",
     tags: ["video", "other"],
-    createGUI: async (context) => new BoxScreenN3DGUI(context),
-    create: async (context, gui) => new BoxScreenN3D(context, gui),
+    createGUI: async (context) => new SphereScreenN3DGUI(context),
+    create: async (context, gui) => new SphereScreenN3D(context, gui),
 }

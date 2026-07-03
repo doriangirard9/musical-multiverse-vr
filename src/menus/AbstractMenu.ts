@@ -7,8 +7,8 @@ import { InputHoverBehavior } from "../node3d/tools"
 import { InputManager } from "../xr/inputs"
 
 export class AbstractMenu {
-    protected root!: TransformNode
-    protected plane!: Mesh
+    protected _root!: TransformNode
+    protected _plane!: Mesh
     protected texture!: AdvancedDynamicTexture
     protected label?: N3DText
 
@@ -29,21 +29,21 @@ export class AbstractMenu {
      */
     protected initPanel(name: string, width: number, height: number, textureResolution: number = 512) {
         // Dispose if already initialized
-        if(this.root) this.root.dispose()
-        if(this.plane) this.plane.dispose()
+        if(this._root) this._root.dispose()
+        if(this._plane) this._plane.dispose()
         if(this.texture) this.texture.dispose()
         if(this.label) this.label.dispose()
 
-        this.root = new TransformNode(name, this.scene)
+        this._root = new TransformNode(name, this.scene)
         
-        this.plane = CreatePlane(name, { width:1, height:1 }, this.renderScene)
-        this.plane.parent = this.root
-        this.plane.scaling.set(width, height, 1)
+        this._plane = CreatePlane(name, { width:1, height:1 }, this.renderScene)
+        this._plane.parent = this._root
+        this._plane.scaling.set(width, height, 1)
 
         if(this.options.interactable ?? true){
             // Inputs to pointer behavior
             const pointer_controls = new InputToPointerBehavior()
-            this.plane.addBehavior(pointer_controls)
+            this._plane.addBehavior(pointer_controls)
 
             // Scroll
             const SCROLL_RATE = 0.05
@@ -72,24 +72,24 @@ export class AbstractMenu {
                     }
                 },
             )
-            this.plane.addBehavior(hover)
+            this._plane.addBehavior(hover)
         }
         else{
-            this.plane.isPickable = false
+            this._plane.isPickable = false
         }
 
         // Calculate texture height based on plane aspect ratio
         const textureHeight = Math.round(textureResolution * (height / width))
 
         this.texture = AdvancedDynamicTexture.CreateForMesh(
-            this.plane,
+            this._plane,
             textureResolution,
             textureHeight
         )
     }
 
     protected resizePanel(width: number, height: number, textureResolution: number = 512) {
-        this.plane.scaling.set(width, height, 1)
+        this._plane.scaling.set(width, height, 1)
         const textureHeight = Math.round(textureResolution * (height / width))
         this.texture.scaleTo(textureResolution, textureHeight)
     }
@@ -100,7 +100,7 @@ export class AbstractMenu {
      * @param labelClass The N3DText class (passed to avoid circular imports)
      */
     protected initLabel(name: string) {        
-        this.label = new N3DText(name, [this.plane], this.renderScene)
+        this.label = new N3DText(name, [this._plane], this.renderScene)
         this.label!.plane.renderingGroupId = 1
         this.label!.list.background = "rgb(0,0,0,0.5)"
     }
@@ -113,9 +113,9 @@ export class AbstractMenu {
      * Show the panel
      */
     show() {
-        if(this.plane.isVisible) return
+        if(this._plane.isVisible) return
 
-        this.plane.isVisible = true
+        this._plane.isVisible = true
         this.onShow.notifyObservers()
     }
 
@@ -123,9 +123,9 @@ export class AbstractMenu {
      * Hide the panel
      */
     hide() {
-        if(!this.plane.isVisible) return
+        if(!this._plane.isVisible) return
 
-        this.plane.isVisible = false
+        this._plane.isVisible = false
         this.label?.hide()
         this.onHide.notifyObservers()
     }
@@ -134,15 +134,21 @@ export class AbstractMenu {
      * Toggle visibility
      */
     toggle() {
-        this.plane.isVisible ? this.hide() : this.show()
+        this._plane.isVisible ? this.hide() : this.show()
     }
 
     /**
      * Get visibility state
      */
     get isVisible() {
-        return this.plane.isVisible
+        return this._plane.isVisible
     }
+
+    /** Get the root transform node of the menu */
+    get root() { return this._root }
+
+    /** Get the plane mesh of the menu */
+    get plane() { return this._plane }
 
     /**
      * Position a control on the texture using percentage coordinates
@@ -182,12 +188,12 @@ export class AbstractMenu {
                 .multiplyInPlace(Quaternion.FromEulerAngles(0.1, 0, 0))
 
             // Smooth positioning
-            const positionDiff = Vector3.DistanceSquared(this.root.position, targetPosition)
+            const positionDiff = Vector3.DistanceSquared(this._root.position, targetPosition)
             if (positionDiff > 0.4) {
-                this.root.position.scaleInPlace(.95).addInPlace(targetPosition.scaleInPlace(.05))
+                this._root.position.scaleInPlace(.95).addInPlace(targetPosition.scaleInPlace(.05))
             }
 
-            this.root.rotationQuaternion = targetRotation
+            this._root.rotationQuaternion = targetRotation
         })
 
         return o
@@ -236,10 +242,10 @@ export class AbstractMenu {
                 * .8 + .2 // To 0.2..1
             )
                 
-            this.root.scaling.setAll(.15*sizeMultiplier)
+            this._root.scaling.setAll(.15*sizeMultiplier)
 
             // Rotate
-            this.root.rotationQuaternion = Quaternion.FromLookDirectionLH(
+            this._root.rotationQuaternion = Quaternion.FromLookDirectionLH(
                 head.direction.scale(-1),
                 head_up
             )
@@ -248,7 +254,7 @@ export class AbstractMenu {
         const o2 = pointer.onMove.add(() => {
             // Place
             const targetPosition = pointer.forward.scale(-.1).addInPlace(pointer.origin)
-            this.root.position.scaleInPlace(.2).addInPlace(targetPosition.scaleInPlace(.8))
+            this._root.position.scaleInPlace(.2).addInPlace(targetPosition.scaleInPlace(.8))
         })
 
         return {
@@ -283,6 +289,7 @@ export class AbstractMenu {
             this.label?.dispose?.()
         }
         this.texture.dispose()
-        this.plane.dispose()
+        this._plane.dispose()
+        this._root.dispose()
     }
 }

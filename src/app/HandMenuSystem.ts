@@ -11,6 +11,8 @@ import { ChoiceMenu, MenuButton as ChoiceMenuButton } from "../menus/ChoiceMenu"
 import { NoteUtils } from "../node3d/tools";
 import { ROUTES, buildHash } from "../router/routes"
 import { BlocksMenu, BMenuBlock } from "../menus/BlocksMenu"
+import { MicrophoneSystem } from "./MicrophoneSystem"
+import { MenuSystem } from "./MenuSystem"
 
 
 /**
@@ -64,6 +66,12 @@ export class HandMenuSystem {
         wamTransport.onChange(() => {
             this.updateMenu()
         })
+
+        if (MicrophoneSystem.hasInstance()) {
+            MicrophoneSystem.getInstance().onStateChanged.add(() => {
+                this.transportMenu.updateMenu()
+            })
+        }
 
         this.updateMenu()
     }
@@ -236,6 +244,71 @@ class TransportMenu{
             width:1, height: 1
         })
 
+        if (MicrophoneSystem.hasInstance()) {
+            const microphone = MicrophoneSystem.getInstance()
+            const micState = microphone.getState()
+            const micColor = micState.mode === "muted"
+                ? "#d27f7f"
+                : micState.talkActive
+                    ? "#7ee787"
+                    : "#66ccff"
+
+            items.push({
+                text: `Mic : ${microphone.getModeLabel()}`,
+                color: micColor,
+                width: 4, height: 2,
+            })
+            items.push({
+                text: "Mode",
+                color: micColor,
+                width: 2, height: 2,
+                onClick: () => {
+                    void microphone.cycleMode().then(success => {
+                        if (!success && microphone.getState().error) {
+                            MenuSystem.getInstance().showMessage(microphone.getState().error!, "#ff8080")
+                        } else {
+                            this.updateMenu()
+                        }
+                    })
+                }
+            })
+
+            items.push({
+                text: `Monitor : ${micState.monitorEnabled ? "On" : "Off"}`,
+                color: micState.monitorEnabled ? "#7ee787" : "#9fb4c8",
+                width: 4, height: 2,
+            })
+            items.push({
+                text: "Toggle",
+                color: micState.monitorEnabled ? "#7ee787" : "#9fb4c8",
+                width: 2, height: 2,
+                onClick: () => {
+                    void microphone.toggleMonitor().then(success => {
+                        if (!success && microphone.getState().error) {
+                            MenuSystem.getInstance().showMessage(microphone.getState().error!, "#ff8080")
+                        } else {
+                            this.updateMenu()
+                        }
+                    })
+                }
+            })
+
+            if (micState.mode === "push_to_talk") {
+                items.push({
+                    text: `Talk : ${micState.talkActive ? "On" : "Off"}`,
+                    color: micState.talkActive ? "#7ee787" : "#ffca5c",
+                    width: 4, height: 2,
+                })
+                items.push({
+                    text: "Toggle",
+                    color: micState.talkActive ? "#7ee787" : "#ffca5c",
+                    width: 2, height: 2,
+                    onClick: () => {
+                        void microphone.toggleTalkLatch().then(() => this.updateMenu())
+                    }
+                })
+            }
+        }
 
         this.menu.set({ width: 6, items })
     }

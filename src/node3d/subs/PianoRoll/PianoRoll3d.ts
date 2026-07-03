@@ -1,4 +1,5 @@
 import { Matrix } from "@babylonjs/core";
+import earcut from "earcut";
 import type { Node3D, Node3DFactory, Node3DGUI } from "../../Node3D";
 import type { Node3DGUIContext } from "../../Node3DGUIContext";
 import { MidiN3DConnectable } from "../../tools"; // Ensure this is a value export
@@ -1128,7 +1129,7 @@ class PianoRollN3DGUI implements Node3DGUI {
       new B.Vector2(r, 0)
     ];
 
-    const builder = new B.PolygonMeshBuilder(`${name}Triangulation`, pts, scene);
+    const builder = new B.PolygonMeshBuilder(`${name}Triangulation`, pts, scene, earcut);
     const mesh = builder.build(false, depth);
     mesh.bakeCurrentTransformIntoVertices();
     mesh.rotation.x = Math.PI; // orient into XZ plane

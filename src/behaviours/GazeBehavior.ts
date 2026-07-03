@@ -56,6 +56,10 @@ export class GazeBehavior implements Behavior<AbstractMesh> {
     private _lastCheckTime: number = 0
     private _isCurrentlyGazing: boolean = false
 
+    public get attachedNode(): Nullable<AbstractMesh> {
+        return this._attachedNode
+    }
+
     public init(): void {}
 
     /**

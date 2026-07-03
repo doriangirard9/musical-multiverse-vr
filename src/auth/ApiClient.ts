@@ -37,10 +37,10 @@ export class ApiClient {
             if (refreshed) {
                 const retryResponse = await this.rawFetch(method, path, body);
                 if (!retryResponse.ok) {
-                    const error = await retryResponse.json().catch(() => ({ error: 'Request failed' }));
+                    const error = await this.readJsonOrFallback(retryResponse, { error: 'Request failed' });
                     throw new ApiError(retryResponse.status, error.error || 'Request failed');
                 }
-                return retryResponse.json();
+                return this.readJsonOrThrow<T>(retryResponse, method, path);
             }
             // Refresh failed — clear token
             this.accessToken = null;
@@ -48,11 +48,11 @@ export class ApiClient {
         }
 
         if (!response.ok) {
-            const error = await response.json().catch(() => ({ error: 'Request failed' }));
+            const error = await this.readJsonOrFallback(response, { error: 'Request failed' });
             throw new ApiError(response.status, error.error || 'Request failed');
         }
 
-        return response.json();
+        return this.readJsonOrThrow<T>(response, method, path);
     }
 
     /**
@@ -103,6 +103,36 @@ export class ApiClient {
             credentials: 'include',
             body: body ? JSON.stringify(body) : undefined,
         });
+    }
+
+    private async readJsonOrThrow<T>(response: Response, method: string, path: string): Promise<T> {
+        if (response.status === 204) {
+            return undefined as T;
+        }
+
+        const text = await response.text();
+        if (!text.trim()) {
+            return undefined as T;
+        }
+
+        try {
+            return JSON.parse(text) as T;
+        } catch (error) {
+            throw new ApiError(
+                502,
+                `Invalid JSON response for ${method} ${path}: ${error instanceof Error ? error.message : 'parse failed'}`
+            );
+        }
+    }
+
+    private async readJsonOrFallback<T>(response: Response, fallback: T): Promise<T> {
+        const text = await response.text();
+        if (!text.trim()) return fallback;
+        try {
+            return JSON.parse(text) as T;
+        } catch {
+            return fallback;
+        }
     }
 }
 

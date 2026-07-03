@@ -22,6 +22,7 @@ function initDatabase() {
     // Enable WAL mode for better concurrent read performance
     db.exec('PRAGMA journal_mode = WAL');
     db.exec('PRAGMA foreign_keys = ON');
+    db.exec('PRAGMA wal_autocheckpoint = 256');
 
     // Create tables
     db.exec(`

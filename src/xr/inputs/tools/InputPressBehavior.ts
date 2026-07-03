@@ -1,4 +1,4 @@
-import { AbstractMesh, Behavior } from "@babylonjs/core";
+import { AbstractMesh, Behavior, Nullable } from "@babylonjs/core";
 import { InputManager } from "../InputManager";
 import { ControllerInput } from "../ControllerInput";
 
@@ -47,7 +47,7 @@ export class InputPressBehavior implements Behavior<AbstractMesh> {
 
     init(): void {}
 
-    attachedNode: AbstractMesh
+    attachedNode: Nullable<AbstractMesh> = null
 
     attach(target: AbstractMesh): void {
         this.detach()

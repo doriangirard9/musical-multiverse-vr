@@ -1,4 +1,4 @@
-import { AbstractMesh, Behavior } from "@babylonjs/core";
+import { AbstractMesh, Behavior, Nullable } from "@babylonjs/core";
 import { InputManager } from "../InputManager";
 import { PointerInput } from "../PointerInput";
 
@@ -26,7 +26,7 @@ export class InputDropBehavior implements Behavior<AbstractMesh> {
 
     init(): void {}
 
-    attachedNode: AbstractMesh
+    attachedNode: Nullable<AbstractMesh> = null
 
     attach(target: AbstractMesh): void {
         this.detach()

@@ -13,7 +13,7 @@ import { InputManager } from "../../../../xr/inputs/InputManager";
  * 
  * Features:
  * - Press X button when near throne to sit down
- * - Hold B button to stand up (with visual indicator)
+ * - Hold X button to stand up (with visual indicator)
  * - Automatic drumstick placement in hands when sitting
  * - Drumsticks released when standing up
  * - Saves/restores user position and height
@@ -44,10 +44,10 @@ export class ThroneController {
     private sittingForwardOffset: number = -0.1; // Distance forward from throne center (meters) - positive = toward drums
     
     // Height adjustment
-    private readonly MIN_SITTING_HEIGHT = 0.5; // meters
-    private readonly MAX_SITTING_HEIGHT = 1.5; // meters
+    private readonly MIN_SITTING_HEIGHT = 0.5/5/0.3; // meters
+    private readonly MAX_SITTING_HEIGHT = 1.5/5/0.3; // meters
     private readonly HEIGHT_ADJUSTMENT_SPEED = 0.01; // meters per frame
-    
+
     private log: boolean = true;
     
     constructor(
@@ -149,14 +149,14 @@ export class ThroneController {
             }
         })
         
-        const o2 = inputs.b_button.onDown.add(() => {
+        const o2 = inputs.x_button.onDown.add(() => {
             if(this.throneNode.isDisposed()){ o2.remove(); return }
             if (this.isSitting) {
                 this.onStandUpButtonPressed();
             }
         })
 
-        const o3 = inputs.b_button.onUp.add(() => {
+        const o3 = inputs.x_button.onUp.add(() => {
             if(this.throneNode.isDisposed()){ o3.remove(); return }
             if (this.isSitting) {
                 this.onStandUpButtonReleased();
@@ -262,7 +262,7 @@ export class ThroneController {
         
         if (this.log) {
             const drumContainer = this.xrDrumKit.drumContainer;
-            console.log("[ThroneController] Sitting down. Hold B to stand up.");
+            console.log("[ThroneController] Sitting down. Hold X to stand up.");
             console.log(`[ThroneController] Target sitting pos: ${targetSittingPos.toString()}`);
             console.log(`[ThroneController] XR rig base moved to: ${camera.position.toString()}`);
             console.log(`[ThroneController] Camera uses quaternion: ${!!camera.rotationQuaternion}`);
@@ -320,7 +320,7 @@ export class ThroneController {
             this.standUpButtonHoldStart = performance.now();
             
             if (this.log) {
-                console.log("[ThroneController] Hold B to stand up...");
+                console.log("[ThroneController] Hold X to stand up...");
             }
             
             // Start monitoring hold duration
@@ -543,15 +543,18 @@ export class ThroneController {
         
         // Only adjust if there's meaningful input (deadzone)
         if (Math.abs(yAxis) > 0.1) {
-            const camera = this.xr.baseExperience.camera;
+            const camera = this.scene.activeCamera!;
             
             // Adjust height: stick up = higher, stick down = lower
             const heightChange = -yAxis * this.HEIGHT_ADJUSTMENT_SPEED;
             const newHeight = camera.position.y + heightChange;
             
             // Clamp to min/max range
-            if (newHeight >= this.MIN_SITTING_HEIGHT && newHeight <= this.MAX_SITTING_HEIGHT) {
+            console.log("new height :", newHeight, "height change :", heightChange, "yAxis :", yAxis, "HEIGHT_ADJUSTMENT_SPEED :", this.HEIGHT_ADJUSTMENT_SPEED, "MIN_SITTING_HEIGHT :", this.MIN_SITTING_HEIGHT, "MAX_SITTING_HEIGHT :", this.MAX_SITTING_HEIGHT);
+            const drumSize = this.xrDrumKit.drumContainer.absoluteScaling.x
+            if (newHeight >= this.MIN_SITTING_HEIGHT*drumSize && newHeight <= this.MAX_SITTING_HEIGHT*drumSize) {
                 camera.position.y = newHeight;
+
             }
         }
     }

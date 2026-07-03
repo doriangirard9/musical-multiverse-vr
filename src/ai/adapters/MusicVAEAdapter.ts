@@ -126,7 +126,7 @@ export class MusicVAEAdapter implements IMusicGeneratorAdapter {
             // Interpolation latente zMix = lerp(zA, zB, morph)
             const zMix = this.zA.map((a, i) => a * (1 - t) + this.zB[i] * t);
             const zTensor = tf.tensor2d([zMix]);                // [1, D]
-            const seqs = await this.vae.decode(zTensor, temp);  // INoteSequence[]
+            const seqs = await this.vae.decode(zTensor as any, temp);  // INoteSequence[]
             zTensor.dispose();
 
             const phrase = seqs[0];

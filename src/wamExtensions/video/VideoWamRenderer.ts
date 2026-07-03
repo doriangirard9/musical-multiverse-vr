@@ -11,9 +11,11 @@ export class VideoWamRenderer {
     private pluginId: string;
     private inputPluginId: string | null = null;
     private inputTexture: WebGLTexture | null = null;
+    private isButterchurn: boolean;
 
     constructor(private scene: Scene, delegate: VideoDelegate, pluginId: string, audioCtx: AudioContext) {
         this.delegate = delegate;
+        this.isButterchurn = pluginId.toLowerCase().includes('butterchurn');
         this.audioCtx = audioCtx;
         this.pluginId = pluginId;
         
@@ -85,8 +87,32 @@ export class VideoWamRenderer {
         if (outputs && outputs[0]) {
             this.renderer.render(outputs[0]);
             this.texture.update();
+            
+            if (!this.hasFrames) {
+                const gl = this.renderer.gl;
+                const pixels = new Uint8Array(4);
+                // Read a single pixel from the center of the canvas
+                const cx = Math.floor(gl.drawingBufferWidth / 2);
+                const cy = Math.floor(gl.drawingBufferHeight / 2);
+                gl.readPixels(cx, cy, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+                
+                // Butterchurn outputs various dark/grey noise frames during compilation (e.g. 12,16,17 or 72,85,85).
+                // We wait until the center pixel has at least one color channel brighter than 100 (approx 40% brightness).
+                // For other WAMs like ISF Shader, we assume they are ready as soon as they output any frame.
+                let isValid = true;
+                if (this.isButterchurn) {
+                    isValid = pixels[0] > 100 || pixels[1] > 100 || pixels[2] > 100;
+                }
+                
+                if (isValid) {
+                    console.log(`[VideoWamRenderer] DEBUG: Valid frame detected! RGB: ${pixels[0]}, ${pixels[1]}, ${pixels[2]}`);
+                    this.hasFrames = true;
+                }
+            }
         } 
     }
+
+    public hasFrames = false;
 
     public getCanvas() {
         return this.canvas;
@@ -97,6 +123,15 @@ export class VideoWamRenderer {
     }
 
     public attachToMesh(mesh: AbstractMesh) {
+        // Remove stale vertex color data (e.g. set to black by stopVideo)
+        // that would otherwise multiply with and zero-out the video texture.
+        // useVertexColors lives on AbstractMesh, NOT on StandardMaterial.
+        mesh.useVertexColors = false;
+        const m = mesh as any;
+        if (m.removeVerticesData && m.isVerticesDataPresent && m.isVerticesDataPresent("color")) {
+            m.removeVerticesData("color");
+        }
+
         const mat = new StandardMaterial(`wam-video-mat-${mesh.name}`, this.scene);
         mat.diffuseTexture = this.texture;
         mat.emissiveTexture = this.texture;

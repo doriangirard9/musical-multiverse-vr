@@ -4,7 +4,7 @@
  * @module inputs
  */
 
-import { AbstractMesh, Immutable, Observable, Scene, Vector3, WebXRDefaultExperience, WebXRInputSource } from "@babylonjs/core";
+import { AbstractMesh, Immutable, Nullable, Observable, Scene, Vector3, WebXRDefaultExperience, WebXRInputSource } from "@babylonjs/core";
 import { ButtonInput, ButtonInputEvent } from "./ButtonInput";
 import { PressableInputEvent } from "./PressableInput";
 import { AxisInputEvent } from "./AxisInput";
@@ -39,7 +39,7 @@ export class InputManager {
         
     public static getInstance(): InputManager { return this.instance }
 
-    public static create(xrHelper: WebXRDefaultExperience, scene: Scene[]) { this.instance = new InputManager(xrHelper, scene) }
+    public static create(xrHelper: Nullable<WebXRDefaultExperience>, scene: Scene[]) { this.instance = new InputManager(xrHelper, scene) }
     
     
     //// OBSERVERS ////
@@ -112,7 +112,7 @@ export class InputManager {
     private _toucheds = new Map<AbstractMesh,number>()
 
     private constructor(
-        xrHelper: WebXRDefaultExperience,
+        xrHelper: Nullable<WebXRDefaultExperience>,
         scenes: Scene[],
     ){
         const im = this
@@ -183,7 +183,9 @@ export class InputManager {
         this._registerDocument(scenes)
         
         // Register XR observers : based on XR controller events
-        this._registerXR(xrHelper, XRManager.getInstance(), scenes)
+        if (xrHelper) {
+            this._registerXR(xrHelper, XRManager.getInstance(), scenes)
+        }
 
         // General scene control : based on camera per example
         this._registerScene(scenes)
