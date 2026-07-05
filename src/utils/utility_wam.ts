@@ -1,4 +1,4 @@
-import { AudioWorkletGlobalScope } from "@webaudiomodules/api";
+import { AudioWorkletGlobalScope, WamParameterData } from "@webaudiomodules/api";
 import { WamNode, WamProcessor, WebAudioModule } from "@webaudiomodules/sdk";
 
 
@@ -10,6 +10,12 @@ export function getUtilityWamProcessor(moduleId: string){
 
 
     class UtilityWamProcessor extends WP{
+        async _onMessage(message: MessageEvent): Promise<void> {
+            
+        }
+
+        _setParameterValue(parameterUpdate: WamParameterData, interpolate: boolean): void {
+        }
     }
 
 

@@ -1,11 +1,11 @@
 import { AbstractMesh, CreatePlane, Ray, TransformNode } from "@babylonjs/core"
-import { Node3DNetwork } from "../network/Node3DNetwork"
-import { SceneManager } from "./SceneManager"
-import { Node3DInstance } from "../node3d/instance/Node3DInstance"
-import { BlocksMenu, BMenuMenu } from "../menus/BlocksMenu"
-import { TargetManager } from "./TargetManager"
+import { Node3DNetwork } from "../../network/Node3DNetwork"
+import { SceneManager } from "../SceneManager"
+import { Node3DInstance } from "../../node3d/instance/Node3DInstance"
+import { BlocksMenu, BMenuMenu } from "../../menus/BlocksMenu"
+import { TargetManager } from "../TargetManager"
 import { ContextMenuSystem } from "./ContextMenuSystem"
-import { Serialization } from "./Serialization"
+import { Serialization } from "../node3d/Serialization"
 
 
 const DEBUG_BAR_MENU = false

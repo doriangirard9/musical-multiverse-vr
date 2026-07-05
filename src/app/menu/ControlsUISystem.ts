@@ -1,7 +1,7 @@
 import * as GUI from "@babylonjs/gui";
 import * as B from "@babylonjs/core";
-import { XRManager } from "../xr/XRManager.ts";
-import { SceneManager } from "./SceneManager.ts";
+import { XRManager } from "../../xr/XRManager.ts";
+import { SceneManager } from "../SceneManager.ts";
 
 interface ButtonLabel {
     mesh: B.Mesh;

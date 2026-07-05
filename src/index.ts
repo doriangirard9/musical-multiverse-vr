@@ -141,7 +141,7 @@ let onload = async() => {
                             import("./app/App.ts"),
                             import("./ui/pages/SessionHUD.ts"),
                             import("./network/SessionConnector.ts"),
-                            import("./app/Node3dManager.ts"),
+                            import("./app/node3d/Node3dManager.ts"),
                             import("./tutorial/TutorialController.ts"),
                             import("yjs"),
                         ]);

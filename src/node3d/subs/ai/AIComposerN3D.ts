@@ -8,7 +8,7 @@ import type { MagentaRNNVariant } from "../../../ai/adapters/MagentaMusicRNNAdap
 import { WebWorkerAdapter, WorkerModelType } from "../../../ai/adapters/WebWorkerAdapter";
 import { PerfMonitor } from "../../../ai/perf/PerfMonitor";
 import type { MidiEvent, HyperparamSpec } from "../../../ai/types";
-import { WamTransportManager } from "../../../app/WamTransportManager";
+import { WamTransportManager } from "../../../app/node3d/WamTransportManager";
 import { setupInstrumentControls, makeClusterButtons, type TunableParam, type ClusterButtons } from "../behaviours/instrumentControls";
 
 // AI "synth console" module: a metal chassis with a front panel facing the

@@ -1,18 +1,18 @@
-import { InputManager } from "../xr/inputs/InputManager"
-import { SceneManager } from "./SceneManager"
-import { WamTransportManager } from "./WamTransportManager"
-import { DrawingSystem } from "./DrawingSystem"
-import { Node3dManager } from "./Node3dManager"
+import { InputManager } from "../../xr/inputs/InputManager"
+import { SceneManager } from "../SceneManager"
+import { WamTransportManager } from "../node3d/WamTransportManager"
+import { Node3dManager } from "../node3d/Node3dManager"
 import { ShopMenuSystem } from "./ShopMenuSystem"
-import { Serialization } from "./Serialization"
+import { Serialization } from "../node3d/Serialization"
 import { Matrix, Quaternion, Vector3 } from "@babylonjs/core"
-import { QuaternionUtils } from "../utils/quaternion"
-import { ChoiceMenu, MenuButton as ChoiceMenuButton } from "../menus/ChoiceMenu"
-import { NoteUtils } from "../node3d/tools";
-import { ROUTES, buildHash } from "../router/routes"
-import { BlocksMenu, BMenuBlock } from "../menus/BlocksMenu"
-import { MicrophoneSystem } from "./MicrophoneSystem"
+import { QuaternionUtils } from "../../utils/quaternion"
+import { ChoiceMenu, MenuButton as ChoiceMenuButton } from "../../menus/ChoiceMenu"
+import { NoteUtils } from "../../node3d/tools";
+import { ROUTES, buildHash } from "../../router/routes"
+import { BlocksMenu, BMenuBlock } from "../../menus/BlocksMenu"
+import { MicrophoneSystem } from "../MicrophoneSystem"
 import { MenuSystem } from "./MenuSystem"
+import { DrawingSystem } from "../social/DrawingSystem"
 
 
 /**

@@ -1,10 +1,10 @@
 import { Color3, HighlightLayer, Matrix, Observable, TransformNode, UtilityLayerRenderer, Vector3 } from "@babylonjs/core"
 import { NodeCompUtils } from "../tools/utils/NodeCompUtils"
 import { Node3DParameter } from "../Node3DParameter"
-import { N3DText } from "./utils/N3DText"
 import { InputHoverBehavior } from "../../xr/inputs/tools/InputHoverBehavior"
 import { InputGrabBehavior } from "../../xr/inputs/tools/InputGrabBehavior"
 import { Node3DInstance } from "./Node3DInstance"
+import { PointerInput } from "../../xr/inputs"
 
 const highlightColor = Color3.Blue()
 
@@ -48,9 +48,6 @@ export class N3DParameterInstance {
         readonly config: Node3DParameter,
     ) {
 
-        // Parameter value text visual
-        const text = this.text = new N3DText(`parameter ${config.id}`, config.meshes, utilityLayer.utilityLayerScene)
-
         // Highlight visual
         const highlight = this.highlight = {
             show(){ for(const d of config.meshes) NodeCompUtils.highlight(highlightLayer, d, highlightColor) },
@@ -65,28 +62,17 @@ export class N3DParameterInstance {
                 this.stack += offset
                 if(this.stack == 1){
                     highlight.show()
-                    text.show()
                 }
                 else if(this.stack == 0){
                     highlight.hide()
-                    text.hide()
                 }
             }
-        }
-
-        function updateText(){
-            text.updatePosition()
-            text.set([
-                {content: config.getLabel()},
-                {content: config.stringify(config.getValue()), size: .7}
-            ])
         }
 
         const disposables: (()=>void)[] = []
 
         for(const draggable of config.meshes){        
             const hover = new InputHoverBehavior(()=>{
-                updateText()
                 visual.offset(1)
             }, ()=>{
                 visual.offset(-1)
@@ -107,6 +93,7 @@ export class N3DParameterInstance {
 
             const drag = new InputGrabBehavior(
                 input=>{
+                    // Change
                     visual.offset(1)
                 
                     stepSize = config.getStepSize()
@@ -124,13 +111,17 @@ export class N3DParameterInstance {
                     // If stepCount is 2, the value is directly changed
                     if(isButton()){
                         this.setValue(config.getValue()<(this.getMax()+this.getMin())/2 ? this.getMax() : this.getMin())
-                        updateText()
                     }
                     
                     reverseMatrix.copyFrom(input.matrix).invertToRef(reverseMatrix)
+
+                    this.onDragStart.notifyObservers({pointer: input, value: startingValue})
+                    this.node3d.onParameterDragStart.notifyObservers({parameter:this, pointer: input, value: startingValue})
                 },
-                ()=>{
+                input=>{
                     visual.offset(-1)
+                    this.onDragStop.notifyObservers({pointer: input, value: this.getValue()})
+                    this.node3d.onParameterDragStop.notifyObservers({parameter:this, pointer: input, value: this.getValue()})
                 },
                 input=>{
                     // If stepCount is 2, do nothing on drag
@@ -146,7 +137,7 @@ export class N3DParameterInstance {
                         const corrected_length = Math.min(1/ground_length,10)
 
                         temp.copyFrom(dirOffset).scaleInPlace(corrected_length).addInPlace(posOffset)
-                        return -temp.y
+                        return temp.y
                     })
 
                     const offset = fromOffset(relativePosition, relativeDirection)
@@ -156,7 +147,9 @@ export class N3DParameterInstance {
                     newvalue = Math.max(this.getMin(), Math.min(this.getMax(), newvalue))
                     this.setValue(newvalue, ParameterChangeMode.DIRECT_MANUAL)
                     //TODO: pk j'ai mit ça déjà : draggable.rotationQuaternion = null
-                    updateText()
+
+                    this.onDrag.notifyObservers({pointer: input, value: newvalue})
+                    this.node3d.onParameterDrag.notifyObservers({parameter:this, pointer: input, value: newvalue})
                 },
             )
             
@@ -172,7 +165,6 @@ export class N3DParameterInstance {
 
         this.dispose = () => {
             disposables.forEach(d => d())
-            text.dispose()
             highlight.dispose()
         }
     }
@@ -219,7 +211,20 @@ export class N3DParameterInstance {
 
     /** Get the exponent of the parameter. */
     getExponant(): number{
-        return this.config.getExponant()
+        return this.config.getExponant()||1
+    }
+
+    /** Normalize a value between 0 and 1. */
+    normalize(value: number): number{
+        console.log(this.getMin(),"<",value,"<",this.getMax(),this.getExponant())
+        const n = (value - this.getMin()) / (this.getMax() - this.getMin())
+        return Math.pow(n, this.getExponant())
+    }
+
+    /** Denormalize a value between 0 and 1. */
+    denormalize(value: number): number{
+        const n = Math.pow(value, 1/this.getExponant())
+        return this.getMin() + n * (this.getMax() - this.getMin())
     }
 
     //// Normalized value ////
@@ -228,16 +233,13 @@ export class N3DParameterInstance {
         let n = value
         if(n<0) n = 0
         if(n>1) n = 1
-        n = Math.pow(n, 1/this.getExponant())
-        const v = this.getMin() + n * (this.getMax() - this.getMin())
+        const v = this.denormalize(n)
         this.setValue(v,type)
     }
 
     /** Get the normalized value of the parameter. */
     getNormalizedValue(): number{
-        const v = this.getValue()
-        const n = (v - this.getMin()) / (this.getMax() - this.getMin())
-        return Math.pow(n, this.getExponant())
+        return this.normalize(this.getValue())
     }
 
     /** Get the normalized step size of the parameter. */
@@ -248,9 +250,12 @@ export class N3DParameterInstance {
     }
 
     readonly dispose
-    readonly text
     readonly highlight
     readonly visual
+
     readonly onValueChanged = new Observable<number>()
+    readonly onDragStart = new Observable<{pointer:PointerInput, value:number}>()
+    readonly onDrag = new Observable<{pointer:PointerInput, value:number}>()
+    readonly onDragStop = new Observable<{pointer:PointerInput, value:number}>()
 
 }

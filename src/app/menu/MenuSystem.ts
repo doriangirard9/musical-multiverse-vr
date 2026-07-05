@@ -1,6 +1,6 @@
-import { AbstractMenu } from "../menus/AbstractMenu"
-import { MessageMenu } from "../menus/MessageMenu"
-import { SceneManager } from "./SceneManager"
+import { AbstractMenu } from "../../menus/AbstractMenu"
+import { MessageMenu } from "../../menus/MessageMenu"
+import { SceneManager } from "../SceneManager"
 
 
 /**

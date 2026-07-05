@@ -2,10 +2,10 @@ import * as Y from 'yjs';
 import { N3DConnectionInstance } from '../node3d/instance/N3DConnectionInstance.ts';
 import { SceneManager } from '../app/SceneManager.ts';
 import { Node3DInstance } from '../node3d/instance/Node3DInstance.ts';
-import { Node3dManager } from '../app/Node3dManager.ts';
+import { Node3dManager } from '../app/node3d/Node3dManager.ts';
 import { SyncSerializable } from './sync/SyncSerializable.ts';
 import { Observable } from '@babylonjs/core';
-import { MenuSystem } from '../app/MenuSystem.ts';
+import { MenuSystem } from '../app/menu/MenuSystem.ts';
 
 /**
  * Composant gérant les nœuds audio et leurs états.

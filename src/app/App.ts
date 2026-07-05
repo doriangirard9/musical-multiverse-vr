@@ -3,32 +3,33 @@ import { NetworkManager } from "../network/NetworkManager.ts";
 import { InputManager } from "../xr/inputs/InputManager.ts";
 import { XRManager } from "../xr/XRManager.ts";
 import { AppOrchestrator } from "./AppOrchestrator.ts";
-import { ConnectionManager } from "./ConnectionManager.ts";
-import ControlsUISystem from "./ControlsUISystem.ts";
-import { Node3dManager } from "./Node3dManager.ts";
+import { ConnectionManager } from "./node3d/ConnectionManager.ts";
+import ControlsUISystem from "./menu/ControlsUISystem.ts";
+import { Node3dManager } from "./node3d/Node3dManager.ts";
 import { PlayerManager } from "./PlayerManager.ts";
 import { SceneManager } from "./SceneManager.ts";
-import { Serialization } from "./Serialization.ts";
+import { Serialization } from "./node3d/Serialization.ts";
 import { UIManager } from "./UIManager.ts";
-import { DrawingSystem } from "./DrawingSystem.ts";
-import { AvatarSystem } from "./AvatarSystem.ts";
+import { AvatarSystem } from "./social/AvatarSystem.ts";
 import { NetworkEventBus } from "../eventBus/NetworkEventBus.ts";
 import { RandomUtils } from "../node3d/tools/utils/RandomUtils.ts";
 import { Doc } from "yjs";
-import { HandMenuSystem } from "./HandMenuSystem.ts";
-import { WamTransportManager } from "./WamTransportManager.ts";
-import { ShopMenuSystem } from "./ShopMenuSystem.ts";
+import { HandMenuSystem } from "./menu/HandMenuSystem.ts";
+import { WamTransportManager } from "./node3d/WamTransportManager.ts";
+import { ShopMenuSystem } from "./menu/ShopMenuSystem.ts";
 import { TargetManager } from "./TargetManager.ts";
 import { BabylonsJSFix } from "./BabylonsJSFix.ts";
-import { PointerVisualSystem } from "./PointerVisualSystem.ts";
-import { MenuSystem } from "./MenuSystem.ts";
-import { ContextMenuSystem } from "./ContextMenuSystem.ts";
-import { HapticContactSystem } from "./HapticContactSystem.ts";
+import { MenuSystem } from "./menu/MenuSystem.ts";
+import { ContextMenuSystem } from "./menu/ContextMenuSystem.ts";
+import { HapticContactSystem } from "./feedback/HapticContactSystem.ts";
 import { TUTORIAL_KINDS } from "../tutorial/TutorialScenario.ts";
-import { AudioWorldSystem } from "./AudioDestinationSystem.ts";
+import { AudioWorldSystem } from "./node3d/AudioDestinationSystem.ts";
 import { MicrophoneSystem } from "./MicrophoneSystem.ts";
-import { VoiceChatSystem } from "./VoiceChatSystem.ts";
-import { BarMenuSystem } from "./BarMenuSystem.ts";
+import { VoiceChatSystem } from "./social/VoiceChatSystem.ts";
+import { BarMenuSystem } from "./menu/BarMenuSystem.ts";
+import { DrawingSystem } from "./social/DrawingSystem.ts";
+import { ParameterJaugeSystem } from "./menu/ParameterJaugeSystem.ts";
+import { PointerVisualSystem } from "./feedback/PointerVisualSystem.ts";
 
 let _app: App
 
@@ -185,6 +186,10 @@ export class App {
                 TargetManager.getInstance(),
                 MenuSystem.getInstance(),
             ),
+            ParameterJaugeSystem.initialize(
+                SceneManager.getInstance(),
+                NetworkManager.getInstance().node3d,
+            ),
         ])
 
         await BarMenuSystem.initialize(
@@ -195,7 +200,6 @@ export class App {
         )
 
         // Get things
-        const scene = SceneManager.getInstance().getScene()
         const node3dManager = Node3dManager.getInstance()
         const node3dBuilder = node3dManager.builder
         const node3dShared = node3dBuilder.getShared()

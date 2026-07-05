@@ -1,16 +1,16 @@
 import { Color3 } from "@babylonjs/core";
-import { Node3DInstance } from "../node3d/instance/Node3DInstance";
-import { BoxHighlight } from "../world/BoxHighlight";
-import { InputManager } from "../xr/inputs/InputManager";
+import { Node3DInstance } from "../../node3d/instance/Node3DInstance";
+import { BoxHighlight } from "../../world/BoxHighlight";
+import { InputManager } from "../../xr/inputs/InputManager";
 import { MenuSystem } from "./MenuSystem";
-import { Node3dManager } from "./Node3dManager";
-import { SceneManager } from "./SceneManager";
-import { TargetManager } from "./TargetManager";
-import { WamTransportManager } from "./WamTransportManager";
-import { Serialization } from "./Serialization";
-import { N3DLabel } from "../node3d/instance/utils/N3DLabel";
-import { N3DConnectionInstance } from "../node3d/instance/N3DConnectionInstance";
-import { BlocksMenu, BMenuBlock } from "../menus/BlocksMenu";
+import { Node3dManager } from "../node3d/Node3dManager";
+import { SceneManager } from "../SceneManager";
+import { TargetManager } from "../TargetManager";
+import { WamTransportManager } from "../node3d/WamTransportManager";
+import { Serialization } from "../node3d/Serialization";
+import { N3DLabel } from "../../node3d/instance/utils/N3DLabel";
+import { N3DConnectionInstance } from "../../node3d/instance/N3DConnectionInstance";
+import { BlocksMenu, BMenuBlock } from "../../menus/BlocksMenu";
 
 
 /**

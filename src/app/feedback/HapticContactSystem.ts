@@ -1,5 +1,5 @@
-import { InputManager } from "../xr/inputs/InputManager"
-import { WamTransportManager } from "./WamTransportManager"
+import { InputManager } from "../../xr/inputs/InputManager"
+import { WamTransportManager } from "../node3d/WamTransportManager"
 
 
 /**

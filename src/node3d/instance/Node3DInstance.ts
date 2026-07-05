@@ -19,7 +19,7 @@ import { N3DConnectableInstance } from "./N3DConnectableInstance";
 import { IOEventBus } from "../../eventBus/IOEventBus";
 import { XRManager } from "../../xr/XRManager";
 import { SyncManager } from "../../network/sync/SyncManager";
-import { Node3dManager } from "../../app/Node3dManager";
+import { Node3dManager } from "../../app/node3d/Node3dManager.ts";
 import { Doc } from "yjs";
 import { Synchronized } from "../../network/sync/Synchronized";
 import { N3DHighlighter } from "./utils/N3DHighlighter";
@@ -28,7 +28,7 @@ import { AutomationN3DConnectable, MeshUtils } from "../tools";
 import { SceneManager } from "../../app/SceneManager.ts";
 import { InputManager } from "../../xr/inputs/InputManager.ts";
 import { BoxWave } from "../../world/BoxWave.ts";
-import { MenuSystem } from "../../app/MenuSystem.ts";
+import { MenuSystem } from "../../app/menu/MenuSystem.ts";
 import { AbstractMenu } from "../../menus/AbstractMenu.ts";
 import { ChoiceMenu } from "../../menus/ChoiceMenu.ts";
 import { ShakeBehavior } from "../../behaviours/ShakeBehavior.ts";
@@ -38,7 +38,8 @@ import { EffectProfile, EffectSystem } from "../../visual/effects";
 import { Node3DGraph, NodeView, Role } from "../graph/Node3DGraph";
 import { nodeViewOf } from "../graph/Node3DGraphAdapter";
 import { AudioAnalyser, AudioSignalSnapshot } from "../../utils/AudioAnalyser";
-import { AudioWorldSystem } from "../../app/AudioDestinationSystem.ts";
+import { AudioWorldSystem } from "../../app/node3d/AudioDestinationSystem.ts";
+import { PointerInput } from "../../xr/inputs/PointerInput.ts";
 
 
 // ---------------------------------------------------------------------------
@@ -211,10 +212,16 @@ export class Node3DInstance implements Synchronized {
 
     private declare gui: Node3DGUI
     private declare node: Node3D
+    
     readonly parameters = new Map<string, N3DParameterInstance>()
     readonly buttons = new Map<string, N3DButtonInstance>()
     readonly connectables = new Map<string, N3DConnectableInstance>()
+
     readonly onParameterChanged = new Observable<{ id: string, value: number }>()
+    readonly onParameterDragStart = new Observable<{parameter:N3DParameterInstance, pointer:PointerInput, value:number}>()
+    readonly onParameterDrag = new Observable<{parameter:N3DParameterInstance, pointer:PointerInput, value:number}>()
+    readonly onParameterDragStop = new Observable<{parameter:N3DParameterInstance, pointer:PointerInput, value:number}>()
+
     private declare root_transform: TransformNode
     private highlighter!: N3DHighlighter
     private observers = new Set<Observer<any>>()

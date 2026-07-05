@@ -2,7 +2,7 @@ import type { Color4, AbstractMesh } from "@babylonjs/core";
 import type { Node3D, Node3DFactory, Node3DGUI } from "../Node3D";
 import type { Node3DGUIContext } from "../Node3DGUIContext";
 import type { Node3DContext } from "../Node3DContext";
-import { WamTransportManager } from "../../app/WamTransportManager";
+import { WamTransportManager } from "../../app/node3d/WamTransportManager";
 import { IntegerN3DParameter } from "../tools/parameter";
 
 

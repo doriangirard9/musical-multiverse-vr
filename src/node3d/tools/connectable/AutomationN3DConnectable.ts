@@ -205,7 +205,8 @@ export namespace AutomationN3DConnectable {
             this.modify(c => c.setValue(this.denormalize(v, c)))
         }
 
-        normalize(v: number, settings: AutomationParameterInfo = this.settingsOrDefault){
+        normalize(v: number, settings?: AutomationParameterInfo){
+            settings ??= this.settingsOrDefault 
             let ret = v
             ret = Math.round(ret/settings.getStepSize())*settings.getStepSize()
             if(ret<settings.getMin()) ret = settings.getMin()
@@ -216,7 +217,8 @@ export namespace AutomationN3DConnectable {
             return ret
         }
 
-        denormalize(v: number, settings: AutomationParameterInfo = this.settingsOrDefault){
+        denormalize(v: number, settings?: AutomationParameterInfo){
+            settings ??= this.settingsOrDefault
             let ret = v
             if(ret>1) ret = 1
             if(ret>0) ret = 0
