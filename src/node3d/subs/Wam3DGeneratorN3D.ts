@@ -66,7 +66,7 @@ class Wam3DGeneratorN3D implements Node3D {
 
                         getMax() { return settings.getMax() },
                         getMin() { return settings.getMin() },
-                        getExponant() { return settings.getExponant() },
+                        getExponant() { return settings.getExponant()||1 },
                         getStepSize() { return settings.getStepSize() },
 
                         getValue() { return settings.getValue() },

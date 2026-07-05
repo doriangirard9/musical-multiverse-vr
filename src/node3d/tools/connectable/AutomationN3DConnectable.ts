@@ -207,8 +207,14 @@ export namespace AutomationN3DConnectable {
 
         normalize(v: number, settings?: AutomationParameterInfo){
             settings ??= this.settingsOrDefault 
+            console.log(
+                "getStepSize", settings.getStepSize(),
+                "getMin", settings.getMin(),
+                "getMax", settings.getMax(),
+                "getExponant", settings.getExponant()
+            )
             let ret = v
-            ret = Math.round(ret/settings.getStepSize())*settings.getStepSize()
+            if(settings.getStepSize()!=0) ret = Math.round(ret/settings.getStepSize())*settings.getStepSize()
             if(ret<settings.getMin()) ret = settings.getMin()
             if(ret>settings.getMax()) ret = settings.getMax()
             ret = (ret-settings.getMin())/(settings.getMax()-settings.getMin())
@@ -221,10 +227,10 @@ export namespace AutomationN3DConnectable {
             settings ??= this.settingsOrDefault
             let ret = v
             if(ret>1) ret = 1
-            if(ret>0) ret = 0
+            if(ret<0) ret = 0
             ret = Math.pow(ret,1/settings.getExponant())
             ret = ret*(settings.getMax()-settings.getMin())+settings.getMin()
-            ret = Math.round(ret/settings.getStepSize())*settings.getStepSize()
+            if(settings.getStepSize()!=0) ret = Math.round(ret/settings.getStepSize())*settings.getStepSize()
             return ret
         }
 

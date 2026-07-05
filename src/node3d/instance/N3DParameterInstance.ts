@@ -237,7 +237,7 @@ export class N3DParameterInstance {
 
     /** Get the exponent of the parameter. */
     getExponant(): number{
-        return this.config.getExponant()||1
+        return this.config.getExponant()
     }
 
     /** Normalize a value between 0 and 1. */

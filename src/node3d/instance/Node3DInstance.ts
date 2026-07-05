@@ -14,7 +14,7 @@ import { Node3DConnectable } from "../Node3DConnectable";
 import { Node3DParameter } from "../Node3DParameter";
 import { Node3D, Node3DFactory, Node3DGUI } from "../Node3D";
 import { BoundingBox } from "../../behaviours/boundingBox/BoundingBox";
-import { N3DParameterInstance } from "./N3DParameterInstance";
+import { N3DParameterInstance, ParameterChangeMode } from "./N3DParameterInstance";
 import { N3DConnectableInstance } from "./N3DConnectableInstance";
 import { IOEventBus } from "../../eventBus/IOEventBus";
 import { XRManager } from "../../xr/XRManager";
@@ -312,11 +312,11 @@ export class Node3DInstance implements Synchronized {
 
                             stringify(value) { return info.stringify(value) },
                             setValue(value) { 
-                                param.setValue(value)
+                                param.setValue(value, ParameterChangeMode.AUTOMATION)
                                 last_value = value
                             },
                             lock(isLocked) {
-                                if(!isLocked) param.setValue(last_value)
+                                if(!isLocked) param.setValue(last_value, ParameterChangeMode.MANUAL)
                                 param.isLocked = isLocked
                             },
                         },

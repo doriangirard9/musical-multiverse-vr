@@ -93,8 +93,8 @@ export class AutomationControllerN3D implements Node3D {
             getValue() { return output.denormalize(_currentValue, output.settingsOrDefault) },
             setValue(value) {
                 _currentValue = output.normalize(value, output.settingsOrDefault)
-                output.modify(c => c.setValue(output.denormalize(_currentValue, output.settingsOrDefault)))
-                gui.rotator.rotation.y = value * Math.PI - Math.PI/2
+                output.modify(c => c.setValue(output.denormalize(_currentValue, c)))
+                gui.rotator.rotation.y = _currentValue * Math.PI - Math.PI/2
             },
             stringify(value) { return output.settingsOrDefault.stringify(value) },
         })
