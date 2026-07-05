@@ -218,9 +218,9 @@ export class Node3DInstance implements Synchronized {
     readonly connectables = new Map<string, N3DConnectableInstance>()
 
     readonly onParameterChanged = new Observable<{ id: string, value: number }>()
-    readonly onParameterDragStart = new Observable<{parameter:N3DParameterInstance, pointer:PointerInput, value:number}>()
-    readonly onParameterDrag = new Observable<{parameter:N3DParameterInstance, pointer:PointerInput, value:number}>()
-    readonly onParameterDragStop = new Observable<{parameter:N3DParameterInstance, pointer:PointerInput, value:number}>()
+    readonly onParameterDragStart = new Observable<{parameter:N3DParameterInstance, value:number}>()
+    readonly onParameterDrag = new Observable<{parameter:N3DParameterInstance, value:number}>()
+    readonly onParameterDragStop = new Observable<{parameter:N3DParameterInstance, value:number}>()
 
     private declare root_transform: TransformNode
     private highlighter!: N3DHighlighter

@@ -1,10 +1,9 @@
 import { Color3, HighlightLayer, Matrix, Observable, TransformNode, UtilityLayerRenderer, Vector3 } from "@babylonjs/core"
 import { NodeCompUtils } from "../tools/utils/NodeCompUtils"
 import { Node3DParameter } from "../Node3DParameter"
-import { InputHoverBehavior } from "../../xr/inputs/tools/InputHoverBehavior"
 import { InputGrabBehavior } from "../../xr/inputs/tools/InputGrabBehavior"
 import { Node3DInstance } from "./Node3DInstance"
-import { PointerInput } from "../../xr/inputs"
+import { InputHoverBehavior } from "../tools"
 
 const highlightColor = Color3.Blue()
 
@@ -47,6 +46,7 @@ export class N3DParameterInstance {
         utilityLayer: UtilityLayerRenderer,
         readonly config: Node3DParameter,
     ) {
+        const parameter = this
 
         // Highlight visual
         const highlight = this.highlight = {
@@ -68,15 +68,44 @@ export class N3DParameterInstance {
                 }
             }
         }
+        
+        const event = {
+            stack: 0,
+            push(value: number){
+                this.stack++
+                if(this.stack==1){
+                    parameter.onDragStart.notifyObservers({value})
+                    node3d.onParameterDragStart.notifyObservers({parameter, value})
+                }
+                else this.set(value)
+            },
+            set(value: number){
+                if(this.stack>0){
+                    parameter.onDrag.notifyObservers({value})
+                    node3d.onParameterDrag.notifyObservers({parameter, value})
+                }
+            },
+            pop(value: number){
+                this.stack--
+                if(this.stack==0){
+                    parameter.onDragStop.notifyObservers({value})
+                    node3d.onParameterDragStop.notifyObservers({parameter, value})
+                }
+            }
+        }
 
         const disposables: (()=>void)[] = []
 
         for(const draggable of config.meshes){        
-            const hover = new InputHoverBehavior(()=>{
-                visual.offset(1)
-            }, ()=>{
-                visual.offset(-1)
-            })
+            const hover = new InputHoverBehavior(
+                ()=>{
+                    visual.offset(1)
+                    event.push(this.getValue())
+                }, ()=>{
+                    visual.offset(-1)
+                    event.pop(this.getValue())
+                }
+            )
     
             let startingValue = 0
             let stepSize = 0.01
@@ -115,13 +144,11 @@ export class N3DParameterInstance {
                     
                     reverseMatrix.copyFrom(input.matrix).invertToRef(reverseMatrix)
 
-                    this.onDragStart.notifyObservers({pointer: input, value: startingValue})
-                    this.node3d.onParameterDragStart.notifyObservers({parameter:this, pointer: input, value: startingValue})
+                    event.push(startingValue)
                 },
                 input=>{
                     visual.offset(-1)
-                    this.onDragStop.notifyObservers({pointer: input, value: this.getValue()})
-                    this.node3d.onParameterDragStop.notifyObservers({parameter:this, pointer: input, value: this.getValue()})
+                    event.pop(this.getValue())
                 },
                 input=>{
                     // If stepCount is 2, do nothing on drag
@@ -148,8 +175,7 @@ export class N3DParameterInstance {
                     this.setValue(newvalue, ParameterChangeMode.DIRECT_MANUAL)
                     //TODO: pk j'ai mit ça déjà : draggable.rotationQuaternion = null
 
-                    this.onDrag.notifyObservers({pointer: input, value: newvalue})
-                    this.node3d.onParameterDrag.notifyObservers({parameter:this, pointer: input, value: newvalue})
+                    event.set(newvalue)
                 },
             )
             
@@ -216,7 +242,6 @@ export class N3DParameterInstance {
 
     /** Normalize a value between 0 and 1. */
     normalize(value: number): number{
-        console.log(this.getMin(),"<",value,"<",this.getMax(),this.getExponant())
         const n = (value - this.getMin()) / (this.getMax() - this.getMin())
         return Math.pow(n, this.getExponant())
     }
@@ -254,8 +279,8 @@ export class N3DParameterInstance {
     readonly visual
 
     readonly onValueChanged = new Observable<number>()
-    readonly onDragStart = new Observable<{pointer:PointerInput, value:number}>()
-    readonly onDrag = new Observable<{pointer:PointerInput, value:number}>()
-    readonly onDragStop = new Observable<{pointer:PointerInput, value:number}>()
+    readonly onDragStart = new Observable<{value:number}>()
+    readonly onDrag = new Observable<{value:number}>()
+    readonly onDragStop = new Observable<{value:number}>()
 
 }

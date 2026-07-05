@@ -298,7 +298,7 @@ export class AbstractMenu {
      */
     static fitText(control: TextBlock, correction: number = 1) {
         control.textWrapping = false
-        control.onDirtyObservable.addOnce(()=>{
+        control.onDirtyObservable.add(()=>{
             const textWidth = control.text.length*control.fontSizeInPixels*.8/correction
             if(textWidth>control.widthInPixels) control.fontSizeInPixels *= control.widthInPixels / textWidth
 

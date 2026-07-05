@@ -33,7 +33,7 @@ export class JaugeMenu extends AbstractMenu {
         name.textWrapping = true
         name.color = "white"
         name.fontSizeInPixels = 40
-        JaugeMenu.fitText(name, 1.5)
+        JaugeMenu.fitText(name, 1.3)
         back.addControl(name)
         that.place(name, 0, 0, 100, 10)
 
@@ -44,8 +44,8 @@ export class JaugeMenu extends AbstractMenu {
         value.outlineWidth = 8
         value.textWrapping = true
         value.color = "white"
-        value.fontSizeInPixels = 40
-        JaugeMenu.fitText(value, 1.5)
+        value.fontSizeInPixels = 100
+        JaugeMenu.fitText(value, 1.3)
         back.addControl(value)
         that.place(value, 0, 10, 100, 10)
 
@@ -58,7 +58,7 @@ export class JaugeMenu extends AbstractMenu {
     }
 
     set name(v: string){
-        if(v.length>20) v = "..."+v.slice(-20,-1)
+        if(v.length>15) v = "..."+v.slice(-15)
         this._name.fontSizeInPixels = 100
         this._name.text = v
     }

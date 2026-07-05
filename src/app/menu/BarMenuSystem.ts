@@ -33,6 +33,7 @@ export class BarMenuSystem {
         return this._instance
     }
 
+    private dispose?: ()=>void
 
     constructor(
         private scenes: SceneManager,
@@ -43,7 +44,8 @@ export class BarMenuSystem {
         for(const target of targets.controllerToTarget.values()){
             target.onNewTarget.add(target=>{
                 if(target.new.node){
-                    this.createMenuFor(target.new.node)
+                    if(this.dispose) this.dispose()
+                    this.dispose = this.createMenuFor(target.new.node)
                 }
             })
         }
