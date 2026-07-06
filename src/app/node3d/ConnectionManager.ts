@@ -113,12 +113,15 @@ export class ConnectionManager {
 
             case "up":
                 if(this.currentPort){
-                    this.connect(this.currentPort, data.connectable)
+                    if(this.currentPort!=data.connectable) // Don't try if up on same port
+                        this.connect(this.currentPort, data.connectable)
                 }
                 this._cancelAndResetConnection()
                 break;
 
             case "out":
+                // TODO: C'est quoi ça ? 
+                // TODO: Je vois ce que c'est mais ça ne peux pas fonctionner.
                 if (this.currentPort && pointer.targetMesh) {
                     const compatibleTarget = this.findUniqueCompatiblePortOnTargetMesh(this.currentPort, pointer.targetMesh)
                     if (compatibleTarget) {

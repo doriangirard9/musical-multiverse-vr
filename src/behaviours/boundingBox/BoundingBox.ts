@@ -47,7 +47,6 @@ export class BoundingBox {
         this.holdable = new HoldableBehaviour()
         this.holdable.onMoveObservable.add(()=>this.on_move())
         this.holdable.onRotateObservable.add(()=>this.on_move())
-        this.boundingBox.addBehavior(this.holdable)
 
         // Bounding box visibility
         let hover = false
@@ -82,6 +81,8 @@ export class BoundingBox {
         this.unsubscribeIO = IOEventBus.getInstance().on('IO_CONNECT', (payload) => {
             this.boundingBox.isPickable = payload.pickType !== 'down';
         });
+
+        this.isLocked = false
     }
 
     private positionBoundingBoxInFrontOfPlayer(): void {
@@ -101,6 +102,21 @@ export class BoundingBox {
         this.boundingBox.position = position;
         this.boundingBox.setDirection(direction);
 
+    }
+
+    private _locked = true
+
+    /** Is the bounding box locked? If true, the bounding box cannot be moved or rotated manualy. */
+    set isLocked(value: boolean) {
+        if(value!=this._locked){
+            if(value) this.boundingBox.removeBehavior(this.holdable)
+            else this.boundingBox.addBehavior(this.holdable)
+        }
+        this._locked = value
+    }
+
+    get isLocked(): boolean {
+        return this._locked
     }
 
 

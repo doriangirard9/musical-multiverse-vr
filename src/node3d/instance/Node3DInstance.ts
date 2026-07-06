@@ -212,31 +212,64 @@ export class Node3DInstance implements Synchronized {
     private declare gui: Node3DGUI
     private declare node: Node3D
     
+    /* Draggable parameters of this node. */
     readonly parameters = new Map<string, N3DParameterInstance>()
+
+    /** Buttons of this node. */
     readonly buttons = new Map<string, N3DButtonInstance>()
+
+    /** Connectables (inputs and outputs) of this node. */
     readonly connectables = new Map<string, N3DConnectableInstance>()
 
-    // Parameter events
+    /** Notified when a parameter of the node has changed its value. */
     readonly onParameterChanged = new Observable<{ id: string, value: number }>()
 
+    /** Notified when a parameter of the node has to be shown in the GUI. */
     readonly onParameterShow = new Observable<N3DParameterInstance>()
+
+    /** Notified when a parameter of the node has to be hidden in the GUI. */
     readonly onParameterHide = new Observable<N3DParameterInstance>()
+
+    /** Notified when a parameter of the node start being dragged (to change its value). */
     readonly onParameterDragStart = new Observable<{parameter:N3DParameterInstance, value:number}>()
+
+    /** Notified when a parameter of the node is being dragged (to change its value). */
     readonly onParameterDrag = new Observable<{parameter:N3DParameterInstance, value:number}>()
+
+    /** Notified when a parameter of the node stops being dragged (to change its value). */
     readonly onParameterDragStop = new Observable<{parameter:N3DParameterInstance, value:number}>()
 
-    private declare root_transform: TransformNode
-    private highlighter!: N3DHighlighter
-    private observers = new Set<Observer<any>>()
-    private disposables = new Set<() => void>()
-    public on_dispose = () => { }
+    /** Are the node manual controls locked? If true, the node cannot be moved or rotated manually. */
+    set isLocked(value: boolean) {
+        this.set_state("locked")
+        this.bounding_box!!.isLocked = value
+    }
+    get isLocked(): boolean { return this.bounding_box!!.isLocked }
 
+    /** Get the bounding box mesh for this node. Unstable, can be regenerated.*/
+    get boundingBoxMesh() { return this.bounding_box!!.boundingBox }
+
+    /** Every connection touching this node (deduplicated across all its ports). */
+    get connections(): N3DConnectionInstance[] {
+        const set = new Set<N3DConnectionInstance>()
+        for (const c of this.connectables.values()) for (const conn of c.connections) set.add(conn)
+        return [...set]
+    }
+
+    /** Called when the node is disposed. */
+    public on_dispose = () => { }
 
     /** On node3d move. Pass the bounding box mesh. */
     readonly onMove = new Observable<AbstractMesh>()
 
     /** On node3d disposed. */
     readonly onDispose = new Observable<void>()
+
+
+    private declare root_transform: TransformNode
+    private highlighter!: N3DHighlighter
+    private observers = new Set<Observer<any>>()
+    private disposables = new Set<() => void>()
 
     /**
      * Live audio-feature snapshot from the analyser tapped onto this node's
@@ -503,11 +536,11 @@ export class Node3DInstance implements Synchronized {
     private _audioAnalyser: AudioAnalyser | null = null
     private static readonly _graph = new Node3DGraph()
 
-    /** Get the bounding box mesh for this node. Unstable, can be regenerated.*/
-    get boundingBoxMesh() { return this.bounding_box!!.boundingBox }
-
     private updateBoundingBoxNow() {
         if (this.disposed) return
+
+        // Get previous data to copy back
+        const isLocked = this.bounding_box?.isLocked ?? false
 
         // The bounding mesh gets recreated; the effect attached to it must too.
         this._nodeEffect?.dispose()
@@ -541,6 +574,7 @@ export class Node3DInstance implements Synchronized {
         this.root_transform.parent = this.bounding_mesh
 
         this.bounding_box = new BoundingBox(this.bounding_mesh)
+        this.bounding_box.isLocked = isLocked
 
         // Shake to delete
         // Shake-to-delete via the shared ShakeBehavior (same gesture for nodes and cables).
@@ -612,13 +646,6 @@ export class Node3DInstance implements Synchronized {
         return profileForNode(graph.roleOf(view), graph.inValidPath(view))
     }
 
-    /** Every connection touching this node (deduplicated across all its ports). */
-    get connections(): N3DConnectionInstance[] {
-        const set = new Set<N3DConnectionInstance>()
-        for (const c of this.connectables.values()) for (const conn of c.connections) set.add(conn)
-        return [...set]
-    }
-
     private updateBoundingBox() {
         if (!this.bounding_box) this.updateBoundingBoxNow()
         else if (!this.doUpdateBoundingBox) {
@@ -649,6 +676,7 @@ export class Node3DInstance implements Synchronized {
             rotation: this.bounding_box?.boundingBox.rotationQuaternion?.asArray() ?? [],
             scale: this.bounding_box?.boundingBox.scaling.x ?? 1,
         }
+        else if (key === "locked") return this.bounding_box!.isLocked
         else if (key.startsWith("node3d_parameter_")) {
             const id = key.substring("node3d_parameter_".length)
             const param = this.parameters.get(id)
@@ -662,6 +690,8 @@ export class Node3DInstance implements Synchronized {
             this.bounding_box?.boundingBox.position.fromArray(value.position)
             this.bounding_box?.boundingBox.rotationQuaternion?.fromArray(value.rotation)
             this.bounding_box?.boundingBox.scaling.setAll(value.scale)
+        } else if (key === "locked") {
+            this.bounding_box!.isLocked = value
         } else if (key === "delete") {
             if (this.disposed) return
             await this.dispose()

@@ -44,6 +44,7 @@ export class HoldableBehaviour implements Behavior<AbstractMesh> {
                 this.grab(grab.grabbers)
             },
             _=>{
+                console.log("Release", grab.grabbers)
                 this.grab(grab.grabbers)
             },
         )
