@@ -28,7 +28,7 @@ import { MicrophoneSystem } from "./MicrophoneSystem.ts";
 import { VoiceChatSystem } from "./social/VoiceChatSystem.ts";
 import { BarMenuSystem } from "./menu/BarMenuSystem.ts";
 import { DrawingSystem } from "./social/DrawingSystem.ts";
-import { ParameterJaugeSystem } from "./menu/ParameterJaugeSystem.ts";
+import { ParameterJaugeSystem } from "./feedback/ParameterJaugeSystem.ts";
 import { PointerVisualSystem } from "./feedback/PointerVisualSystem.ts";
 
 let _app: App

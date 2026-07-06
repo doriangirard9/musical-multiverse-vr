@@ -1,9 +1,9 @@
-import { Color3, HighlightLayer, Matrix, Observable, TransformNode, UtilityLayerRenderer, Vector3 } from "@babylonjs/core"
+import { Color3, HighlightLayer, Matrix, Observable, Vector3 } from "@babylonjs/core"
 import { NodeCompUtils } from "../tools/utils/NodeCompUtils"
 import { Node3DParameter } from "../Node3DParameter"
 import { InputGrabBehavior } from "../../xr/inputs/tools/InputGrabBehavior"
 import { Node3DInstance } from "./Node3DInstance"
-import { InputHoverBehavior } from "../tools"
+import { InputHoverBehavior, InputMultiHoverBehavior } from "../tools"
 
 const highlightColor = Color3.Blue()
 
@@ -41,9 +41,7 @@ export class N3DParameterInstance {
      */
     constructor(
         readonly node3d: Node3DInstance,
-        root: TransformNode,
         highlightLayer: HighlightLayer,
-        utilityLayer: UtilityLayerRenderer,
         readonly config: Node3DParameter,
     ) {
         const parameter = this
@@ -60,11 +58,16 @@ export class N3DParameterInstance {
             stack: 0,
             offset(offset: number){
                 this.stack += offset
-                if(this.stack == 1){
+                console.log("ParameterJaugeSystem: visual offset", offset, this.stack)
+                if(offset>0 && this.stack == 1){
                     highlight.show()
+                    parameter.onShow.notifyObservers()
+                    node3d.onParameterShow.notifyObservers(parameter)
                 }
-                else if(this.stack == 0){
+                else if(offset<0 && this.stack == 0){
                     highlight.hide()
+                    parameter.onHide.notifyObservers()
+                    node3d.onParameterHide.notifyObservers(parameter)
                 }
             }
         }
@@ -97,13 +100,11 @@ export class N3DParameterInstance {
         const disposables: (()=>void)[] = []
 
         for(const draggable of config.meshes){        
-            const hover = new InputHoverBehavior(
+            const hover = new InputMultiHoverBehavior(
                 ()=>{
                     visual.offset(1)
-                    event.push(this.getValue())
                 }, ()=>{
                     visual.offset(-1)
-                    event.pop(this.getValue())
                 }
             )
     
@@ -146,9 +147,9 @@ export class N3DParameterInstance {
 
                     event.push(startingValue)
                 },
-                input=>{
-                    visual.offset(-1)
+                _=>{
                     event.pop(this.getValue())
+                    visual.offset(-1)
                 },
                 input=>{
                     // If stepCount is 2, do nothing on drag
@@ -279,6 +280,8 @@ export class N3DParameterInstance {
     readonly visual
 
     readonly onValueChanged = new Observable<number>()
+    readonly onShow = new Observable<void>()
+    readonly onHide = new Observable<void>()
     readonly onDragStart = new Observable<{value:number}>()
     readonly onDrag = new Observable<{value:number}>()
     readonly onDragStop = new Observable<{value:number}>()

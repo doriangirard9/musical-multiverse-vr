@@ -39,7 +39,6 @@ import { Node3DGraph, NodeView, Role } from "../graph/Node3DGraph";
 import { nodeViewOf } from "../graph/Node3DGraphAdapter";
 import { AudioAnalyser, AudioSignalSnapshot } from "../../utils/AudioAnalyser";
 import { AudioWorldSystem } from "../../app/node3d/AudioDestinationSystem.ts";
-import { PointerInput } from "../../xr/inputs/PointerInput.ts";
 
 
 // ---------------------------------------------------------------------------
@@ -217,7 +216,11 @@ export class Node3DInstance implements Synchronized {
     readonly buttons = new Map<string, N3DButtonInstance>()
     readonly connectables = new Map<string, N3DConnectableInstance>()
 
+    // Parameter events
     readonly onParameterChanged = new Observable<{ id: string, value: number }>()
+
+    readonly onParameterShow = new Observable<N3DParameterInstance>()
+    readonly onParameterHide = new Observable<N3DParameterInstance>()
     readonly onParameterDragStart = new Observable<{parameter:N3DParameterInstance, value:number}>()
     readonly onParameterDrag = new Observable<{parameter:N3DParameterInstance, value:number}>()
     readonly onParameterDragStop = new Observable<{parameter:N3DParameterInstance, value:number}>()
@@ -295,7 +298,7 @@ export class Node3DInstance implements Synchronized {
 
                 // Draggable parameters
                 createParameter(info: Node3DParameter) {
-                    const param = new N3DParameterInstance(instance, instance.root_transform, highlightLayer, utilityLayer, info)
+                    const param = new N3DParameterInstance(instance, highlightLayer, info)
                     instance.parameters.set(info.id, param)
                     let last_value = 0
                     const connectableinfo = new AutomationN3DConnectable.Input(
