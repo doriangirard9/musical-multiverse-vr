@@ -6,9 +6,26 @@ import { SceneManager } from "../SceneManager.ts";
 interface ButtonLabel {
     mesh: B.Mesh;
     gui: GUI.AdvancedDynamicTexture;
+    background: GUI.Rectangle;
+    titleBlock: GUI.TextBlock;
+    textBlock: GUI.TextBlock;
+    defaultText: string;
     componentId: string; // ID du composant WebXR (ex: "xr-standard-thumbstick", "a-button")
     handedness: 'left' | 'right';
     offset: B.Vector3; // Petit offset pour ne pas être exactement sur le bouton
+}
+
+export type TutorialControlHint = {
+    labelId: string;
+    text: string;
+    title?: string;
+}
+
+type ContextPanel = {
+    mesh: B.Mesh;
+    gui: GUI.AdvancedDynamicTexture;
+    background: GUI.Rectangle;
+    text: GUI.TextBlock;
 }
 
 /**
@@ -17,6 +34,7 @@ interface ButtonLabel {
 */
 export class ControlsUISystem {
     private static readonly DEBUG_LOG = false; // Set to true to enable debug logging
+    private static _instance?: ControlsUISystem
     
     private labels: Map<string, ButtonLabel> = new Map();
     private visible: boolean = false;
@@ -27,11 +45,16 @@ export class ControlsUISystem {
     private debugGrids: Map<string, B.TransformNode> = new Map();
     private showDebugGrid: boolean = false; // Set to false to hide debug grid
     private loggedMeshFinds: Set<string> = new Set(); // Track which meshes we've logged
+    private focusedHints: TutorialControlHint[] = []
+    private readonly contextPanels: ContextPanel[] = []
 
     constructor(){
+        ControlsUISystem._instance = this
         this.scene = SceneManager.getInstance().getScene();
         this.xrManager = XRManager.getInstance();
         this._createLabels();
+        this.contextPanels.push(this._createContextPanel("tutorial-control-hint-0"))
+        this.contextPanels.push(this._createContextPanel("tutorial-control-hint-1"))
         this._createDebugGrids();
         
         if (ControlsUISystem.DEBUG_LOG) console.log(`[ControlsUI] Created ${this.labels.size} labels`);
@@ -39,16 +62,21 @@ export class ControlsUISystem {
         // Update positions each frame when in XR
         this.updateObserver = this.scene.onBeforeRenderObservable.add(() => {
             this._updateLabelPositions();
+            this._updateContextPanels();
             this._updateDebugGrids();
         });
         
         this.show(); // Show labels by default
     }
 
+    static getInstance(): ControlsUISystem {
+        if (!this._instance) throw new Error("ControlsUISystem not initialized.")
+        return this._instance
+    }
+
     /** Create individual labels for each button */
     private _createLabels(){
         // LEFT CONTROLLER LABELS
-        this._createLabel("left-Y", "Context Menu (Node and connections)", "left", "y-button", new B.Vector3(0.005, 0.025, 0.005), "#FFC107");
         this._createLabel("left-X", "Hide/Show", "left", "x-button", new B.Vector3(-0.005, 0.015, 0), "#9C27B0");
         this._createLabel("left-Grip", "[Rotate selection]", "left", "xr-standard-squeeze", new B.Vector3(0.025, 0, 0), "#4CAF50");
         this._createLabel("left-Trigger", "Select (Hold)", "left", "xr-standard-trigger", new B.Vector3(0, -0.015, 0.03), "#2196F3");
@@ -114,9 +142,9 @@ export class ControlsUISystem {
         textBlock.textVerticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_CENTER;
         stackPanel.addControl(textBlock);
         
-        this.labels.set(id, { mesh, gui, componentId, handedness, offset });
+        this.labels.set(id, { mesh, gui, background, titleBlock, textBlock, defaultText: text, componentId, handedness, offset });
     }
-    
+
     /** Get human-readable button name from component ID */
     private _getButtonName(componentId: string): string {
         switch (componentId) {
@@ -129,6 +157,38 @@ export class ControlsUISystem {
             case 'xr-standard-thumbstick': return 'Thumbstick';
             default: return componentId;
         }
+    }
+
+    private _createContextPanel(name: string): ContextPanel {
+        const mesh = B.MeshBuilder.CreatePlane(name, { width: 0.14, height: 0.05 }, this.scene)
+        mesh.billboardMode = B.Mesh.BILLBOARDMODE_ALL
+        mesh.isPickable = false
+        mesh.renderingGroupId = 1
+        mesh.alphaIndex = 1001
+        mesh.isVisible = false
+
+        const gui = GUI.AdvancedDynamicTexture.CreateForMesh(mesh, 640, 220)
+        const background = new GUI.Rectangle()
+        background.width = 1
+        background.height = 1
+        background.background = "rgba(10, 18, 24, 0.92)"
+        background.cornerRadius = 18
+        background.thickness = 2
+        background.color = "#fff3a3"
+        gui.addControl(background)
+
+        const text = new GUI.TextBlock()
+        text.color = "white"
+        text.fontSize = 40
+        text.fontWeight = "bold"
+        text.textWrapping = true
+        text.paddingLeft = "26px"
+        text.paddingRight = "26px"
+        text.paddingTop = "14px"
+        text.paddingBottom = "14px"
+        background.addControl(text)
+
+        return { mesh, gui, background, text }
     }
 
     /** Update positions of all labels based on controller component positions */
@@ -432,6 +492,7 @@ export class ControlsUISystem {
             label.mesh.isVisible = true;
         }
         this.visible = true;
+        this._applyFocusStyle()
     }
 
     public hide(){
@@ -446,12 +507,118 @@ export class ControlsUISystem {
         if(this.visible) this.hide(); else this.show();
     }
 
+    public setTutorialFocus(labelIds: string[] | null): void {
+        this.focusedHints = (labelIds ?? [])
+            .slice(0, 2)
+            .map(labelId => ({
+                labelId,
+                text: this.labels.get(labelId)?.defaultText ?? "",
+            }))
+        this._applyFocusStyle()
+    }
+
+    public setTutorialContextHints(hints: TutorialControlHint[] | null): void {
+        this.focusedHints = (hints ?? []).slice(0, 2)
+        this._applyFocusStyle()
+    }
+
+    public clearTutorialFocus(): void {
+        this.focusedHints = []
+        this._applyFocusStyle()
+    }
+
+    private _applyFocusStyle(): void {
+        for (const [, label] of this.labels.entries()) {
+            label.mesh.scaling.set(0.84, 0.84, 0.84)
+            label.mesh.visibility = 0.2
+            label.background.background = "rgba(0, 0, 0, 0.18)"
+            label.background.color = "rgba(210, 210, 210, 0.28)"
+            label.background.thickness = 1
+            label.titleBlock.color = "rgba(250,250,250,0.92)"
+            label.titleBlock.fontSize = 19
+            label.titleBlock.text = this._getButtonName(label.componentId)
+            label.textBlock.color = "rgba(255,255,255,0)"
+            label.textBlock.fontSize = 18
+            label.textBlock.text = ""
+        }
+
+        for (let i = 0; i < this.contextPanels.length; i++) {
+            const panel = this.contextPanels[i]
+            const hint = this.focusedHints[i]
+            if (!this.visible || !hint) {
+                panel.mesh.isVisible = false
+                continue
+            }
+            const title = hint.title ?? this._getButtonName(this.labels.get(hint.labelId)?.componentId ?? "")
+            panel.text.text = `${title}: ${hint.text}`
+            panel.mesh.isVisible = true
+        }
+    }
+
+    private _updateContextPanels(): void {
+        if (!this.visible) {
+            for (const panel of this.contextPanels) panel.mesh.isVisible = false
+            return
+        }
+
+        const xrInput = this.xrManager.xrHelper?.input
+        if (!xrInput) return
+
+        for (let i = 0; i < this.contextPanels.length; i++) {
+            const hint = this.focusedHints[i]
+            const panel = this.contextPanels[i]
+            if (!hint) {
+                panel.mesh.isVisible = false
+                continue
+            }
+
+            const label = this.labels.get(hint.labelId)
+            if (!label) {
+                panel.mesh.isVisible = false
+                continue
+            }
+
+            const controller = xrInput.controllers.find(c => c.inputSource.handedness === label.handedness)
+            if (!controller?.grip) {
+                panel.mesh.isVisible = false
+                continue
+            }
+
+            const rotation = controller.grip.rotationQuaternion || B.Quaternion.Identity()
+            const baseOffset = new B.Vector3(0, 0.05, -0.075)
+            const laneOffset = i === 0 ? 0.022 : -0.022
+            const handedOffset = label.handedness === "left"
+                ? new B.Vector3(-0.035, laneOffset, 0)
+                : new B.Vector3(0.035, laneOffset, 0)
+            const finalOffset = baseOffset.add(handedOffset).applyRotationQuaternion(rotation)
+            panel.mesh.position.copyFrom(controller.grip.getAbsolutePosition().add(finalOffset))
+            panel.mesh.isVisible = true
+        }
+    }
+
+    private _defaultColorFor(componentId: string): string {
+        switch (componentId) {
+            case 'y-button': return "#FFC107"
+            case 'x-button': return "#9C27B0"
+            case 'xr-standard-squeeze': return "#4CAF50"
+            case 'xr-standard-trigger': return "#2196F3"
+            case 'xr-standard-thumbstick': return "#4CAF50"
+            case 'a-button': return "#4CAF50"
+            case 'b-button': return "#24e2ff"
+            default: return "#FFFFFF"
+        }
+    }
+
     dispose(){
         for (const label of this.labels.values()) {
             label.gui.dispose();
             label.mesh.dispose();
         }
         this.labels.clear();
+        for (const panel of this.contextPanels) {
+            panel.gui.dispose()
+            panel.mesh.dispose()
+        }
         
         // Dispose debug grids
         for (const grid of this.debugGrids.values()) {
