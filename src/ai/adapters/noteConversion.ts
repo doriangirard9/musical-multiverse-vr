@@ -120,10 +120,15 @@ export function notesToMidiEvents(notes: QuantNote[], opts: ConvertOpts): MidiEv
         // RYTHMIQUE de l'hôte (downbeat appuyé selon 4/4, 3/4…). Batterie :
         // base par fût + léger relief métrique (85→100 %). Mélodie : accent
         // direct (78→100 %). Une vélocité explicite du modèle sert de base.
+        // Magenta leaves velocity UNSET, which the protobuf encodes as 0, so
+        // both 0 and undefined fall back to the shaped base. Velocity drives
+        // the excitation of FAUST instruments (guitar, flute, clarinet): a
+        // high base keeps them clearly audible.
         const accent = metricAccent(startStep, barSteps, beatSteps);
+        const modelVel = (n.velocity ?? 0) > 0 ? n.velocity! : undefined;
         const velocity = isDrums
-            ? clampVel((n.velocity ?? DRUM_VELOCITY[pitch] ?? 84) * (0.85 + 0.15 * (accent - 0.78) / 0.22) + jitter(6))
-            : clampVel((n.velocity ?? 96) * accent + jitter(3));
+            ? clampVel((modelVel ?? DRUM_VELOCITY[pitch] ?? 84) * (0.85 + 0.15 * (accent - 0.78) / 0.22) + jitter(6))
+            : clampVel((modelVel ?? 112) * accent + jitter(3));
 
         timed.push({ step: startStep, on: true,  pitch, velocity });
         timed.push({ step: endStep,   on: false, pitch, velocity: 0 });
