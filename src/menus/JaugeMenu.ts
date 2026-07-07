@@ -2,7 +2,10 @@ import { Scene } from "@babylonjs/core"
 import { Container, Control, Rectangle, TextBlock } from "@babylonjs/gui"
 import { AbstractMenu } from "./AbstractMenu"
 
-
+/**
+ * A menu that displays a value and a jauge (progress bar).
+ * Can be used to display a parameter value, such as volume or brightness.
+ */
 export class JaugeMenu extends AbstractMenu {
 
     private _name: TextBlock
@@ -57,17 +60,20 @@ export class JaugeMenu extends AbstractMenu {
         this.valueText = "50%"
     }
 
+    /** Set the name of the value. */
     set name(v: string){
         if(v.length>15) v = "..."+v.slice(-15)
         this._name.fontSizeInPixels = 100
         this._name.text = v
     }
 
+    /** Set the stringified value. */
     set valueText(v: string){
         this._value.fontSizeInPixels = 100
         this._value.text = v
     }
 
+    /** Set the value normalized between 0 and 1. Changes the filling of the jauge. */
     set value(v: number){
         this.jauge.value = v
     }

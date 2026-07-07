@@ -1,3 +1,8 @@
+export * as inputs from "./xr/inputs"
+export * as node3dapi from "./node3d/node3dapi.ts"
+export * as app from "./app"
+export * as menus from "./menus"
+
 import { HashRouter } from "./router/HashRouter.ts";
 import { ROUTES } from "./router/routes.ts";
 import { ApiClient } from "./auth/ApiClient.ts";

@@ -1,10 +1,9 @@
 import { Node3DNetwork } from "../../network/Node3DNetwork"
 import { SceneManager } from "../SceneManager"
 import { Node3DInstance } from "../../node3d/instance/Node3DInstance"
-import { PointerInput } from "../../xr/inputs"
 import { JaugeMenu } from "../../menus/JaugeMenu"
 import { N3DParameterInstance } from "../../node3d/instance/N3DParameterInstance"
-import { Vector3 } from "@babylonjs/core"
+import { ValueMenu } from "../../menus"
 
 
 
@@ -37,17 +36,15 @@ export class ParameterJaugeSystem {
 
         // Show and hide
         node.onParameterShow.add(parameter=>{
-            console.log("ParameterJaugeSystem: show parameter")
             const jauge = new ParameterJauge(this,parameter)
             jauge.follow(7)
             menus.set(parameter, jauge)
             jauge.menu.name = parameter.config.getLabel()
             jauge.menu.valueText = parameter.config.stringify(parameter.getValue())
-            jauge.menu.value = parameter.normalize(parameter.getValue())
+            if("value" in jauge.menu) jauge.menu.value = parameter.normalize(parameter.getValue())
         })
 
         node.onParameterHide.add(param=>{
-            console.log("ParameterJaugeSystem: hide parameter")
             const menu = menus.get(param)
             if(menu){
                 menus.delete(param)
@@ -60,7 +57,7 @@ export class ParameterJaugeSystem {
             if(!jauge) return
             jauge.menu.name = event.parameter.config.getLabel()
             jauge.menu.valueText = event.parameter.config.stringify(event.value)
-            jauge.menu.value = event.parameter.normalize(event.value)
+            if("value" in jauge.menu) jauge.menu.value = event.parameter.normalize(event.value)
             return jauge
         }
 
@@ -90,7 +87,9 @@ class ParameterJauge{
         system: ParameterJaugeSystem,
         private parameter: N3DParameterInstance
     ){
-        this.menu = new JaugeMenu(system.scenes.getScene(), system.scenes.getUtilityScene())
+        this.menu = parameter.isSwitch
+            ? new ValueMenu(system.scenes.getScene(), system.scenes.getUtilityScene())
+            : new JaugeMenu(system.scenes.getScene(), system.scenes.getUtilityScene())
     }
 
     follow(distance: number){

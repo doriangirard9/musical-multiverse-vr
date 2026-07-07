@@ -3,7 +3,7 @@ import { NodeCompUtils } from "../tools/utils/NodeCompUtils"
 import { Node3DParameter } from "../Node3DParameter"
 import { InputGrabBehavior } from "../../xr/inputs/tools/InputGrabBehavior"
 import { Node3DInstance } from "./Node3DInstance"
-import { InputHoverBehavior, InputMultiHoverBehavior } from "../tools"
+import { InputMultiHoverBehavior } from "../tools"
 
 const highlightColor = Color3.Blue()
 
@@ -27,6 +27,14 @@ export class N3DParameterInstance {
      * When locked, the value cannot be changed by user interaction.
      */
     isLocked = false
+
+    /**
+     * Is the parameter a switch (stepCount=2).
+     * A switch is a parameter that can only take two values, such as on/off or true/false.
+     */
+    get isSwitch(): boolean{
+        return this.getStepSize()>=(this.getMax()-this.getMin())
+    }
 
     /**
      * 
