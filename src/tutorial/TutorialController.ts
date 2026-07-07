@@ -195,6 +195,8 @@ export class TutorialController {
     private tutorialAnchor = Vector3.Zero()
     private tutorialForward = new Vector3(0, 0, 1)
     private tutorialRight = new Vector3(1, 0, 0)
+    private speakerRecoveredForRestore = false
+    private speakerRecoveryPending = false
     private moveOrigin = InputManager.getInstance().head.origin.clone()
     private moveForward = new Vector3(InputManager.getInstance().head.forward.x, 0, InputManager.getInstance().head.forward.z).normalize()
     private locomotionTranslated = false
@@ -304,7 +306,7 @@ export class TutorialController {
         }
         this.panel.setStep(step, Math.min(this.stepIndex + 1, TOTAL_OBJECTIVES), TOTAL_OBJECTIVES)
         if (step.awaitAdvanceOnly) {
-            this.panel.setAdvancePrompt("Touchez le bouton quand vous êtes prêt.", step.advanceLabel ?? "Suivant")
+            this.panel.setAdvancePrompt("Pointez le bouton puis validez avec la gâchette quand vous êtes prêt.", step.advanceLabel ?? "Suivant")
         }
         this.renderBrowserHud(step)
         this.updateGuides()
@@ -385,6 +387,13 @@ export class TutorialController {
 
     private handleNodeRemoved(node: Node3DInstance): void {
         this.watchedNodes.delete(node)
+        if (
+            this.currentStep.id === "remove-output-connection"
+            && this.getNodeKind(node) === TUTORIAL_KINDS.output
+        ) {
+            void this.recoverSpeakerAfterMistake()
+            return
+        }
         this.updateGuides()
     }
 
@@ -463,23 +472,32 @@ export class TutorialController {
         if (this.advancing || this.currentStep.id === "complete") return
         this.advancing = true
         this.notesPlayed = 0
-        this.panel.showFeedback(this.currentStep.success, "success")
+        const successMessage = this.getStepSuccessMessage()
+        this.panel.showFeedback(successMessage, "success")
         this.clearGuides()
 
         const browserHud = document.getElementById("wj-tutorial-hud")
         browserHud?.classList.add("wj-tutorial-success")
         if (browserHud) {
             const objective = browserHud.querySelector("span")
-            if (objective) objective.textContent = this.currentStep.success
+            if (objective) objective.textContent = successMessage
             const hint = browserHud.querySelector("small")
             if (hint) hint.textContent = "Cliquez sur Suivant quand vous avez fini de lire."
         }
 
         this.panel.setAdvancePrompt(
-            "Touchez le bouton quand vous êtes prêt.",
+            "Pointez le bouton puis validez avec la gâchette quand vous êtes prêt.",
             this.currentStep.advanceLabel ?? "Suivant",
         )
         if (browserHud) this.renderBrowserActions(browserHud)
+    }
+
+    private getStepSuccessMessage(): string {
+        if (this.currentStep.id === "remove-output-connection" && this.speakerRecoveredForRestore) {
+            this.speakerRecoveredForRestore = false
+            return "Le Speaker a été supprimé par erreur : il a été remis à sa place. Il ne reste plus qu’à recréer la connexion."
+        }
+        return this.currentStep.success
     }
 
     private showHint(message: string): void {
@@ -682,14 +700,9 @@ export class TutorialController {
                 .concat(this.getPortGuideTargets(TUTORIAL_KINDS.output, "audio", "input", "Entrée du Speaker", "#56d6c9"))
         }
         if (step === "remove-output-connection") {
-            const connection = this.findConnection(TUTORIAL_KINDS.delay, TUTORIAL_KINDS.output)
-            const delay = this.findNode(TUTORIAL_KINDS.delay)
             const speaker = this.findNode(TUTORIAL_KINDS.output)
             const targets: TutorialGuideTarget[] = []
-            const mesh = connection?.guideMesh ?? connection?.tube
-            if (mesh) targets.push({ mesh, label: "Câble à retirer", color: "#ffca5c" })
-            if (delay) targets.push(this.getWholeNodeGuideTarget(delay, "Ou Y sur le delay", "#ffca5c"))
-            if (speaker) targets.push(this.getWholeNodeGuideTarget(speaker, "Ou Y sur le Speaker", "#ffca5c"))
+            if (speaker) targets.push(this.getWholeNodeGuideTarget(speaker, "Ouvrir le menu du Speaker", "#ffca5c"))
             return targets
         }
         if (step === "shape-sound") {
@@ -821,6 +834,27 @@ export class TutorialController {
         if (Vector3.Distance(node.boundingBoxMesh.absolutePosition, target) > snapDistance) return
         node.boundingBoxMesh.setAbsolutePosition(target)
         node.updatePosition()
+    }
+
+    private async recoverSpeakerAfterMistake(): Promise<void> {
+        if (this.speakerRecoveryPending || this.findNode(TUTORIAL_KINDS.output)) return
+        this.speakerRecoveryPending = true
+        try {
+            this.ensureRecommendedPositions()
+            const position = this.recommendedPositions.get(TUTORIAL_KINDS.output)?.clone()
+                ?? this.tutorialAnchor.add(this.tutorialRight.scale(2.6)).addInPlace(this.tutorialForward.scale(0.16))
+            const speaker = await Node3dManager.getInstance().addNode3d(TUTORIAL_KINDS.output, position)
+            if (speaker) {
+                speaker.boundingBoxMesh.setAbsolutePosition(position)
+                speaker.updatePosition()
+                this.watchNode(speaker)
+            }
+            this.speakerRecoveredForRestore = true
+            this.completeCurrentStep()
+        } finally {
+            this.speakerRecoveryPending = false
+            this.updateGuides()
+        }
     }
 
     private finishTutorial(): void {
