@@ -71,6 +71,26 @@ export class TutorialPanel extends AbstractMenu {
         this.nextButton.fontFamily = "Trebuchet MS"
         this.nextButton.fontWeight = "700"
         this.nextButton.isVisible = false
+        this.nextButton.pointerEnterAnimation = () => {
+            this.nextButton.background = "#a8f3b0"
+            this.nextButton.scaleX = 1.04
+            this.nextButton.scaleY = 1.04
+        }
+        this.nextButton.pointerOutAnimation = () => {
+            this.nextButton.background = "#7ee787"
+            this.nextButton.scaleX = 1
+            this.nextButton.scaleY = 1
+        }
+        this.nextButton.pointerDownAnimation = () => {
+            this.nextButton.background = "#c7f9cc"
+            this.nextButton.scaleX = 0.97
+            this.nextButton.scaleY = 0.97
+        }
+        this.nextButton.pointerUpAnimation = () => {
+            this.nextButton.background = "#a8f3b0"
+            this.nextButton.scaleX = 1.04
+            this.nextButton.scaleY = 1.04
+        }
         this.nextButton.onPointerUpObservable.add(() => this.onAdvanceRequested.notifyObservers())
         this.place(this.nextButton, 66, 75, 28, 13)
         content.addControl(this.nextButton)

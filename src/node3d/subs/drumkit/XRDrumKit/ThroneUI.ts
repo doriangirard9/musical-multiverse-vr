@@ -104,7 +104,7 @@ export class ThroneUI {
         
         // Text inside circle
         this.standUpText = new GUI.TextBlock();
-        this.standUpText.text = "Hold B\nto stand up";
+        this.standUpText.text = "Hold X\nto stand up";
         this.standUpText.color = "white";
         this.standUpText.fontSize = 60; // Larger for 3D space
         this.standUpText.fontFamily = "Arial";
@@ -209,7 +209,7 @@ export class ThroneUI {
             this.standUpFill.height = `${fillSize}px`;
             
             // Update text to show percentage
-            this.standUpText.text = `Hold B\n${Math.round(fillPercent)}%`;
+            this.standUpText.text = `Hold X\n${Math.round(fillPercent)}%`;
         }
     }
     

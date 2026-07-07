@@ -9,6 +9,7 @@ export class MaracasN3DGUI implements Node3DGUI{
     
     root
 
+    maracas_root!: TransformNode
     maracas!: AbstractMesh
     base!: AbstractMesh
     output!: AbstractMesh
@@ -22,9 +23,13 @@ export class MaracasN3DGUI implements Node3DGUI{
     async init(context: Node3DGUIContext){
         const {babylon:B,tools:T} = context
 
+        this.maracas_root = new TransformNode("maracas movement root", context.scene)
+        this.maracas_root.parent = this.root
+
         this.maracas = await B.ImportMeshAsync(MARACAS_URL, context.scene) .then(it=>it.meshes[0])
-        this.maracas.parent = this.root
-        this.maracas.position.y = .2
+        this.maracas.parent = this.maracas_root
+        
+        this.maracas_root.position.y = .2
 
         this.base = B.CreateBox("maracas base", {size:1,height:.2}, context.scene)
         this.base.parent = this.root
@@ -61,7 +66,7 @@ export class MaracasN3D implements Node3D{
             setValue: (value: number) =>{
                 this.setRotation(value)
             },
-            meshes: [gui.maracas],
+            meshes: [gui.maracas, ...gui.maracas.getChildMeshes(false)],
         })
         this.setRotation(.5)
     }
@@ -84,7 +89,7 @@ export class MaracasN3D implements Node3D{
         this.last_offset = offset
         this.rotation = value
 
-        this.gui.maracas.rotation.y = (value-.5)*Math.PI-3
+        this.gui.maracas_root.rotation.y = (value-.5)*Math.PI-3
     }
 
     async setState(key: string, value: any){}

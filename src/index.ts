@@ -14,22 +14,25 @@ installConsoleFilter();
 
 let appStarted = false;
 /**
- * Code overview.
- *
- * Creating an object: manipulable, connectable objects (plugins, audio output,
- * keyboard…) are Node3Ds. To add one, implement Node3D, Node3DFactory and
- * Node3DGUI; Node3DInstance bridges these to the app.
- *
- * Networking: synchronization goes through SyncManager/Synchronized. An object
- * implements Synchronized to be synced; SyncManager is the registry that syncs
- * objects on add and desyncs them on remove.
- *
- * Structure: concerns are split across static services —
- * - Node3DManager: manages Node3Ds (nodes and connections) and their sync.
- * - SceneManager: creates the Babylon.js scene.
- * - Node3DBuilder: manages Node3DFactories, keyed by id, to instantiate Node3Ds.
+ * # Plan du code
+ * Une description de quelques parties importantes du code.
+ * ## Créer un nouvel objet
+ * Les objets manipulable et connectables (plugin, sortie audio, clavier,...) sont appelés des
+ * Node3D. Pour créer un nouvel objet il faut implémenter les interface Node3D, Node3DFactory et Node3DGUI.
+ * La classe Node3DInstance fait le lien entre les implémentation des objets et l'application.
+ * 
+ * ## Réseaux
+ * La synchronisation réseau est géré par le système SyncManager/Synchronized.
+ * Un objet doit implémenter Synchronized pour pouvoir être synchronisé. Le SyncManager est un genre
+ * de registre qui permet de gérer les objets synchronisés. Quand un objet y est ajouté, il est automatique synchronisé, quand
+ * un objet y est supprimé, il est désynchronisé.
+ * 
+ * ## Structure
+ * Les différentes parties du problème sont gérés par des services différents accessibles statiquements.
+ * - Node3DManager: Gère les Node3D (connections et node), leur ajout à la scène, leur suppression de la scène, leur synchronisation.
+ * - SceneManager: Gère la création de la scène babylonjs
+ * - Node3DBuilder: Gère les Node3DFactories, qui permettent d'instantier des Node3D. Les associe à leur identifiant pour pouvoir les instancier à partir de leur identifiant.
  */
-
 
 const DEBUG_LOG = false;
 
