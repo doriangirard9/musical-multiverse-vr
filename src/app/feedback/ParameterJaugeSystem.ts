@@ -36,7 +36,7 @@ export class ParameterJaugeSystem {
 
         // Show and hide
         node.onParameterShow.add(parameter=>{
-            const jauge = new ParameterJauge(this,parameter)
+            const jauge = new ParameterJauge(this, parameter)
             jauge.follow(7)
             menus.set(parameter, jauge)
             jauge.menu.name = parameter.config.getLabel()
@@ -52,9 +52,10 @@ export class ParameterJaugeSystem {
             }
         })
 
-        const update = (event:{parameter:N3DParameterInstance, value:number})=>{
+        const update = (event:{parameter:N3DParameterInstance, value:number}, update: (m: ParameterJauge)=>void)=>{
             const jauge = menus.get(event.parameter)
             if(!jauge) return
+            update(jauge)
             jauge.menu.name = event.parameter.config.getLabel()
             jauge.menu.valueText = event.parameter.config.stringify(event.value)
             if("value" in jauge.menu) jauge.menu.value = event.parameter.normalize(event.value)
@@ -63,15 +64,22 @@ export class ParameterJaugeSystem {
 
         // Update value
         node.onParameterDragStart.add(event=>{
-            update(event)?.follow(6)
+            update(event, m=>{
+                m.follow(6)
+                m.isFocused = true
+            })
         })
 
         node.onParameterDrag.add(event=>{
-            update(event)
+            update(event, m=>{
+            })
         })
 
         node.onParameterDragStop.add(event=>{
-            update(event)?.follow(7)
+            update(event, m=>{
+                m.follow(7)
+                m.isFocused = false
+            })
         })
     }
 
@@ -79,23 +87,71 @@ export class ParameterJaugeSystem {
 
 class ParameterJauge{
 
-    menu
+    jauge?: JaugeMenu
+    simple?: ValueMenu
     following: ()=> void = ()=>{}
     currentDistance = -1
 
     constructor(
-        system: ParameterJaugeSystem,
-        private parameter: N3DParameterInstance
+        private system: ParameterJaugeSystem,
+        private parameter: N3DParameterInstance,
     ){
-        this.menu = parameter.isSwitch
-            ? new ValueMenu(system.scenes.getScene(), system.scenes.getUtilityScene())
-            : new JaugeMenu(system.scenes.getScene(), system.scenes.getUtilityScene())
+        this.isFocused = false
+    }
+
+    set isFocused(isFocused: boolean){
+        if(isFocused){
+            this.isSimple = this.parameter.isSwitch
+        }
+        else this.isSimple = true
+    }
+
+    set isSimple(value: boolean){
+        if(value){
+            if(!this.simple) this.simple = new ValueMenu(this.system.scenes.getScene(), this.system.scenes.getUtilityScene())
+        }
+        else{
+            if(this.simple){
+                this.simple.dispose()
+                this.simple = undefined
+            }
+        }
+
+        if(!value){
+            if(!this.jauge) this.jauge = new JaugeMenu(this.system.scenes.getScene(), this.system.scenes.getUtilityScene())
+        }
+        else{
+            if(this.jauge){
+                this.jauge.dispose()
+                this.jauge = undefined
+            }
+        }
+
+        if(this.currentDistance!=-1){
+            const d = this.currentDistance
+            this.follow(-1)
+            this.follow(d)
+        }
+    }
+
+    get isSimple(): boolean{
+        return !!this.simple
+    }
+
+    get menu(): JaugeMenu | ValueMenu {
+        if(this.isSimple) return this.simple!
+        else return this.jauge!
     }
 
     follow(distance: number){
         if(this.currentDistance === distance) return
         this.currentDistance = distance
+
         this.following()
+        this.following = ()=>{}
+
+        if(distance === -1) return
+
         const o = this.menu.followPosition(
             ()=> this.parameter.config.meshes[0].getAbsolutePosition(),
             distance
