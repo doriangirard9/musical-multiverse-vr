@@ -30,6 +30,7 @@ import { ConnectionManager } from "../app/node3d/ConnectionManager"
 import type { N3DConnectableInstance } from "../node3d/instance/N3DConnectableInstance"
 import type { N3DParameterInstance } from "../node3d/instance/N3DParameterInstance"
 import { N3DText } from "../node3d/instance/utils/N3DText"
+import { getDrumMidi } from "../node3d/subs/drums/DrumMidiMap"
 
 const TOTAL_OBJECTIVES = TUTORIAL_STEPS.length - 1
 const BEAT_KINDS = {
@@ -860,13 +861,13 @@ export class TutorialController {
 
     private configureDrumPattern(sequencer: Node3DInstance): void {
         const rows = [
-            { row: 0, midi: 36, steps: [0, 4, 8, 12] },
-            { row: 1, midi: 38, steps: [4, 12] },
-            { row: 2, midi: 39, steps: [4, 12] },
+            { row: 0, midi: getDrumMidi("Kick", 36), steps: [0, 4, 8, 12] },
+            { row: 1, midi: getDrumMidi("Snare", 38), steps: [4, 12] },
+            { row: 2, midi: getDrumMidi("Clap", 39), steps: [4, 12] },
         ]
 
         for (const { row, midi, steps } of rows) {
-            sequencer.parameters.get(`sequencer_note_midi_${row}`)?.setValue(midi / 128)
+            sequencer.parameters.get(`sequencer_note_midi_${row}`)?.setValue(midi)
             for (const step of steps) {
                 sequencer.parameters.get(`sequencer_note_${row}_${step}`)?.setValue(1)
             }
