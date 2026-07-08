@@ -171,13 +171,8 @@ export namespace AutomationN3DConnectable {
         connectAsInput(): any { return {} }
 
         connectAsOutput(connection: AutomationInputInfo): void {
-            if(connection.setValue) {
-                this.senders.set(connection.id, connection as Required<AutomationInputInfo>)
-                this._value(connection)
-                if(this.senders.size === 1) {
-                    connection.setValue?.((this as any).parameter?.lock?.(true))
-                }
-            }
+            this.senders.set(connection.id, connection as Required<AutomationInputInfo>)
+            this._value(connection)
         }
 
         disconnectAsInput(_: any): void { }
