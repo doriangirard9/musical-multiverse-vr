@@ -29,6 +29,7 @@ export class MidiAnalyser {
         this.#lastNote = 0
         this.#lastVelocity = 0
         this.#freshNoteOn = false
+        this.#noteOnCount = 0
     }
 
     /**
@@ -62,9 +63,15 @@ export class MidiAnalyser {
             this.#lastNote = note
             this.#lastVelocity = velocity
             this.#freshNoteOn = true
+            this.#noteOnCount += 1
         } else if (isNoteOff === true) {
             this.#held.delete(note)
         }
+    }
+
+    /** Monotonic count of note-on events captured by this tap. */
+    public getNoteOnCount(): number {
+        return this.#noteOnCount
     }
 
     /**
@@ -94,4 +101,5 @@ export class MidiAnalyser {
     #lastNote: number
     #lastVelocity: number
     #freshNoteOn: boolean
+    #noteOnCount: number
 }

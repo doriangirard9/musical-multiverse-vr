@@ -180,6 +180,10 @@ export class N3DConnectionInstance{
 
     get guideMesh(){ return this._center }
 
+    getMidiNoteOnCount(): number {
+        return this._midiAnalyser?.getNoteOnCount() ?? 0
+    }
+
     public contains(mesh: AbstractMesh): boolean {
         return mesh === this._tube
             || mesh.isDescendantOf(this._tube)

@@ -15,19 +15,23 @@ export class TutorialPanel extends AbstractMenu {
     private readonly nextButton: Button
     private readonly followObserver
 
-    private static readonly SHOP_DISTANCE = 2
+    private static readonly SHOP_DISTANCE = 6.35
     private static readonly SHOP_HEIGHT = 1
-    private static readonly PANEL_HEIGHT = 0.68
-    private static readonly PANEL_WIDTH = 3.05
-    private static readonly PANEL_MARGIN = 0.08
+    private static readonly PANEL_HEIGHT = 1.22
+    private static readonly PANEL_WIDTH = 6.45
+    private static readonly PANEL_MARGIN = 0.22
     private static readonly PANEL_OFFSET_Y =
         (TutorialPanel.SHOP_HEIGHT / 2)
         + (TutorialPanel.PANEL_HEIGHT / 2)
         + TutorialPanel.PANEL_MARGIN
 
     constructor(scenes: SceneManager) {
-        super(scenes.getScene(), scenes.getUtilityLayer().utilityLayerScene)
+        // Render the tutorial panel in the main scene so it respects world depth
+        // instead of behaving like an always-on-top utility overlay.
+        super(scenes.getScene(), scenes.getScene())
         this.initPanel("tutorial_objective", TutorialPanel.PANEL_WIDTH, TutorialPanel.PANEL_HEIGHT, 2048)
+        this.plane.renderingGroupId = 0
+        this.plane.alphaIndex = 0
 
         this.background = new Rectangle("tutorial_background")
         this.background.background = "rgba(8, 16, 22, 0.92)"
@@ -62,7 +66,7 @@ export class TutorialPanel extends AbstractMenu {
         this.place(this.footerText, 4, 77, 58, 10)
         content.addControl(this.footerText)
 
-        this.nextButton = Button.CreateSimpleButton("tutorial_next", "Suivant")
+        this.nextButton = Button.CreateSimpleButton("tutorial_next", "Next")
         this.nextButton.color = "#10231f"
         this.nextButton.background = "#7ee787"
         this.nextButton.thickness = 0
@@ -122,7 +126,7 @@ export class TutorialPanel extends AbstractMenu {
     }
 
     setStep(step: TutorialStep, current: number, total: number): void {
-        this.progressText.text = step.id === "complete" ? "PARCOURS ACCOMPLI" : `OBJECTIF ${current}/${total}`
+        this.progressText.text = step.id === "complete" ? "TUTORIAL COMPLETE" : `STEP ${current}/${total}`
         this.titleText.text = step.title
         this.objectiveText.text = step.objective
         this.hintText.text = step.hint
@@ -141,7 +145,7 @@ export class TutorialPanel extends AbstractMenu {
             : "rgba(54, 36, 7, 0.95)"
     }
 
-    setAdvancePrompt(message: string, buttonLabel: string = "Suivant"): void {
+    setAdvancePrompt(message: string, buttonLabel: string = "Next"): void {
         const visible = message.trim().length > 0
         this.footerText.text = message
         this.nextButton.textBlock!.text = buttonLabel
