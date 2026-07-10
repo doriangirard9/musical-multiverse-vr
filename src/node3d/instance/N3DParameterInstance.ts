@@ -134,7 +134,7 @@ export class N3DParameterInstance {
                     visual.offset(1)
                 
                     stepSize = config.getStepSize()
-                    if(!Number.isFinite(stepSize) || stepSize<=0){
+                    if(stepSize<=0){
                         stepSize = 0.001*(this.getMax()-this.getMin())
                         changeFactor = 0.2*(this.getMax()-this.getMin())
                     }
@@ -231,26 +231,22 @@ export class N3DParameterInstance {
 
     /** Get the maximum value of the parameter. */
     getMax(): number{
-        const value = this.config.getMax()
-        return Number.isFinite(value) ? value : 1
+        return this.config.getMax()
     }
 
     /** Get the minimum value of the parameter. */
     getMin(): number{
-        const value = this.config.getMin()
-        return Number.isFinite(value) ? value : 0
+        return this.config.getMin()
     }
 
     /** Get the step size of the parameter. */
     getStepSize(): number{
-        const value = this.config.getStepSize()
-        return Number.isFinite(value) && value >= 0 ? value : 0
+        return this.config.getStepSize()
     }
 
     /** Get the exponent of the parameter. */
     getExponant(): number{
-        const value = this.config.getExponant()
-        return Number.isFinite(value) && value > 0 ? value : 1
+        return this.config.getExponant()
     }
 
     /** Normalize a value between 0 and 1. */
