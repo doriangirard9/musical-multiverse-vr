@@ -36,7 +36,7 @@ let _app: App
 export class App {
     private static readonly DEBUG_LOG = false;
     private controlsUI?: ControlsUISystem;
-    private wakeLock: any = null; // Screen wake lock to prevent device sleep
+    private wakeLock: WakeLockSentinel|null = null; // Screen wake lock to prevent device sleep
 
     constructor() {
         _app = this
@@ -309,7 +309,7 @@ export class App {
     private async requestWakeLock(): Promise<void> {
         if ('wakeLock' in navigator) {
             try {
-                this.wakeLock = await (navigator as any).wakeLock.request('screen');
+                this.wakeLock = await navigator.wakeLock.request('screen');
                 console.log('[App] Screen wake lock acquired - device will stay awake');
             } catch (err) {
                 console.warn('[App] Wake lock request failed:', err);
