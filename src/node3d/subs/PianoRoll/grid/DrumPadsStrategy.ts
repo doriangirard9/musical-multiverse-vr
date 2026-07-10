@@ -1,22 +1,9 @@
 // src/nodes/PianoRoll/strategies/DrumPadsStrategy.ts
 import * as B from "@babylonjs/core";
 import { GridStrategy } from "./GridStrategy";
+import { DRUM_PAD_MAP } from "../../drums/DrumMidiMap";
 
-// looks like hardcoded but it's match the mapping comming from the drum instrument
-const PADS = [
-  { label: "Kick", midi: 36 },
-  { label: "Rimshot", midi: 37 },
-  { label: "Snare", midi: 38 },
-  { label: "Clap", midi: 39 },
-  { label: "Low Tom", midi: 41 },
-  { label: "CH", midi: 42 },
-  { label: "High Tom", midi: 43 },
-  { label: "OH", midi: 46 },
-  { label: "Mid Tom", midi: 47 },
-  { label: "Crash", midi: 49 },
-  { label: "Ride", midi: 51 },
-
-];
+const PADS = DRUM_PAD_MAP
 
 export class DrumPadsStrategy implements GridStrategy {
   getRowCount(): number { return PADS.length; }

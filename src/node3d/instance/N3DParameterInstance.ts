@@ -66,7 +66,6 @@ export class N3DParameterInstance {
             stack: 0,
             offset(offset: number){
                 this.stack += offset
-                console.log("ParameterJaugeSystem: visual offset", offset, this.stack)
                 if(offset>0 && this.stack == 1){
                     highlight.show()
                     parameter.onShow.notifyObservers()
@@ -135,7 +134,7 @@ export class N3DParameterInstance {
                     visual.offset(1)
                 
                     stepSize = config.getStepSize()
-                    if(stepSize<=0){
+                    if(!Number.isFinite(stepSize) || stepSize<=0){
                         stepSize = 0.001*(this.getMax()-this.getMin())
                         changeFactor = 0.2*(this.getMax()-this.getMin())
                     }
@@ -209,9 +208,10 @@ export class N3DParameterInstance {
     setValue(value: number, type: ParameterChangeMode = ParameterChangeMode.DIRECT_MANUAL){
         // Filter
         let v = value
-        if(v<this.config.getMin()) v = this.config.getMin()
-        if(v>this.config.getMax()) v = this.config.getMax()
-        if(this.config.getStepSize()>0) v = Math.round(v/this.config.getStepSize())*this.config.getStepSize()
+        if(v<this.getMin()) v = this.getMin()
+        if(v>this.getMax()) v = this.getMax()
+        const stepSize = this.getStepSize()
+        if(stepSize>0) v = Math.round(v/stepSize)*stepSize
         
         // Set the value
         if(type==ParameterChangeMode.DIRECT_MANUAL || type==ParameterChangeMode.MANUAL){
@@ -231,34 +231,44 @@ export class N3DParameterInstance {
 
     /** Get the maximum value of the parameter. */
     getMax(): number{
-        return this.config.getMax()
+        const value = this.config.getMax()
+        return Number.isFinite(value) ? value : 1
     }
 
     /** Get the minimum value of the parameter. */
     getMin(): number{
-        return this.config.getMin()
+        const value = this.config.getMin()
+        return Number.isFinite(value) ? value : 0
     }
 
     /** Get the step size of the parameter. */
     getStepSize(): number{
-        return this.config.getStepSize()
+        const value = this.config.getStepSize()
+        return Number.isFinite(value) && value >= 0 ? value : 0
     }
 
     /** Get the exponent of the parameter. */
     getExponant(): number{
-        return this.config.getExponant()
+        const value = this.config.getExponant()
+        return Number.isFinite(value) && value > 0 ? value : 1
     }
 
     /** Normalize a value between 0 and 1. */
     normalize(value: number): number{
-        const n = (value - this.getMin()) / (this.getMax() - this.getMin())
+        const min = this.getMin()
+        const max = this.getMax()
+        if(max<=min) return 0
+        const n = (value - min) / (max - min)
         return Math.pow(n, this.getExponant())
     }
 
     /** Denormalize a value between 0 and 1. */
     denormalize(value: number): number{
+        const min = this.getMin()
+        const max = this.getMax()
+        if(max<=min) return min
         const n = Math.pow(value, 1/this.getExponant())
-        return this.getMin() + n * (this.getMax() - this.getMin())
+        return min + n * (max - min)
     }
 
     //// Normalized value ////
