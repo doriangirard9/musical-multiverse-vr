@@ -77,9 +77,12 @@ export class SyncDebugN3D implements Node3D{
             setValue (value: number): void {
                 container.duration = value*100
             },
-            getStepCount (): number {
-                return 100
-            },
+            
+            getMin() { return 0 },
+            getMax() { return 1 },
+            getStepSize() { return 0.01 },
+            getExponant() { return 1 },
+
             getValue (): number {
                 return container.duration/100
             },
@@ -96,7 +99,12 @@ export class SyncDebugN3D implements Node3D{
             meshes: [gui.total],
             notSynced: true,
             setValue (value: number): void {},
-            getStepCount (): number { return 0},
+            
+            getMin() { return 0 },
+            getMax() { return 1 },
+            getStepSize() { return 0 },
+            getExponant() { return 1 },
+
             getValue (): number { return container.total/1000 },
             stringify (value: number): string { return (value*1000).toFixed(2)+"s" },
             getLabel (): string { return "Total" }
@@ -107,7 +115,12 @@ export class SyncDebugN3D implements Node3D{
             meshes: [gui.start],
             notSynced: true,
             setValue (value: number): void {},
-            getStepCount (): number { return 0 },
+            
+            getMin() { return 0 },
+            getMax() { return 1 },
+            getStepSize() { return 0 },
+            getExponant() { return 1 },
+
             getValue (): number { return container.start/1000 },
             stringify (value: number): string { return (value*1000).toFixed(2)+"s" },
             getLabel (): string { return "Start" }

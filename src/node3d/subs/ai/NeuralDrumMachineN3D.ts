@@ -5,7 +5,7 @@ import type { Node3DGUIContext } from "../../Node3DGUIContext";
 import type { Node3DContext } from "../../Node3DContext";
 import type { MidiN3DConnectable } from "../../tools";
 import type { PatternNote } from "../../../ai/types";
-import { WamTransportManager } from "../../../app/WamTransportManager";
+import { WamTransportManager } from "../../../app/node3d/WamTransportManager";
 import { WebWorkerAdapter } from "../../../ai/adapters/WebWorkerAdapter";
 import { DRUM_CLASSES, DRUM_ROWS, ROW_TO_MIDI, MIDI_TO_ROW } from "./drumGrid";
 import { Drum808Kit } from "./Drum808Kit";

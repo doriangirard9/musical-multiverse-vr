@@ -1,10 +1,10 @@
 import { AbstractMesh, Color3, CreateIcoSphere, StandardMaterial, Vector3 } from "@babylonjs/core"
 import type { Awareness } from "y-protocols/awareness"
 import { AvatarSystem } from "./AvatarSystem"
-import { AudioWorldSystem } from "./AudioDestinationSystem"
-import { MicrophoneSystem } from "./MicrophoneSystem"
-import { NetworkManager } from "../network/NetworkManager"
-import { SceneManager } from "./SceneManager"
+import { AudioWorldSystem } from "../node3d/AudioDestinationSystem"
+import { MicrophoneSystem } from "../MicrophoneSystem"
+import { NetworkManager } from "../../network/NetworkManager"
+import { SceneManager } from "../SceneManager"
 
 type VoiceSignalDescription = RTCSessionDescriptionInit
 

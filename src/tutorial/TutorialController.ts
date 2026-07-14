@@ -2,8 +2,9 @@ import { NetworkManager } from "../network/NetworkManager"
 import type { Node3DInstance } from "../node3d/instance/Node3DInstance"
 import type { N3DConnectionInstance } from "../node3d/instance/N3DConnectionInstance"
 import { SceneManager } from "../app/SceneManager"
-import { ShopMenuSystem } from "../app/ShopMenuSystem"
-import { WamTransportManager } from "../app/WamTransportManager"
+import { ShopMenuSystem } from "../app/menu/ShopMenuSystem"
+import { WamTransportManager } from "../app/node3d/WamTransportManager"
+import ControlsUISystem, { type TutorialControlHint } from "../app/menu/ControlsUISystem"
 import { TutorialPanel } from "./TutorialPanel"
 import { TUTORIAL_KINDS, TUTORIAL_STEPS, type TutorialStep, type TutorialStepId } from "./TutorialScenario"
 import {
@@ -24,11 +25,12 @@ import {
 } from "@babylonjs/core"
 import { XRManager } from "../xr/XRManager"
 import { InputManager } from "../xr/inputs/InputManager"
-import { Node3dManager } from "../app/Node3dManager"
-import { ConnectionManager } from "../app/ConnectionManager"
+import { Node3dManager } from "../app/node3d/Node3dManager"
+import { ConnectionManager } from "../app/node3d/ConnectionManager"
 import type { N3DConnectableInstance } from "../node3d/instance/N3DConnectableInstance"
 import type { N3DParameterInstance } from "../node3d/instance/N3DParameterInstance"
 import { N3DText } from "../node3d/instance/utils/N3DText"
+import { getDrumMidi } from "../node3d/subs/drums/DrumMidiMap"
 
 const TOTAL_OBJECTIVES = TUTORIAL_STEPS.length - 1
 const BEAT_KINDS = {
@@ -74,12 +76,23 @@ class TutorialGuide {
     private readonly frame: Mesh
     private readonly material: StandardMaterial
     private readonly text: N3DText
+    private readonly beacon: Mesh
+    private readonly beaconMaterial: StandardMaterial
+    private readonly beaconTexture: DynamicTexture
+    private readonly offscreenIndicator: Mesh
+    private readonly offscreenMaterial: StandardMaterial
+    private readonly offscreenTexture: DynamicTexture
     private readonly observer: Observer<any>
     private readonly pulseSeed = Math.random() * Math.PI * 2
+    private readonly label: string
+    private readonly color: string
+    private lastOffscreenMessage = ""
     private disposed = false
 
     constructor(target: TutorialGuideTarget) {
         const scene = SceneManager.getInstance().getScene()
+        this.label = target.label
+        this.color = target.color
         this.frame = CreateBox(`tutorial-guide-${target.label}`, { size: 1 }, scene)
         this.frame.isPickable = false
         this.frame.checkCollisions = false
@@ -98,6 +111,34 @@ class TutorialGuide {
         this.text.set([{ content: `↓ ${target.label}`, color: target.color, size: 0.72 }])
         this.text.show()
 
+        this.beacon = CreatePlane(`tutorial-guide-beacon-${target.label}`, { width: 1.1, height: 0.66 }, scene)
+        this.beacon.billboardMode = Mesh.BILLBOARDMODE_ALL
+        this.beacon.isPickable = false
+        this.beacon.checkCollisions = false
+        this.beacon.alphaIndex = -1
+        this.beaconMaterial = new StandardMaterial(`tutorial-guide-beacon-material-${target.label}`, scene)
+        this.beaconMaterial.disableLighting = true
+        this.beaconMaterial.emissiveColor = Color3.White()
+        this.beaconMaterial.opacityTexture = this.beaconTexture = new DynamicTexture(`tutorial-guide-beacon-texture-${target.label}`, { width: 1024, height: 640 }, scene, true)
+        this.beaconMaterial.diffuseTexture = this.beaconTexture
+        this.beaconMaterial.useAlphaFromDiffuseTexture = true
+        this.beacon.material = this.beaconMaterial
+        this.drawBeaconTexture()
+
+        this.offscreenIndicator = CreatePlane(`tutorial-guide-offscreen-${target.label}`, { width: 0.95, height: 0.4 }, scene)
+        this.offscreenIndicator.billboardMode = Mesh.BILLBOARDMODE_ALL
+        this.offscreenIndicator.isPickable = false
+        this.offscreenIndicator.checkCollisions = false
+        this.offscreenIndicator.alphaIndex = -1
+        this.offscreenMaterial = new StandardMaterial(`tutorial-guide-offscreen-material-${target.label}`, scene)
+        this.offscreenMaterial.disableLighting = true
+        this.offscreenMaterial.emissiveColor = Color3.White()
+        this.offscreenMaterial.opacityTexture = this.offscreenTexture = new DynamicTexture(`tutorial-guide-offscreen-texture-${target.label}`, { width: 1024, height: 360 }, scene, true)
+        this.offscreenMaterial.diffuseTexture = this.offscreenTexture
+        this.offscreenMaterial.useAlphaFromDiffuseTexture = true
+        this.offscreenIndicator.material = this.offscreenMaterial
+        this.offscreenIndicator.setEnabled(false)
+
         this.observer = scene.onBeforeRenderObservable.add(() => {
             if (this.disposed) return
             try {
@@ -115,6 +156,8 @@ class TutorialGuide {
                 const minSize = 0.12
                 const pulse = 1 + Math.sin(performance.now() * 0.007 + this.pulseSeed) * 0.08
                 const thickness = 0.045
+                const camera = scene.activeCamera
+                const beaconLift = Math.max(0.24, extents.y * 0.7 + 0.16)
 
                 this.frame.setAbsolutePosition(center)
                 this.frame.rotationQuaternion = Quaternion.Identity()
@@ -125,6 +168,46 @@ class TutorialGuide {
                 )
                 this.material.alpha = 0.14 + Math.sin(performance.now() * 0.009 + this.pulseSeed) * 0.05
                 this.text.updatePosition()
+                this.beacon.setAbsolutePosition(center.add(new Vector3(0, extents.y / 2 + beaconLift, 0)))
+                this.beacon.scaling.setAll(0.9 + Math.sin(performance.now() * 0.01 + this.pulseSeed) * 0.08)
+
+                if (camera) {
+                    const ray = camera.getForwardRay()
+                    const forward = ray.direction.normalizeToNew()
+                    const toTarget = center.subtract(ray.origin)
+                    const distance = Math.max(0.001, toTarget.length())
+                    const direction = toTarget.scale(1 / distance)
+                    const right = Vector3.Cross(Vector3.Up(), forward).normalize()
+                    const side = Vector3.Dot(direction, right)
+                    const facing = Vector3.Dot(direction, forward)
+                    const isOffscreen = facing < 0.42 || Math.abs(side) > 0.82
+
+                    if (isOffscreen) {
+                        const directionKey = facing < 0.08 && Math.abs(side) < 0.18
+                            ? "back"
+                            : side >= 0
+                                ? "left"
+                                : "right"
+                        if (directionKey !== this.lastOffscreenMessage) {
+                            this.drawOffscreenTexture(directionKey)
+                            this.lastOffscreenMessage = directionKey
+                        }
+
+                        const lateralOffset = directionKey === "back"
+                            ? 0
+                            : Math.max(-0.92, Math.min(0.92, side * 1.45))
+                        const verticalOffset = directionKey === "back" ? 0.08 : 0.2
+                        const indicatorPosition = ray.origin
+                            .add(forward.scale(1.55))
+                            .addInPlace(Vector3.Up().scale(verticalOffset))
+                            .addInPlace(right.scale(lateralOffset))
+                        this.offscreenIndicator.setAbsolutePosition(indicatorPosition)
+                        this.offscreenIndicator.scaling.setAll(1 + Math.sin(performance.now() * 0.009 + this.pulseSeed) * 0.05)
+                        this.offscreenIndicator.setEnabled(true)
+                    } else {
+                        this.offscreenIndicator.setEnabled(false)
+                    }
+                }
             } catch (error) {
                 console.warn("[Tutorial] Guide update failed", target.label, error)
                 this.dispose()
@@ -139,6 +222,127 @@ class TutorialGuide {
         this.text.dispose()
         this.frame.dispose()
         this.material.dispose()
+        this.beacon.dispose()
+        this.beaconMaterial.dispose()
+        this.beaconTexture.dispose()
+        this.offscreenIndicator.dispose()
+        this.offscreenMaterial.dispose()
+        this.offscreenTexture.dispose()
+    }
+
+    private drawBeaconTexture(): void {
+        const ctx = this.beaconTexture.getContext() as unknown as CanvasRenderingContext2D
+        const w = this.beaconTexture.getSize().width
+        const h = this.beaconTexture.getSize().height
+        ctx.clearRect(0, 0, w, h)
+        ctx.fillStyle = "rgba(8,16,22,0)"
+        ctx.fillRect(0, 0, w, h)
+
+        ctx.textAlign = "center"
+        ctx.lineJoin = "round"
+        ctx.lineWidth = 18
+        ctx.strokeStyle = "rgba(5, 10, 14, 0.92)"
+        ctx.fillStyle = this.color
+
+        ctx.font = "bold 240px Trebuchet MS"
+        ctx.strokeText("▼", w / 2, 255)
+        ctx.fillText("▼", w / 2, 255)
+
+        ctx.font = "bold 88px Trebuchet MS"
+        ctx.strokeText(this.label, w / 2, 485)
+        ctx.fillText(this.label, w / 2, 485)
+        this.beaconTexture.update()
+    }
+
+    private drawOffscreenTexture(direction: string): void {
+        const ctx = this.offscreenTexture.getContext() as unknown as CanvasRenderingContext2D
+        const w = this.offscreenTexture.getSize().width
+        const h = this.offscreenTexture.getSize().height
+        ctx.clearRect(0, 0, w, h)
+
+        ctx.lineJoin = "round"
+        ctx.fillStyle = this.color
+        ctx.strokeStyle = "rgba(5, 10, 14, 0.92)"
+
+        if (direction === "left") {
+            this.drawChevron(ctx, w * 0.32, h * 0.5, -1)
+            this.drawChevron(ctx, w * 0.52, h * 0.5, -1, 0.72)
+        } else if (direction === "right") {
+            this.drawChevron(ctx, w * 0.68, h * 0.5, 1)
+            this.drawChevron(ctx, w * 0.48, h * 0.5, 1, 0.72)
+        } else {
+            this.drawBackIndicator(ctx, w * 0.5, h * 0.47)
+        }
+
+        ctx.textAlign = "center"
+        ctx.font = "bold 52px Trebuchet MS"
+        ctx.lineWidth = 10
+        ctx.strokeText(this.label, w / 2, h - 54)
+        ctx.fillText(this.label, w / 2, h - 54)
+        this.offscreenTexture.update()
+    }
+
+    private drawChevron(ctx: CanvasRenderingContext2D, x: number, y: number, direction: -1 | 1, alpha: number = 1): void {
+        ctx.save()
+        ctx.globalAlpha = alpha
+        ctx.lineWidth = 26
+        ctx.beginPath()
+        ctx.moveTo(x + 110 * direction, y - 74)
+        ctx.lineTo(x, y)
+        ctx.lineTo(x + 110 * direction, y + 74)
+        ctx.stroke()
+        ctx.beginPath()
+        ctx.moveTo(x + 110 * direction, y - 74)
+        ctx.lineTo(x, y)
+        ctx.lineTo(x + 110 * direction, y + 74)
+        ctx.strokeStyle = this.color
+        ctx.lineWidth = 14
+        ctx.stroke()
+        ctx.restore()
+        ctx.strokeStyle = "rgba(5, 10, 14, 0.92)"
+    }
+
+    private drawBackIndicator(ctx: CanvasRenderingContext2D, x: number, y: number): void {
+        ctx.lineWidth = 26
+        ctx.beginPath()
+        ctx.arc(x, y, 88, Math.PI * 0.18, Math.PI * 1.28, true)
+        ctx.stroke()
+        ctx.beginPath()
+        ctx.arc(x, y, 88, Math.PI * 0.18, Math.PI * 1.28, true)
+        ctx.strokeStyle = this.color
+        ctx.lineWidth = 14
+        ctx.stroke()
+
+        ctx.beginPath()
+        ctx.moveTo(x - 62, y - 88)
+        ctx.lineTo(x - 132, y - 74)
+        ctx.lineTo(x - 92, y - 18)
+        ctx.strokeStyle = "rgba(5, 10, 14, 0.92)"
+        ctx.lineWidth = 24
+        ctx.stroke()
+
+        ctx.beginPath()
+        ctx.moveTo(x - 62, y - 88)
+        ctx.lineTo(x - 132, y - 74)
+        ctx.lineTo(x - 92, y - 18)
+        ctx.strokeStyle = this.color
+        ctx.lineWidth = 12
+        ctx.stroke()
+        ctx.strokeStyle = "rgba(5, 10, 14, 0.92)"
+    }
+
+    private roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, radius: number): void {
+        ctx.beginPath()
+        ctx.moveTo(x + radius, y)
+        ctx.lineTo(x + width - radius, y)
+        ctx.quadraticCurveTo(x + width, y, x + width, y + radius)
+        ctx.lineTo(x + width, y + height - radius)
+        ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height)
+        ctx.lineTo(x + radius, y + height)
+        ctx.quadraticCurveTo(x, y + height, x, y + height - radius)
+        ctx.lineTo(x, y + radius)
+        ctx.quadraticCurveTo(x, y, x + radius, y)
+        ctx.closePath()
     }
 
     private getBounds(meshes: AbstractMesh[]): BoundingInfo | null {
@@ -192,6 +396,7 @@ export class TutorialController {
     private notesPlayed = 0
     private beatDemoPromise: Promise<void> | null = null
     private beatDemoReady = false
+    private lastMidiNoteCount = 0
     private tutorialAnchor = Vector3.Zero()
     private tutorialForward = new Vector3(0, 0, 1)
     private tutorialRight = new Vector3(1, 0, 0)
@@ -272,6 +477,8 @@ export class TutorialController {
 
         SceneManager.getInstance().getScene().onBeforeRenderObservable.add(() => {
             this.trackLocomotion()
+            this.trackTutorialPerformance()
+            this.adjustTutorialShopPlacement()
             if (this.currentStep.id === "move-around" || this.currentStep.id.startsWith("place-")) {
                 this.reconcile()
             }
@@ -304,10 +511,15 @@ export class TutorialController {
         if (step.awaitAdvanceOnly) {
             this.advancing = true
         }
+        if (step.id === "play-first-note" || step.id === "play-chain") {
+            this.notesPlayed = 0
+            this.lastMidiNoteCount = this.getTutorialMidiConnection()?.getMidiNoteOnCount() ?? 0
+        }
         this.panel.setStep(step, Math.min(this.stepIndex + 1, TOTAL_OBJECTIVES), TOTAL_OBJECTIVES)
         if (step.awaitAdvanceOnly) {
-            this.panel.setAdvancePrompt("Pointez le bouton puis validez avec la gâchette quand vous êtes prêt.", step.advanceLabel ?? "Suivant")
+            this.panel.setAdvancePrompt("Point at Next and press the trigger when you are ready.", step.advanceLabel ?? "Next")
         }
+        this.applyControllerFocus(step)
         this.renderBrowserHud(step)
         this.updateGuides()
         if (step.id === "start-transport") void this.ensureBeatDemo()
@@ -326,7 +538,7 @@ export class TutorialController {
         el.classList.toggle("wj-tutorial-complete", step.id === "complete")
         el.innerHTML = `
             <div class="wj-tutorial-progress">
-                ${step.id === "complete" ? "PARCOURS ACCOMPLI" : `OBJECTIF ${Math.min(this.stepIndex + 1, TOTAL_OBJECTIVES)}/${TOTAL_OBJECTIVES}`}
+                ${step.id === "complete" ? "TUTORIAL COMPLETE" : `STEP ${Math.min(this.stepIndex + 1, TOTAL_OBJECTIVES)}/${TOTAL_OBJECTIVES}`}
             </div>
             <strong>${this.escapeHtml(step.title)}</strong>
             <span>${this.escapeHtml(step.objective)}</span>
@@ -344,7 +556,7 @@ export class TutorialController {
     private handleShopNavigation(label: string): void {
         const expected = this.currentStep.expectedSection
         if (!expected || label === expected) return
-        this.showHint(`Bonne exploration. Pour l’objectif actuel, ouvrez plutôt la section ${expected}.`)
+        this.showHint(`Good try. For this step, open the ${expected} tab in the shop.`)
     }
 
     private handleShopItem(kind: string): void {
@@ -353,9 +565,9 @@ export class TutorialController {
 
         const expectedStep = TUTORIAL_STEPS.find(step => step.expectedKind === kind)
         const detail = expectedStep
-            ? `${this.getKindLabel(kind)} sera utile à l’étape « ${expectedStep.title} ».`
-            : "Ce module ne fait pas partie de ce parcours."
-        this.showHint(`${detail} L’objectif actuel reste : ${this.currentStep.objective}`)
+            ? `${this.getKindLabel(kind)} will be useful later, during "${expectedStep.title}".`
+            : "This module is not needed for this tutorial."
+        this.showHint(`${detail} Current goal: ${this.currentStep.objective}`)
     }
 
     private handleConnection(connection: N3DConnectionInstance): void {
@@ -369,7 +581,7 @@ export class TutorialController {
         } else if (step === "restore-output-connection" && this.connectionMatches(connection, TUTORIAL_KINDS.delay, TUTORIAL_KINDS.output)) {
             this.completeCurrentStep()
         } else if (step.startsWith("connect-")) {
-            this.showHint(`Cette connexion est valide, mais l’objectif actuel reste : ${this.currentStep.objective}`)
+            this.showHint(`That connection is valid, but the current objective is still: ${this.currentStep.objective}`)
         }
 
         this.updateGuides()
@@ -420,6 +632,48 @@ export class TutorialController {
                 this.completeCurrentStep()
             }
         })
+    }
+
+    private trackTutorialPerformance(): void {
+        const step = this.currentStep.id
+        if (!["play-first-note", "play-chain"].includes(step)) return
+        if (this.advancing) return
+
+        const connection = this.getTutorialMidiConnection()
+        if (!connection) return
+
+        const count = connection.getMidiNoteOnCount()
+        if (count <= this.lastMidiNoteCount) return
+
+        this.notesPlayed += count - this.lastMidiNoteCount
+        this.lastMidiNoteCount = count
+
+        const requiredNotes = step === "play-chain" ? 3 : 1
+        if (this.notesPlayed >= requiredNotes) this.completeCurrentStep()
+    }
+
+    private adjustTutorialShopPlacement(): void {
+        const menu = this.shop.menu
+        if (!menu) return
+        if (this.shop.menus.current_menu !== menu) return
+
+        const camera = SceneManager.getInstance().getScene().activeCamera
+        if (!camera) return
+
+        const ray = camera.getForwardRay()
+        const forward = new Vector3(ray.direction.x, 0, ray.direction.z)
+        if (forward.lengthSquared() < 0.0001) return
+        forward.normalize()
+
+        const target = ray.origin
+            .add(forward.scale(2))
+            .addInPlace(Vector3.Up().scale(-0.34))
+        const positionDiff = Vector3.DistanceSquared(menu.root.position, target)
+        if (positionDiff > 0.0004) {
+            menu.root.position.scaleInPlace(0.88).addInPlace(target.scale(0.12))
+        } else {
+            menu.root.position.copyFrom(target)
+        }
     }
 
     private reconcile(): void {
@@ -474,6 +728,7 @@ export class TutorialController {
         this.notesPlayed = 0
         const successMessage = this.getStepSuccessMessage()
         this.panel.showFeedback(successMessage, "success")
+        this.applyControllerFocus()
         this.clearGuides()
 
         const browserHud = document.getElementById("wj-tutorial-hud")
@@ -482,12 +737,12 @@ export class TutorialController {
             const objective = browserHud.querySelector("span")
             if (objective) objective.textContent = successMessage
             const hint = browserHud.querySelector("small")
-            if (hint) hint.textContent = "Cliquez sur Suivant quand vous avez fini de lire."
+            if (hint) hint.textContent = "Press Next after you finish reading."
         }
 
         this.panel.setAdvancePrompt(
-            "Pointez le bouton puis validez avec la gâchette quand vous êtes prêt.",
-            this.currentStep.advanceLabel ?? "Suivant",
+            "Point at Next and press the trigger when you are ready.",
+            this.currentStep.advanceLabel ?? "Next",
         )
         if (browserHud) this.renderBrowserActions(browserHud)
     }
@@ -495,7 +750,7 @@ export class TutorialController {
     private getStepSuccessMessage(): string {
         if (this.currentStep.id === "remove-output-connection" && this.speakerRecoveredForRestore) {
             this.speakerRecoveredForRestore = false
-            return "Le Speaker a été supprimé par erreur : il a été remis à sa place. Il ne reste plus qu’à recréer la connexion."
+            return "The Speaker was deleted by mistake. It has been restored, so you only need to reconnect it."
         }
         return this.currentStep.success
     }
@@ -549,7 +804,7 @@ export class TutorialController {
 
         const button = document.createElement("button")
         button.className = "wj-btn wj-btn-tutorial"
-        button.textContent = this.currentStep.advanceLabel ?? "Suivant"
+        button.textContent = this.currentStep.advanceLabel ?? "Next"
         button.addEventListener("click", () => this.advanceAfterAcknowledgement())
         actions.appendChild(button)
     }
@@ -560,13 +815,13 @@ export class TutorialController {
         this.beatDemoPromise = this.createBeatDemo().catch(error => {
             this.beatDemoPromise = null
             console.error("[Tutorial] Failed to create beat demo:", error)
-            this.showHint("La batterie n’a pas pu apparaître. Réessayez en relançant le tutoriel.")
+            this.showHint("The drum setup could not appear. Please restart the tutorial and try again.")
         })
         return this.beatDemoPromise
     }
 
     private async createBeatDemo(): Promise<void> {
-        this.showHint("Le séquenceur 16, le drum sampler et leur sortie audio apparaissent déjà câblés et configurés.")
+        this.showHint("A drum sequencer, a drum instrument, and a speaker appear above you, already connected and ready.")
 
         const center = this.tutorialAnchor
             .add(this.tutorialForward.scale(0.08))
@@ -606,13 +861,13 @@ export class TutorialController {
 
     private configureDrumPattern(sequencer: Node3DInstance): void {
         const rows = [
-            { row: 0, midi: 36, steps: [0, 4, 8, 12] },
-            { row: 1, midi: 38, steps: [4, 12] },
-            { row: 2, midi: 39, steps: [4, 12] },
+            { row: 0, midi: getDrumMidi("Kick", 36), steps: [0, 4, 8, 12] },
+            { row: 1, midi: getDrumMidi("Snare", 38), steps: [4, 12] },
+            { row: 2, midi: getDrumMidi("Clap", 39), steps: [4, 12] },
         ]
 
         for (const { row, midi, steps } of rows) {
-            sequencer.parameters.get(`sequencer_note_midi_${row}`)?.setValue(midi / 128)
+            sequencer.parameters.get(`sequencer_note_midi_${row}`)?.setValue(midi)
             for (const step of steps) {
                 sequencer.parameters.get(`sequencer_note_${row}_${step}`)?.setValue(1)
             }
@@ -688,21 +943,21 @@ export class TutorialController {
             return this.getPlacementGuides(placementKind)
         }
         if (step === "connect-midi") {
-            return this.getPortGuideTargets(TUTORIAL_KINDS.piano, "midi", "output", "Sortie MIDI", "#7ee787")
-                .concat(this.getPortGuideTargets(TUTORIAL_KINDS.synth, "midi", "input", "Entrée MIDI", "#7ee787"))
+            return this.getPortGuideTargets(TUTORIAL_KINDS.piano, "midi", "output", "Green note output", "#7ee787")
+                .concat(this.getPortGuideTargets(TUTORIAL_KINDS.synth, "midi", "input", "Green note input", "#7ee787"))
         }
         if (step === "connect-delay") {
-            return this.getPortGuideTargets(TUTORIAL_KINDS.synth, "audio", "output", "Sortie audio", "#56d6c9")
-                .concat(this.getPortGuideTargets(TUTORIAL_KINDS.delay, "audio", "input", "Entrée audio", "#56d6c9"))
+            return this.getPortGuideTargets(TUTORIAL_KINDS.synth, "audio", "output", "Sound output", "#56d6c9")
+                .concat(this.getPortGuideTargets(TUTORIAL_KINDS.delay, "audio", "input", "Sound input", "#56d6c9"))
         }
         if (step === "connect-output" || step === "restore-output-connection") {
-            return this.getPortGuideTargets(TUTORIAL_KINDS.delay, "audio", "output", "Vers le Speaker", "#56d6c9")
-                .concat(this.getPortGuideTargets(TUTORIAL_KINDS.output, "audio", "input", "Entrée du Speaker", "#56d6c9"))
+            return this.getPortGuideTargets(TUTORIAL_KINDS.delay, "audio", "output", "To the Speaker", "#56d6c9")
+                .concat(this.getPortGuideTargets(TUTORIAL_KINDS.output, "audio", "input", "Speaker input", "#56d6c9"))
         }
         if (step === "remove-output-connection") {
             const speaker = this.findNode(TUTORIAL_KINDS.output)
             const targets: TutorialGuideTarget[] = []
-            if (speaker) targets.push(this.getWholeNodeGuideTarget(speaker, "Ouvrir le menu du Speaker", "#ffca5c"))
+            if (speaker) targets.push(this.getWholeNodeGuideTarget(speaker, "Open Speaker options", "#ffca5c"))
             return targets
         }
         if (step === "shape-sound") {
@@ -727,12 +982,12 @@ export class TutorialController {
         const target = this.recommendedPositions.get(kind)
         const label = this.getKindLabel(kind)
         const guides: TutorialGuideTarget[] = []
-        if (node) guides.push(this.getWholeNodeGuideTarget(node, `Attraper ${label}`, "#7ee787"))
+        if (node) guides.push(this.getWholeNodeGuideTarget(node, `Move ${label}`, "#7ee787"))
         if (target) {
             guides.push({
                 position: target,
                 size: new Vector3(1.12, 0.62, 1.12),
-                label: "Poser ici",
+                label: "Target spot",
                 color: "#56d6c9",
             })
         }
@@ -860,6 +1115,7 @@ export class TutorialController {
     private finishTutorial(): void {
         this.tutorialFinished = true
         this.advancing = false
+        ControlsUISystem.getInstance().clearTutorialFocus()
         this.clearGuides()
         this.panel.hide()
         document.getElementById("wj-tutorial-hud")?.remove()
@@ -1109,17 +1365,94 @@ export class TutorialController {
             .find(([, connection]) => this.connectionMatches(connection, fromKind, toKind))?.[1]
     }
 
+    private getTutorialMidiConnection(): N3DConnectionInstance | undefined {
+        return this.findConnection(TUTORIAL_KINDS.piano, TUTORIAL_KINDS.synth)
+    }
+
     private getNodeKind(node: Node3DInstance): string | undefined {
         const id = this.network.nodes.getId(node)
         return id ? this.network.nodes.getData(id) : undefined
     }
 
     private getKindLabel(kind: string): string {
-        if (kind === TUTORIAL_KINDS.piano) return "LivePiano"
+        if (kind === TUTORIAL_KINDS.piano) return "Harp"
         if (kind === TUTORIAL_KINDS.synth) return "Pro54"
         if (kind === TUTORIAL_KINDS.delay) return "Ping Pong Delay"
         if (kind === TUTORIAL_KINDS.output) return "Speaker"
         return kind
+    }
+
+    private applyControllerFocus(step: TutorialStep | null = this.currentStep): void {
+        const controls = ControlsUISystem.getInstance()
+        const hints = step ? this.getControllerHints(step) : null
+        if (!hints || hints.length === 0) {
+            controls.clearTutorialFocus()
+            return
+        }
+        controls.setTutorialContextHints(hints)
+    }
+
+    private getControllerHints(step: TutorialStep): TutorialControlHint[] | null {
+        if (step.id === "complete") return null
+        if (this.advancing && !step.awaitAdvanceOnly) return null
+        switch (step.id) {
+            case "welcome-intro":
+                return [
+                    { labelId: "right-Trigger", text: "Press Next when ready" },
+                ]
+            case "move-around":
+                return [
+                    { labelId: "left-Stick", text: "Move around the scene" },
+                    { labelId: "right-Stick", text: "Turn left / right" },
+                ]
+            case "open-shop":
+                return [
+                    { labelId: "right-A", text: "Open / close shop" },
+                ]
+            case "place-piano":
+            case "place-synth":
+            case "place-delay":
+            case "place-output":
+                return [
+                    { labelId: "right-Trigger", text: "Hold to grab. Right Stick up / down: move held object" },
+                ]
+            case "add-piano":
+            case "add-synth":
+            case "add-delay":
+            case "add-output":
+                return [
+                    { labelId: "right-A", text: "Open / close shop" },
+                ]
+            case "connect-midi":
+            case "connect-delay":
+            case "connect-output":
+            case "restore-output-connection":
+                return [
+                    { labelId: "right-Trigger", text: "Hold, aim, release" },
+                ]
+            case "play-first-note":
+            case "play-chain":
+                return null
+            case "shape-sound":
+            case "shape-delay":
+                return [
+                    { labelId: "right-Trigger", text: "Point and adjust" },
+                ]
+            case "start-transport":
+                return [
+                    { labelId: "left-Trigger", title: "Left Menu", text: "Use Play on the left menu" },
+                ]
+            case "change-tempo":
+                return [
+                    { labelId: "left-Trigger", title: "Left Menu", text: "Open Settings, then change BPM" },
+                ]
+            case "remove-output-connection":
+                return [
+                    { labelId: "right-Trigger", title: "Top Bar", text: "Aim at the module bar" },
+                ]
+            default:
+                return null
+        }
     }
 
     private escapeHtml(value: string): string {

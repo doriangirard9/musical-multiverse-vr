@@ -1,3 +1,8 @@
+export * as inputs from "./xr/inputs"
+export * as node3dapi from "./node3d/node3dapi.ts"
+export * as app from "./app"
+export * as menus from "./menus"
+
 import { HashRouter } from "./router/HashRouter.ts";
 import { ROUTES } from "./router/routes.ts";
 import { ApiClient } from "./auth/ApiClient.ts";
@@ -141,7 +146,7 @@ let onload = async() => {
                             import("./app/App.ts"),
                             import("./ui/pages/SessionHUD.ts"),
                             import("./network/SessionConnector.ts"),
-                            import("./app/Node3dManager.ts"),
+                            import("./app/node3d/Node3dManager.ts"),
                             import("./tutorial/TutorialController.ts"),
                             import("yjs"),
                         ]);

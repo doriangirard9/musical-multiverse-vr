@@ -166,8 +166,8 @@ export class HyperKeyboardN3D implements Node3D {
             })
         })
         // Automation Output
-        this.automationOutputs[0].value = this.gui.factory.y==1 ? 1 : y/(this.gui.factory.y-1)
-        this.automationOutputs[1].value = this.gui.factory.z==1 ? 1 : z/(this.gui.factory.z-1)
+        this.automationOutputs[0].normalizedValue = this.gui.factory.y==1 ? 1 : y/(this.gui.factory.y-1)
+        this.automationOutputs[1].normalizedValue = this.gui.factory.z==1 ? 1 : z/(this.gui.factory.z-1)
     }
 
     onUp(x: number, y: number, z: number) {
@@ -274,8 +274,7 @@ export class HyperKeyboardN3D implements Node3D {
             const out = new T.AutomationN3DConnectable.Output(
                 "automation parameter n°" + i,
                 [mesh],
-                `${names[i]} Value`,
-                1
+                `${names[i]} Value`
             )
             context.createConnectable(out)
             return out
@@ -283,9 +282,9 @@ export class HyperKeyboardN3D implements Node3D {
 
     }
 
-    async setState(key: string, value: any) { }
+    async setState(_: string, __: any) { }
 
-    async getState(key: string) { }
+    async getState(_: string) { }
 
     getStateKeys() { return [] }
 

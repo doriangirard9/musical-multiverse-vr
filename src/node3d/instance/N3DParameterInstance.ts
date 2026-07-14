@@ -1,12 +1,21 @@
-import { Color3, HighlightLayer, Matrix, Observable, TransformNode, UtilityLayerRenderer, Vector3 } from "@babylonjs/core"
+import { Color3, HighlightLayer, Matrix, Observable, Vector3 } from "@babylonjs/core"
 import { NodeCompUtils } from "../tools/utils/NodeCompUtils"
 import { Node3DParameter } from "../Node3DParameter"
-import { N3DText } from "./utils/N3DText"
-import { InputHoverBehavior } from "../../xr/inputs/tools/InputHoverBehavior"
 import { InputGrabBehavior } from "../../xr/inputs/tools/InputGrabBehavior"
 import { Node3DInstance } from "./Node3DInstance"
+import { InputMultiHoverBehavior } from "../tools"
 
 const highlightColor = Color3.Blue()
+
+export enum ParameterChangeMode{
+    /** The parameter value is changed by automation, such as a sequencer or an LFO. */
+    AUTOMATION,
+    /** The parameter value is changed by direct user interaction (by dragging the parameter), such as dragging the parameter. */
+    DIRECT_MANUAL,
+    /** The parameter value is changed by user interaction. */
+    MANUAL,
+}
+
 
 /**
  * A simple parameter whose value is changed by dragging it.
@@ -18,6 +27,14 @@ export class N3DParameterInstance {
      * When locked, the value cannot be changed by user interaction.
      */
     isLocked = false
+
+    /**
+     * Is the parameter a switch (stepCount=2).
+     * A switch is a parameter that can only take two values, such as on/off or true/false.
+     */
+    get isSwitch(): boolean{
+        return this.getStepSize()>=(this.getMax()-this.getMin())
+    }
 
     /**
      * 
@@ -32,14 +49,10 @@ export class N3DParameterInstance {
      */
     constructor(
         readonly node3d: Node3DInstance,
-        root: TransformNode,
         highlightLayer: HighlightLayer,
-        utilityLayer: UtilityLayerRenderer,
         readonly config: Node3DParameter,
     ) {
-
-        // Parameter value text visual
-        const text = this.text = new N3DText(`parameter ${config.id}`, config.meshes, utilityLayer.utilityLayerScene)
+        const parameter = this
 
         // Highlight visual
         const highlight = this.highlight = {
@@ -53,34 +66,54 @@ export class N3DParameterInstance {
             stack: 0,
             offset(offset: number){
                 this.stack += offset
-                if(this.stack == 1){
+                if(offset>0 && this.stack == 1){
                     highlight.show()
-                    text.show()
+                    parameter.onShow.notifyObservers()
+                    node3d.onParameterShow.notifyObservers(parameter)
                 }
-                else if(this.stack == 0){
+                else if(offset<0 && this.stack == 0){
                     highlight.hide()
-                    text.hide()
+                    parameter.onHide.notifyObservers()
+                    node3d.onParameterHide.notifyObservers(parameter)
                 }
             }
         }
-
-        function updateText(){
-            text.updatePosition()
-            text.set([
-                {content: config.getLabel()},
-                {content: config.stringify(config.getValue()), size: .7}
-            ])
+        
+        const event = {
+            stack: 0,
+            push(value: number){
+                this.stack++
+                if(this.stack==1){
+                    parameter.onDragStart.notifyObservers({value})
+                    node3d.onParameterDragStart.notifyObservers({parameter, value})
+                }
+                else this.set(value)
+            },
+            set(value: number){
+                if(this.stack>0){
+                    parameter.onDrag.notifyObservers({value})
+                    node3d.onParameterDrag.notifyObservers({parameter, value})
+                }
+            },
+            pop(value: number){
+                this.stack--
+                if(this.stack==0){
+                    parameter.onDragStop.notifyObservers({value})
+                    node3d.onParameterDragStop.notifyObservers({parameter, value})
+                }
+            }
         }
 
         const disposables: (()=>void)[] = []
 
         for(const draggable of config.meshes){        
-            const hover = new InputHoverBehavior(()=>{
-                updateText()
-                visual.offset(1)
-            }, ()=>{
-                visual.offset(-1)
-            })
+            const hover = new InputMultiHoverBehavior(
+                ()=>{
+                    visual.offset(1)
+                }, ()=>{
+                    visual.offset(-1)
+                }
+            )
     
             let startingValue = 0
             let stepSize = 0.01
@@ -91,17 +124,21 @@ export class N3DParameterInstance {
             const relativeDirection = new Vector3()
             const temp = new Vector3()
 
+            const isButton = ()=>{
+                return stepSize>=(this.getMax()-this.getMin())
+            }
+
             const drag = new InputGrabBehavior(
                 input=>{
+                    // Change
                     visual.offset(1)
                 
-                    const stepCount = config.getStepCount()
-                    if(stepCount<=1){
-                        stepSize = 0.001
-                        changeFactor = 0.2
+                    stepSize = config.getStepSize()
+                    if(stepSize<=0){
+                        stepSize = 0.001*(this.getMax()-this.getMin())
+                        changeFactor = 0.2*(this.getMax()-this.getMin())
                     }
                     else{
-                        stepSize = 1/(stepCount-1)
                         changeFactor = stepSize*4
                     }
                     startingValue = config.getValue() + stepSize/2
@@ -109,19 +146,21 @@ export class N3DParameterInstance {
                     changeFactor*=2
 
                     // If stepCount is 2, the value is directly changed
-                    if(stepSize==1){
-                        this.setValue(config.getValue()<.5 ? 1 : 0)
-                        updateText()
+                    if(isButton()){
+                        this.setValue(config.getValue()<(this.getMax()+this.getMin())/2 ? this.getMax() : this.getMin())
                     }
                     
                     reverseMatrix.copyFrom(input.matrix).invertToRef(reverseMatrix)
+
+                    event.push(startingValue)
                 },
-                ()=>{
+                _=>{
+                    event.pop(this.getValue())
                     visual.offset(-1)
                 },
                 input=>{
                     // If stepCount is 2, do nothing on drag
-                    if(stepSize==1)return
+                    if(isButton())return
 
                     // Get ray relative to the parameter
                     Vector3.TransformCoordinatesToRef(input.origin, reverseMatrix, relativePosition)
@@ -133,17 +172,18 @@ export class N3DParameterInstance {
                         const corrected_length = Math.min(1/ground_length,10)
 
                         temp.copyFrom(dirOffset).scaleInPlace(corrected_length).addInPlace(posOffset)
-                        return -temp.y
+                        return temp.y
                     })
 
                     const offset = fromOffset(relativePosition, relativeDirection)
 
                     let newvalue = (startingValue + offset * changeFactor)
                     newvalue = newvalue - newvalue % stepSize
-                    newvalue = Math.max(0, Math.min(1, newvalue))
-                    this.setValue(newvalue)
+                    newvalue = Math.max(this.getMin(), Math.min(this.getMax(), newvalue))
+                    this.setValue(newvalue, ParameterChangeMode.DIRECT_MANUAL)
                     //TODO: pk j'ai mit ça déjà : draggable.rotationQuaternion = null
-                    updateText()
+
+                    event.set(newvalue)
                 },
             )
             
@@ -159,43 +199,105 @@ export class N3DParameterInstance {
 
         this.dispose = () => {
             disposables.forEach(d => d())
-            text.dispose()
             highlight.dispose()
         }
     }
 
-    /**
-     * Set value and sync if needed.
-     * Don't works if the parameter is locked.
-     * @param value 
-     */
-    setValue(value: number){
-        if(this.isLocked) return
-        this.config.setValue(value)
-        this.onValueChanged.notifyObservers(value)
-        this.node3d.onParameterChanged.notifyObservers({ id: this.config.id, value })
-        if(!this.config.notSynced) this.node3d.set_state("node3d_parameter_"+this.config.id)
+    //// Real value ////
+    /** Set the value of the parameter. */
+    setValue(value: number, type: ParameterChangeMode = ParameterChangeMode.DIRECT_MANUAL){
+        // Filter
+        let v = value
+        if(v<this.getMin()) v = this.getMin()
+        if(v>this.getMax()) v = this.getMax()
+        const stepSize = this.getStepSize()
+        if(stepSize>0) v = Math.round(v/stepSize)*stepSize
+        
+        // Set the value
+        if(type==ParameterChangeMode.DIRECT_MANUAL || type==ParameterChangeMode.MANUAL){
+            if(this.isLocked && type==ParameterChangeMode.DIRECT_MANUAL) return
+            this.config.setValue(v)
+            this.onValueChanged.notifyObservers(v)
+            this.node3d.onParameterChanged.notifyObservers({ id: this.config.id, value: v })
+            if(!this.config.notSynced) this.node3d.set_state("node3d_parameter_"+this.config.id)
+        }
+        else if(type==ParameterChangeMode.AUTOMATION) this.config.setValue(value, true)
     }
 
-    /**
-     * Set value without syncing, used for automated changes (eg. when receiving state from other clients).
-     * @param value 
-     */
-    setValueAutomated(value: number){
-        this.config.setValue(value, true)
-    }
-
-    /**
-     * Get the current value of the parameter.
-     */
+    /** Get the current value of the parameter. */
     getValue(): number{
         return this.config.getValue()
     }
 
+    /** Get the maximum value of the parameter. */
+    getMax(): number{
+        return this.config.getMax()
+    }
+
+    /** Get the minimum value of the parameter. */
+    getMin(): number{
+        return this.config.getMin()
+    }
+
+    /** Get the step size of the parameter. */
+    getStepSize(): number{
+        return this.config.getStepSize()
+    }
+
+    /** Get the exponent of the parameter. */
+    getExponant(): number{
+        return this.config.getExponant()
+    }
+
+    /** Normalize a value between 0 and 1. */
+    normalize(value: number): number{
+        const min = this.getMin()
+        const max = this.getMax()
+        if(max<=min) return 0
+        const n = (value - min) / (max - min)
+        return Math.pow(n, this.getExponant())
+    }
+
+    /** Denormalize a value between 0 and 1. */
+    denormalize(value: number): number{
+        const min = this.getMin()
+        const max = this.getMax()
+        if(max<=min) return min
+        const n = Math.pow(value, 1/this.getExponant())
+        return min + n * (max - min)
+    }
+
+    //// Normalized value ////
+    /** Set the normalized value of the parameter. */
+    setNormalizedValue(value: number, type: ParameterChangeMode = ParameterChangeMode.DIRECT_MANUAL){
+        let n = value
+        if(n<0) n = 0
+        if(n>1) n = 1
+        const v = this.denormalize(n)
+        this.setValue(v,type)
+    }
+
+    /** Get the normalized value of the parameter. */
+    getNormalizedValue(): number{
+        return this.normalize(this.getValue())
+    }
+
+    /** Get the normalized step size of the parameter. */
+    getNormalizedStepSize(): number{
+        const stepSize = this.getStepSize()
+        if(stepSize<=0) return 0
+        return stepSize / (this.getMax() - this.getMin())
+    }
+
     readonly dispose
-    readonly text
     readonly highlight
     readonly visual
+
     readonly onValueChanged = new Observable<number>()
+    readonly onShow = new Observable<void>()
+    readonly onHide = new Observable<void>()
+    readonly onDragStart = new Observable<{value:number}>()
+    readonly onDrag = new Observable<{value:number}>()
+    readonly onDragStop = new Observable<{value:number}>()
 
 }

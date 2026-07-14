@@ -1,11 +1,11 @@
 import { AbstractMesh, CreatePlane, Ray, TransformNode } from "@babylonjs/core"
-import { Node3DNetwork } from "../network/Node3DNetwork"
-import { SceneManager } from "./SceneManager"
-import { Node3DInstance } from "../node3d/instance/Node3DInstance"
-import { BlocksMenu, BMenuMenu } from "../menus/BlocksMenu"
-import { TargetManager } from "./TargetManager"
+import { Node3DNetwork } from "../../network/Node3DNetwork"
+import { SceneManager } from "../SceneManager"
+import { Node3DInstance } from "../../node3d/instance/Node3DInstance"
+import { BlocksMenu, BMenuMenu } from "../../menus/BlocksMenu"
+import { TargetManager } from "../TargetManager"
 import { ContextMenuSystem } from "./ContextMenuSystem"
-import { Serialization } from "./Serialization"
+import { Serialization } from "../node3d/Serialization"
 
 
 const DEBUG_BAR_MENU = false
@@ -33,6 +33,7 @@ export class BarMenuSystem {
         return this._instance
     }
 
+    private dispose?: ()=>void
 
     constructor(
         private scenes: SceneManager,
@@ -43,7 +44,8 @@ export class BarMenuSystem {
         for(const target of targets.controllerToTarget.values()){
             target.onNewTarget.add(target=>{
                 if(target.new.node){
-                    this.createMenuFor(target.new.node)
+                    if(this.dispose) this.dispose()
+                    this.dispose = this.createMenuFor(target.new.node)
                 }
             })
         }
@@ -131,12 +133,19 @@ export class BarMenuSystem {
      * @return A function that, when called, will dispose of the menu and clean up any resources associated with it.
      */
     private createMenu(base: TransformNode, node: Node3DInstance): ()=>void{
+        const that = this
+
         // Simple block menu
-        const menu_info = this.createMenuConfig(node)
+        const menu_info = this.createMenuConfig(node, updateMenu)
         const menu = new BlocksMenu(this.scenes.getScene(), this.scenes.getUtilityScene(), menu_info)
         menu.root.parent = base
         menu.root.resetLocalMatrix()
         menu.root.position.set(0, .5+menu.plane.scaling.y/2, 0)
+
+        function updateMenu(){
+            const menu_info = that.createMenuConfig(node, updateMenu)
+            menu.set(menu_info)
+        }
 
         return ()=>{
             menu.dispose()
@@ -146,12 +155,20 @@ export class BarMenuSystem {
     /**
      * Create the simple block menu config.
      */
-    private createMenuConfig(node: Node3DInstance): BMenuMenu {
+    private createMenuConfig(node: Node3DInstance, onUpdate:()=>void): BMenuMenu {
         return {
             width: 20,
             items: [
-                { height:2, width: 10, text: node.factory.label },
-                { height:2, width: 2 },
+                { height:2, width: 9, text: node.factory.label },
+                { height:2, width: 2,
+                    text: node.isLocked ? "🔒" : "🔓",
+                    color: node.isLocked ? "white" : "#aaaaaa",
+                    onClick: ()=>{
+                        node.isLocked = !node.isLocked
+                        onUpdate()
+                    }
+                },
+                { height:2, width: 1 },
                 { height:2, width: 2, text: "⚙", color: "#aaaaaa", onClick: ()=>{
                     this.context.openNodeMenu(node)
                 } },

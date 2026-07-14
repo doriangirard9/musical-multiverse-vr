@@ -90,11 +90,11 @@ export class GazeControllerN3D implements Node3D {
         const B = this.gui.context.babylon
 
         if(this.isGaze) {
-            this.output.value = this.enabledValue
+            this.output.normalizedValue = this.output.normalize(this.enabledValue)
             T.MeshUtils.setColor(this.gui.eye, new B.Color4(0, 1, 0, 1))
         }
         else {
-            this.output.value = this.disabledValue
+            this.output.normalizedValue = this.output.normalize(this.disabledValue)
             T.MeshUtils.setColor(this.gui.eye, new B.Color4(1, 0, 0, 1))
         }
     }
@@ -111,23 +111,27 @@ export class GazeControllerN3D implements Node3D {
             "automation_controller_output",
             [gui.output],
             "Automation Output",
-            1
         )
         context.createConnectable(output)
 
         // Parameter
         context.createParameter({
             id: "automation_parameter_enabled",
-            meshes: [gui.enabledRotator, ...gui.enabledRotator.getChildMeshes()],
-            getLabel() { return output.name },
-            getStepCount() { return output.stepCount },
+            meshes: [gui.disabledRotator, ...gui.disabledRotator.getChildMeshes()],
+            getLabel() { return output.settingsOrDefault.getLabel() },
+
+            getMin(){ return output.settingsOrDefault.getMin() },
+            getMax(){ return output.settingsOrDefault.getMax() },
+            getStepSize(){ return output.settingsOrDefault.getStepSize() },
+            getExponant(){ return output.settingsOrDefault.getExponant() },
+
             getValue() { return that.enabledValue },
             setValue(value) {
                 that.enabledValue = value
-                gui.enabledRotator.rotation.y = value * Math.PI - Math.PI/2
+                gui.enabledRotator.rotation.y = output.normalize(value) * Math.PI - Math.PI/2
                 that.updateValue()
             },
-            stringify(value) { return output.stringify(value) },
+            stringify(value) { return output.settingsOrDefault.stringify(value) },
         })
 
         gui.enabledRotator.rotation.y = 1 * Math.PI - Math.PI/2
@@ -135,15 +139,20 @@ export class GazeControllerN3D implements Node3D {
         context.createParameter({
             id: "automation_parameter_disabled",
             meshes: [gui.disabledRotator, ...gui.disabledRotator.getChildMeshes()],
-            getLabel() { return output.name },
-            getStepCount() { return output.stepCount },
+            getLabel() { return output.settingsOrDefault.getLabel() },
+
+            getMin(){ return output.settingsOrDefault.getMin() },
+            getMax(){ return output.settingsOrDefault.getMax() },
+            getStepSize(){ return output.settingsOrDefault.getStepSize() },
+            getExponant(){ return output.settingsOrDefault.getExponant() },
+
             getValue() { return that.disabledValue },
             setValue(value) {
                 that.disabledValue = value
-                gui.disabledRotator.rotation.y = value * Math.PI - Math.PI/2
+                gui.disabledRotator.rotation.y = output.normalize(value) * Math.PI - Math.PI/2
                 that.updateValue()
             },
-            stringify(value) { return output.stringify(value) },
+            stringify(value) { return output.settingsOrDefault.stringify(value) },
         })
 
         gui.disabledRotator.rotation.y = 0 * Math.PI - Math.PI/2
@@ -169,9 +178,9 @@ export class GazeControllerN3D implements Node3D {
         that.updateValue()
     }
 
-    async setState(key: string, value: any) { }
+    async setState(_: string, __: any) { }
 
-    async getState(key: string) { }
+    async getState(_: string) { }
 
     getStateKeys() { return [] }
 

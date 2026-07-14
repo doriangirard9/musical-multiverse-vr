@@ -6,43 +6,25 @@ import type { Node3DParameter } from "../../Node3DParameter";
  * Mappe 0-1 à [0, 360] degrés.
  */
 export class AngleN3DParameter implements Node3DParameter {
-    readonly id: string;
-    meshes: AbstractMesh[];
-    private label: string;
 
     constructor(
-        id: string,
-        meshes: AbstractMesh[] = [],
+        readonly id: string,
+        readonly meshes: AbstractMesh[] = [],
         private setValueFn: (value: number) => void,
         private getValueFn: () => number,
         readonly getLabel: () => string,
-    ) {
-        this.id = id;
-        this.meshes = meshes;
-        this.label = getLabel();
-    }
+    ) { }
 
-    setValue(value: number): void {
-        const clampedValue = Math.max(0, Math.min(1, value));
-        const degrees = clampedValue * 360;
-        this.setValueFn(degrees);
-    }
+    setValue(value: number): void { this.setValueFn(value) }
 
-    getValue(): number {
-        let current = this.getValueFn();
-        // Normaliser l'angle dans [0, 360[
-        current = current % 360;
-        if (current < 0) current += 360;
-        return current / 360;
-    }
+    getValue(): number { return this.getValueFn() }
 
-    getStepCount(): number {
-        return 0; // Continu
-    }
+    getMin(): number { return 0 }
+    getMax(): number { return 360 }
+    getStepSize(): number { return 1 }
+    getExponant(): number { return 1 }
 
     stringify(value: number): string {
-        const clampedValue = Math.max(0, Math.min(1, value));
-        const degrees = clampedValue * 360;
-        return `${this.label}: ${degrees.toFixed(1)}°`;
+        return `${this.getLabel()}: ${value.toFixed(1)}°`;
     }
 }

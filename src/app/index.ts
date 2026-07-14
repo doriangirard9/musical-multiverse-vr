@@ -6,19 +6,25 @@
  * @module
  */
 
-export * from "./ShopMenuSystem"
-export * from "./ContextMenuSystem"
-export * from "./HandMenuSystem"
-export * from "./MenuSystem"
+export * from "./menu/ShopMenuSystem"
+export * from "./menu/ContextMenuSystem"
+export * from "./menu/BarMenuSystem"
+export * from "./menu/HandMenuSystem"
+export * from "./menu/MenuSystem"
+export * from "./menu/ControlsUISystem"
 
-export * from "./AvatarSystem"
-export * from "./DrawingSystem"
-export * from "./PointerVisualSystem"
+export * from "./social/AvatarSystem"
+export * from "./social/DrawingSystem"
 
-export * from "./ControlsUISystem"
 export * from "./SceneManager"
-export * from "./Serialization"
 
-export * from "./Node3dManager"
-export * from "./ConnectionManager"
-export * from "./Node3DBuilder"
+export * from "./node3d/Serialization"
+export * from "./node3d/Node3dManager"
+export * from "./node3d/ConnectionManager"
+export * from "./node3d/Node3DBuilder"
+
+export * from "./feedback/PointerVisualSystem"
+export * from "./feedback/HapticContactSystem"
+export * from "./feedback/ParameterJaugeSystem"
+
+

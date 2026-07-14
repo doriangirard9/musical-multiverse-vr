@@ -24,31 +24,31 @@ export class InputMultiGrabBehavior implements Behavior<AbstractMesh> {
         private onMove?: (pointer: PointerInput) => void,
     ) {}
 
-    get name() { return this.constructor.name; }
+    get name() { return this.constructor.name }
 
-    private grabbed: Set<PointerInput> = new Set();
-    private moveObservers: Map<PointerInput, { remove(): void }> = new Map();
-    private observables: { remove(): void }[] = [];
+    private grabbed: Set<PointerInput> = new Set()
+    private moveObservers: Map<PointerInput, { remove(): void }> = new Map()
+    private observables: { remove(): void }[] = []
 
     init(): void {}
 
     private add(pointer: PointerInput) {
-        if (this.grabbed.has(pointer)) return;
-        this.grabbed.add(pointer);
-        this.onDown(pointer);
+        if (this.grabbed.has(pointer)) return
+        this.grabbed.add(pointer)
+        this.onDown(pointer)
         if (this.onMove) {
-            const moveObserver = pointer.onMove.add(p => this.onMove!(p));
-            this.moveObservers.set(pointer, moveObserver);
+            const moveObserver = pointer.onMove.add(p => this.onMove!(p))
+            this.moveObservers.set(pointer, moveObserver)
         }
     }
 
     private remove(pointer: PointerInput) {
-        if (!this.grabbed.has(pointer)) return;
-        this.grabbed.delete(pointer);
-        this.onUp(pointer);
-        const moveObserver = this.moveObservers.get(pointer);
-        moveObserver?.remove();
-        this.moveObservers.delete(pointer);
+        if (!this.grabbed.has(pointer)) return
+        this.grabbed.delete(pointer)
+        this.onUp(pointer)
+        const moveObserver = this.moveObservers.get(pointer)
+        moveObserver?.remove()
+        this.moveObservers.delete(pointer)
     }
 
     attachedNode!: AbstractMesh
@@ -61,42 +61,36 @@ export class InputMultiGrabBehavior implements Behavior<AbstractMesh> {
         const inputs = InputManager.getInstance();
         this.observables.push(
             inputs.onTriggerDown.add(e => {
-                const pointer = e.pressable.controller?.pointer;
-                if (!pointer) return;
-                // [YASSINE_CEST_LA]
-                // Pas acceptable, il faut bien séparer les responsabilités.
-                // Cette classe doit fonctionner indépendemment de la logique de l'application,
-                // et ne pas dépendre d'un état global.
-                // En plus Buffa l'a implémenté d'une meilleur manière, donc c'est bon dans tous les 
-                // cas. Voir: AbstractPointerInput.PickPredicate
-                // J'AI SUPPRIME : if (IOEventBus.getInstance().isConnectionDragActive()) return;
+                const pointer = e.pressable.controller?.pointer
+                if (!pointer) return
                 if (pointer.targetMesh === target) {
-                    this.add(pointer);
+                    this.add(pointer)
                 }
             }),
             inputs.onTriggerUp.add(e => {
-                const pointer = e.pressable.controller?.pointer;
-                if (!pointer) return;
+                const pointer = e.pressable.controller?.pointer
+                if (!pointer) return
                 if (this.grabbed.has(pointer)) {
-                    this.remove(pointer);
+                    this.remove(pointer)
                 }
             })
         );
     }
 
     detach(): void {
-        this.observables.forEach(obs => obs.remove());
-        this.observables.length = 0;
+        this.grabbed.forEach(pointer =>{
+            this.remove(pointer)
+        })
 
-        this.grabbed.forEach(pointer => this.onUp(pointer));
-        this.grabbed.clear();
+        this.observables.forEach(obs => obs.remove())
+        this.observables.length = 0
 
-        this.moveObservers.forEach(obs => obs.remove());
-        this.moveObservers.clear();
+        this.moveObservers.forEach(obs => obs.remove())
+        this.moveObservers.clear()
     }
 
     get grabbers(): PointerInput[] {
-        return Array.from(this.grabbed);
+        return Array.from(this.grabbed)
     }
 
 }

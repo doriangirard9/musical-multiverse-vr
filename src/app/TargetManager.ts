@@ -2,7 +2,7 @@ import { AbstractMesh, Observable } from "@babylonjs/core"
 import { N3DConnectionInstance } from "../node3d/instance/N3DConnectionInstance"
 import { Node3DInstance } from "../node3d/instance/Node3DInstance"
 import { ControllerInput, InputManager } from "../xr/inputs"
-import { Node3dManager } from "./Node3dManager"
+import { Node3dManager } from "./node3d/Node3dManager"
 import { SceneManager } from "./SceneManager"
 
 

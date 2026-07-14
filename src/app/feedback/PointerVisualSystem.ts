@@ -1,8 +1,7 @@
 import { Color3 } from "@babylonjs/core"
-import { InputManager } from "../xr/inputs/InputManager"
-import { SceneManager } from "./SceneManager"
-import { InputVisualPointer, MeshUtils } from "../node3d/tools"
-import { PointerInput } from "../xr/inputs"
+import { SceneManager } from "../SceneManager"
+import { InputManager, PointerInput } from "../../xr/inputs"
+import { InputVisualPointer, MeshUtils } from "../../node3d/tools"
 
 
 /**

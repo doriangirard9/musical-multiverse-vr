@@ -1,6 +1,6 @@
 import { Observable, Scene } from "@babylonjs/core"
 import { Button, Container, Control, Image, InputText, Rectangle, ScrollViewer, StackPanel, TextBlock, VirtualKeyboard } from "@babylonjs/gui"
-import { Node3dManager } from "../app/Node3dManager"
+import { Node3dManager } from "../app/node3d/Node3dManager"
 import { AbstractMenu } from "./AbstractMenu"
 import { Node3DFactory } from "../node3d/Node3D"
 import { Visualizer } from "@magenta/music"

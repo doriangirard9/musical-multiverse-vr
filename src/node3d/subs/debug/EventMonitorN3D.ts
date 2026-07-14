@@ -4,7 +4,7 @@ import type { WamNode } from "@webaudiomodules/api";
 import type { Node3D, Node3DFactory, Node3DGUI } from "../../Node3D";
 import type { Node3DGUIContext } from "../../Node3DGUIContext";
 import type { Node3DContext } from "../../Node3DContext";
-import { WamTransportManager } from "../../../app/WamTransportManager";
+import { WamTransportManager } from "../../../app/node3d/WamTransportManager";
 import { createEventMonitorNode } from "./EventMonitorWam";
 
 // ─── Event Monitor ───────────────────────────────────────────────────────────

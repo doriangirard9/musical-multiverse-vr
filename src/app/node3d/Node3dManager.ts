@@ -1,11 +1,11 @@
-import { Node3DInstance } from "../node3d/instance/Node3DInstance.ts";
-import { RandomUtils } from "../node3d/tools/utils/RandomUtils.ts";
-import { NetworkManager } from "../network/NetworkManager.ts";
+import { Node3DInstance } from "../../node3d/instance/Node3DInstance.ts";
+import { RandomUtils } from "../../node3d/tools/utils/RandomUtils.ts";
+import { NetworkManager } from "../../network/NetworkManager.ts";
 import { Node3DBuilder as Node3DBuilder } from "./Node3DBuilder.ts";
 import { AudioEngineV2, CreateBox, Vector3 } from "@babylonjs/core";
-import { AsyncLoading } from "../world/AsyncLoading.ts";
-import { SceneManager } from "./SceneManager.ts";
-import { HoldableBehaviour } from "../behaviours/boundingBox/HoldableBehaviour.ts";
+import { AsyncLoading } from "../../world/AsyncLoading.ts";
+import { SceneManager } from "../SceneManager.ts";
+import { HoldableBehaviour } from "../../behaviours/boundingBox/HoldableBehaviour.ts";
 
 /**
  * Handle the addition and management of the 3D nodes in the world.

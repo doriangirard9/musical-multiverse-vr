@@ -1,9 +1,9 @@
 import { Color3, int, Vector2, Vector3 } from "@babylonjs/core"
-import { NetworkManager } from "../network/NetworkManager"
-import { Curve3D } from "../world/curve/Curve3D"
-import { RandomUtils } from "../node3d/tools/utils/RandomUtils"
-import { InputManager } from "../xr/inputs/InputManager"
-import { SceneManager } from "./SceneManager"
+import { NetworkManager } from "../../network/NetworkManager"
+import { InputManager } from "../../xr/inputs"
+import { SceneManager } from "../SceneManager"
+import { Curve3D } from "../../world/curve/Curve3D"
+import { RandomUtils } from "../../node3d/tools/utils/RandomUtils"
 
 
 /**

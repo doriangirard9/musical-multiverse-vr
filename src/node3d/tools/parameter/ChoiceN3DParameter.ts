@@ -6,8 +6,8 @@ import type { Node3DParameter } from "../../Node3DParameter";
  * Mappe une valeur 0-1 à un index d'option.
  */
 export class ChoiceN3DParameter implements Node3DParameter {
-    readonly id: string;
-    meshes: AbstractMesh[];
+    readonly id: string
+    meshes: AbstractMesh[]
     
     constructor(
         id: string,
@@ -18,34 +18,25 @@ export class ChoiceN3DParameter implements Node3DParameter {
         readonly getLabel: () => string,
         private stringifyFn: (index: int) => string,
     ) {
-        this.id = id;
-        this.meshes = meshes;
-        if (optionCount < 2) {
-            throw new Error("ChoiceN3DParameter requires at least 2 options");
-        }
+        this.id = id
+        this.meshes = meshes
+        if (optionCount < 2) throw new Error("ChoiceN3DParameter requires at least 2 options")
     }
 
     setValue(value: number): void {
-        // Convertir 0-1 en index d'option
-        const clampedValue = Math.max(0, Math.min(1, value));
-        const index = Math.floor(clampedValue * (this.optionCount - 1));
-        this.setValueFn(index);
+        this.setValueFn(value)
     }
 
     getValue(): number {
-        // Convertir index en 0-1
-        const currentIndex = this.getValueFn();
-        return currentIndex / (this.optionCount - 1);
+        return this.getValueFn()
     }
 
-    getStepCount(): number {
-        // Nombre d'options disponibles
-        return this.optionCount;
-    }
+    getMin(): number { return 0 }
+    getMax(): number { return this.optionCount - 1 }
+    getStepSize(): number { return 1 }
+    getExponant(): number { return 1 }
 
     stringify(value: number): string {
-        const clampedValue = Math.max(0, Math.min(1, value));
-        const index = Math.floor(clampedValue * (this.optionCount - 1));
-        return this.stringifyFn(index);
+        return this.stringifyFn(value)
     }
 }
