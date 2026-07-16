@@ -197,21 +197,6 @@ export class BlocksMenu extends AbstractMenu {
     }
 
     /**
-     * Resize the text in a TextBlock to fit within a maximum number of lines.
-     * @param text The TextBlock to resize.
-     */
-    static fitText(control: TextBlock) {
-        control.textWrapping = false
-        control.onDirtyObservable.addOnce(()=>{
-            const textWidth = control.text.length*control.fontSizeInPixels*.8
-            if(textWidth>control.widthInPixels) control.fontSizeInPixels *= control.widthInPixels / textWidth
-
-            const textHeight = control.fontSizeInPixels*2
-            if(textHeight>control.heightInPixels) control.fontSizeInPixels *= control.heightInPixels / textHeight
-        })
-    }
-
-    /**
      * Layout the blocks in a grid based on their width and height.
      * @param menuData 
      * @returns 

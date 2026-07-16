@@ -120,7 +120,7 @@ export class PressableInput {
         if(motionController.handness !== this.side) return { remove: () => {} }
         
         return motionController.getComponent(this.name)?.onButtonStateChangedObservable.add((event) => {
-            const pressed = event.value > 0.01
+            const pressed = event.value > 0.2
             this._notify({ pressable: this, pressed, touched: event.touched, value: event.value || 0})
         })
     }

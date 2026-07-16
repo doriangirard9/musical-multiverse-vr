@@ -1,6 +1,6 @@
 import * as Y from 'yjs';
 import { SessionAPIClient } from './SessionAPIClient.ts';
-import { Serialization } from '../app/Serialization.ts';
+import { Serialization } from '../app/node3d/Serialization.ts';
 import { Node3DInstance } from '../node3d/instance/Node3DInstance.ts';
 import { NetworkManager } from './NetworkManager.ts';
 

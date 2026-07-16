@@ -1,5 +1,5 @@
 import { Vector3 } from "@babylonjs/core"
-import { InputManager } from "../xr/inputs"
+import { InputManager } from "../../xr/inputs"
 
 const UPDATE_FREQUENCY = 10 //Hz
 

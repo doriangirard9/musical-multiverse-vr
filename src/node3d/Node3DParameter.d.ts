@@ -27,33 +27,30 @@ export interface Node3DParameter{
      */
     notSynced?: boolean
 
-    /**
-     * Change la valeur du paramètre. Entre 0 et 1.
-     * @param value 
-     */
+
+    //// Real value information ////
+    /* Change la valeur du paramètre. */
     setValue(value: number, automated?: boolean): void
 
-    /**
-     * Récupère le nombre de valeurs possibles du paramètre.
-     * Par exemple, si il est égal à 3, le paramètre peut prendre les valeurs 0, 0.5 et 1. 
-     */
-    getStepCount(): number
+    /* Récupère l'exposant du paramètre, 1 si linéaire, 2 si quadratique, .5 si racine carrée, etc. */
+    getExponant(): number
 
-    /**
-     * Récupère la valeur du paramètre.
-     * @returns 
-     */
+    /* Récupère la valeur minimum du paramètre. */
+    getMin(): number
+
+    /* Récupère la valeur maximum du paramètre. */
+    getMax(): number
+
+    /* Récupère le pas du paramètre, 0 si aucun. */
+    getStepSize(): number
+
+    /** Récupère la valeur du paramètre. */
     getValue(): number
 
-    /**
-     * Transforme la valeur du paramètre en une représentation textuelle.
-     * @returns 
-     */
+    /** Transforme la valeur du paramètre en une représentation textuelle. */
     stringify(value: number): string
 
-    /**
-     * Récupère le nom du paramètre.
-     */
+    /** Récupère le nom du paramètre. */
     getLabel(): string
 
     /**

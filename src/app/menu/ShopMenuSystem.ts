@@ -1,8 +1,8 @@
 import { Observable } from "@babylonjs/core"
-import { InputManager } from "../xr/inputs/InputManager"
-import { SceneManager } from "./SceneManager"
-import { Node3dManager } from "./Node3dManager"
-import { ShopMenu } from "../menus/ShopMenu"
+import { InputManager } from "../../xr/inputs/InputManager"
+import { SceneManager } from "../SceneManager"
+import { Node3dManager } from "../node3d/Node3dManager"
+import { ShopMenu } from "../../menus/ShopMenu"
 import { MenuSystem } from "./MenuSystem"
 
 

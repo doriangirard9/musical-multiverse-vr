@@ -6,40 +6,25 @@ import type { Node3DParameter } from "../../Node3DParameter";
  * Mappe 0-1 à [0, 100].
  */
 export class PercentageN3DParameter implements Node3DParameter {
-    readonly id: string;
-    meshes: AbstractMesh[];
-    private label: string;
 
     constructor(
-        id: string,
-        meshes: AbstractMesh[] = [],
+        readonly id: string,
+        readonly meshes: AbstractMesh[] = [],
         private setValueFn: (value: number) => void,
         private getValueFn: () => number,
         readonly getLabel: () => string,
-    ) {
-        this.id = id;
-        this.meshes = meshes;
-        this.label = getLabel();
-    }
+    ){}
 
-    setValue(value: number): void {
-        const clampedValue = Math.max(0, Math.min(1, value));
-        const percentage = clampedValue * 100;
-        this.setValueFn(percentage);
-    }
+    setValue(value: number): void { this.setValueFn(value) }
 
-    getValue(): number {
-        const current = this.getValueFn();
-        return Math.max(0, Math.min(1, current / 100));
-    }
+    getValue(): number { return this.getValueFn() }
 
-    getStepCount(): number {
-        return 0; // Continu
-    }
+    getMin(): number { return 0 }
+    getMax(): number { return 100 }
+    getStepSize(): number { return 1 }
+    getExponant(): number { return 1 }
 
     stringify(value: number): string {
-        const clampedValue = Math.max(0, Math.min(1, value));
-        const percentage = clampedValue * 100;
-        return `${this.label}: ${percentage.toFixed(1)}%`;
+        return `${value.toFixed(1)}%`;
     }
 }

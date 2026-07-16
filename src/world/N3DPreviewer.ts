@@ -2,7 +2,7 @@ import { AbstractMesh, Color3, CreateBox, TransformNode } from "@babylonjs/core"
 import { N3DShared } from "../node3d/instance/N3DShared";
 import { Node3DGUI } from "../node3d/Node3D";
 import { N3DHighlighter } from "../node3d/instance/utils/N3DHighlighter";
-import { Node3dManager } from "../app/Node3dManager";
+import { Node3dManager } from "../app/node3d/Node3dManager";
 import { Node3DInstance } from "../node3d/instance/Node3DInstance";
 import { N3DText } from "../node3d/instance/utils/N3DText";
 import { HoldableBehaviour } from "../behaviours/boundingBox/HoldableBehaviour";

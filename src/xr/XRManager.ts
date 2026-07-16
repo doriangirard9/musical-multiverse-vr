@@ -78,7 +78,7 @@ export class XRManager {
                         try {
                             // Dynamic import to avoid circular dependency
                             // TODO: What the fuck. 
-                            import("../app/AvatarSystem").then(({ AvatarSystem }) => {
+                            import("../app/social/AvatarSystem.ts").then(({ AvatarSystem }) => {
                                 AvatarSystem.getInstance().offsetSpawnIfNeeded();
                             });
                         } catch (_) { /* AvatarSystem not yet initialized */ }

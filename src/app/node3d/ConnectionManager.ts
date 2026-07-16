@@ -1,12 +1,12 @@
-import { IOEventBus, IOEventPayload } from "../eventBus/IOEventBus.ts";
-import { N3DConnectableInstance } from "../node3d/instance/N3DConnectableInstance.ts";
-import { NetworkManager } from "../network/NetworkManager.ts";
-import { RandomUtils } from "../node3d/tools/utils/RandomUtils.ts";
-import { N3DConnectionInstance } from "../node3d/instance/N3DConnectionInstance.ts";
-import { SceneManager } from "./SceneManager.ts";
-import { VisualTube } from "../visual/VisualTube.ts";
-import { MenuSystem } from "./MenuSystem.ts";
-import { AbstractPointerInput } from "../xr/inputs/AbstractPointerInput.ts";
+import { IOEventBus, IOEventPayload } from "../../eventBus/IOEventBus.ts";
+import { N3DConnectableInstance } from "../../node3d/instance/N3DConnectableInstance.ts";
+import { NetworkManager } from "../../network/NetworkManager.ts";
+import { RandomUtils } from "../../node3d/tools/utils/RandomUtils.ts";
+import { N3DConnectionInstance } from "../../node3d/instance/N3DConnectionInstance.ts";
+import { SceneManager } from "../SceneManager.ts";
+import { VisualTube } from "../../visual/VisualTube.ts";
+import { MenuSystem } from "../menu/MenuSystem.ts";
+import { AbstractPointerInput } from "../../xr/inputs/AbstractPointerInput.ts";
 
 /**
  * Manager responsible of connecting two connectable nodes together.
@@ -113,12 +113,15 @@ export class ConnectionManager {
 
             case "up":
                 if(this.currentPort){
-                    this.connect(this.currentPort, data.connectable)
+                    if(this.currentPort!=data.connectable) // Don't try if up on same port
+                        this.connect(this.currentPort, data.connectable)
                 }
                 this._cancelAndResetConnection()
                 break;
 
             case "out":
+                // TODO: C'est quoi ça ? 
+                // TODO: Je vois ce que c'est mais ça ne peux pas fonctionner.
                 if (this.currentPort && pointer.targetMesh) {
                     const compatibleTarget = this.findUniqueCompatiblePortOnTargetMesh(this.currentPort, pointer.targetMesh)
                     if (compatibleTarget) {

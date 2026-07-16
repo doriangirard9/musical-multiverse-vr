@@ -1,9 +1,7 @@
 export { NumberN3DParameter } from "./NumberN3DParameter";
 export { ChoiceN3DParameter } from "./ChoiceN3DParameter";
-export { LogarithmicN3DParameter } from "./LogarithmicN3DParameter";
 export { IntegerN3DParameter } from "./IntegerN3DParameter";
 export { PercentageN3DParameter } from "./PercentageN3DParameter";
 export { AngleN3DParameter } from "./AngleN3DParameter";
 export { BooleanN3DParameter } from "./BooleanN3DParameter";
-export { RangeN3DParameter } from "./RangeN3DParameter";
 export { EnumN3DParameter } from "./EnumN3DParameter";

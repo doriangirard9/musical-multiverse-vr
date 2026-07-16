@@ -151,8 +151,7 @@ export class AutomationToolN3D implements Node3D {
         const output = this.output = new T.AutomationN3DConnectable.Output(
             "automation_output", 
             [gui.output], 
-            "String pinch height",
-            0
+            "String pinch height"
         )
         context.createConnectable(output)
     }

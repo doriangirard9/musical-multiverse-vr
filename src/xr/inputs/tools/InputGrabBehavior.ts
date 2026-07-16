@@ -49,6 +49,7 @@ export class InputGrabBehavior implements Behavior<AbstractMesh> {
             inputs.onTriggerDown.add(e=>{
                 const pointer = e.pressable.controller?.pointer
                 if(!pointer)return
+                if(this.grabbed) return
                 if(pointer.targetMesh===target){
                     this.grabbed = pointer
                     this.onDown(pointer)

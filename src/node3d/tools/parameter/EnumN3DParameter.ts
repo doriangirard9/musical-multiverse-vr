@@ -6,14 +6,11 @@ import type { Node3DParameter } from "../../Node3DParameter";
  * Mappe 0-1 aux valeurs d'un enum.
  */
 export class EnumN3DParameter<T extends string | number> implements Node3DParameter {
-    readonly id: string;
-    meshes: AbstractMesh[];
-    private enumValues: T[];
-    private label: string;
+    private enumValues: T[]
 
     constructor(
-        id: string,
-        meshes: AbstractMesh[] = [],
+        readonly id: string,
+        readonly meshes: AbstractMesh[] = [],
         enumObj: Record<string, T>,
         private setValueFn: (value: T) => void,
         private getValueFn: () => T,
@@ -30,30 +27,25 @@ export class EnumN3DParameter<T extends string | number> implements Node3DParame
         if (this.enumValues.length < 2) {
             throw new Error("EnumN3DParameter requires at least 2 enum values");
         }
-        this.label = getLabel();
     }
 
     setValue(value: number): void {
-        const clampedValue = Math.max(0, Math.min(1, value));
-        const index = Math.floor(clampedValue * (this.enumValues.length - 1));
-        this.setValueFn(this.enumValues[index]);
+        this.setValueFn(this.enumValues[value])
     }
 
     getValue(): number {
-        const current = this.getValueFn();
-        const index = this.enumValues.indexOf(current);
-        return index >= 0 ? index / (this.enumValues.length - 1) : 0;
+        const current = this.getValueFn()
+        return this.enumValues.indexOf(current)
     }
 
-    getStepCount(): number {
-        return this.enumValues.length;
-    }
+    getMin(): number { return 0 }
+    getMax(): number { return this.enumValues.length-1 }
+    getStepSize(): number { return 1 }
+    getExponant(): number { return 1 }
 
     stringify(value: number): string {
-        const clampedValue = Math.max(0, Math.min(1, value));
-        const index = Math.floor(clampedValue * (this.enumValues.length - 1));
-        const enumValue = this.enumValues[index];
-        const label = this.labelMap?.[enumValue] ?? String(enumValue);
-        return `${this.label}: ${label}`;
+        const enumValue = this.enumValues[value]
+        const label = this.labelMap?.[enumValue] ?? String(enumValue)
+        return `${label}`
     }
 }

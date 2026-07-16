@@ -1,5 +1,5 @@
 import { CreatePlane, Mesh, Scene, Quaternion, Vector3, Observable, TransformNode } from "@babylonjs/core"
-import { AdvancedDynamicTexture, Control, Rectangle, ScrollViewer } from "@babylonjs/gui"
+import { AdvancedDynamicTexture, Control, Rectangle, ScrollViewer, TextBlock } from "@babylonjs/gui"
 import { InputToPointerBehavior } from "../xr/inputs/tools/InputToPointer"
 import { PointerInput } from "../xr/inputs/PointerInput"
 import { N3DText } from "../node3d/instance/utils/N3DText"
@@ -200,6 +200,32 @@ export class AbstractMenu {
     }
 
     /**
+     * Make the panel follow a position in front of the camera head
+     * @param distance Distance from camera
+     * @returns Observable to unsubscribe
+     */
+    followPosition(getPosition:()=>Vector3, distance: number = 2) {
+        const o = this.scene.onAfterPhysicsObservable.add(() => {
+            const head = this.scene.activeCamera!.getForwardRay()
+            const head_up = this.scene.activeCamera!.upVector
+
+            // Place position
+            const target = getPosition()
+            const direction = target.subtract(head.origin).normalize()
+            const position = direction.scale(distance).addInPlace(head.origin)
+            this._root.position.copyFrom(position)
+
+            // Place rotation
+            this._root.rotationQuaternion = Quaternion.FromLookDirectionLH(
+                head.direction.scale(-1),
+                head_up
+            )
+        })
+
+        return o
+    }
+
+    /**
      * Make the panel follow a pointer input
      * @param pointer Pointer input to follow
      * @returns Observable to unsubscribe
@@ -264,6 +290,21 @@ export class AbstractMenu {
                 o2.remove()
             }
         }
+    }
+
+    /**
+     * Resize the text in a TextBlock to fit within a maximum number of lines.
+     * @param text The TextBlock to resize.
+     */
+    static fitText(control: TextBlock, correction: number = 1) {
+        control.textWrapping = false
+        control.onDirtyObservable.add(()=>{
+            const textWidth = control.text.length*control.fontSizeInPixels*.8/correction
+            if(textWidth>control.widthInPixels) control.fontSizeInPixels *= control.widthInPixels / textWidth
+
+            const textHeight = control.fontSizeInPixels*2
+            if(textHeight>control.heightInPixels) control.fontSizeInPixels *= control.heightInPixels / textHeight
+        })
     }
 
     // Scroll

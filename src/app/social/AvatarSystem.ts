@@ -1,12 +1,12 @@
 import { Color3, Observer, Vector3 } from "@babylonjs/core";
-import { NetworkManager } from "../network/NetworkManager";
-import { RandomUtils } from "../node3d/tools/utils/RandomUtils";
-import { Avatar, AvaterShared } from "../world/avatar/Avatar";
-import { InputManager } from "../xr/inputs/InputManager";
-import { SceneManager } from "./SceneManager";
-import { NetworkEventBus } from "../eventBus/NetworkEventBus";
-import { SyncManager } from "../network/sync/SyncManager";
-import { XRManager } from "../xr/XRManager";
+import { NetworkManager } from "../../network/NetworkManager";
+import { RandomUtils } from "../../node3d/tools/utils/RandomUtils";
+import { Avatar, AvaterShared } from "../../world/avatar/Avatar";
+import { InputManager } from "../../xr/inputs/InputManager";
+import { SceneManager } from "../SceneManager";
+import { NetworkEventBus } from "../../eventBus/NetworkEventBus";
+import { SyncManager } from "../../network/sync/SyncManager";
+import { XRManager } from "../../xr/XRManager";
 
 /** Distance below which another avatar is hidden (in meters) */
 const PROXIMITY_HIDE_DISTANCE = .5;

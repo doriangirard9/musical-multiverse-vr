@@ -44,6 +44,7 @@ class Wam3DGeneratorN3D implements Node3D {
 
     states!: ControlStateManager
     private videoRenderer: VideoWamRenderer | null = null;
+    private gui?: WamGUIGenerator
 
     constructor() { }
 
@@ -54,7 +55,7 @@ class Wam3DGeneratorN3D implements Node3D {
         let wamNode: any = null
         gui.wam_generator.dispose()
 
-        gui.wam_generator = await WamGUIGenerator.create_and_init({
+        gui.wam_generator = this.gui = await WamGUIGenerator.create_and_init({
             babylonjs: {
                 root: gui.root,
                 defineField(settings) {
@@ -62,10 +63,16 @@ class Wam3DGeneratorN3D implements Node3D {
                     context.createParameter({
                         id: `param${count}`,
                         meshes: settings.target,
-                        getLabel() { return settings.getName() },
-                        getStepCount() { return settings.getStepCount() },
+                        getLabel() { return settings.getLabel() },
+
+                        getMax() { return settings.getMax() },
+                        getMin() { return settings.getMin() },
+                        getExponant() { return settings.getExponant()||1 },
+                        getStepSize() { return settings.getStepSize() },
+
                         getValue() { return settings.getValue() },
                         setValue(value) { settings.setValue(value) },
+                        
                         stringify(value) { return settings.stringify(value) },
                         notSynced: true
                     })
@@ -138,6 +145,10 @@ class Wam3DGeneratorN3D implements Node3D {
 
     async dispose(): Promise<void> {
         this.videoRenderer?.dispose();
+        this.gui?.host?.wam?.audioNode?.disconnectEvents()
+        this.gui?.host?.wam?.audioNode?.disconnect()
+        this.gui?.host?.wam?.audioNode?.destroy()
+        this.gui?.dispose()
         this.states.dispose()
     }
 

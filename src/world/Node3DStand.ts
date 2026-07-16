@@ -1,5 +1,5 @@
 import { ImportMeshAsync, TransformNode, Vector3 } from "@babylonjs/core";
-import { Node3dManager } from "../app/Node3dManager";
+import { Node3dManager } from "../app/node3d/Node3dManager";
 import { N3DShared } from "../node3d/instance/N3DShared";
 import { N3DPreviewer } from "./N3DPreviewer";
 

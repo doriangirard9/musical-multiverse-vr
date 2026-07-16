@@ -149,6 +149,8 @@ export class AbstractPointerInput {
 
         const o = controller.onDisposeObservable.addOnce(() => disposed = true)
 
+        that.wasTouching = false
+        that.previousMesh = null
 
         scenes[0].onAfterPhysicsObservable.add(function tick() {
 
@@ -156,6 +158,8 @@ export class AbstractPointerInput {
                 if(that.targetMesh!=null){
                     that.hit = false
                     that.targetMesh = null
+                    that.touchedMesh = null
+                    that.isTouching = false
                     that.onNewTarget.notifyObservers(that)
                 }
                 that.onRemove.notifyObservers(that)

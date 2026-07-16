@@ -8,7 +8,7 @@ import * as B from "@babylonjs/core";
 import { WamNode, WebAudioModule } from "@webaudiomodules/api";
 import { WamInitializer } from "../../../app/WamInitializer";
 import { PianoRollSettingsMenu } from "./PianoRollSettingsMenu";
-import { WamTransportManager } from "../../../app/WamTransportManager"; // <-- shared transport
+import { WamTransportManager } from "../../../app/node3d/WamTransportManager"; // <-- shared transport
 // strategies
 import { GridStrategy } from "./grid/GridStrategy";
 import { Piano88Strategy } from "./grid/Piano88Strategy";
