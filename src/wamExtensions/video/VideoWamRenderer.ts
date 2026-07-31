@@ -138,7 +138,19 @@ export class VideoWamRenderer {
         mat.emissiveColor = new Color3(1, 1, 1);
         mat.disableLighting = true;
         mat.backFaceCulling = false;
+        // Prevent bounding box depth-occlusion: invisible parent bounding boxes
+        // (visibility=0) still write to the depth buffer with their default
+        // opaque material. The video display sits inside the bounding box, so
+        // at certain camera angles the box face wins the depth test and the
+        // display renders as a black void. Rendering in group 1 with a forced
+        // depth-clear isolates the video surface from bounding box depth values.
+        mat.disableDepthWrite = true;
         mesh.material = mat;
+        mesh.renderingGroupId = 1;
+        // Clear the depth buffer before rendering group 1 so that flat surfaces
+        // (e.g. Screen plane) fully enclosed by the bounding box are never
+        // depth-rejected by the bounding box faces written in group 0.
+        this.scene.setRenderingAutoClearDepthStencil(1, true, true, true);
     }
 
     public dispose() {
