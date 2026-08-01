@@ -139,6 +139,12 @@ export class VideoWamRenderer {
         mat.disableLighting = true;
         mat.backFaceCulling = false;
         mesh.material = mat;
+        // Render video surfaces in group 1 (after bounding boxes in group 0).
+        // Depth is cleared before group 1 so invisible bounding boxes can't
+        // occlude the display. Video surfaces keep normal depth writes so they
+        // correctly occlude each other when overlapping.
+        mesh.renderingGroupId = 1;
+        this.scene.setRenderingAutoClearDepthStencil(1, true, true, true);
     }
 
     public dispose() {
