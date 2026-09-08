@@ -1,4 +1,4 @@
-import { CreateAudioEngineAsync, Vector3 } from "@babylonjs/core";
+import { Color3, Color4, CreateAudioEngineAsync, FreeCamera, Vector3 } from "@babylonjs/core";
 import { NetworkManager } from "../network/NetworkManager.ts";
 import { InputManager } from "../xr/inputs/InputManager.ts";
 import { XRManager } from "../xr/XRManager.ts";
@@ -30,6 +30,7 @@ import { BarMenuSystem } from "./menu/BarMenuSystem.ts";
 import { DrawingSystem } from "./social/DrawingSystem.ts";
 import { ParameterJaugeSystem } from "./feedback/ParameterJaugeSystem.ts";
 import { PointerVisualSystem } from "./feedback/PointerVisualSystem.ts";
+import { NonXRManager } from "../nonxr/NonXRManager.ts";
 
 let _app: App
 
@@ -93,10 +94,11 @@ export class App {
 
         report("Preparing XR runtime")
         UIManager.initialize()
-        await XRManager.getInstance()!!.init(SceneManager.getInstance().getScene(), audioEngine);
+        if(await XRManager.hasXRSupport()) await XRManager.initialize(SceneManager.getInstance().getScene(), audioEngine)
+        else await NonXRManager.initialize(SceneManager.getInstance().getScene())
 
         report("Preparing inputs")
-        InputManager.create(XRManager.getInstance().xrHelper ?? null, [
+        InputManager.create(XRManager.getInstance()?.xrHelper ?? null, [
             SceneManager.getInstance().getScene(),
             SceneManager.getInstance().getUtilityLayer().utilityLayerScene
         ])
@@ -206,7 +208,7 @@ export class App {
         
         // create 3D controller button labels
         report("Preparing controller hints")
-        this.controlsUI = new ControlsUISystem();
+        if(XRManager.getInstance())this.controlsUI = new ControlsUISystem();
         
         // Setup X button to toggle controls UI
         InputManager.getInstance().x_button.onChange.add((event) => {
@@ -220,7 +222,8 @@ export class App {
         window.addEventListener("keydown",async(e)=>{
             if(e.key=="p"){
                 let prompt = window.prompt("Enter Node3D kind to create:")
-                if(prompt) node3dManager.addNode3d(`${prompt}`, new Vector3(0,0,5))
+                if(prompt) node3dManager.builder.create(`${prompt}`)
+                //if(prompt) node3dManager.addNode3d(`${prompt}`, new Vector3(0,0,5))
             }
             else if(e.key=="i"){
                 await SceneManager.getInstance().toggleInspector()

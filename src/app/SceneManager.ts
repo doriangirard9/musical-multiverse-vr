@@ -42,7 +42,7 @@ export class SceneManager {
 
         // Enable inspector on 'U' key press
         window.addEventListener("keydown", (event: KeyboardEvent) => {
-            if (event.code === "KeyU") {
+            if (event.key === "u") {
                 this.toggleInspector();
             }
         });
@@ -62,8 +62,10 @@ export class SceneManager {
         const { Inspector } = await import("@babylonjs/inspector");
         if (Inspector.IsVisible) {
             Inspector.Hide();
+            this.scene.detachControl();
         } else {
-            Inspector.Show(this.scene, { overlay: true, handleResize: true });
+            Inspector.Show(this.scene, { overlay: false, handleResize: true });
+            this.scene.attachControl();
         }
     }
 

@@ -1,4 +1,4 @@
-import { HighlightLayer, UtilityLayerRenderer } from "@babylonjs/core";
+import { HighlightLayer, Observable, UtilityLayerRenderer } from "@babylonjs/core";
 import { IOEventBus } from "../../eventBus/IOEventBus";
 import { PointerInput } from "../../xr/inputs/PointerInput";
 import { InputDropBehavior } from "../../xr/inputs/tools/InputDropBehavior";
@@ -16,6 +16,9 @@ import { N3DText } from "./utils/N3DText";
 export class N3DConnectableInstance {
 
     public connections = new Set<N3DConnectionInstance>()
+
+    /** Notified on disposal of this connectable. */
+    public readonly onDispose = new Observable<void>()
 
     /**
      * 
@@ -112,6 +115,7 @@ export class N3DConnectableInstance {
         }
 
         this.dispose = ()=>{
+            this.onDispose.notifyObservers()
             this.connections.forEach(c => c.remove())
             disposes.forEach(d => d())
             text.dispose()

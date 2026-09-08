@@ -3,7 +3,9 @@ import * as B from "@babylonjs/core";
 import {withTimeout} from "../utils/utils.ts";
 import {Nullable} from "@babylonjs/core";
 
-
+/**
+ * Responsible for the XR experience, camera, player controls. 
+ */
 export class XRManager {
     private static _instance: XRManager;
     public xrInputManager!: XRInputManager;
@@ -19,17 +21,23 @@ export class XRManager {
     private constructor() {
     }
 
+    public static async hasXRSupport(): Promise<boolean> {
+        return await B.WebXRSessionManager.IsSessionSupportedAsync('immersive-vr')
+    }
+
+    public static async initialize(scene: B.Scene, audioEngine: B.AudioEngineV2): Promise<void> {
+        this._instance = new XRManager()
+        await this._instance.init(scene, audioEngine)
+    }
+
     public static getInstance(): XRManager {
-        if (!this._instance) {
-            this._instance = new XRManager();
-        }
         return this._instance;
     }
 
     /**
      * Initialize the WebXR experience, XRInputs and XR features
      */
-    public async init(scene: B.Scene, audioEngine: B.AudioEngineV2): Promise<boolean> {
+    private async init(scene: B.Scene, audioEngine: B.AudioEngineV2): Promise<boolean> {
         this._scene = scene;
 
         try {

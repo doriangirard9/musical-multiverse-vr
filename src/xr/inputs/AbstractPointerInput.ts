@@ -213,7 +213,7 @@ export class AbstractPointerInput {
             const camera = scenes[0].activeCamera!
             if (camera){
                 const forward = camera.getForwardRay().direction
-                const up = camera.upVector.normalizeToNew()
+                const up = camera.upVector.clone().normalizeToNew()
                 const right = forward.cross(up).negateInPlace().normalize()
 
                 that._raytrace(camera.position, forward, right, up, scenes)

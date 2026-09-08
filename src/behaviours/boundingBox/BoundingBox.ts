@@ -26,12 +26,16 @@ export class BoundingBox {
     constructor(private draggable: B.AbstractMesh) {
 
         // Create the bounding box
-        let w = this.draggable.getBoundingInfo().boundingBox.extendSize.x * 2
-        let h = this.draggable.getBoundingInfo().boundingBox.extendSize.y * 2
-        let d = this.draggable.getBoundingInfo().boundingBox.extendSize.z * 2
+        let w = this.draggable.getBoundingInfo().boundingBox.extendSizeWorld.x * 2
+        let h = this.draggable.getBoundingInfo().boundingBox.extendSizeWorld.y * 2
+        let d = this.draggable.getBoundingInfo().boundingBox.extendSizeWorld.z * 2
+
+        let center = this.draggable.getBoundingInfo().boundingBox.centerWorld
 
         const boundingBox = this.boundingBox = B.MeshBuilder.CreateBox(`boundingBox`, {width:w+.01, height:h+.01, depth:d+.1}, this.scene)
-        this.draggable.parent = this.boundingBox
+        boundingBox.position.copyFrom(center)
+        
+        this.draggable.setParent(boundingBox)
 
         this.boundingBox.isVisible = true
         this.boundingBox.visibility = 0
