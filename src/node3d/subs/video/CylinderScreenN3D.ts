@@ -1,4 +1,4 @@
-import { Color3, Color4, StandardMaterial, DynamicTexture } from "@babylonjs/core";
+import { Color3 } from "@babylonjs/core";
 import type { Node3D, Node3DFactory, Node3DGUI } from "../../Node3D";
 import type { Node3DContext } from "../../Node3DContext";
 import type { Node3DGUIContext } from "../../Node3DGUIContext";
@@ -66,38 +66,13 @@ export class CylinderScreenN3D implements Node3D {
     }
 
     private showLoading() {
-        const scene = this.gui.display.getScene();
-        const mat = new StandardMaterial("cylinderLoadingMat", scene);
-        const dt = new DynamicTexture("cylinderLoadingDT", { width: 1024, height: 512 }, scene, false);
-        mat.diffuseTexture = dt;
-        mat.emissiveTexture = dt;
-        mat.emissiveColor = new Color3(1, 1, 1);
-        mat.disableLighting = true;
-        mat.backFaceCulling = false;
-        this.gui.display.material = mat;
-
-        const ctx = dt.getContext() as CanvasRenderingContext2D;
-        ctx.translate(0, 512);
-        ctx.scale(1, -1);
-        
-        ctx.fillStyle = "#111111";
-        ctx.fillRect(0, 0, 1024, 512);
-        ctx.font = "bold 60px Arial";
-        ctx.fillStyle = "#BB66FF";
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.fillText("Loading, wait a few seconds...", 512, 256);
-        dt.update(false);
+        this.gui.display.visibility = 0;
     }
 
     private stopVideo() {
         this.currentInstanceId = null;
         (this as any)._attachedInstanceId = null;
-        const scene = this.gui.display.getScene();
-        const mat = new StandardMaterial("cylinderBlackMat", scene);
-        mat.emissiveColor = new Color3(0, 0, 0);
-        mat.disableLighting = true;
-        this.gui.display.material = mat;
+        this.gui.display.visibility = 0;
     }
 
     private refresh() {
@@ -116,6 +91,7 @@ export class CylinderScreenN3D implements Node3D {
             if ((renderer as any).hasFrames && (this as any)._attachedInstanceId !== this.currentInstanceId) {
                 renderer.attachToMesh(this.gui.display);
                 (this as any)._attachedInstanceId = this.currentInstanceId;
+                this.gui.display.visibility = 1;
             }
         }
     }

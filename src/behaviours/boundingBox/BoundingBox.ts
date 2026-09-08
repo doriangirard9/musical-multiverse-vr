@@ -37,6 +37,18 @@ export class BoundingBox {
         
         this.draggable.setParent(boundingBox)
 
+        // Assign a proper transparent material so visibility changes (hover/grab)
+        // render correctly as translucent overlays. Without this, the default
+        // opaque material ignores alpha, causing the box to appear as a solid
+        // black cube when visibility > 0.
+        const bbMat = new B.StandardMaterial(`boundingBox_mat`, this.scene)
+        bbMat.diffuseColor = B.Color3.White()
+        bbMat.emissiveColor = new B.Color3(0.3, 0.3, 0.3)
+        bbMat.alpha = 1
+        bbMat.transparencyMode = B.StandardMaterial.MATERIAL_ALPHABLEND
+        bbMat.backFaceCulling = false
+        this.boundingBox.material = bbMat
+
         this.boundingBox.isVisible = true
         this.boundingBox.visibility = 0
         this.boundingBox.isPickable = true
