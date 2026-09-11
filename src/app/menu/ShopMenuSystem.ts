@@ -37,7 +37,7 @@ export class ShopMenuSystem {
         readonly menus: MenuSystem,
         readonly options: { allowedKinds?: ReadonlySet<string> } = {},
     ){
-        InputManager.getInstance().a_button.onDown.add(()=>{
+        InputManager.getInstance().y_button.onDown.add(()=>{
             this.toggle()
         })
     }

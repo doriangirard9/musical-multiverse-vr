@@ -1,0 +1,137 @@
+import { InputManager } from "../../xr/inputs"
+import { BlocksMenu, BMenuBlock } from "../../menus/BlocksMenu"
+import { ARCH_TOOL_KIND, FLAIL_TOOL_KIND, FINGER_TOOL_KIND, MAGIC_TOOL_KIND, ToolKind, ToolSlot, PENCIL_TOOL_KIND, POINTER_TOOL_KIND, RAY_TOOL_KIND, SOFT_WAND_TOOL_KIND, TWO_WAND_TOOL_KIND, WAND_TOOL_KIND } from "../../tool"
+import { MenuSystem } from "../menu/MenuSystem"
+import { SceneManager } from "../SceneManager"
+
+/** The width of the selection menu, in grid cells. */
+const MENU_WIDTH = 6
+
+/** The height of one kind entry in the selection menu, in grid cells. */
+const ENTRY_HEIGHT = 2
+
+/** The height of the scrollable list of kinds, in grid cells. Longer lists scroll. */
+const LIST_HEIGHT = 8
+
+/**
+ * The two hands of the user, and the menu used to choose what each of them holds.
+ *
+ * @remarks
+ * Each hand is a {@link ToolSlot} bound to one controller. The X button opens the selection menu of
+ * the left hand, the A button the one of the right hand, so the menu always concerns the hand that
+ * asked for it. Selecting a kind swaps the tool of that hand alone.
+ *
+ * The system owns the catalog of the available kinds: a tool file declares its kind, and this
+ * class decides which ones the user is offered.
+ */
+export class ToolSystem {
+
+
+    /** The kind both hands hold at startup. */
+    public static readonly DEFAULT_KIND = POINTER_TOOL_KIND
+
+    /** The left hand of the user. */
+    public readonly left: ToolSlot
+
+    /** The right hand of the user. */
+    public readonly right: ToolSlot
+
+    constructor(
+        readonly scenes: SceneManager,
+        readonly inputs: InputManager,
+        readonly menus: MenuSystem,
+    ){
+        const scene = scenes.getScene()
+
+        this.left = new ToolSlot("left", inputs.left, scene, ToolSystem.DEFAULT_KIND)
+        this.right = new ToolSlot("right", inputs.right, scene, ToolSystem.DEFAULT_KIND)
+
+        inputs.x_button.onDown.add(() => this.toggleMenu(this.left))
+        inputs.a_button.onDown.add(() => this.toggleMenu(this.right))
+    }
+
+    /**
+     * Give a hand the tool of a kind.
+     * @param slot - The hand to change.
+     * @param kind - The kind to hold.
+     */
+    public select(slot: ToolSlot, kind: ToolKind): void {
+        slot.select(kind)
+    }
+
+    /** The kinds of tool offered to the user, in the order the menu lists them. */
+    public get kinds(): readonly ToolKind[] { return ToolSystem.#KINDS }
+
+    /**
+     * Open the selection menu of a hand, or close it when it is the one already open.
+     * @param slot - The hand the menu applies to.
+     */
+    public toggleMenu(slot: ToolSlot): void {
+        if(this.#openedFor === slot && this.menus.current_menu === this.#menu){
+            this.menus.close()
+            return
+        }
+
+        this.#menu = this.#createMenu(slot)
+        this.#openedFor = slot
+        this.menus.open(this.#menu)
+    }
+
+    // Instance
+    static _instance?: ToolSystem
+
+    static async initialize(...parameters: ConstructorParameters<typeof ToolSystem>){
+        this._instance = new ToolSystem(...parameters)
+    }
+
+    static getInstance(): ToolSystem {
+        if(!this._instance) throw new Error("ToolSystem not initialized. Call initialize() first.")
+        return this._instance
+    }
+
+
+    /** The kinds of tool offered to the user. */
+    static readonly #KINDS: readonly ToolKind[] = [
+        POINTER_TOOL_KIND, PENCIL_TOOL_KIND, MAGIC_TOOL_KIND, FINGER_TOOL_KIND, RAY_TOOL_KIND,
+        WAND_TOOL_KIND, SOFT_WAND_TOOL_KIND, TWO_WAND_TOOL_KIND, ARCH_TOOL_KIND, FLAIL_TOOL_KIND,
+    ]
+
+    #menu?: BlocksMenu
+
+    #openedFor?: ToolSlot
+
+    /** The title of the menu of a hand, the arrow pointing to the side of that hand. */
+    static #titleOf(slot: ToolSlot): string {
+        return slot.side === "left" ? "← Left hand" : "Right hand →"
+    }
+
+    /** Build the menu listing every kind of tool, the held one highlighted. */
+    #createMenu(slot: ToolSlot): BlocksMenu {
+        const entries = ToolSystem.#KINDS.map(kind => {
+            const isHeld = kind === slot.kind
+            return {
+                text: isHeld ? `● ${kind.label}` : kind.label,
+                color: isHeld ? "#66ff66" : "#ffffff",
+                width: MENU_WIDTH,
+                height: ENTRY_HEIGHT,
+                onClick: () => {
+                    this.select(slot, kind)
+                    this.menus.close()
+                },
+            } as BMenuBlock
+        })
+
+        return new BlocksMenu(
+            this.scenes.getScene(),
+            this.scenes.getUtilityScene(),
+            {
+                width: MENU_WIDTH,
+                items: [
+                    { text: ToolSystem.#titleOf(slot), width: MENU_WIDTH, height: 1 },
+                    { sub: { width: MENU_WIDTH, items: entries }, width: MENU_WIDTH, height: LIST_HEIGHT },
+                ],
+            },
+        )
+    }
+
+}

@@ -29,7 +29,8 @@ import { VoiceChatSystem } from "./social/VoiceChatSystem.ts";
 import { BarMenuSystem } from "./menu/BarMenuSystem.ts";
 import { DrawingSystem } from "./social/DrawingSystem.ts";
 import { ParameterJaugeSystem } from "./feedback/ParameterJaugeSystem.ts";
-import { PointerVisualSystem } from "./feedback/PointerVisualSystem.ts";
+import { ToolSystem } from "./tool/ToolSystem.ts";
+import { InstrumentTestPad } from "./instrument/InstrumentTestPad.ts";
 import { NonXRManager } from "../nonxr/NonXRManager.ts";
 
 let _app: App
@@ -124,7 +125,6 @@ export class App {
         await Promise.all([
             DrawingSystem.initialize(
                 NetworkManager.getInstance(),
-                InputManager.getInstance(),
                 SceneManager.getInstance(),
                 usercolor,
             ),
@@ -148,10 +148,6 @@ export class App {
                 InputManager.getInstance(),
                 Node3dManager.getInstance(),
             ),
-            PointerVisualSystem.initialize(
-                SceneManager.getInstance(),
-                InputManager.getInstance(),
-            ),
             HapticContactSystem.initialize(
                 InputManager.getInstance(),
                 WamTransportManager.getInstance(audioContext),
@@ -173,6 +169,11 @@ export class App {
 
         report("Preparing menus")
         await Promise.all([
+            ToolSystem.initialize(
+                SceneManager.getInstance(),
+                InputManager.getInstance(),
+                MenuSystem.getInstance(),
+            ),
             HandMenuSystem.initialize(
                 SceneManager.getInstance(),
                 InputManager.getInstance(),
@@ -194,6 +195,9 @@ export class App {
             ),
         ])
 
+        // A pad to check the hands reach the instruments, until the real instruments carry behaviors.
+        new InstrumentTestPad(SceneManager.getInstance().getScene(), new Vector3(0, 1.1, 0.85))
+
         await BarMenuSystem.initialize(
             SceneManager.getInstance(),
             NetworkManager.getInstance().node3d,
@@ -206,16 +210,9 @@ export class App {
         const node3dBuilder = node3dManager.builder
         const node3dShared = node3dBuilder.getShared()
         
-        // create 3D controller button labels
+        // The controller button labels are disabled: the X button now opens the left hand menu.
         report("Preparing controller hints")
-        if(XRManager.getInstance())this.controlsUI = new ControlsUISystem();
-        
-        // Setup X button to toggle controls UI
-        InputManager.getInstance().x_button.onChange.add((event) => {
-            if (event.pressed) {
-                this.controlsUI?.toggle();
-            }
-        });
+        // if(XRManager.getInstance())this.controlsUI = new ControlsUISystem();
 
         if (App.DEBUG_LOG) console.log(node3dShared)
 
