@@ -2,8 +2,10 @@ import { Color3, HighlightLayer, Matrix, Observable, Vector3 } from "@babylonjs/
 import { NodeCompUtils } from "../tools/utils/NodeCompUtils"
 import { Node3DParameter } from "../Node3DParameter"
 import { InputGrabBehavior } from "../../xr/inputs/tools/InputGrabBehavior"
+import { InputManager } from "../../xr/inputs/InputManager"
 import { Node3DInstance } from "./Node3DInstance"
 import { InputMultiHoverBehavior } from "../tools"
+import { PointerInput } from "../../xr/inputs/PointerInput"
 
 const highlightColor = Color3.Blue()
 
@@ -106,13 +108,22 @@ export class N3DParameterInstance {
 
         const disposables: (()=>void)[] = []
 
-        for(const draggable of config.meshes){        
+        // The capability is asked per pointer: a hand whose tool did not ask for the parameters
+        // passes over them without lighting them up nor moving them, while the other hand still does.
+        const parameters = InputManager.getInstance().parameters
+
+        for(const draggable of config.meshes){
+            const hovering = new Set<PointerInput>()
             const hover = new InputMultiHoverBehavior(
-                ()=>{
+                pointer=>{
+                    if(!parameters.isEnabledFor(pointer)) return
+                    hovering.add(pointer)
                     visual.offset(1)
-                }, ()=>{
+                }, pointer=>{
+                    if(!hovering.delete(pointer)) return
                     visual.offset(-1)
-                }
+                },
+                parameters,
             )
     
             let startingValue = 0
@@ -128,8 +139,12 @@ export class N3DParameterInstance {
                 return stepSize>=(this.getMax()-this.getMin())
             }
 
+            let dragging = false
             const drag = new InputGrabBehavior(
                 input=>{
+                    if(!parameters.isEnabledFor(input)) return
+                    dragging = true
+
                     // Change
                     visual.offset(1)
                 
@@ -155,10 +170,14 @@ export class N3DParameterInstance {
                     event.push(startingValue)
                 },
                 _=>{
+                    if(!dragging) return
+                    dragging = false
                     event.pop(this.getValue())
                     visual.offset(-1)
                 },
                 input=>{
+                    if(!dragging) return
+
                     // If stepCount is 2, do nothing on drag
                     if(isButton())return
 
@@ -185,6 +204,7 @@ export class N3DParameterInstance {
 
                     event.set(newvalue)
                 },
+                parameters,
             )
             
             draggable.addBehavior(hover)

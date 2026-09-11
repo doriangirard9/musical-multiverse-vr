@@ -1,6 +1,6 @@
 // The soft wand hand: a wand hanging on a slack spring, thrown up by what its ball hits.
 
-import { Observer, Ray, Scene } from "@babylonjs/core"
+import { Observer, Scene } from "@babylonjs/core"
 import { ToolKind } from "../../ToolKind"
 import { ToolContext } from "../../ToolContext"
 import { WAND_TILT, WandTool } from "./WandTool"
@@ -78,12 +78,14 @@ export class SoftWandTool extends WandTool {
         const clamped = Math.min(step, MAX_STEP)
         this.#speed += (stiffness * (target - this.tilt) - DAMPING * this.#speed) * clamped
 
-        const tilt = this.tilt + this.#speed * clamped
+        let tilt = this.tilt + this.#speed * clamped
 
-        if(this.#isBlocked(tilt) === true){
+        if(this.#isBlocked() === true){
             // The blow is a speed given to the wand: it leaves on its own from where it was stopped.
-            this.#speed = BOUNCE_SPEED
-            return
+            // Never a slower one than it already carries, so a wand on its way out of the matter is
+            // not held back by the matter it is still in.
+            this.#speed = Math.max(this.#speed, BOUNCE_SPEED)
+            tilt = this.tilt + this.#speed * clamped
         }
 
         if(tilt >= MAX_TILT){
@@ -95,13 +97,19 @@ export class SoftWandTool extends WandTool {
         this.tilt = tilt
     }
 
-    /** Does the wand run into something at the given tilt? */
-    #isBlocked(tilt: number): boolean {
-        const origin = this.context.controller.pointer.origin
-        const ray = new Ray(origin, this.directionAt(tilt), this.wand.reach)
-        const pick = this.#scene.pickWithRay(ray, mesh => mesh.isPickable === true && mesh.isVisible === true && mesh.isEnabled() === true)
-
-        return pick?.hit === true
+    /**
+     * Is the ball of the wand in the matter?
+     *
+     * @remarks
+     * What is asked is the touch of the point of matter at the end of the wand, the very one that
+     * plays the instruments, so the wand bounces on exactly what it plays and on nothing else.
+     *
+     * A ray cast from the hand along the shaft was tried instead, and is what made the wand bounce
+     * off nothing: it met whatever stood anywhere between the hand and the ball, and it met it
+     * before the ball ever arrived, so the wand was thrown back without a sound having been made.
+     */
+    #isBlocked(): boolean {
+        return this.driver.interactor.touchedMesh !== null
     }
 
 }

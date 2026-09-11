@@ -3,7 +3,6 @@ import type { Node3D, Node3DFactory, Node3DGUI } from "../../Node3D";
 import type { Node3DContext } from "../../Node3DContext";
 import type { Node3DGUIContext } from "../../Node3DGUIContext";
 import XRDrumKit from "./XRDrumKit/XRDrumKit";
-import { XRManager } from "../../../xr/XRManager";
 
 const rescaleFactor = 0.5 / 0.2;
 const SIZE = 5 * (rescaleFactor);
@@ -59,13 +58,6 @@ export class DrumKitN3DGUI implements Node3DGUI {
         }
 
         // Create the drumkit model
-        // Get XR instance from XRManager
-        const xrManager = XRManager.getInstance();
-        const xr = xrManager.xrHelper;
-        if (!xr) {
-            throw new Error("XR experience is not initialized yet");
-        }
-
         // Get physics plugin
         let hk = scene.getPhysicsEngine()?.getPhysicsPlugin();
 
@@ -89,7 +81,6 @@ export class DrumKitN3DGUI implements Node3DGUI {
         this.drumKit = new XRDrumKit(
             scene,
             eventMask,
-            xr,
             hk,
             assetsManager
         );

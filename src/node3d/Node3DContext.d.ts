@@ -7,6 +7,9 @@ import { Node3DParameter } from "./Node3DParameter";
 import { Node3DConnectable } from "./Node3DConnectable";
 import { Node3DButton } from "./Node3DButton";
 import { InputManager } from "../xr/inputs/InputManager";
+import { ControllerInput } from "../xr/inputs/ControllerInput";
+import { ToolKind } from "../tool/ToolKind";
+import { InstrumentInteractionSystem } from "../instrument/InstrumentInteractionSystem";
 
 
 
@@ -39,6 +42,30 @@ export interface Node3DContext{
      * Le gestionnaire d'inputs du WAM Jam.
      */
     inputs: InputManager
+
+    /**
+     * Les intéractions physiques entre les points de matière du monde et les meshes des instruments.
+     *
+     * Un point de matière est un `Interactor`: la tête d'une baguette, un bout de doigt, le bout
+     * d'un rayon. Le Node3D n'en crée pas et n'en déplace pas, il écoute ce qu'ils rencontrent.
+     * La façon usuelle de s'en servir n'est pas d'écouter ce système directement mais d'attacher
+     * un des behaviours de {@link Node3DContext.instrument} à un mesh.
+     */
+    readonly interaction: InstrumentInteractionSystem
+
+    /**
+     * Les classes qui font d'un mesh un instrument jouable: les behaviours à attacher à un mesh
+     * pour qu'il soit frappé, tenu, pincé, frotté, pressé, ou seulement désigné.
+     *
+     * Un behaviour s'attache comme tout behaviour babylon, et se détache dans le dispose du Node3D:
+     * ```ts
+     * const strike = new context.instrument.StrikeBehavior({
+     *     onHit: (force) => this.play(note, Math.min(1, force)),
+     * })
+     * strike.attach(gui.pad)
+     * ```
+     */
+    readonly instrument: typeof import("../instrument")
 
     /**
      * Le group id du host Web Audio Module.
@@ -145,6 +172,24 @@ export interface Node3DContext{
      * C'est un élément visuel.
      */
     sendSignal(position: BABYLON.Vector3, red: number, green: number, blue: number): void
+
+
+
+    //// Gestion des outils ////
+
+    /**
+     * Équipe la main qui tient le controller donné avec un outil sur mesure,
+     * qui n'a pas besoin d'être dans le catalogue proposé à l'utilisateur.
+     * L'autre main garde ce qu'elle tient.
+     *
+     * L'outil précédent est rendu à la main quand l'objet retourné est disposé,
+     * ou automatiquement à la suppression du Node3D. Si entre temps l'utilisateur
+     * a lui même choisi un autre outil pour cette main, son choix est gardé.
+     *
+     * @param controller Le controller de la main à équiper.
+     * @param kind L'outil à mettre dans cette main.
+     */
+    equipTool(controller: ControllerInput, kind: ToolKind): {dispose(): void}
 
 
 

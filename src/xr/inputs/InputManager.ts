@@ -34,6 +34,30 @@ export class InputManager {
     //// CAPABILITIES ////
     readonly movement  = new InputCapability()
 
+    /**
+     * Dragging the parameters of the nodes.
+     * Disabled means the parameters do not light up, do not answer the trigger, and keep their value.
+     */
+    readonly parameters = new InputCapability()
+
+    /** Pressing the buttons of the nodes. Disabled means a button is neither lit nor pressed. */
+    readonly buttons = new InputCapability()
+
+    /** Grabbing the nodes by their hitbox to move them. Disabled means the hitbox stays invisible and still. */
+    readonly hitboxes = new InputCapability()
+
+    /** Dragging the connectables of the nodes to link them. Disabled means no link is made or broken. */
+    readonly connections = new InputCapability()
+
+    /**
+     * Every capability of the ordinary interactions with the world, the ones a hand has only when
+     * its tool asks for them.
+     * {@link movement} is not one of them: walking is not an interaction with a node.
+     */
+    get interactions(): readonly InputCapability[] {
+        return [this.parameters, this.buttons, this.hitboxes, this.connections]
+    }
+
     //// SINGLETON ////
     private static instance: InputManager;
         

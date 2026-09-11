@@ -159,6 +159,7 @@ export class XRManager {
             uiOptions: { sessionMode: 'immersive-vr' },
             optionalFeatures: [B.WebXRFeatureName.HAND_TRACKING],
             disableNearInteraction: true, // On gère ça nous même pour de meilleures performances
+            disablePointerSelection: true, // Le rayon et le picking sont les nôtres, voir InputManager et les tools
         });
         this.xrFeaturesManager = xrExperience.baseExperience.featuresManager;
         this.xrFeaturesManager.disableFeature(B.WebXRFeatureName.LAYERS)

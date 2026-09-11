@@ -1,6 +1,6 @@
-import { InputManager } from "../../xr/inputs"
+import { ControllerInput, InputManager } from "../../xr/inputs"
 import { BlocksMenu, BMenuBlock } from "../../menus/BlocksMenu"
-import { ARCH_TOOL_KIND, FLAIL_TOOL_KIND, FINGER_TOOL_KIND, MAGIC_TOOL_KIND, ToolKind, ToolSlot, PENCIL_TOOL_KIND, POINTER_TOOL_KIND, RAY_TOOL_KIND, SOFT_WAND_TOOL_KIND, TWO_WAND_TOOL_KIND, WAND_TOOL_KIND } from "../../tool"
+import { ARCH_TOOL_KIND, FLAIL_TOOL_KIND, FINGER_TOOL_KIND, MAGIC_TOOL_KIND, ToolKind, ToolSlot, PARAMETER_TOOL_KIND, PENCIL_TOOL_KIND, POINTER_TOOL_KIND, RAY_TOOL_KIND, SOFT_WAND_TOOL_KIND, TWO_WAND_TOOL_KIND, WAND_TOOL_KIND } from "../../tool"
 import { MenuSystem } from "../menu/MenuSystem"
 import { SceneManager } from "../SceneManager"
 
@@ -59,8 +59,75 @@ export class ToolSystem {
         slot.select(kind)
     }
 
+    /**
+     * The hand holding a controller.
+     * @param controller - The controller of one of the two hands.
+     * @returns The slot of that hand, or undefined when the controller is not a hand.
+     */
+    public slotOf(controller: ControllerInput): ToolSlot|undefined {
+        if(controller === this.left.controller) return this.left
+        if(controller === this.right.controller) return this.right
+        return undefined
+    }
+
+    /**
+     * Give a hand a tool of a kind that is not in the catalog, and keep the way back.
+     *
+     * @remarks
+     * The hand takes back what it held when the returned handle is disposed. The user stays in
+     * charge of his hands: choosing another tool in the menu meanwhile drops the equipment, and
+     * disposing it then changes nothing.
+     *
+     * @param controller - The controller of the hand to equip.
+     * @param kind - The kind to put in that hand.
+     */
+    public equip(controller: ControllerInput, kind: ToolKind): {dispose(): void} {
+        const slot = this.slotOf(controller)
+        if(!slot) return { dispose(){} }
+
+        const previous = slot.kind
+        slot.select(kind)
+
+        let equipped = true
+
+        // The user chose something else himself : the hand is not ours anymore.
+        const observer = slot.onChange.add(() => {
+            if(slot.kind !== kind){
+                equipped = false
+                observer.remove()
+            }
+        })
+
+        return {
+            dispose(){
+                observer.remove()
+                if(!equipped) return
+                equipped = false
+                slot.select(previous)
+            }
+        }
+    }
+
     /** The kinds of tool offered to the user, in the order the menu lists them. */
     public get kinds(): readonly ToolKind[] { return ToolSystem.#KINDS }
+
+    /**
+     * The kinds the menu of a hand lists: the catalog, and what that hand holds when it comes from
+     * elsewhere.
+     *
+     * @remarks
+     * A tool can be put in a hand without passing by the menu, by {@link equip}: a drumstick taken
+     * from a kit is not a kind the user may choose, it is a kind the world gave him. Listing it
+     * anyway keeps the menu telling the truth about what the hand holds, and leaves the way back
+     * visible next to it. It is listed first, so the entry marked as held never hides under a
+     * scroll.
+     *
+     * @param slot - The hand the menu is opened for.
+     */
+    public kindsFor(slot: ToolSlot): readonly ToolKind[] {
+        if(ToolSystem.#KINDS.includes(slot.kind)) return ToolSystem.#KINDS
+        return [slot.kind, ...ToolSystem.#KINDS]
+    }
 
     /**
      * Open the selection menu of a hand, or close it when it is the one already open.
@@ -92,7 +159,7 @@ export class ToolSystem {
 
     /** The kinds of tool offered to the user. */
     static readonly #KINDS: readonly ToolKind[] = [
-        POINTER_TOOL_KIND, PENCIL_TOOL_KIND, MAGIC_TOOL_KIND, FINGER_TOOL_KIND, RAY_TOOL_KIND,
+        POINTER_TOOL_KIND, PARAMETER_TOOL_KIND, PENCIL_TOOL_KIND, MAGIC_TOOL_KIND, FINGER_TOOL_KIND, RAY_TOOL_KIND,
         WAND_TOOL_KIND, SOFT_WAND_TOOL_KIND, TWO_WAND_TOOL_KIND, ARCH_TOOL_KIND, FLAIL_TOOL_KIND,
     ]
 
@@ -107,7 +174,7 @@ export class ToolSystem {
 
     /** Build the menu listing every kind of tool, the held one highlighted. */
     #createMenu(slot: ToolSlot): BlocksMenu {
-        const entries = ToolSystem.#KINDS.map(kind => {
+        const entries = this.kindsFor(slot).map(kind => {
             const isHeld = kind === slot.kind
             return {
                 text: isHeld ? `● ${kind.label}` : kind.label,

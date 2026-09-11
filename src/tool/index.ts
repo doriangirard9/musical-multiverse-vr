@@ -20,6 +20,7 @@ export * from "./kind/common/SqueezeAdjust"
 export * from "./kind/common/PointDriver"
 
 export * from "./kind/pointer/PointerTool"
+export * from "./kind/parameter/ParameterTool"
 export * from "./kind/pencil/PencilTool"
 export * from "./kind/magic/MagicTool"
 export * from "./kind/wand/GrowingWandTool"

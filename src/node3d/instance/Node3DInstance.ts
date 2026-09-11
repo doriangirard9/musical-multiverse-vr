@@ -26,6 +26,9 @@ import { N3DShared } from "./N3DShared";
 import { AutomationN3DConnectable, MeshUtils } from "../tools";
 import { SceneManager } from "../../app/SceneManager.ts";
 import { InputManager } from "../../xr/inputs/InputManager.ts";
+import { ToolSystem } from "../../app/tool/ToolSystem.ts";
+import * as instrument from "../../instrument/index.ts";
+import { InstrumentInteractionSystem } from "../../instrument/InstrumentInteractionSystem.ts";
 import { BoxWave } from "../../world/BoxWave.ts";
 import { MenuSystem } from "../../app/menu/MenuSystem.ts";
 import { AbstractMenu } from "../../menus/AbstractMenu.ts";
@@ -179,6 +182,8 @@ export class Node3DInstance implements Synchronized {
                 groupId: this.shared.groupId,
                 tools,
                 inputs: InputManager.getInstance(),
+                interaction: InstrumentInteractionSystem.getInstance(),
+                instrument,
 
                 // The WAM's name
                 setLabel(label: string) {
@@ -282,6 +287,18 @@ export class Node3DInstance implements Synchronized {
                         new Color3(red, green, blue).toColor4(1),
                         1
                     )
+                },
+
+                equipTool(controller, kind) {
+                    const equipment = ToolSystem.getInstance().equip(controller, kind)
+
+                    const dispose = () => {
+                        equipment.dispose()
+                        instance.disposables.delete(dispose)
+                    }
+                    instance.disposables.add(dispose)
+
+                    return { dispose }
                 },
 
                 getPlayerPosition() {

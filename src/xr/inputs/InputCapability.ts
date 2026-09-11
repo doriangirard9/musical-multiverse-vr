@@ -1,8 +1,11 @@
-
+import type { PointerInput } from "./PointerInput"
 
 /**
  * A capability than can be enabled or disabled.
  * Multiple ways to disable the capability are supported, including stacking, named disabling, and global disabling.
+ *
+ * It can also be disabled for one pointer only, by name: the capability then stays enabled for
+ * the other pointers, and {@link isEnabledFor} tells what one given pointer may do.
  */
 export class InputCapability{
 
@@ -10,13 +13,23 @@ export class InputCapability{
 
         private _namedDisabling = new Set<string>()
 
+        private _pointerDisabling = new Map<PointerInput, Set<string>>()
+
         private _disablingStack = 0
 
         private _enabled = true
 
+        /** Called when the capability gets disabled for every pointer at once. */
         readonly onDisable = new Set<() => void>()
 
+        /** Called when the capability gets enabled for every pointer at once. */
         readonly onEnable = new Set<() => void>()
+
+        /** Called when the capability gets disabled for one pointer, while staying enabled as a whole. */
+        readonly onPointerDisable = new Set<(pointer: PointerInput) => void>()
+
+        /** Called when the capability gets enabled again for one pointer. */
+        readonly onPointerEnable = new Set<(pointer: PointerInput) => void>()
 
         constructor(){}
 
@@ -82,12 +95,54 @@ export class InputCapability{
             this._checkEnabled()
         }
 
+        /**
+         * Disable the capability for one pointer only, under a name.
+         * The other pointers keep it. The pointer gets it back once every name disabling it is lifted.
+         */
+        disablePointerFor(pointer: PointerInput, name: string){
+            let names = this._pointerDisabling.get(pointer)
+            if(names === undefined){
+                names = new Set()
+                this._pointerDisabling.set(pointer, names)
+            }
+            const wasEnabled = names.size === 0
+            names.add(name)
+            if(wasEnabled) this.onPointerDisable.forEach(f => f(pointer))
+        }
 
         /**
-         * Check if the capability is currently enabled.
+         * Lift one name disabling the capability for one pointer.
+         */
+        enablePointerFor(pointer: PointerInput, name: string){
+            const names = this._pointerDisabling.get(pointer)
+            if(names === undefined || !names.delete(name)) return
+            if(names.size === 0){
+                this._pointerDisabling.delete(pointer)
+                this.onPointerEnable.forEach(f => f(pointer))
+            }
+        }
+
+        /**
+         * Is the capability disabled for this pointer in particular, whatever its state as a whole?
+         */
+        isPointerDisabled(pointer: PointerInput){
+            return this._pointerDisabling.has(pointer)
+        }
+
+        /**
+         * Check if the capability is currently enabled as a whole, for every pointer that is not
+         * disabled on its own.
          */
         isEnabled(){
             return this._enabled
+        }
+
+        /**
+         * Check if the capability is currently enabled for one pointer: enabled as a whole, and not
+         * disabled for that pointer.
+         */
+        isEnabledFor(pointer: PointerInput){
+            return this._enabled && !this._pointerDisabling.has(pointer)
         }
 
 }

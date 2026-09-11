@@ -1,6 +1,7 @@
 import { AbstractMesh, Behavior } from "@babylonjs/core";
 import { InputManager } from "../InputManager";
 import { PointerInput } from "../PointerInput";
+import { InputCapability } from "../InputCapability";
 
 
 /**
@@ -23,12 +24,34 @@ export class InputMultiHoverBehavior implements Behavior<AbstractMesh> {
          * Also called if the behavior is detached while the target is still being pointed at. In this case, the behavior will consider that the target is no longer hovered, and call this callback.
          */
         private onExit: (pointer:PointerInput)=>void,
+
+        /**
+         * The capability filtering the behavior. While it is disabled the behavior acts as if the
+         * target was not there, and whatever it holds is released the moment it gets disabled.
+         * A behavior with no capability always acts.
+         */
+        private capability?: InputCapability,
     ){}
 
     get name(){ return this.constructor.name }
 
     observables: {remove():void}[] = []
     attachedNode!: AbstractMesh
+
+    /** The pointers the enter callback was called for, so each one is exited exactly once. */
+    private entered: Set<PointerInput> = new Set()
+
+    private enter(pointer: PointerInput) {
+        if(this.entered.has(pointer)) return
+        if(this.capability?.isEnabled()===false) return
+        this.entered.add(pointer)
+        this.onEnter(pointer)
+    }
+
+    private exit(pointer: PointerInput) {
+        if(!this.entered.delete(pointer)) return
+        this.onExit(pointer)
+    }
 
     init(): void {}
 
@@ -39,29 +62,28 @@ export class InputMultiHoverBehavior implements Behavior<AbstractMesh> {
 
         // Initial
         for(const controller of inputs.controllers){
-            if(controller.pointer.targetMesh===target){
-                this.onEnter(controller.pointer)
-            }
+            if(controller.pointer.targetMesh===target) this.enter(controller.pointer)
         }
 
         this.observables.push(
             inputs.onNewTarget.add(pointer=>{
-                if(pointer.previousMesh===target) this.onExit(pointer)
-                if(pointer.targetMesh===target) this.onEnter(pointer)
+                if(pointer.previousMesh===target) this.exit(pointer)
+                if(pointer.targetMesh===target) this.enter(pointer)
             })
         )
+
+        // Losing the capability goes dark, as leaving the target does.
+        if(this.capability){
+            const onDisable = () => [...this.entered].forEach(pointer => this.exit(pointer))
+            this.capability.onDisable.add(onDisable)
+            this.observables.push({ remove: () => this.capability!.onDisable.delete(onDisable) })
+        }
     }
 
     detach(): void {
-        const inputs = InputManager.getInstance()
-
         this.observables.forEach(obs=>obs.remove())
         this.observables.length = 0
-        for(const controller of inputs.controllers){
-            if(controller.pointer.targetMesh===this.attachedNode){
-                this.onExit(controller.pointer)
-            }
-        }
+        ;[...this.entered].forEach(pointer => this.exit(pointer))
     }
 
 }

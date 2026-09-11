@@ -2,7 +2,6 @@ import { Scene } from "@babylonjs/core/scene";
 import { PhysicsViewer } from "@babylonjs/core";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { TransformNode } from "@babylonjs/core";
-import { WebXRDefaultExperience } from "@babylonjs/core";
 import { AssetsManager } from "@babylonjs/core";
 import { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
 
@@ -36,7 +35,6 @@ class XRDrumKit {
     wamInstance: any;
     drumComponents: XRDrumComponent[];
     drumContainer: TransformNode;
-    xr: WebXRDefaultExperience;
     assetsManager: AssetsManager;
     drumsticks: XRDrumstick[] = [];
     drumSoundsEnabled: boolean;
@@ -62,9 +60,8 @@ class XRDrumKit {
     scaleFactor: number = DRUMKIT_CONFIG.model.scaleFactor; // Scale factor for physics trigger shapes (0.7 = 70% of visual size)
     //xrLogger: XRLogger;
 
-    constructor(scene: Scene, eventMask: number, xr: WebXRDefaultExperience, hk: any, assetsManager: AssetsManager) {
+    constructor(scene: Scene, eventMask: number, hk: any, assetsManager: AssetsManager) {
         this.hk = hk;
-        this.xr = xr;
         this.scene = scene;
         this.eventMask = eventMask;
         this.assetsManager = assetsManager;
@@ -116,7 +113,7 @@ class XRDrumKit {
         this.drumContainer.removeChild(this.loadedMeshes[0]); // Clear any existing children
 
          for (var i = 0; i < 2; i++) {
-            this.drumsticks[i] = new XRDrumstick(this.xr, this, this.scene, this.eventMask, i+1, /*this.xrLogger*/);
+            this.drumsticks[i] = new XRDrumstick(this, this.scene, this.eventMask, i+1, /*this.xrLogger*/);
         }
         
         // Set references so drumsticks can detect collisions with each other (only if feature enabled)
@@ -167,10 +164,10 @@ class XRDrumKit {
         this.throne = throneContainer; // Store the throne container
         
         // Initialize throne controller for sit/stand functionality
-        this.throneController = new ThroneController(this.xr, this, throneContainer, this.scene);
+        this.throneController = new ThroneController(this, throneContainer, this.scene);
         
         // Initialize throne UI for visual feedback
-        this.throneUI = new ThroneUI(this.scene, this.xr, this.throneController);
+        this.throneUI = new ThroneUI(this.scene, this.throneController);
     
         //RESCALE: 
         this.drumContainer.scaling = new Vector3(

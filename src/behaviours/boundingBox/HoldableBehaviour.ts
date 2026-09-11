@@ -4,6 +4,7 @@ import { PointerInput } from "../../xr/inputs/PointerInput"
 import { RotationCorrectionBehaviour } from "./CorrectRotationBehaviour"
 import { TwoPointerHoldBehaviour } from "./TwoPointerHoldBehaviour"
 import { InputMultiGrabBehavior } from "../../node3d/tools"
+import { InputCapability } from "../../xr/inputs/InputCapability"
 
 
 
@@ -22,7 +23,15 @@ export class HoldableBehaviour implements Behavior<AbstractMesh> {
     onGrabObservable = new Observable<void>()
     onReleaseObservable = new Observable<void>()
 
-    constructor(private moved?: TransformNode){}
+    constructor(
+        private moved?: TransformNode,
+
+        /**
+         * The capability filtering the hold. While it is disabled the target cannot be taken, and
+         * a target already held is released. Held whatever the capability when there is none.
+         */
+        private capability?: InputCapability,
+    ){}
 
     get isDragging(): boolean { return this._isDragging }
 
@@ -39,22 +48,31 @@ export class HoldableBehaviour implements Behavior<AbstractMesh> {
         this.attachedNode = target
 
         this.attachedNode.isPickable = true
+        // Only the pointers the capability is enabled for hold the target: the other hand may
+        // point at it with its trigger down without taking it.
+        const allowed = () => grab.grabbers.filter(pointer => this.capability?.isEnabledFor(pointer) !== false)
         const grab = new InputMultiGrabBehavior(
             _=>{
-                this.grab(grab.grabbers)
+                this.grab(allowed())
             },
             _=>{
-                console.log("Release", grab.grabbers)
-                this.grab(grab.grabbers)
+                this.grab(allowed())
             },
+            undefined,
+            this.capability,
         )
 
         target.addBehavior(grab)
+
+        // A pointer losing the capability in the middle of a hold lets go.
+        const onPointerDisable = () => this.grab(allowed())
+        this.capability?.onPointerDisable.add(onPointerDisable)
 
         const correction = new RotationCorrectionBehaviour()
         target.addBehavior(correction)
 
         this.detach = ()=>{
+            this.capability?.onPointerDisable.delete(onPointerDisable)
             if(grab) target.removeBehavior(grab)
             if(correction) target.removeBehavior(correction)
             this.detach = ()=>{}

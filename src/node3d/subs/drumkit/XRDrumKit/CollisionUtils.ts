@@ -1,5 +1,5 @@
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
-import { WebXRInputSource } from "@babylonjs/core/XR/webXRInputSource";
+import { ControllerInput } from "../../../../xr/inputs/ControllerInput";
 import { DRUMKIT_CONFIG } from "./XRDrumKitConfig";
 import XRDrumstick from "./XRDrumstick";
 
@@ -65,14 +65,14 @@ export class CollisionUtils {
      * Trigger haptic feedback on the controller
      * Intensity scales with hit velocity
      * 
-     * @param controller - XR controller to vibrate
+     * @param controller - The controller to vibrate
      * @param velocity - MIDI velocity (1-127) determining vibration intensity
      */
     static triggerHapticFeedback(
-        controller: WebXRInputSource | null | undefined,
+        controller: ControllerInput | null | undefined,
         velocity: number
     ): void {
-        if (!controller?.motionController?.gamepadObject?.hapticActuators?.[0]) {
+        if (!controller) {
             return;
         }
 
@@ -80,10 +80,7 @@ export class CollisionUtils {
         const intensityRange = DRUMKIT_CONFIG.haptics.maxIntensity - DRUMKIT_CONFIG.haptics.minIntensity;
         const hapticIntensity = DRUMKIT_CONFIG.haptics.minIntensity + (velocity / 127) * intensityRange;
         
-        controller.motionController.gamepadObject.hapticActuators[0].pulse(
-            hapticIntensity, 
-            DRUMKIT_CONFIG.haptics.duration
-        );
+        controller.pulse(hapticIntensity, DRUMKIT_CONFIG.haptics.duration);
     }
 
     /**

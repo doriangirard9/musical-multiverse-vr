@@ -190,6 +190,9 @@ export class DrumPlateKitN3DGUI implements Node3DGUI {
 
 class PlateBehaviour {
 
+    /** Les behaviours rendant la plaque frappable, détachés avec le Node3D. */
+    private behaviours: {detach():void}[] = []
+
     constructor(
         gui: DrumPlateKitN3DGUI,
         n3d: DrumPlateKitN3D,
@@ -227,26 +230,42 @@ class PlateBehaviour {
         const holdable = new HoldableBehaviour(plate.root)
         holdable.onMoveObservable.add(() => gui.plates[i].updatePosition())
         holdable.attach(plate.handle)
+
+        // Frappe.
+        // La surface est attachée avant la frappe, pour que l'endroit touché soit déjà lu quand le
+        // coup est annoncé: c'est lui qui dit à quel point on a tapé près du bord.
+        const spots = new Map<string, { borderness: number, offset: Vector2 }>()
+
+        const surface = new context.instrument.SurfaceBehavior({
+            onMove(spot) {
+                spots.set(spot.id, {
+                    borderness: spot.borderness,
+                    // Du point frappé vers le centre de la plaque, entre -1 et 1 sur chaque axe.
+                    offset: new Vector2(1 - spot.normalized.x * 2, 1 - spot.normalized.z * 2),
+                })
+            },
+            onExit(spot) { spots.delete(spot.id) },
+        })
+
+        const strike = new context.instrument.StrikeBehavior({
+            onHit(force, event) {
+                const spot = spots.get(event.id)
+                const strength = Math.min(1, Math.max(0, (force - MINIMUM_STRENGTH) / (MAXIMUM_STRENGTH - MINIMUM_STRENGTH)))
+                plate.startAnimation(strength, spot?.offset ?? Vector2.Zero())
+                n3d.play(that.note, strength, spot?.borderness ?? 0)
+            },
+        })
+
+        surface.attach(plate.plate)
+        strike.attach(plate.plate)
+        this.behaviours.push(surface, strike)
     }
 
-    move(n3d: DrumPlateKitN3D, before: Vector3, after: Vector3) {
-        var matrix = this.plate.root.getWorldMatrix().invert()
-        const beforeLocal = Vector3.TransformCoordinates(before, matrix)
-        const afterLocal = Vector3.TransformCoordinates(after, matrix)
-
-        const offsetToCenter = Vector2.Zero().subtractInPlace(new Vector2(afterLocal.x, afterLocal.z))
-        const distanceToCenter = offsetToCenter.length()
-        if (distanceToCenter > 0.6) return
-
-        const speed = beforeLocal.y - afterLocal.y
-        if (beforeLocal.y > 0 && afterLocal.y < 0 && speed > MINIMUM_STRENGTH) {
-            const strength = Math.min(1, (speed - MINIMUM_STRENGTH) / (MAXIMUM_STRENGTH - MINIMUM_STRENGTH))
-            const bordering = Math.max(0, Math.min(1, distanceToCenter / 0.6))
-            const offset = offsetToCenter.scaleInPlace(1 / 0.6)
-            this.plate.startAnimation(strength, offset)
-            n3d.play(this.note, strength, bordering)
-        }
+    dispose() {
+        this.behaviours.forEach(behaviour => behaviour.detach())
+        this.behaviours.length = 0
     }
+
 }
 
 export class DrumPlateKitN3D implements Node3D {
@@ -277,35 +296,10 @@ export class DrumPlateKitN3D implements Node3D {
     private observers: {remove():void}[] = []
 
     constructor(context: Node3DContext, private gui: DrumPlateKitN3DGUI) {
-        const { tools: T, inputs } = context
+        const { tools: T } = context
 
         // Hitbox
         context.addToBoundingBox(gui.base)
-
-        // Hit
-        for(const controller of inputs.controllers){
-            const position = new Vector3()
-            const before = new Vector3()
-
-            const interval = setInterval(()=>{
-                position.copyFrom(controller.pointer.origin)
-                const aabb = gui.root.getHierarchyBoundingVectors()
-                const isInside = aabb.min.x <= position.x && position.x <= aabb.max.x &&
-                    aabb.min.y <= position.y && position.y <= aabb.max.y &&
-                    aabb.min.z <= position.z && position.z <= aabb.max.z
-
-                if (isInside) {
-                    for (const plate of this.plates) {
-                        plate.move(this, before, position)
-                    }
-                }
-
-                before.copyFrom(position)
-            },50)
-            
-            this.observers.push({remove(){clearInterval(interval)}})
-        }
-        
 
         // Outputs
         this.output = new T.MidiN3DConnectable.ListOutput(
@@ -334,6 +328,7 @@ export class DrumPlateKitN3D implements Node3D {
 
     async dispose() {
         this.observers.forEach(obs => obs.remove())
+        this.plates.forEach(plate => plate.dispose())
     }
 
 }

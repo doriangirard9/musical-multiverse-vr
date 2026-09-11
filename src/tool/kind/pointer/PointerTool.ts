@@ -10,12 +10,20 @@ import { tools } from "../../../xr/inputs"
 export class PointerTool implements Tool {
 
     constructor(context: ToolContext){
+        this.#context = context
         this.#visual = tools.InputVisualPointer.CreateSimple(context.scene, context.controller.pointer)
+
+        // The only hand asking for the ordinary interactions of the world: the parameters, the
+        // buttons, the hitboxes and the links answer a pointing hand and nothing else.
+        context.interactions.enable()
     }
 
     public dispose(): void {
+        this.#context.interactions.disable()
         this.#visual.remove()
     }
+
+    readonly #context: ToolContext
 
     readonly #visual: ReturnType<typeof tools.InputVisualPointer.CreateSimple>
 

@@ -1,4 +1,3 @@
-import { WebXRInputSource } from "@babylonjs/core/XR/webXRInputSource";
 //import { WebXRControllerPhysics } from "@babylonjs/core/XR/features/WebXRControllerPhysics";
 //import { Observable } from "@babylonjs/core/Misc/observable";
 import { Scene } from "@babylonjs/core/scene";
@@ -10,7 +9,11 @@ import { Vector3, Quaternion } from "@babylonjs/core/Maths/math";
 import XRDrumKit from "./XRDrumKit";
 //import XRLogger from "./XRLogger";
 import { Mesh } from "@babylonjs/core/Meshes/mesh";
-import { WebXRDefaultExperience } from "@babylonjs/core/XR/webXRDefaultExperience";
+import { InputManager } from "../../../../xr/inputs/InputManager";
+import { ControllerInput } from "../../../../xr/inputs/ControllerInput";
+import { ToolKind } from "../../../../tool/ToolKind";
+import { ToolSystem } from "../../../../app/tool/ToolSystem";
+import { drumstickToolKind } from "./DrumstickTool";
 import { COLLISION_GROUP } from "./CollisionGroups";
 import { DRUMKIT_CONFIG } from "./XRDrumKitConfig";
 import { PhysicsShapeSphere, PhysicsShapeCapsule } from "@babylonjs/core/Physics/v2/physicsShape";
@@ -23,7 +26,11 @@ class XRDrumstick {
     eventMask: number;
     name : string;
     showBoundingBox: boolean = false; // Display collision bounding boxes for debugging
-    controllerAttached: WebXRInputSource | null = null;
+    controllerAttached: ControllerInput | null = null;
+    /** The kind of tool putting this drumstick in a hand. */
+    readonly toolKind: ToolKind;
+    /** The way back to the tool the hand held before taking this drumstick. */
+    private equipment: { dispose(): void } | null = null;
     private transitionTimeout: number | null = null; // Timeout for TELEPORT -> ACTION transition
     log = false;
     //xrLogger : XRLogger; //To get controller positions, consider moving this logic outside this class
@@ -36,13 +43,14 @@ class XRDrumstick {
     private isCurrentlyColliding: boolean = false; // Track if currently in collision to prevent repeated triggers
     private pickupTime: number = 0; // Track when drumstick was picked up to prevent immediate collision sound
 
-    constructor(xr : WebXRDefaultExperience, xrDrumKit: XRDrumKit, scene: Scene, eventMask: number, stickNumber : Number, /*xrLogger : XRLogger*/) {
+    constructor(xrDrumKit: XRDrumKit, scene: Scene, eventMask: number, stickNumber : Number, /*xrLogger : XRLogger*/) {
         
         this.eventMask = eventMask;
         this.scene = scene;
         this.name = "drumstick" + stickNumber;
+        this.toolKind = drumstickToolKind(this);
         //@ts-ignore
-        this.drumstickAggregate = this.createDrumstick(xr, stickNumber);
+        this.drumstickAggregate = this.createDrumstick(stickNumber);
         this.xrDrumKit = xrDrumKit;
         // Only update transform when attached - no need for manual velocity calculation
         const o = scene.onBeforeRenderObservable.add(() => {
@@ -64,7 +72,7 @@ class XRDrumstick {
         }
     }
 
-    createDrumstick(xr: WebXRDefaultExperience, stickNumber : Number) {
+    createDrumstick(stickNumber : Number) {
         const stickLength = DRUMKIT_CONFIG.drumstick.stickLength;
         const stickDiameter = DRUMKIT_CONFIG.drumstick.stickDiameter;
         const ballDiameter = DRUMKIT_CONFIG.drumstick.ballDiameter;
@@ -137,61 +145,56 @@ class XRDrumstick {
             console.log(`[${this.name}] Bounding box enabled. Compound shape: Capsule + Sphere`);
         }
 
-        xr.input.onControllerAddedObservable.add((controller: WebXRInputSource) => {
-            controller.onMotionControllerInitObservable.add((motionController: any) => {
-                this.xrDrumKit.drumSoundsEnabled = true;
-                // @ts-ignore
-                let pickedStick: PhysicsAggregate | null = null;
+        // Pick and release the drumstick with the trigger of any controller, VR or screen
+        const inputs = InputManager.getInstance();
 
-                motionController.getComponent("xr-standard-trigger").onButtonStateChangedObservable.add((button: any) => {
-                    if (button.pressed) {
-                        pickedStick = this.pickStick(controller, stickLength);
-                    } else {
-                        this.releaseStick(motionController.heldStick);
-                    }
-                });
-            });
-            
-            this.scene.onBeforeRenderObservable.add(() => {
-                if (controller.grip) {
-                    const controllerPos = controller.grip.position;
-                    const controllerRot = controller.grip.rotationQuaternion || Quaternion.Identity();
-                    //this.xrLogger.updateControllerPositions(controllerPos, controllerRot, controller.inputSource.handedness);
-                    
-                    // Get velocities directly from physics body (automatically calculated by ACTION prestep)
-                    const linearVel = this.drumstickAggregate.body.getLinearVelocity();
-                    const angularVel = this.drumstickAggregate.body.getAngularVelocity();
-                    //this.xrLogger.updateControllerVelocity(linearVel, angularVel, this.drumstickAggregate.transformNode.id);
-                }
-            });
+        const onDown = inputs.onTriggerDown.add((event) => {
+            if (this.drumstickAggregate.body.isDisposed) { onDown.remove(); return; }
+            this.xrDrumKit.drumSoundsEnabled = true;
+            this.pickStick(event.pressable.controller, stickLength);
         });
 
         return drumstickAggregate;
     }
 
-    pickStick(controller: WebXRInputSource, stickLength : number) {
+    pickStick(controller: ControllerInput, _stickLength : number) {
         if (this.log) {
             console.log("Déclenchement de pickStick");
         }
-        const meshUnderPointer = this.xrDrumKit.xr.pointerSelection.getMeshUnderPointer(controller.uniqueId);
+        const meshUnderPointer = controller.pointer.targetMesh;
         if (this.log && meshUnderPointer) {
             console.log("Mesh under pointer : " + meshUnderPointer.name);
         } else if (this.log) {
             console.log("Aucun mesh sous le pointeur");
         }
         if (meshUnderPointer === this.drumstickAggregate.transformNode) {
-            this.attachToController(controller, stickLength);
+            this.equip(controller);
             return this.drumstickAggregate;
         }
         return null;
     }
+
+    /**
+     * Put the drumstick in the hand of a controller, as the tool held by that hand.
+     * The hand keeps it until another tool is chosen, or until unequip() is called.
+     */
+    equip(controller: ControllerInput): void {
+        this.equipment?.dispose();
+        this.equipment = ToolSystem.getInstance().equip(controller, this.toolKind);
+    }
+
+    /** Give the hand holding the drumstick back the tool it held before. */
+    unequip(): void {
+        this.equipment?.dispose();
+        this.equipment = null;
+    }
     
     /**
-     * Force-attach drumstick to controller without requiring pointer selection
-     * Used when automatically placing sticks in hands (e.g., when sitting at throne)
+     * Attach the drumstick to a controller without requiring pointer selection.
+     * Called by the tool of the hand, which is what decides how long the stick is held.
      */
-    forceAttachToController(controller: WebXRInputSource, stickLength: number) {
-        this.attachToController(controller, stickLength);
+    attachToHand(controller: ControllerInput) {
+        this.attachToController(controller, DRUMKIT_CONFIG.drumstick.stickLength);
         return this.drumstickAggregate;
     }
     
@@ -204,8 +207,8 @@ class XRDrumstick {
      * 
      * This prevents the drumstick from sending other objects flying when being picked up
      */
-    private attachToController(controller: WebXRInputSource, _stickLength: number) {
-        if (controller.grip) {
+    private attachToController(controller: ControllerInput, _stickLength: number) {
+        {
             // Clear any existing transition timeout
             if (this.transitionTimeout !== null) {
                 clearTimeout(this.transitionTimeout);
@@ -272,28 +275,6 @@ class XRDrumstick {
         }
     }
 
-    /*
-    getControllerVelocity(xr: WebXRDefaultExperience) {
-        
-        const xrFrame = xr.baseExperience.sessionManager.currentFrame;
-        console.log(xrFrame);
-        if (xrFrame) {
-            if(this.controllerAttached){
-                const pose = xrFrame.getPose(this.controllerAttached.inputSource.targetRaySpace, xr.baseExperience.sessionManager.referenceSpace);
-                console.log("POSE")
-                console.log(pose)
-                console.log(pose?.linearVelocity)
-                if (pose && pose.linearVelocity && pose.angularVelocity) {
-                    const linearVelocity = new Vector3(pose.linearVelocity.x, pose.linearVelocity.y, -pose.linearVelocity.z);
-                    const angularVelocity = new Vector3(pose.angularVelocity.x, pose.angularVelocity.y, -pose.angularVelocity.z);
-                    console.log("Linear Velocity: ", linearVelocity);
-                    console.log("Angular Velocity: ", angularVelocity);
-                    return linearVelocity;
-                }
-            }
-        }
-    }
-    */
 
     /**
      * Update drumstick transform to follow controller when attached
@@ -303,12 +284,13 @@ class XRDrumstick {
         // ===== APPROACH 1 ONLY: Manual Transform Updates =====
         // If drumstick is attached to a controller, update its transform to follow the controller
         // NOTE: This section is NOT needed if using APPROACH 2 (parenting)
-        if (this.controllerAttached && this.controllerAttached.grip) {
+        if (this.controllerAttached) {
             const stickLength = DRUMKIT_CONFIG.drumstick.stickLength;
             
-            // Get controller's world transform
-            const controllerPosition = this.controllerAttached.grip.absolutePosition.clone();
-            const controllerRotation = this.controllerAttached.grip.absoluteRotationQuaternion || Quaternion.Identity();
+            // Get controller's world transform from its pointer input
+            const pointer = this.controllerAttached.pointer;
+            const controllerPosition = pointer.origin.clone();
+            const controllerRotation = Quaternion.FromRotationMatrix(pointer.matrix);
             
             // Calculate drumstick offset (same as before when parented)
             const offset = new Vector3(0, 0, stickLength / 4);
@@ -529,7 +511,7 @@ class XRDrumstick {
      * Trigger haptic feedback on the controller holding this drumstick
      */
     private triggerCollisionHaptics(): void {
-        if (!this.controllerAttached?.motionController?.gamepadObject?.hapticActuators?.[0]) {
+        if (!this.controllerAttached) {
             return;
         }
 
@@ -537,10 +519,7 @@ class XRDrumstick {
         const intensity = DRUMKIT_CONFIG.drumstick.collisionHapticIntensity;
         const duration = DRUMKIT_CONFIG.drumstick.collisionHapticDuration;
 
-        this.controllerAttached.motionController.gamepadObject.hapticActuators[0].pulse(
-            intensity,
-            duration
-        );
+        this.controllerAttached.pulse(intensity, duration);
     }
 
     /**

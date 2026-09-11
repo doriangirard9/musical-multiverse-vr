@@ -16,6 +16,17 @@ const BLACK_NOTES = [1, 3, 6, 8, 10]
 
 const NOTE_NAME = ["Do/C","Do#/C#","Re/D","Re#/D#", "Mi/E","Fa/F","Fa#/F#","Sol/G", "Sol#/G#","La/A","La#/A#","Si/B"]
 
+/** L'identité de la voix du pointeur, qui n'est pas un point de matière et n'en a donc pas. */
+const POINTER_HOLDER = "pointer"
+
+/**
+ * La vélocité MIDI d'un geste, le geste ordinaire, de force 1, donnant une touche bien franche.
+ * @param force La force avec laquelle le point est entré dans la touche.
+ */
+function velocityOf(force: number): number {
+    return Math.max(1, Math.min(127, Math.round(force * 100)))
+}
+
 
 export class LivePianoN3DGUI implements Node3DGUI{
     
@@ -88,6 +99,9 @@ export class LivePianoN3D implements Node3D{
 
     output 
 
+    /** Les behaviours rendant les touches jouables au toucher, détachés avec le Node3D. */
+    private holds: {detach():void}[] = []
+
     constructor(context: Node3DContext, private gui: LivePianoN3DGUI){
         const {tools:T} = context
 
@@ -99,29 +113,52 @@ export class LivePianoN3D implements Node3D{
         // Notes
         for(let note=MIN_NOTE; note<MAX_NOTE; note++){
             const mesh = gui.notes[note-MIN_NOTE]
+
+            // Ce qui tient la touche enfoncée: le pointeur, et un point de matière par main posée
+            // dessus. La note sonne du premier au dernier, donc une deuxième main sur la même
+            // touche ne coupe pas la note de la première.
+            const holders = new Set<string>()
+
+            function press(holder: string, velocity: number) {
+                if(holders.size===0){
+                    mesh.scaling.y = .6
+                    output.connections.forEach(conn => {
+                        const t =  conn.context.currentTime
+                        conn.scheduleEvents({type:"wam-midi", time:t, data:{bytes:[0x90, note, velocity]}})
+                    })
+                }
+                holders.add(holder)
+            }
+
+            function release(holder: string) {
+                if(!holders.delete(holder)) return
+                if(holders.size>0) return
+                mesh.scaling.y = 1
+                output.connections.forEach(conn => {
+                    const t =  conn.context.currentTime
+                    conn.scheduleEvents({type:"wam-midi", time:t, data:{bytes:[0x90, note, 0]}})
+                    conn.scheduleEvents({type:"wam-midi", time:t+0.001, data:{bytes:[0x80, note, 0]}})
+                })
+            }
+
             context.createButton({
                 id: `button${note}`,
                 label: NOTE_NAME[note%OCTAVE],
                 color: Color3.Blue(),
                 meshes: [mesh],
                 supportSwipe: true,
-                press() {
-                    mesh.scaling.y = .6
-                    output.connections.forEach(conn => {
-                        const t =  conn.context.currentTime
-                        conn.scheduleEvents({type:"wam-midi", time:t, data:{bytes:[0x90, note, 127]}})
-                    })
-                },
-                release() {
-                    mesh.scaling.y = 1
-                    output.connections.forEach(conn => {
-                        const t =  conn.context.currentTime
-                        conn.scheduleEvents({type:"wam-midi", time:t, data:{bytes:[0x90, note, 0]}})
-                        conn.scheduleEvents({type:"wam-midi", time:t+0.001, data:{bytes:[0x80, note, 0]}})
-                    })
-                },
+                press() { press(POINTER_HOLDER, 127) },
+                release() { release(POINTER_HOLDER) },
             })
-            
+
+            // Touché par une main, la note est jouée d'autant plus fort que la touche est enfoncée
+            // vite, le geste ordinaire donnant une force de 1.
+            const hold = new context.instrument.HoldBehavior({
+                onDown: (force, event) => press(event.id, velocityOf(force)),
+                onUp: event => release(event.id),
+            })
+            hold.attach(mesh)
+            this.holds.push(hold)
         }
     }
 
@@ -132,7 +169,10 @@ export class LivePianoN3D implements Node3D{
 
     getStateKeys(){ return [] }
     
-    async dispose(){ }
+    async dispose(){
+        this.holds.forEach(hold => hold.detach())
+        this.holds.length = 0
+    }
 
 }
 

@@ -1,11 +1,8 @@
 import { Vector3 } from "@babylonjs/core/Maths/math";
-import { WebXRDefaultExperience } from "@babylonjs/core/XR/webXRDefaultExperience";
 import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import XRDrumKit from "./XRDrumKit";
 import { Scene } from "@babylonjs/core/scene";
 import { Quaternion } from "@babylonjs/core/Maths/math.vector";
-import { WebXRFeatureName } from "@babylonjs/core/XR/webXRFeaturesManager";
-import { WebXRControllerComponent } from "@babylonjs/core/XR/motionController/webXRControllerComponent";
 import { InputManager } from "../../../../xr/inputs/InputManager";
 
 /**
@@ -27,8 +24,8 @@ export class ThroneController {
     private savedCameraPosition: Vector3 | null = null;
     private appliedYawDifference: Quaternion | null = null; // The Y rotation we added when sitting
     
-    // Movement feature state - just track if it was enabled
-    private movementWasEnabled: boolean = false;
+    // Name used to disable the movement capability while seated
+    private static readonly MOVEMENT_DISABLING_NAME = "drumkit-throne";
     
     // Proximity detection
     private proximityDistance: number = 1.5; // meters - distance to activate "sit" prompt
@@ -51,7 +48,6 @@ export class ThroneController {
     private log: boolean = true;
     
     constructor(
-        private xr: WebXRDefaultExperience,
         private xrDrumKit: XRDrumKit,
         private throneNode: TransformNode,
         private scene: Scene
@@ -77,6 +73,13 @@ export class ThroneController {
         if (this.log) {
             console.log("[ThroneController] Initialized. Press X near throne to sit.");
         }
+    }
+    
+    /**
+     * The camera of the player, whether in VR or on screen
+     */
+    private get camera(): any {
+        return this.scene.activeCamera!;
     }
     
     /**
@@ -170,7 +173,7 @@ export class ThroneController {
     private checkProximity(): void {
         if (this.isSitting) return;
         
-        const camera = this.xr.baseExperience.camera;
+        const camera = this.camera;
         const cameraPos = camera.globalPosition;
         
         // Calculate sitting position on the fly to get latest throne position
@@ -199,18 +202,12 @@ export class ThroneController {
     private sitDown(): void {
         if (this.isSitting) return;
         
-        const camera = this.xr.baseExperience.camera;
-        const featuresManager = this.xr.baseExperience.featuresManager;
+        const camera = this.camera;
         
-        // Check if MOVEMENT feature is enabled and disable it
-        const movementFeature = featuresManager.getEnabledFeature(WebXRFeatureName.MOVEMENT);
-        this.movementWasEnabled = movementFeature !== null;
-        
-        if (this.movementWasEnabled) {
-            featuresManager.disableFeature(WebXRFeatureName.MOVEMENT);
-            if (this.log) {
-                console.log("[ThroneController] MOVEMENT feature disabled");
-            }
+        // Disable the movement while seated
+        InputManager.getInstance().movement.disableFor(ThroneController.MOVEMENT_DISABLING_NAME);
+        if (this.log) {
+            console.log("[ThroneController] Movement disabled");
         }
         
         // Disable gravity while sitting to prevent camera drift
@@ -295,17 +292,18 @@ export class ThroneController {
      */
     private pickupDrumsticks(): void {
         // Get controllers
-        const controllers = this.xr.input.controllers;
+        const inputs = InputManager.getInstance();
+        const controllers = [inputs.left, inputs.right];
         
         controllers.forEach((controller, index) => {
-            if (controller.grip && index < this.xrDrumKit.drumsticks.length) {
+            if (index < this.xrDrumKit.drumsticks.length) {
                 const drumstick = this.xrDrumKit.drumsticks[index];
                 
-                // Force-attach the drumstick to controller without pointer selection
-                drumstick.forceAttachToController(controller, 0.4); // 0.4 is the stick length
+                // Put the drumstick in that hand, as the tool it holds
+                drumstick.equip(controller);
                 
                 if (this.log) {
-                    console.log(`[ThroneController] Placed ${drumstick.name} in ${controller.inputSource.handedness} hand`);
+                    console.log(`[ThroneController] Placed ${drumstick.name} in ${controller.side} hand`);
                 }
             }
         });
@@ -368,8 +366,7 @@ export class ThroneController {
     private standUp(): void {
         if (!this.isSitting) return;
         
-        const camera = this.xr.baseExperience.camera;
-        const featuresManager = this.xr.baseExperience.featuresManager;
+        const camera = this.camera;
         
         // Release drumsticks
         this.releaseDrumsticks();
@@ -395,45 +392,10 @@ export class ThroneController {
             camera.rotationQuaternion.copyFrom(inverseYawDifference.multiply(camera.rotationQuaternion));
         }
         
-        // Re-enable MOVEMENT feature if it was enabled before
-        // Must provide full configuration including xrInput
-        if (this.movementWasEnabled) {
-            // Custom configuration: left stick = movement, right stick = rotation
-            const swappedHandednessConfiguration = [
-                {
-                    // Right stick (right hand) -> rotation
-                    allowedComponentTypes: [WebXRControllerComponent.THUMBSTICK_TYPE, WebXRControllerComponent.TOUCHPAD_TYPE],
-                    forceHandedness: "right" as XRHandedness,
-                    axisChangedHandler: (axes: any, movementState: any, featureContext: any, _xrInput: any) => {
-                        movementState.rotateX = Math.abs(axes.x) > featureContext.rotationThreshold ? axes.x : 0;
-                        movementState.rotateY = Math.abs(axes.y) > featureContext.rotationThreshold ? axes.y : 0;
-                    },
-                },
-                {
-                    // Left stick (left hand) -> movement
-                    allowedComponentTypes: [WebXRControllerComponent.THUMBSTICK_TYPE, WebXRControllerComponent.TOUCHPAD_TYPE],
-                    forceHandedness: "left" as XRHandedness,
-                    axisChangedHandler: (axes: any, movementState: any, featureContext: any, _xrInput: any) => {
-                        movementState.moveX = Math.abs(axes.x) > featureContext.movementThreshold ? axes.x : 0;
-                        movementState.moveY = Math.abs(axes.y) > featureContext.movementThreshold ? axes.y : 0;
-                    },
-                },
-            ];
-            
-            featuresManager.enableFeature(WebXRFeatureName.MOVEMENT, "latest", {
-                xrInput: this.xr.input,
-                movementEnabled: true,
-                rotationEnabled: true,
-                movementSpeed: 0.2,
-                rotationSpeed: 0.3,
-                movementOrientationFollowsViewerPose: true,
-                movementOrientationFollowsController: false,
-                customRegistrationConfigurations: swappedHandednessConfiguration
-            });
-            
-            if (this.log) {
-                console.log("[ThroneController] MOVEMENT feature re-enabled");
-            }
+        // Re-enable the movement
+        InputManager.getInstance().movement.enableFor(ThroneController.MOVEMENT_DISABLING_NAME);
+        if (this.log) {
+            console.log("[ThroneController] Movement re-enabled");
         }
         
         // Re-enable gravity when standing up
@@ -455,7 +417,7 @@ export class ThroneController {
     private releaseDrumsticks(): void {
         this.xrDrumKit.drumsticks.forEach(drumstick => {
             if (drumstick.controllerAttached) {
-                drumstick.releaseStick(drumstick.drumstickAggregate);
+                drumstick.unequip();
                 
                 if (this.log) {
                     console.log(`[ThroneController] Released ${drumstick.name}`);

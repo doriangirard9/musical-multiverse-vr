@@ -1,6 +1,67 @@
 import { Scene, TransformNode } from "@babylonjs/core"
 import { ControllerInput } from "../xr/inputs"
 
+/** One kind of ordinary interaction, each one asked for on its own. */
+export type ToolInteractionKind = "parameters" | "buttons" | "hitboxes" | "connections"
+
+/**
+ * One ordinary interaction of the world, as one hand asks for it.
+ *
+ * @remarks
+ * The switch is per hand: the world answers the pointer of a hand only for what the tool of that
+ * hand asked, whatever the other hand holds. What a hand asks for lasts as long as its tool.
+ */
+export interface ToolInteraction {
+
+    /** Does this hand ask for it? */
+    readonly enabled: boolean
+
+    /** Ask for it. Doing it twice changes nothing. */
+    enable(): void
+
+    /** Stop asking for it. The other hand keeps what it asked for. */
+    disable(): void
+
+}
+
+/**
+ * The ordinary interactions of the world, each one asked for on its own.
+ *
+ * @remarks
+ * Dragging a parameter, pressing a button, taking a node by its hitbox and linking two connectables
+ * are not the business of any single tool: they are what the world offers to a hand that points at
+ * it. They are off for everyone unless a hand asks for them, so a hand playing an instrument does
+ * not disturb the nodes it sweeps through.
+ *
+ * They are asked for one by one, since a tool rarely wants all of them: a hand that moves the nodes
+ * around has no use for the parameters, and one that plays them has no use for the hitboxes.
+ * ```ts
+ * context.interactions.hitboxes.enable()
+ * context.interactions.parameters.enable()
+ * ```
+ */
+export interface ToolInteractions extends Record<ToolInteractionKind, ToolInteraction> {
+
+    /** Dragging the parameters of the nodes. */
+    readonly parameters: ToolInteraction
+
+    /** Pressing the buttons of the nodes. */
+    readonly buttons: ToolInteraction
+
+    /** Grabbing the nodes by their hitbox to move them. */
+    readonly hitboxes: ToolInteraction
+
+    /** Dragging the connectables of the nodes to link them. */
+    readonly connections: ToolInteraction
+
+    /** Ask for every one of them at once. */
+    enable(): void
+
+    /** Stop asking for any of them. */
+    disable(): void
+
+}
+
 /**
  * Everything a tool is given at creation.
  *
@@ -25,5 +86,11 @@ export interface ToolContext {
      * Owned and moved by the slot: the tool never disposes it.
      */
     readonly visual: TransformNode
+
+    /**
+     * The ordinary interactions of the world, off until a tool asks for them, each one on its own.
+     * What a tool asks for lasts as long as the tool: a hand taking another one starts over.
+     */
+    readonly interactions: ToolInteractions
 
 }

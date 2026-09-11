@@ -1,6 +1,7 @@
 import { AbstractMesh, Behavior, Nullable } from "@babylonjs/core";
 import { InputManager } from "../InputManager";
 import { PointerInput } from "../PointerInput";
+import { InputCapability } from "../InputCapability";
 
 
 /**
@@ -22,6 +23,13 @@ export class InputGrabBehavior implements Behavior<AbstractMesh> {
 
         /** Called if the target is grabbed, and the pointer that is grabbing it moves. */
         private onMove?: (pointer:PointerInput)=>void,
+
+        /**
+         * The capability filtering the behavior. While it is disabled the behavior acts as if the
+         * target was not there, and whatever it holds is released the moment it gets disabled.
+         * A behavior with no capability always acts.
+         */
+        private capability?: InputCapability,
     ){}
     
     attachedNode: Nullable<AbstractMesh> = null;
@@ -50,6 +58,7 @@ export class InputGrabBehavior implements Behavior<AbstractMesh> {
                 const pointer = e.pressable.controller?.pointer
                 if(!pointer)return
                 if(this.grabbed) return
+                if(this.capability?.isEnabled()===false) return
                 if(pointer.targetMesh===target){
                     this.grabbed = pointer
                     this.onDown(pointer)
@@ -71,6 +80,24 @@ export class InputGrabBehavior implements Behavior<AbstractMesh> {
                 }
             })
         )
+
+        // Losing the capability in the middle of a grab releases it, so nothing stays held by a
+        // hand that is no longer allowed to hold it.
+        if(this.capability){
+            const onDisable = () => { if(this.grabbed) this.release() }
+            this.capability.onDisable.add(onDisable)
+            this.observables.push({ remove: () => this.capability!.onDisable.delete(onDisable) })
+        }
+    }
+
+    /** Release what is grabbed, if anything is. */
+    private release(): void {
+        if(!this.grabbed) return
+        const pointer = this.grabbed
+        this.grabbed = null
+        this.onUp(pointer)
+        this.moveObserver?.remove()
+        this.moveObserver = null
     }
 
     detach(): void {
