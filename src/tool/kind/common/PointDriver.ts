@@ -8,6 +8,9 @@ import { PressActivation } from "./PressActivation"
 /** How far ahead of the point a mesh is designated, in meters. */
 const AIM_REACH = 0.3
 
+/** The color of the ball itself, shown wherever the point is whether it presses or not. */
+const BASE_COLOR = new Color3(0.85, 0.85, 0.9)
+
 /** The color of the halo showing that the point presses. */
 const GLOW_COLOR = new Color3(0.3, 1, 0.4)
 
@@ -50,6 +53,19 @@ export interface PointDriverOptions {
     /** Where the point looks, in world space, for what it designates ahead of itself. */
     direction: () => Vector3
 
+    /**
+     * Does the point meet matter at all? A point that does not is carried around and pressed, but
+     * touches and designates nothing.
+     * @defaultValue true
+     */
+    hittable?: boolean
+
+    /**
+     * Is the ball itself shown? The halo of the pressure is shown whatever this says.
+     * @defaultValue true
+     */
+    baseVisible?: boolean
+
 }
 
 /**
@@ -68,6 +84,12 @@ export interface PointDriverOptions {
  * The trigger of the controller presses the ball, which activates whatever it touches, and a green
  * halo on the ball says so. The halo belongs here rather than to the hands, so every hand moving a
  * point of matter shows the same thing at the same place, which is where the point actually is.
+ * The ball itself is shown too, and a hand with a visual of its own hides it with
+ * {@link baseVisible}.
+ *
+ * A point made not {@link hittable} keeps being moved, pressed and shown, but meets nothing: a hand
+ * that is not meant to play the instruments still carries a point of matter, so that whatever
+ * looks for one finds it.
  */
 export class PointDriver {
 
@@ -99,6 +121,17 @@ export class PointDriver {
         this.#glow.material = material
         this.#glow.setEnabled(false)
 
+        const baseMaterial = new StandardMaterial(`${options.label} base`, options.scene)
+        baseMaterial.diffuseColor = BASE_COLOR
+        this.#baseMaterial = baseMaterial
+
+        this.#base = CreateIcoSphere(`${options.label} base`, { radius: options.radius, subdivisions: 2 }, options.scene)
+        this.#base.isPickable = false
+        this.#base.material = baseMaterial
+
+        this.#hittable = options.hittable ?? true
+        this.baseVisible = options.baseVisible ?? true
+
         this.#previous = options.position().clone()
         this.#observer = options.scene.onBeforeRenderObservable.add(() => this.#update())
     }
@@ -108,7 +141,24 @@ export class PointDriver {
         this.interactor.dispose()
         this.#glow.dispose()
         this.#glowMaterial.dispose()
+        this.#base.dispose()
+        this.#baseMaterial.dispose()
     }
+
+    /** Does the point meet matter? Made false, it lets go of whatever it touched or designated. */
+    public get hittable(): boolean { return this.#hittable }
+
+    public set hittable(hittable: boolean) {
+        this.#hittable = hittable
+        if(hittable === true) return
+        this.interactor.clearTouch()
+        this.interactor.clearAim()
+    }
+
+    /** Is the ball itself shown? The halo of the pressure is shown whatever this says. */
+    public get baseVisible(): boolean { return this.#base.isVisible }
+
+    public set baseVisible(visible: boolean) { this.#base.isVisible = visible }
 
 
     readonly #options: PointDriverOptions
@@ -122,6 +172,13 @@ export class PointDriver {
     readonly #glow: Mesh
 
     readonly #glowMaterial: StandardMaterial
+
+    /** The ball itself, laid on the point. */
+    readonly #base: Mesh
+
+    readonly #baseMaterial: StandardMaterial
+
+    #hittable: boolean
 
     /** The position of the point at the previous frame, the start of the segment swept. */
     readonly #previous: Vector3
@@ -137,10 +194,10 @@ export class PointDriver {
         current.subtractToRef(this.#previous, this.#travel)
         this.#readVelocity(scene.getEngine().getDeltaTime() / 1000)
 
-        this.#sweep(current)
+        if(this.#hittable === true) this.#sweep(current)
         this.#previous.copyFrom(current)
 
-        this.#aim(current)
+        if(this.#hittable === true) this.#aim(current)
 
         // After the sweep, so a point that entered the matter this very frame presses on it at once.
         this.#activation?.update()
@@ -149,6 +206,8 @@ export class PointDriver {
 
     /** Lay the halo on the point, as bright as the point presses and gone when it presses on nothing. */
     #show(current: Vector3): void {
+        this.#base.position.copyFrom(current)
+
         const value = this.interactor.activationValue
 
         this.#glow.setEnabled(value > 0)

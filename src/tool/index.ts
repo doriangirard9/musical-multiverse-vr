@@ -18,6 +18,7 @@ export * from "./kind/wand/WandTool"
 export * from "./kind/common/SqueezeDrive"
 export * from "./kind/common/SqueezeAdjust"
 export * from "./kind/common/PointDriver"
+export * from "./kind/common/BoxDriver"
 
 export * from "./kind/pointer/PointerTool"
 export * from "./kind/parameter/ParameterTool"

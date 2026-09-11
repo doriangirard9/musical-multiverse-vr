@@ -2,6 +2,10 @@ import { Tool } from "../../Tool"
 import { ToolKind } from "../../ToolKind"
 import { ToolContext } from "../../ToolContext"
 import { tools } from "../../../xr/inputs"
+import { PointDriver } from "../common/PointDriver"
+
+/** The radius of the point of matter carried at the origin of the pointer, in meters. */
+const POINT_RADIUS = 0.015
 
 /**
  * The plain hand: it shows the ray of its controller and lets every world interaction happen.
@@ -16,12 +20,28 @@ export class PointerTool implements Tool {
         // The only hand asking for the ordinary interactions of the world: the parameters, the
         // buttons, the hitboxes and the links answer a pointing hand and nothing else.
         context.interactions.enable()
+
+        // A point of matter at the origin of the pointer, meeting nothing: the plain hand does not
+        // play the instruments, but still carries a point for whatever looks for one.
+        const pointer = context.controller.pointer
+        this.#driver = new PointDriver({
+            label: `pointer ${context.side}`,
+            scene: context.scene,
+            controller: context.controller,
+            radius: POINT_RADIUS,
+            position: () => pointer.origin.clone(),
+            direction: () => pointer.forward,
+            hittable: false,
+        })
     }
 
     public dispose(): void {
+        this.#driver.dispose()
         this.#context.interactions.disable()
         this.#visual.remove()
     }
+
+    readonly #driver: PointDriver
 
     readonly #context: ToolContext
 
