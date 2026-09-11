@@ -132,12 +132,13 @@ export class FlailTool implements Tool {
             direction: () => this.#swing,
         })
 
-        // Before the driver, which reads the ball where this leaves it.
-        this.#observer = context.scene.onBeforeRenderObservable.add(() => this.#update(), undefined, true)
+        // Once the physics of the frame is done, and before the driver, which runs before the
+        // render and reads the ball where this leaves it.
+        this.#observer = context.scene.onAfterPhysicsObservable.add(() => this.#update())
     }
 
     public dispose(): void {
-        this.#scene.onBeforeRenderObservable.remove(this.#observer)
+        this.#scene.onAfterPhysicsObservable.remove(this.#observer)
         this.#driver.dispose()
         this.#adjust.dispose()
         this.#ball.dispose()
