@@ -1,8 +1,9 @@
 import { Scene, TransformNode } from "@babylonjs/core"
 import { ControllerInput } from "../xr/inputs"
+import { PickFilter } from "../xr/inputs/AbstractPointerInput"
 
 /** One kind of ordinary interaction, each one asked for on its own. */
-export type ToolInteractionKind = "parameters" | "buttons" | "hitboxes" | "connections"
+export type ToolInteractionKind = "pointer" | "parameters" | "buttons" | "hitboxes" | "connections"
 
 /**
  * One ordinary interaction of the world, as one hand asks for it.
@@ -36,11 +37,20 @@ export interface ToolInteraction {
  * They are asked for one by one, since a tool rarely wants all of them: a hand that moves the nodes
  * around has no use for the parameters, and one that plays them has no use for the hitboxes.
  * ```ts
+ * context.interactions.pointer.enable()
  * context.interactions.hitboxes.enable()
  * context.interactions.parameters.enable()
  * ```
+ *
+ * The {@link pointer} one is the ground of the others: without it the pointer of the hand picks
+ * nothing, so the other interactions have nothing to answer, and a tool reading
+ * `controller.pointer.targetMesh` or `target` reads nothing. It is not asked for on its own by
+ * the others: a tool asking for any of them asks for the pointer too, and drops it with them.
  */
 export interface ToolInteractions extends Record<ToolInteractionKind, ToolInteraction> {
+
+    /** The pointer of the hand looking for a target at all. Needed by every other one, asked for explicitly. */
+    readonly pointer: ToolInteraction
 
     /** Dragging the parameters of the nodes. */
     readonly parameters: ToolInteraction
@@ -59,6 +69,30 @@ export interface ToolInteractions extends Record<ToolInteractionKind, ToolIntera
 
     /** Stop asking for any of them. */
     disable(): void
+
+}
+
+/**
+ * The filters restricting what the pointer of one hand can pick, as one tool sets them.
+ *
+ * @remarks
+ * A filter is a {@link PickFilter}: it is given every candidate mesh and refuses the ones the tool
+ * has no use for, so the pointer passes through them as if they were not there. The filters apply
+ * to the pointer of that hand only, whatever the other hand holds.
+ */
+export interface ToolPickFilters {
+
+    /** Add a filter. Adding the same one twice changes nothing. */
+    add(filter: PickFilter): void
+
+    /** Remove a filter added by this hand. */
+    remove(filter: PickFilter): void
+
+    /** Does this hand hold that filter? */
+    has(filter: PickFilter): boolean
+
+    /** Remove every filter of this hand. */
+    clear(): void
 
 }
 
@@ -92,5 +126,11 @@ export interface ToolContext {
      * What a tool asks for lasts as long as the tool: a hand taking another one starts over.
      */
     readonly interactions: ToolInteractions
+
+    /**
+     * The filters restricting what the pointer of this hand can pick. A mesh is picked only if
+     * every filter accepts it. They last as long as the tool: a hand taking another one starts over.
+     */
+    readonly pickFilters: ToolPickFilters
 
 }

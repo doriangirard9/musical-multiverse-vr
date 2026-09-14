@@ -1,0 +1,17 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "stripInternal": true,
+    "rootDir": "src",
+    "outDir": "nodeapi/modules",
+    "strict": false,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "types": ["vite/client", "node"]
+  },
+  "files": ["src/node3d/Node3D.d.ts"],
+  "include": ["src/types/**/*.d.ts"]
+}

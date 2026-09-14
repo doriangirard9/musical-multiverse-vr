@@ -2,13 +2,30 @@
 
 import { AbstractMesh, Matrix, Observable, Ray, Scene, Vector3, WebXRInputSource } from "@babylonjs/core";
 
+/** A filter deciding whether a mesh can be picked by a pointer. A mesh is picked only if every filter accepts it. */
+export type PickFilter = (mesh: AbstractMesh) => boolean
+
 /**
  * Class representing the pointer input of a controller. It provides the position and orientation of the pointer, as well as the mesh it is targeting (if any).
  */
 export class AbstractPointerInput {
     
-    /** Global predicate to filter pickable meshes (e.g. during connection drag) */
-    public static PickPredicate: ((mesh: AbstractMesh) => boolean) | null = null;
+    /** Global filters applied to every pointer (e.g. during connection drag). A mesh is pickable only if every filter accepts it. */
+    public static readonly PickFilters = new Set<PickFilter>();
+
+    /** Filters applied to this pointer only, on top of {@link PickFilters}. */
+    public readonly pickFilters = new Set<PickFilter>();
+
+    /**
+     * Whether a mesh can be picked by this pointer: it has to be pickable, visible, enabled,
+     * and accepted by every global and per-pointer filter.
+     */
+    public isPickable(mesh: AbstractMesh): boolean {
+        if (!mesh.isPickable || !mesh.isVisible || !mesh.isEnabled()) return false;
+        for (const filter of AbstractPointerInput.PickFilters) if (!filter(mesh)) return false;
+        for (const filter of this.pickFilters) if (!filter(mesh)) return false;
+        return true;
+    }
 
     /** Global maximum distance for touch interaction */
     public static TouchMaxDistance: number = 0.05;
@@ -92,11 +109,7 @@ export class AbstractPointerInput {
         for(let i=scenes.length-1; i>=0; i--){
             const ray = new Ray(this.origin, this.forward)
 
-            const pickInfo = scenes[i].pickWithRay(ray, (mesh) => {
-                if (!mesh.isPickable || !mesh.isVisible || !mesh.isEnabled()) return false;
-                if (AbstractPointerInput.PickPredicate) return AbstractPointerInput.PickPredicate(mesh);
-                return true;
-            })
+            const pickInfo = scenes[i].pickWithRay(ray, (mesh) => this.isPickable(mesh))
             if (pickInfo) {
                 this.hit = pickInfo.hit
                 if (pickInfo.pickedPoint) this.target.copyFrom(pickInfo.pickedPoint!)
@@ -245,11 +258,7 @@ export class AbstractPointerInput {
             const canvas_x = e.clientX - canvas!.getBoundingClientRect().left
             const canvas_y = e.clientY - canvas!.getBoundingClientRect().top
 
-            const pickInfo = scenes[0].pick(canvas_x, canvas_y, (mesh) => {
-                if (!mesh.isPickable || !mesh.isVisible || !mesh.isEnabled()) return false;
-                if (AbstractPointerInput.PickPredicate) return AbstractPointerInput.PickPredicate(mesh);
-                return true;
-            })
+            const pickInfo = scenes[0].pick(canvas_x, canvas_y, (mesh) => that.isPickable(mesh))
             const ray = pickInfo?.ray!!
 
             that._raytrace(

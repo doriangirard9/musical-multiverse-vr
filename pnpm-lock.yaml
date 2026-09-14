@@ -78,6 +78,9 @@ importers:
       cross-env:
         specifier: ^10.1.0
         version: 10.1.0
+      dts-bundle-generator:
+        specifier: ^9.5.1
+        version: 9.5.1
       typedoc:
         specifier: ^0.28.19
         version: 0.28.19(typescript@5.9.3)
@@ -1479,6 +1482,11 @@ packages:
 
   dockview-core@4.3.0:
     resolution: {integrity: sha512-0yALheanGzibIl2VFvD8XTUFBRIlnq6S6PIhwtxW7W4IeHX207ZanSmsjrKB6L761ztBY/6TQeddppmF302c5g==}
+
+  dts-bundle-generator@9.5.1:
+    resolution: {integrity: sha512-DxpJOb2FNnEyOzMkG11sxO2dmxPjthoVWxfKqWYJ/bI/rT1rvTMktF5EKjAYrRZu6Z6t3NhOUZ0sZ5ZXevOfbA==}
+    engines: {node: '>=14.0.0'}
+    hasBin: true
 
   dunder-proto@1.0.1:
     resolution: {integrity: sha512-KIN/nDJBQRcXw0MLVhZE9iQHmG68qAVIBg9CqmUYjmQIhgij9U5MFvrqkUL5FbtyyzZuOeOt0zdeRe4UY7ct+A==}
@@ -4303,6 +4311,11 @@ snapshots:
   delayed-stream@1.0.0: {}
 
   dockview-core@4.3.0: {}
+
+  dts-bundle-generator@9.5.1:
+    dependencies:
+      typescript: 5.9.3
+      yargs: 17.7.2
 
   dunder-proto@1.0.1:
     dependencies:

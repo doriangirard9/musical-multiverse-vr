@@ -8,6 +8,7 @@ import { WAMGuiInitCode, examples } from "wam3dgenerator";
 import { Wam3DGeneratorN3DFactory } from "../../node3d/subs/Wam3DGeneratorN3D.ts";
 import { N3DShared } from "../../node3d/instance/N3DShared.ts";
 import { MaracasN3DFactory } from "../../node3d/subs/maracas/MaracasN3D.ts";
+import { HandMaracasN3DFactory } from "../../node3d/subs/maracas/HandMaracasN3D.ts";
 import { NoteBoxN3DFactory } from "../../node3d/subs/NoteBoxN3D.ts";
 import { SpeakerN3DFactory } from "../../node3d/subs/speaker/SpeakerN3D.ts";
 import { PianoRollN3DFactory } from "../../node3d/subs/PianoRoll/PianoRoll3d.ts";
@@ -71,7 +72,7 @@ export class Node3DBuilder {
      * Some of the valid kinds of Node3D.
      */
     FACTORY_KINDS = [
-        "audiooutput", "oscillator", "maracas", "livepiano", "notesbox", "pianoroll", "drumkit", "pro54michel", "butterchurn", "screen", "box_screen", "sphere_screen", "cylinder_screen", "isf_shader", "spectrum_bars", "oscilloscope", "spectogram", "livegain",
+        "audiooutput", "oscillator", "maracas", "handmaracas", "livepiano", "notesbox", "pianoroll", "drumkit", "pro54michel", "butterchurn", "screen", "box_screen", "sphere_screen", "cylinder_screen", "isf_shader", "spectrum_bars", "oscilloscope", "spectogram", "livegain",
         "hyperkeyboard", "drumplatekit", "automation_controller", "the_cube", "harp", "large_harp", "voice", "gaze", "sequencer12", "sequencer16", "audio_plaque", "superformula", "superformula3d", "fluid_field", "rain_plinko", "ai_composer", "ai_composer_improv", "ai_composer_drums", "ai_composer_basic", "ai_composer_vae",
         ...Object.keys(examples).map(k => `wam3d-${k}`),
         ...SERVER_KINDS.map(k => `server-${k}`),
@@ -145,6 +146,7 @@ export class Node3DBuilder {
         if (kind == "sequencer16") return Sequencer16N3DFactory
         if (kind == "oscillator") return OscillatorN3DFactory
         if (kind == "maracas") return MaracasN3DFactory
+        if (kind == "handmaracas") return HandMaracasN3DFactory
         if (kind == "livepiano") return LivePianoN3DFactory
         if (kind == "notesbox") return NoteBoxN3DFactory
         if (kind == "pianoroll") return PianoRollN3DFactory

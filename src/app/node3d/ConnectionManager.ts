@@ -6,7 +6,7 @@ import { N3DConnectionInstance } from "../../node3d/instance/N3DConnectionInstan
 import { SceneManager } from "../SceneManager.ts";
 import { VisualTube } from "../../visual/VisualTube.ts";
 import { MenuSystem } from "../menu/MenuSystem.ts";
-import { AbstractPointerInput } from "../../xr/inputs/AbstractPointerInput.ts";
+import { AbstractPointerInput, PickFilter } from "../../xr/inputs/AbstractPointerInput.ts";
 
 /**
  * Manager responsible of connecting two connectable nodes together.
@@ -46,6 +46,9 @@ export class ConnectionManager {
     }
 
 
+    /** Filtre global posé pendant le drag d'une connexion : seuls les ports sont pickables. */
+    static readonly #PORTS_ONLY: PickFilter = (mesh) => !!mesh.metadata?.isConnectablePort
+
     /**
      * Réinitialise l'état de la connexion en cours et annule l'aperçu.
      */
@@ -53,7 +56,7 @@ export class ConnectionManager {
         this.disposePreview?.()
         this.disposePreview = null
         this.currentPort = null
-        AbstractPointerInput.PickPredicate = null
+        AbstractPointerInput.PickFilters.delete(ConnectionManager.#PORTS_ONLY)
     }
 
     private isDirectionCompatible(from: N3DConnectableInstance, to: N3DConnectableInstance): boolean {
@@ -93,7 +96,7 @@ export class ConnectionManager {
                 this.currentPort = data.connectable
                 
                 // Restrict picking to connection ports only during drag
-                AbstractPointerInput.PickPredicate = (mesh) => !!mesh.metadata?.isConnectablePort
+                AbstractPointerInput.PickFilters.add(ConnectionManager.#PORTS_ONLY)
 
                 // Preview
                 const tube = new VisualTube(this.scene, NetworkManager.getInstance().visual.tubes, (mesh)=>{

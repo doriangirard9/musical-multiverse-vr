@@ -12,13 +12,15 @@
     "build:prod": "vite build --mode production --no-emptyOutDir",
     "preview": "vite preview",
     "docs": "typedoc",
-    "update_package_locks": "npm i --package-lock-only; pnpm import"
+    "update_package_locks": "npm i --package-lock-only; pnpm import",
+    "nodeapi": "node scripts/nodeapi.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.13.10",
     "@types/uuid": "^10.0.0",
     "@webaudiomodules/api": "^2.0.0-alpha.6",
     "cross-env": "^10.1.0",
+    "dts-bundle-generator": "^9.5.1",
     "typedoc": "^0.28.19",
     "typescript": "^5.8.2",
     "vite": "6.3.4"

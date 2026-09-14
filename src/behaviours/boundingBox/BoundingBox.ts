@@ -6,7 +6,7 @@ import {PlayerManager} from "../../app/PlayerManager.ts";
 import { HoldableBehaviour } from "./HoldableBehaviour.ts";
 import { InputMultiHoverBehavior } from "../../xr/inputs/tools/InputMultiHoverBehavior.ts";
 import { PointerInput } from "../../xr/inputs/PointerInput.ts";
-import { InputManager } from "../../xr/inputs/InputManager.ts";
+import { N3DInteractions } from "../../node3d/instance/N3DInteractions.ts";
 import { IOEventBus } from "../../eventBus/IOEventBus.ts";
 
 
@@ -62,7 +62,7 @@ export class BoundingBox {
         this.boundingBox.rotationQuaternion = B.Quaternion.FromEulerVector(this.boundingBox.rotation)
 
         // Holdable behaviour
-        const hitboxes = InputManager.getInstance().hitboxes
+        const hitboxes = N3DInteractions.hitboxes
         this.holdable = new HoldableBehaviour(undefined, hitboxes)
         this.holdable.onMoveObservable.add(()=>this.on_move())
         this.holdable.onRotateObservable.add(()=>this.on_move())

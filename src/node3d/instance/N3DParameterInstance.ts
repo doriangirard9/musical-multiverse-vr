@@ -2,7 +2,7 @@ import { Color3, HighlightLayer, Matrix, Observable, Vector3 } from "@babylonjs/
 import { NodeCompUtils } from "../tools/utils/NodeCompUtils"
 import { Node3DParameter } from "../Node3DParameter"
 import { InputGrabBehavior } from "../../xr/inputs/tools/InputGrabBehavior"
-import { InputManager } from "../../xr/inputs/InputManager"
+import { N3DInteractions } from "./N3DInteractions"
 import { Node3DInstance } from "./Node3DInstance"
 import { InputMultiHoverBehavior } from "../tools"
 import { PointerInput } from "../../xr/inputs/PointerInput"
@@ -110,7 +110,7 @@ export class N3DParameterInstance {
 
         // The capability is asked per pointer: a hand whose tool did not ask for the parameters
         // passes over them without lighting them up nor moving them, while the other hand still does.
-        const parameters = InputManager.getInstance().parameters
+        const parameters = N3DInteractions.parameters
 
         for(const draggable of config.meshes){
             const hovering = new Set<PointerInput>()

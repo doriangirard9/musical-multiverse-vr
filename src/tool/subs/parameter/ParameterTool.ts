@@ -26,6 +26,7 @@ export class ParameterTool implements Tool {
         this.#context = context
         this.#visual = tools.InputVisualPointer.CreateSimple(context.scene, context.controller.pointer)
 
+        context.interactions.pointer.enable()
         context.interactions.parameters.enable()
         context.interactions.buttons.enable()
 
@@ -35,6 +36,7 @@ export class ParameterTool implements Tool {
     public dispose(): void {
         this.#driver?.dispose()
         this.#driver = undefined
+        this.#context.interactions.pointer.disable()
         this.#context.interactions.parameters.disable()
         this.#context.interactions.buttons.disable()
         this.#visual.remove()

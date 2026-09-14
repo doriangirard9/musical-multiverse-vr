@@ -10,7 +10,7 @@ import { PressableInputEvent } from "./PressableInput";
 import { AxisInputEvent } from "./AxisInput";
 import { ControllerInput } from "./ControllerInput";
 import { PointerInput } from "./PointerInput";
-import { AbstractPointerInput } from "./AbstractPointerInput";
+import { AbstractPointerInput, PickFilter } from "./AbstractPointerInput";
 import { InputCapability } from "./InputCapability";
 import { XRManager } from "../XRManager";
 
@@ -35,28 +35,15 @@ export class InputManager {
     readonly movement  = new InputCapability()
 
     /**
-     * Dragging the parameters of the nodes.
-     * Disabled means the parameters do not light up, do not answer the trigger, and keep their value.
+     * The pointer of a hand looking for a target at all.
+     * Disabled means the pointer picks nothing: it has no target, so nothing in the world can
+     * answer it, and whoever reads its target reads nothing. What the world does with a pointer
+     * that reaches it is not decided here.
      */
-    readonly parameters = new InputCapability()
+    readonly pointer = new InputCapability()
 
-    /** Pressing the buttons of the nodes. Disabled means a button is neither lit nor pressed. */
-    readonly buttons = new InputCapability()
-
-    /** Grabbing the nodes by their hitbox to move them. Disabled means the hitbox stays invisible and still. */
-    readonly hitboxes = new InputCapability()
-
-    /** Dragging the connectables of the nodes to link them. Disabled means no link is made or broken. */
-    readonly connections = new InputCapability()
-
-    /**
-     * Every capability of the ordinary interactions with the world, the ones a hand has only when
-     * its tool asks for them.
-     * {@link movement} is not one of them: walking is not an interaction with a node.
-     */
-    get interactions(): readonly InputCapability[] {
-        return [this.parameters, this.buttons, this.hitboxes, this.connections]
-    }
+    /** The pick filter a disabled pointer gets: it refuses every mesh. */
+    static readonly #NOTHING: PickFilter = () => false
 
     //// SINGLETON ////
     private static instance: InputManager;
@@ -140,6 +127,14 @@ export class InputManager {
         scenes: Scene[],
     ){
         const im = this
+
+        // The pointer capability is a pick filter refusing everything: a pointer it is disabled
+        // for keeps following its controller, but picks nothing.
+        const pointers = () => [im.left.pointer, im.right.pointer, im.screen.pointer]
+        im.pointer.onPointerDisable.add(pointer => pointer.pickFilters.add(InputManager.#NOTHING))
+        im.pointer.onPointerEnable.add(pointer => { if(im.pointer.isEnabled()) pointer.pickFilters.delete(InputManager.#NOTHING) })
+        im.pointer.onDisable.add(() => { for(const pointer of pointers()) pointer.pickFilters.add(InputManager.#NOTHING) })
+        im.pointer.onEnable.add(() => { for(const pointer of pointers()) if(!im.pointer.isPointerDisabled(pointer)) pointer.pickFilters.delete(InputManager.#NOTHING) })
         
         // Link observers
         for(const button of [im.x_button, im.y_button, im.a_button, im.b_button]) {

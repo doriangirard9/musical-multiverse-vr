@@ -2,8 +2,11 @@ import { Observable, Quaternion, Scene, TransformNode, Vector3 } from "@babylonj
 import { ControllerInput } from "../xr/inputs"
 import { Tool } from "./Tool"
 import { ToolKind } from "./ToolKind"
-import { ToolContext, ToolInteraction, ToolInteractionKind } from "./ToolContext"
+import { ToolContext, ToolInteraction, ToolInteractionKind, ToolPickFilters } from "./ToolContext"
+import { PickFilter } from "../xr/inputs/AbstractPointerInput"
 import { InputManager } from "../xr/inputs"
+import { InputCapability } from "../xr/inputs/InputCapability"
+import { N3DInteractions } from "../node3d/instance/N3DInteractions"
 
 /**
  * One hand of the user, and the tool currently held by it.
@@ -40,6 +43,7 @@ export class ToolSlot {
             scene,
             visual: this.#visual,
             interactions: {
+                pointer: ToolSlot.#interactionOf(slot, "pointer"),
                 parameters: ToolSlot.#interactionOf(slot, "parameters"),
                 buttons: ToolSlot.#interactionOf(slot, "buttons"),
                 hitboxes: ToolSlot.#interactionOf(slot, "hitboxes"),
@@ -47,6 +51,7 @@ export class ToolSlot {
                 enable(){ for(const kind of ToolSlot.#KINDS) ToolSlot.#ask(slot, kind, true) },
                 disable(){ for(const kind of ToolSlot.#KINDS) ToolSlot.#ask(slot, kind, false) },
             },
+            pickFilters: ToolSlot.#pickFiltersOf(slot),
         }
 
         // Off until the tool of the hand asks for them, so a hand never interacts by default.
@@ -72,6 +77,7 @@ export class ToolSlot {
 
         this.#tool.dispose()
         this.#context.interactions.disable()
+        this.#context.pickFilters.clear()
         this.#tool = kind.create(this.#context)
         this.#kind = kind
         this.onChange.notifyObservers(this)
@@ -81,6 +87,7 @@ export class ToolSlot {
     public dispose(): void {
         this.#tool.dispose()
         this.#context.interactions.disable()
+        this.#context.pickFilters.clear()
         this.#followObserver?.remove()
         this.#followObserver = undefined
         this.#visual.dispose()
@@ -91,13 +98,18 @@ export class ToolSlot {
     /** The name a hand disables the ordinary interactions of its own pointer under. */
     static readonly #DISABLING = "tool"
 
+    /** The capability behind one kind of interaction: the pointer itself, or one of the node ones. */
+    static #capabilityOf(kind: ToolInteractionKind): InputCapability {
+        return kind === "pointer" ? InputManager.getInstance().pointer : N3DInteractions[kind]
+    }
+
     /** Every kind of ordinary interaction, each one switched on its own. */
-    static readonly #KINDS: readonly ToolInteractionKind[] = ["parameters", "buttons", "hitboxes", "connections"]
+    static readonly #KINDS: readonly ToolInteractionKind[] = ["pointer", "parameters", "buttons", "hitboxes", "connections"]
 
     /** The switch one hand holds over one kind of interaction, for its own pointer only. */
     static #interactionOf(slot: ToolSlot, kind: ToolInteractionKind): ToolInteraction {
         return {
-            get enabled(){ return !InputManager.getInstance()[kind].isPointerDisabled(slot.controller.pointer) },
+            get enabled(){ return !ToolSlot.#capabilityOf(kind).isPointerDisabled(slot.controller.pointer) },
             enable(){ ToolSlot.#ask(slot, kind, true) },
             disable(){ ToolSlot.#ask(slot, kind, false) },
         }
@@ -108,10 +120,28 @@ export class ToolSlot {
      * of that hand only: the other hand keeps what its own tool asked for.
      */
     static #ask(slot: ToolSlot, kind: ToolInteractionKind, asking: boolean): void {
-        const capability = InputManager.getInstance()[kind]
+        const capability = ToolSlot.#capabilityOf(kind)
         if(asking) capability.enablePointerFor(slot.controller.pointer, ToolSlot.#DISABLING)
         else capability.disablePointerFor(slot.controller.pointer, ToolSlot.#DISABLING)
     }
+
+    /**
+     * The filters one hand puts on its own pointer. They are kept apart from the filters the
+     * pointer already has, so clearing the hand never removes what someone else added.
+     */
+    static #pickFiltersOf(slot: ToolSlot): ToolPickFilters {
+        const pointer = slot.controller.pointer
+        const owned = new Set<PickFilter>()
+        return {
+            add(filter){ owned.add(filter); pointer.pickFilters.add(filter) },
+            remove(filter){ if(owned.delete(filter)) pointer.pickFilters.delete(filter) },
+            has(filter){ return owned.has(filter) },
+            clear(){ for(const filter of owned) pointer.pickFilters.delete(filter); owned.clear() },
+        }
+    }
+
+    /** The filters of the held tool, on the pointer of this hand only. */
+    public get pickFilters(): ToolPickFilters { return this.#context.pickFilters }
 
     readonly #visual: TransformNode
 

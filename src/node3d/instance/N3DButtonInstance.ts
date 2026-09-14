@@ -4,6 +4,7 @@ import { InputMultiHoverBehavior } from "../../xr/inputs/tools/InputMultiHoverBe
 import { InputPressBehavior } from "../../xr/inputs/tools/InputPressBehavior"
 import { PointerInput } from "../../xr/inputs/PointerInput"
 import { InputManager } from "../../xr/inputs/InputManager"
+import { N3DInteractions } from "./N3DInteractions"
 import { Node3DButton } from "../Node3DButton"
 import { NodeCompUtils } from "../tools/utils/NodeCompUtils"
 import { N3DText } from "./utils/N3DText"
@@ -100,7 +101,7 @@ export class N3DButtonInstance {
 
         // The capability is asked per pointer: a hand whose tool did not ask for the buttons
         // passes over them without lighting nor pressing them, while the other hand still does.
-        const buttons = InputManager.getInstance().buttons
+        const buttons = N3DInteractions.buttons
         const inputs = InputManager.getInstance()
 
         for(const draggable of meshes){

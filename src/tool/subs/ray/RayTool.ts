@@ -53,6 +53,9 @@ export class RayTool implements Tool {
 
         this.#visual = tools.InputVisualPointer.CreateSimple(context.scene, context.controller.pointer)
 
+        // The ray reads what the pointer of the hand may pick, so the filters put on that hand hold.
+        context.interactions.pointer.enable()
+
         const material = new StandardMaterial("ray hand dot", context.scene)
         material.diffuseColor = REST_COLOR
         material.emissiveColor = REST_COLOR
@@ -74,6 +77,7 @@ export class RayTool implements Tool {
     }
 
     public dispose(): void {
+        this.#context.interactions.pointer.disable()
         this.#scene.onBeforeRenderObservable.remove(this.#observer)
         this.#interactor.dispose()
         this.#dot.dispose()
@@ -115,7 +119,7 @@ export class RayTool implements Tool {
     #update(): void {
         const pointer = this.#context.controller.pointer
         const ray = new Ray(pointer.origin, pointer.forward, REACH)
-        const pick = this.#scene.pickWithRay(ray, mesh => RayTool.#isSolid(mesh))
+        const pick = this.#scene.pickWithRay(ray, mesh => pointer.isPickable(mesh))
 
         if(pick?.hit !== true || pick.pickedMesh === null || pick.pickedPoint === null){
             this.#release()
@@ -195,11 +199,6 @@ export class RayTool implements Tool {
         this.#interactor.clearAim()
         this.#activation.update()
         this.#dot.setEnabled(false)
-    }
-
-    /** Is the mesh a piece of matter the ray can meet? */
-    static #isSolid(mesh: AbstractMesh): boolean {
-        return mesh.isPickable === true && mesh.isVisible === true && mesh.isEnabled() === true
     }
 
 }

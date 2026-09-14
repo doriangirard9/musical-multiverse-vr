@@ -59,6 +59,8 @@ export class Interactor {
     public readonly velocity = new Vector3()
 
     /**
+     * Only the interaction system creates interactors, a Node3D never does.
+     * @internal
      * @param sink - Where the published events go, the system that created the interactor.
      * @param id - The identity of the interactor.
      * @param onPulse - How to shake whoever holds the interactor. An interactor that cannot be felt leaves it out.

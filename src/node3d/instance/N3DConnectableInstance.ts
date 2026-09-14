@@ -4,7 +4,7 @@ import { PointerInput } from "../../xr/inputs/PointerInput";
 import { InputDropBehavior } from "../../xr/inputs/tools/InputDropBehavior";
 import { InputGrabBehavior } from "../../xr/inputs/tools/InputGrabBehavior";
 import { InputMultiHoverBehavior } from "../../xr/inputs/tools/InputMultiHoverBehavior";
-import { InputManager } from "../../xr/inputs/InputManager";
+import { N3DInteractions } from "./N3DInteractions"
 import { Node3DConnectable } from "../Node3DConnectable";
 import { NodeCompUtils } from "../tools/utils/NodeCompUtils";
 import { N3DConnectionInstance } from "./N3DConnectionInstance";
@@ -80,7 +80,7 @@ export class N3DConnectableInstance {
 
         // The capability is asked per pointer: a hand whose tool did not ask for the connections
         // neither takes a link from the port nor drops one on it, while the other hand still does.
-        const connections = InputManager.getInstance().connections
+        const connections = N3DInteractions.connections
 
         for(const mesh of meshes) {
             mesh.metadata = mesh.metadata || {}

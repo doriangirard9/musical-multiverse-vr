@@ -3,6 +3,7 @@ import { BlocksMenu, BMenuBlock } from "../../menus/BlocksMenu"
 import { ARCH_TOOL_KIND, FLAIL_TOOL_KIND, FINGER_TOOL_KIND, MAGIC_TOOL_KIND, ToolKind, ToolSlot, PARAMETER_TOOL_KIND, PENCIL_TOOL_KIND, POINTER_TOOL_KIND, RAY_TOOL_KIND, SOFT_WAND_TOOL_KIND, SWORD_TOOL_KIND, TWO_WAND_TOOL_KIND, WAND_TOOL_KIND } from "../../tool"
 import { MenuSystem } from "../menu/MenuSystem"
 import { SceneManager } from "../SceneManager"
+import { PickFilter } from "../../xr/inputs/AbstractPointerInput"
 
 /** The width of the selection menu, in grid cells. */
 const MENU_WIDTH = 6
@@ -106,6 +107,40 @@ export class ToolSystem {
                 slot.select(previous)
             }
         }
+    }
+
+    /**
+     * Restrict what the pointer of a hand can pick, for as long as its current tool is held.
+     *
+     * @remarks
+     * The filter goes on the pointer of that side only, whatever the other hand holds, and is
+     * attached to the tool of the hand, not to the hand: it is dropped as soon as the hand takes
+     * another tool. Adding the same filter twice changes nothing.
+     *
+     * @param slot - The hand, or the controller of the hand.
+     * @param filter - Refuses the meshes the pointer must pass through.
+     */
+    public addFilter(slot: ToolSlot|ControllerInput, filter: PickFilter): void {
+        this.#slotOf(slot)?.pickFilters.add(filter)
+    }
+
+    /**
+     * Remove a filter added by {@link addFilter} to a hand.
+     * @param slot - The hand, or the controller of the hand.
+     * @param filter - The filter to remove. Removing one the hand does not hold changes nothing.
+     */
+    public removeFilter(slot: ToolSlot|ControllerInput, filter: PickFilter): void {
+        this.#slotOf(slot)?.pickFilters.remove(filter)
+    }
+
+    /** Does a hand hold a filter? */
+    public hasFilter(slot: ToolSlot|ControllerInput, filter: PickFilter): boolean {
+        return this.#slotOf(slot)?.pickFilters.has(filter) ?? false
+    }
+
+    /** The slot itself, or the slot of a controller. */
+    #slotOf(slot: ToolSlot|ControllerInput): ToolSlot|undefined {
+        return slot instanceof ToolSlot ? slot : this.slotOf(slot)
     }
 
     /** The kinds of tool offered to the user, in the order the menu lists them. */
