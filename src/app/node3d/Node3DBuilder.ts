@@ -13,6 +13,7 @@ import { NoteBoxN3DFactory } from "../../node3d/subs/NoteBoxN3D.ts";
 import { SpeakerN3DFactory } from "../../node3d/subs/speaker/SpeakerN3D.ts";
 import { PianoRollN3DFactory } from "../../node3d/subs/PianoRoll/PianoRoll3d.ts";
 import { DrumKitN3DFactory } from "../../node3d/subs/drumkit/DrumKitN3D.ts";
+import { WamSamplerN3DFactory } from "../../node3d/subs/drumSampler.ts";
 import { ButterchurnN3DFactory } from "../../node3d/subs/video/ButterchurnN3D.ts";
 import { IsfShaderN3DFactory } from "../../node3d/subs/video/IsfShaderN3D.ts";
 import { ScreenN3DFactory } from "../../node3d/subs/video/ScreenN3D.ts";
@@ -72,7 +73,7 @@ export class Node3DBuilder {
      * Some of the valid kinds of Node3D.
      */
     FACTORY_KINDS = [
-        "audiooutput", "oscillator", "maracas", "handmaracas", "livepiano", "notesbox", "pianoroll", "drumkit", "pro54michel", "butterchurn", "screen", "box_screen", "sphere_screen", "cylinder_screen", "isf_shader", "spectrum_bars", "oscilloscope", "spectogram", "livegain",
+        "audiooutput", "oscillator", "maracas", "handmaracas", "livepiano", "notesbox", "pianoroll", "drumkit", "wamsampler", "drumsampler", "pro54michel", "butterchurn", "screen", "box_screen", "sphere_screen", "cylinder_screen", "isf_shader", "spectrum_bars", "oscilloscope", "spectogram", "livegain",
         "hyperkeyboard", "drumplatekit", "automation_controller", "the_cube", "harp", "large_harp", "voice", "gaze", "sequencer12", "sequencer16", "audio_plaque", "superformula", "superformula3d", "fluid_field", "rain_plinko", "ai_composer", "ai_composer_improv", "ai_composer_drums", "ai_composer_basic", "ai_composer_vae",
         ...Object.keys(examples).map(k => `wam3d-${k}`),
         ...SERVER_KINDS.map(k => `server-${k}`),
@@ -151,6 +152,7 @@ export class Node3DBuilder {
         if (kind == "notesbox") return NoteBoxN3DFactory
         if (kind == "pianoroll") return PianoRollN3DFactory
         if (kind == "drumkit") return DrumKitN3DFactory
+        if (kind == "wamsampler" || kind == "drumsampler") return WamSamplerN3DFactory
         if (kind == "butterchurn") return ButterchurnN3DFactory
         if (kind == "isf_shader") return IsfShaderN3DFactory
         if (kind == "screen") return ScreenN3DFactory
