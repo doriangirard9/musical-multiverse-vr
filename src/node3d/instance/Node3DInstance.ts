@@ -23,7 +23,7 @@ import { Doc } from "yjs";
 import { Synchronized } from "../../network/sync/Synchronized";
 import { N3DHighlighter } from "./utils/N3DHighlighter";
 import { N3DShared } from "./N3DShared";
-import { AutomationN3DConnectable, MeshUtils } from "../tools";
+import { AutomationN3DConnectable } from "../tools";
 import { SceneManager } from "../../app/SceneManager.ts";
 import { InputManager } from "../../xr/inputs/InputManager.ts";
 import { ToolSystem } from "../../app/tool/ToolSystem.ts";
@@ -98,7 +98,7 @@ export class Node3DInstance implements Synchronized {
     get boundingBoxMesh() { return this.bounding_box!!.boundingBox }
 
     /** Get the enclosing box, a box enclosing the node's meshes. */
-    get enclosingBox() { return this.enclosing_box }
+    get enclosingBox() { return this.enclosing_box! }
 
     /** Every connection touching this node (deduplicated across all its ports). */
     get connections(): N3DConnectionInstance[] {

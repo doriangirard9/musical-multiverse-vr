@@ -60,19 +60,15 @@ class Wam3DGeneratorN3D implements Node3D {
                 root: gui.root,
                 defineField(settings) {
                     count++
-                    const getStepSize = () => {
-                        const stepCount = settings.getStepCount()
-                        return Number.isFinite(stepCount) && stepCount > 1 ? 1 / (stepCount - 1) : 0
-                    }
                     context.createParameter({
                         id: `param${count}`,
                         meshes: settings.target,
-                        getLabel() { return settings.getName() },
+                        getLabel() { return settings.getLabel() },
 
                         getMax() { return 1 },
                         getMin() { return 0 },
                         getExponant() { return 1 },
-                        getStepSize() { return getStepSize() },
+                        getStepSize() { return settings.getStepSize() },
 
                         getValue() { return settings.getValue() },
                         setValue(value) { settings.setValue(value) },

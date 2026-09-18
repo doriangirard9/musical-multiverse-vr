@@ -242,8 +242,8 @@ export class N3DConnectionInstance{
         )
         movetube()
 
-        this.inputConnectable!.instance.onConnectableCreated.notifyObservers(this.inputConnectable!)
-        this.outputConnectable!.instance.onConnectableCreated.notifyObservers(this.outputConnectable!)
+        this.inputConnectable!.instance.onConnectionCreated.notifyObservers(this!)
+        this.outputConnectable!.instance.onConnectionCreated.notifyObservers(this!)
 
         return true
     }

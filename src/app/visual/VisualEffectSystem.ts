@@ -29,11 +29,9 @@ export class VisualEffectSystem {
 
     constructor(
         readonly network: NetworkManager,
-        readonly inputs: InputManager,
-        readonly scene: SceneManager,
-        readonly usercolor: Color3,
     ){
-
+        for(const [_,node] of network.node3d.nodes.entries()) this.registerNode(node)
+        network.node3d.onNodeAdded.add(node => this.registerNode(node))
     }
 
 
@@ -107,6 +105,7 @@ export class VisualEffectSystem {
             if(connection.inputConnectable!.instance===node) this.registerConnection(graph, analyser, connection)
         }
         node.onConnectionCreated.add((connection)=>{
+            console.log("VisualEffectSystem: connection created", connection)
             if(connection.inputConnectable!.instance===node) this.registerConnection(graph, analyser, connection)
         })
 
@@ -118,7 +117,6 @@ export class VisualEffectSystem {
         outputAnalyser: AudioAnalyser,
         connection: N3DConnectionInstance,
     ){
-        const that = this
 
         // Analyser nod
         let midiAnalyser: MidiAnalyser | null = null

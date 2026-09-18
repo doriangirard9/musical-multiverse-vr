@@ -33,6 +33,7 @@ import { ParameterJaugeSystem } from "./feedback/ParameterJaugeSystem.ts";
 import { ToolSystem } from "./tool/ToolSystem.ts";
 import { InstrumentTestPad } from "./instrument/InstrumentTestPad.ts";
 import { NonXRManager } from "../nonxr/NonXRManager.ts";
+import { VisualEffectSystem } from "./visual/VisualEffectSystem.ts";
 
 let _app: App
 
@@ -157,6 +158,11 @@ export class App {
                 InputManager.getInstance(),
             ),
         ])
+
+        report("Preparing visual effects")
+        VisualEffectSystem.initialize(
+            NetworkManager.getInstance(),
+        )
 
         report("Preparing voice tools")
         MicrophoneSystem.initialize(audioContext)
