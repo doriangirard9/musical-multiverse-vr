@@ -54,6 +54,8 @@ export class App {
 
     public async start(
         participantId: string,
+        username: string,
+        usercolor: Color3,
         roomName: string,
         doc: Doc,
         options: { tutorial?: boolean; onProgress?: (text: string, progress: number, detail?: string) => void } = {},
@@ -68,9 +70,6 @@ export class App {
             options.onProgress?.(text, Math.round((currentStep / totalSteps) * 100), detail || `elapsed ${elapsed}s`)
         }
         
-        const username = RandomUtils.randomName()
-        const usercolor = RandomUtils.randomColor()
-
         // Intialization of scene
         report("Preparing 3D scene")
         await SceneManager.initialize()

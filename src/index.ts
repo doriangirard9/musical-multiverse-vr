@@ -15,6 +15,8 @@ import { LoadingOverlay } from "./ui/pages/LoadingOverlay.ts";
 import { SessionAPIClient } from "./network/SessionAPIClient.ts";
 import { installConsoleFilter } from "./utils/logger.ts";
 import { XRManager } from "./xr/XRManager.ts";
+import { SessionConnector } from "./network/SessionConnector.ts";
+import { RandomUtils } from "./node3d/tools/utils/RandomUtils.ts";
 
 installConsoleFilter();
 
@@ -65,7 +67,7 @@ let onload = async() => {
     const loadingOverlay = new LoadingOverlay();
     let sessionHud: any = null;
 
-    let activeConnector: any = null;
+    let activeConnector: SessionConnector|null = null;
 
     // 4. Try to restore session
     await authService.tryRestoreSession();
@@ -166,10 +168,18 @@ let onload = async() => {
                         const connectionInfo = await activeConnector.connect();
 
                         const newApp = new App();
-                        await newApp.start(connectionInfo.participantId, sessionId, doc, {
-                            tutorial: tutorialMode,
-                            onProgress: (text, progress, detail) => loadingOverlay.update(text, 18 + Math.round(progress * 0.62), detail ?? ''),
-                        });
+                        
+                        await newApp.start(
+                            connectionInfo.participantId,
+                            authService.getUser()?.username ?? RandomUtils.randomName(),
+                            RandomUtils.randomColor(),
+                            sessionId,
+                            doc,
+                            {
+                                tutorial: tutorialMode,
+                                onProgress: (text, progress, detail) => loadingOverlay.update(text, 18 + Math.round(progress * 0.62), detail ?? ''),
+                            }
+                        )
                         appStarted = true;
 
                         // Show the leave button and prepare for sync
