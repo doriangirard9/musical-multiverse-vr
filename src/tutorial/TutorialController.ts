@@ -35,7 +35,7 @@ import { getDrumMidi } from "../node3d/subs/drums/DrumMidiMap"
 const TOTAL_OBJECTIVES = TUTORIAL_STEPS.length - 1
 const BEAT_KINDS = {
     sequencer: "sequencer16",
-    drum: "wam3d-Drum",
+    drum: "wamsampler",
     output: "audiooutput",
 } as const
 

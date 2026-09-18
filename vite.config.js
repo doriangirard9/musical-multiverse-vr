@@ -16,6 +16,16 @@ export default defineConfig(({ mode }) => ({
         target: 'http://localhost:3000',
         changeOrigin: true,
         secure: false,
+      },
+      '/voice-signaling': {
+        target: 'ws://localhost:3000',
+        ws: true,
+        changeOrigin: true,
+      },
+      '/social-events': {
+        target: 'ws://localhost:3000',
+        ws: true,
+        changeOrigin: true,
       }
     }
   },

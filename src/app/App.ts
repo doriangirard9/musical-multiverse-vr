@@ -4,7 +4,6 @@ import { InputManager } from "../xr/inputs/InputManager.ts";
 import { XRManager } from "../xr/XRManager.ts";
 import { AppOrchestrator } from "./AppOrchestrator.ts";
 import { ConnectionManager } from "./node3d/ConnectionManager.ts";
-import ControlsUISystem from "./menu/ControlsUISystem.ts";
 import { Node3dManager } from "./node3d/Node3dManager.ts";
 import { PlayerManager } from "./PlayerManager.ts";
 import { SceneManager } from "./SceneManager.ts";
@@ -26,6 +25,8 @@ import { TUTORIAL_KINDS } from "../tutorial/TutorialScenario.ts";
 import { AudioWorldSystem } from "./node3d/AudioDestinationSystem.ts";
 import { MicrophoneSystem } from "./MicrophoneSystem.ts";
 import { VoiceChatSystem } from "./social/VoiceChatSystem.ts";
+import { SocialCommunicationSystem } from "./social/SocialCommunicationSystem.ts";
+import { SocialWheelSystem } from "./social/SocialWheelSystem.ts";
 import { BarMenuSystem } from "./menu/BarMenuSystem.ts";
 import { DrawingSystem } from "./social/DrawingSystem.ts";
 import { ParameterJaugeSystem } from "./feedback/ParameterJaugeSystem.ts";
@@ -37,7 +38,6 @@ let _app: App
 
 export class App {
     private static readonly DEBUG_LOG = false;
-    private controlsUI?: ControlsUISystem;
     private wakeLock: WakeLockSentinel|null = null; // Screen wake lock to prevent device sleep
 
     constructor() {
@@ -166,6 +166,18 @@ export class App {
             AvatarSystem.getInstance(),
             SceneManager.getInstance(),
         )
+        SocialCommunicationSystem.initialize(
+            NetworkManager.getInstance(),
+            InputManager.getInstance(),
+            AvatarSystem.getInstance(),
+            SceneManager.getInstance(),
+        )
+        SocialWheelSystem.initialize(
+            SceneManager.getInstance(),
+            InputManager.getInstance(),
+            MicrophoneSystem.getInstance(),
+            SocialCommunicationSystem.getInstance(),
+        )
 
         report("Preparing menus")
         await Promise.all([
@@ -210,9 +222,8 @@ export class App {
         const node3dBuilder = node3dManager.builder
         const node3dShared = node3dBuilder.getShared()
         
-        // The controller button labels are disabled: the X button now opens the left hand menu.
+        // Controller labels are temporarily disabled while the tool menus own X/A.
         report("Preparing controller hints")
-        // if(XRManager.getInstance())this.controlsUI = new ControlsUISystem();
 
         if (App.DEBUG_LOG) console.log(node3dShared)
 
