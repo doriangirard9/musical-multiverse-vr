@@ -4,6 +4,7 @@ import { ToolKind } from "../../ToolKind"
 import { ToolContext } from "../../ToolContext"
 import { DrawingStroke, DrawingSystem } from "../../../app/social/DrawingSystem"
 import PENCIL_MODEL_URL from "./pencil.glb?url"
+import THUMBNAIL_URL from "./thumbnail.png?url"
 
 /** The distance from the controller to the tip of the pencil, where the stroke is drawn. */
 const TIP_DISTANCE = 0.15
@@ -98,6 +99,7 @@ export class PencilTool implements Tool {
 export const PENCIL_TOOL_KIND: ToolKind = {
     label: "Pencil",
     description: "A pencil drawing in the world as long as the trigger is held, the strokes being shared with the other players.",
+    thumbnail: THUMBNAIL_URL,
     tags: ["tool", "precise"],
     create: context => new PencilTool(context),
 }

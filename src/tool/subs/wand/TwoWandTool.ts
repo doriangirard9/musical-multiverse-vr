@@ -9,6 +9,7 @@ import { Wand } from "./Wand"
 import { PointDriver } from "../common/PointDriver"
 import { SqueezeDrive } from "../common/SqueezeDrive"
 import { WAND_TILT } from "./WandTool"
+import THUMBNAIL_URL from "./thumbnail.png?url"
 
 /** The length of a shaft, in meters. */
 const LENGTH = 0.35
@@ -95,6 +96,7 @@ export class TwoWandTool implements Tool {
 export const TWO_WAND_TOOL_KIND: ToolKind = {
     label: "Two wands",
     description: "Two wands opening like scissors around the pointing direction, closing onto each other as the squeeze is pressed: one hand, two voices.",
+    thumbnail: THUMBNAIL_URL,
     tags: ["contact", "percussive", "wide", "adjustable"],
     create: context => new TwoWandTool(context),
 }

@@ -5,6 +5,7 @@ import { ToolContext } from "../../ToolContext"
 import { BoxDriver } from "../common/BoxDriver"
 import { NetworkManager } from "../../../network/NetworkManager"
 import SWORD_MODEL_URL from "./sword.glb?url"
+import THUMBNAIL_URL from "./thumbnail.png?url"
 
 /**
  * The length of the sword, from the hand to the tip. Three times the length of the magic wand, whose
@@ -234,6 +235,7 @@ export class SwordTool implements Tool {
 export const SWORD_TOOL_KIND: ToolKind = {
     label: "Sword",
     description: "A sword whose blade, swung fast enough, cuts away every node and every connection it goes through.",
+    thumbnail: THUMBNAIL_URL,
     tags: ["tool", "wide"],
     create: context => new SwordTool(context),
 }

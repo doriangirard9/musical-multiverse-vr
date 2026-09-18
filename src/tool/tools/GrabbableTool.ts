@@ -4,6 +4,7 @@ import { ToolSystem } from "../../app/tool/ToolSystem"
 import { Tool } from "../Tool"
 import { ToolKind } from "../ToolKind"
 import { ToolContext } from "../ToolContext"
+import DEFAULT_THUMBNAIL_URL from "../subs/pointer/thumbnail.png?url"
 
 /** The visibility of the hitbox while a hand points at it, so what it covers shows through. */
 const HOVERED_VISIBILITY = 0.3
@@ -19,6 +20,9 @@ export interface GrabbableToolOptions {
 
     /** The tags of the kind. */
     readonly tags?: readonly string[]
+
+    /** The picture of the kind in the selection menu. The plain hand when the object gives none. */
+    readonly thumbnail?: string
 
     /** The object itself: under the root at rest, under the visual node of a hand while held. */
     readonly node: TransformNode
@@ -62,6 +66,7 @@ export class GrabbableTool {
         this.kind = {
             label: options.label,
             description: options.description ?? options.label + ", taken from the world.",
+            thumbnail: options.thumbnail ?? DEFAULT_THUMBNAIL_URL,
             tags: options.tags ?? ["tool", "world"],
             create: context => new HeldTool(this, context),
         }

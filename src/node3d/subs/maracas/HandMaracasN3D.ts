@@ -7,6 +7,7 @@ import type { ToolContext } from "../../../tool/ToolContext";
 import type { ToolKind } from "../../../tool/ToolKind";
 import type { ControllerInput } from "../../../xr/inputs/ControllerInput";
 import type { MidiN3DConnectable } from "../../tools";
+import THUMBNAIL_URL from "../../../tool/subs/wand/thumbnail.png?url"
 
 const MARACAS_URL = (await import("./maracas.glb?url")).default
 
@@ -157,6 +158,7 @@ class Maraca {
         this.kind = {
             label: "Maraca",
             description: "A maraca held until another tool is chosen. Shaking it plays a note, the harder the higher.",
+            thumbnail: THUMBNAIL_URL,
             tags: ["percussive"],
             create: toolContext => new MaracaTool(this, toolContext),
         }

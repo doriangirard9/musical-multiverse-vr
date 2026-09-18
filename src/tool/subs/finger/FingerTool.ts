@@ -6,6 +6,7 @@ import { ToolKind } from "../../ToolKind"
 import { ToolContext } from "../../ToolContext"
 import { SqueezeAdjust } from "../common/SqueezeAdjust"
 import { WandTool } from "../wand/WandTool"
+import THUMBNAIL_URL from "./thumbnail.png?url"
 
 /** The length of the finger at creation, in meters. Short, so the hand plays close to what it touches. */
 const LENGTH = 0.12
@@ -61,6 +62,7 @@ export class FingerTool extends WandTool {
 export const FINGER_TOOL_KIND: ToolKind = {
     label: "Finger",
     description: "A bare finger, short, to press on what the hand touches from close by. Its length is set with the squeeze and the thumbstick.",
+    thumbnail: THUMBNAIL_URL,
     tags: ["contact", "precise", "sustained", "adjustable"],
     create: context => new FingerTool(context),
 }

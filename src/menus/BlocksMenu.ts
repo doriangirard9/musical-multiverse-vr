@@ -22,6 +22,15 @@ export interface BMenuBlock {
 export type BMenuGrid = (BMenuBlock|null)[][]
 
 /**
+ * How much wider than tall a block must be for its picture to sit beside its text.
+ * Anything squarer stacks the picture above the text, which is what a tile wants.
+ */
+const STACK_RATIO = 1.6
+
+/** The share of the height of a stacked button taken by its picture, the rest going to its text. */
+const STACK_IMAGE_SHARE = 0.72
+
+/**
  * A grid-based menu panel where blocks can occupy multiple cells.
  * Each block is positioned by its top-left corner in the grid.
  */
@@ -99,7 +108,7 @@ export class BlocksMenu extends AbstractMenu {
                 let control = null
 
                 if(sub_block.onClick){
-                    if (sub_block.text && sub_block.img) control = BlocksMenu.createTextImageButton(sub_block)
+                    if (sub_block.text && sub_block.img) control = BlocksMenu.createTextImageButton(sub_block, w, h)
                     else if(sub_block.text) control = BlocksMenu.createTextButton(sub_block)
                     else if(sub_block.img) control = BlocksMenu.createImageButton(sub_block)
                 }
@@ -166,14 +175,51 @@ export class BlocksMenu extends AbstractMenu {
         return button
     }
 
-    /* A text and image button */
-    static createTextImageButton(block: BMenuBlock){
-        const button = Button.CreateImageButton("image button", block.text!, block.img!)
+    /**
+     * A text and image button.
+     *
+     * @remarks
+     * The shape of the block decides the arrangement: a block clearly wider than tall puts the
+     * picture beside the text, a squarer one stacks the picture above it, so a wrapping grid of
+     * tiles reads without the caller saying anything.
+     */
+    static createTextImageButton(block: BMenuBlock, width?: number, height?: number){
+        const stacked = !!width && !!height && width < height*STACK_RATIO
+
+        const button = stacked
+            ? BlocksMenu.createStackedTextImageButton(block)
+            : Button.CreateImageButton("image button", block.text!, block.img!)
+
         button.color = block.color ?? "white"
         button.fontSizeInPixels = 40
         BlocksMenu.setCommon(button, block)
-        BlocksMenu.fitText(button.textBlock!)
+        if(button.textBlock) BlocksMenu.fitText(button.textBlock)
         BlocksMenu.setButtonCommon(button, block)
+        return button
+    }
+
+    /**
+     * A button whose picture sits above its text, filling a square block.
+     * Its text is fitted here, the button itself holding neither of the two as its own.
+     */
+    static createStackedTextImageButton(block: BMenuBlock){
+        const button = new Button(block.text!)
+
+        const image = new Image("image", block.img!)
+        image.stretch = Image.STRETCH_UNIFORM
+        image.height = `${STACK_IMAGE_SHARE*100}%`
+        image.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP
+        image.isHitTestVisible = false
+        button.addControl(image)
+
+        const text = new TextBlock(block.text!, block.text!)
+        text.color = block.color ?? "white"
+        text.height = `${(1-STACK_IMAGE_SHARE)*100}%`
+        text.verticalAlignment = Control.VERTICAL_ALIGNMENT_BOTTOM
+        text.isHitTestVisible = false
+        button.addControl(text)
+        BlocksMenu.fitText(text)
+
         return button
     }
 

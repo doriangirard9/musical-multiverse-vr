@@ -8,11 +8,20 @@ import { PickFilter } from "../../xr/inputs/AbstractPointerInput"
 /** The width of the selection menu, in grid cells. */
 const MENU_WIDTH = 6
 
-/** The height of one kind entry in the selection menu, in grid cells. */
-const ENTRY_HEIGHT = 2
+/** The side of one kind tile in the selection menu, in grid cells. Tiles wrap into rows. */
+const ENTRY_SIDE = 2
 
-/** The height of the scrollable list of kinds, in grid cells. Longer lists scroll. */
+/** The height of the scrollable grid of kinds, in grid cells. Longer grids scroll. */
 const LIST_HEIGHT = 8
+
+/** The frame and the label of the tile of the kind the hand holds. */
+const HELD_COLOR = "#66ff66"
+
+/** The frame and the label of the tile of the kind the other hand holds, between the two. */
+const OTHER_HAND_COLOR = "#b8c2ce"
+
+/** The frame and the label of the tiles of the kinds neither hand holds, dim next to the held one. */
+const KIND_COLOR = "#8b97a6"
 
 /**
  * The two hands of the user, and the menu used to choose what each of them holds.
@@ -202,6 +211,20 @@ export class ToolSystem {
 
     #openedFor?: ToolSlot
 
+    /**
+     * The label of a kind in the menu, dotted on the side of each hand holding it.
+     *
+     * @remarks
+     * The dot stands where the hand is: on the left of the name for the left hand, on the right for
+     * the right hand, on both sides for a kind the two hands hold at once. So the menu of one hand
+     * still tells what the other one is holding, and the two menus read the same way.
+     */
+    #labelOf(kind: ToolKind): string {
+        const left = this.left.kind === kind ? "● " : ""
+        const right = this.right.kind === kind ? " ●" : ""
+        return `${left}${kind.label}${right}`
+    }
+
     /** The title of the menu of a hand, the arrow pointing to the side of that hand. */
     static #titleOf(slot: ToolSlot): string {
         return slot.side === "left" ? "← Left hand" : "Right hand →"
@@ -211,11 +234,13 @@ export class ToolSystem {
     #createMenu(slot: ToolSlot): BlocksMenu {
         const entries = this.kindsFor(slot).map(kind => {
             const isHeld = kind === slot.kind
+            const isHeldByTheOther = !isHeld && (this.left.kind === kind || this.right.kind === kind)
             return {
-                text: isHeld ? `● ${kind.label}` : kind.label,
-                color: isHeld ? "#66ff66" : "#ffffff",
-                width: MENU_WIDTH,
-                height: ENTRY_HEIGHT,
+                text: this.#labelOf(kind),
+                img: kind.thumbnail,
+                color: isHeld ? HELD_COLOR : isHeldByTheOther ? OTHER_HAND_COLOR : KIND_COLOR,
+                width: ENTRY_SIDE,
+                height: ENTRY_SIDE,
                 onClick: () => {
                     this.select(slot, kind)
                     this.menus.close()

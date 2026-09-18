@@ -8,6 +8,7 @@ import { ToolContext } from "../../ToolContext"
 import { PointDriver } from "../common/PointDriver"
 import { SqueezeAdjust } from "../common/SqueezeAdjust"
 import { WAND_TILT } from "../wand/WandTool"
+import THUMBNAIL_URL from "./thumbnail.png?url"
 
 /** The length of the chain at creation, in meters. */
 const CHAIN = 0.35
@@ -278,6 +279,7 @@ export class FlailTool implements Tool {
 export const FLAIL_TOOL_KIND: ToolKind = {
     label: "Flail",
     description: "A ball hanging from a chain, falling and swinging around the hand: it strikes with the momentum it was given, and keeps playing once the arm has stopped. Closing the grab reels the chain in.",
+    thumbnail: THUMBNAIL_URL,
     tags: ["contact", "physical", "percussive", "adjustable"],
     create: context => new FlailTool(context),
 }

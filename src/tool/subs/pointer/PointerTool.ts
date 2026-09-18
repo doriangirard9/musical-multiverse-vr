@@ -3,6 +3,7 @@ import { ToolKind } from "../../ToolKind"
 import { ToolContext } from "../../ToolContext"
 import { tools } from "../../../xr/inputs"
 import { PointDriver } from "../common/PointDriver"
+import THUMBNAIL_URL from "./thumbnail.png?url"
 
 /** The radius of the point of matter carried at the origin of the pointer, in meters. */
 const POINT_RADIUS = 0.015
@@ -53,6 +54,7 @@ export class PointerTool implements Tool {
 export const POINTER_TOOL_KIND: ToolKind = {
     label: "Pointer",
     description: "The plain hand: it shows the ray of its controller and lets the ordinary interactions of the world happen, selecting and grabbing included.",
+    thumbnail: THUMBNAIL_URL,
     tags: ["tool", "distance", "default"],
     create: context => new PointerTool(context),
 }

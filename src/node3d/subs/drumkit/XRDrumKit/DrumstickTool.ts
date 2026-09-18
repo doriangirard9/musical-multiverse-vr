@@ -2,6 +2,7 @@ import { Tool } from "../../../../tool/Tool";
 import { ToolContext } from "../../../../tool/ToolContext";
 import { ToolKind } from "../../../../tool/ToolKind";
 import XRDrumstick from "./XRDrumstick";
+import THUMBNAIL_URL from "../../../../tool/subs/wand/thumbnail.png?url"
 
 /**
  * The hand holding one drumstick of a drum kit.
@@ -37,6 +38,7 @@ export function drumstickToolKind(drumstick: XRDrumstick): ToolKind {
     return {
         label: "Drumstick",
         description: "A drum kit stick, held until another tool is chosen. It plays the drums and the cymbals by striking them, the harder the louder.",
+        thumbnail: THUMBNAIL_URL,
         tags: ["contact", "percussive"],
         create: context => new DrumstickTool(drumstick, context),
     };

@@ -4,6 +4,7 @@ import { ToolKind } from "../../ToolKind"
 import { ToolContext } from "../../ToolContext"
 import { DrawingStroke, DrawingSystem } from "../../../app/social/DrawingSystem"
 import MAGIC_MODEL_URL from "./magic.glb?url"
+import THUMBNAIL_URL from "./thumbnail.png?url"
 
 /**
  * The distance from the controller to the tip of the wand, where the stroke is drawn. It is also
@@ -668,6 +669,7 @@ export class MagicTool implements Tool {
 export const MAGIC_TOOL_KIND: ToolKind = {
     label: "Magic",
     description: "A wand drawing like a pencil, but repeating what the drawing already repeats three times when released, each repetition carried one period further.",
+    thumbnail: THUMBNAIL_URL,
     tags: ["tool", "precise"],
     create: context => new MagicTool(context),
 }

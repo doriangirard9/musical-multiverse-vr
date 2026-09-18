@@ -4,6 +4,7 @@ import { Observer, Scene } from "@babylonjs/core"
 import { ToolKind } from "../../ToolKind"
 import { ToolContext } from "../../ToolContext"
 import { WAND_TILT, WandTool } from "./WandTool"
+import THUMBNAIL_URL from "./thumbnail.png?url"
 
 /** The length of the shaft, the length of a plain wand, in meters. */
 const LENGTH = 0.4
@@ -118,6 +119,7 @@ export class SoftWandTool extends WandTool {
 export const SOFT_WAND_TOOL_KIND: ToolKind = {
     label: "Soft wand",
     description: "A wand on a spring: it hangs, straightens under the squeeze and bounces off whatever it strikes, so the gesture is the one of the wrist.",
+    thumbnail: THUMBNAIL_URL,
     tags: ["contact", "physical", "percussive"],
     create: context => new SoftWandTool(context),
 }

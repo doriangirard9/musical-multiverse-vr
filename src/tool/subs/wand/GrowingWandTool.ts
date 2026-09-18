@@ -2,6 +2,7 @@ import { ToolKind } from "../../ToolKind"
 import { ToolContext } from "../../ToolContext"
 import { SqueezeDrive } from "../common/SqueezeDrive"
 import { WandTool } from "./WandTool"
+import THUMBNAIL_URL from "./thumbnail.png?url"
 
 /** The length of the shaft with the squeeze released, the length of a plain wand, in meters. */
 const LENGTH = 0.4
@@ -41,6 +42,7 @@ export class GrowingWandTool extends WandTool {
 export const WAND_TOOL_KIND: ToolKind = {
     label: "Grow Wand",
     description: "A wand that follows the pressure on the squeeze, growing as it is pressed and shrinking back on its own once it is released: a reach held, never set.",
+    thumbnail: THUMBNAIL_URL,
     tags: ["contact", "percussive", "precise", "adjustable"],
     create: context => new GrowingWandTool(context),
 }

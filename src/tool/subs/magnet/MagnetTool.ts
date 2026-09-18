@@ -8,6 +8,7 @@ import { NetworkManager } from "../../../network/NetworkManager"
 import { N3DConnectableInstance } from "../../../node3d/instance/N3DConnectableInstance"
 import { N3DConnectionInstance } from "../../../node3d/instance/N3DConnectionInstance"
 import { Node3DInstance } from "../../../node3d/instance/Node3DInstance"
+import THUMBNAIL_URL from "./thumbnail.png?url"
 
 /**
  * The reach of the magnet, in multiples of the size of the module held.
@@ -238,6 +239,7 @@ export class MagnetTool implements Tool {
 export const MAGNET_TOOL_KIND: ToolKind = {
     label: "Magnet",
     description: "A magnet: a module carried in this hand links itself to the compatible ports passing within its reach, the nearest first, and lets go of a link pulled back out of it. Letting go of the module freezes whatever is linked at that instant.",
+    thumbnail: THUMBNAIL_URL,
     tags: ["tool", "distance", "wide"],
     create: context => new MagnetTool(context),
 }

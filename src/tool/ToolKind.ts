@@ -14,6 +14,15 @@ export interface ToolKind {
     readonly description: string
 
     /**
+     * The url of the picture shown next to the label in the selection menu.
+     *
+     * @remarks
+     * Imported from the folder of the tool with vite's `?url`, so the bundler carries the file.
+     * Tools that are variations of one another share a picture.
+     */
+    readonly thumbnail: string
+
+    /**
      * Tags categorizing the tool.
      * A tag is singular, lowercase, unaccented, spaceless (`_` instead) and in english.
      *

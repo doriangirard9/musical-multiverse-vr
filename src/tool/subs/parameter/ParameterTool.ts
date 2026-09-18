@@ -5,6 +5,7 @@ import { ToolContext } from "../../ToolContext"
 import { tools } from "../../../xr/inputs"
 import PARAMETER_MODEL_URL from "./parameter.glb?url"
 import { BoxDriver } from "../common/BoxDriver"
+import THUMBNAIL_URL from "./thumbnail.png?url"
 
 /** The size the model is shown at, in meters, its center resting on the hand. */
 const MODEL_SIZE = 0.2
@@ -170,6 +171,7 @@ export class ParameterTool implements Tool {
 export const PARAMETER_TOOL_KIND: ToolKind = {
     label: "Parameter",
     description: "A hand that only tunes: it drags the parameters and presses the buttons of the nodes, and leaves them where they are.",
+    thumbnail: THUMBNAIL_URL,
     tags: ["tool", "distance", "precise"],
     create: context => new ParameterTool(context),
 }

@@ -8,6 +8,7 @@ import { ToolContext } from "../../ToolContext"
 import { InstrumentInteractionSystem, Interactor } from "../../../instrument"
 import { tools } from "../../../xr/inputs"
 import { PressActivation } from "../common/PressActivation"
+import THUMBNAIL_URL from "./thumbnail.png?url"
 
 /** How far the hand can reach, in meters. */
 const REACH = 10
@@ -207,6 +208,7 @@ export class RayTool implements Tool {
 export const RAY_TOOL_KIND: ToolKind = {
     label: "Ray",
     description: "A ray laying a point on whatever the hand aims at, as far as it can see: closing the grab drives that point under the surface, how fast it sinks is the force of the blow, and the trigger presses on what it reaches.",
+    thumbnail: THUMBNAIL_URL,
     tags: ["distance", "contact", "precise", "percussive"],
     create: context => new RayTool(context),
 }

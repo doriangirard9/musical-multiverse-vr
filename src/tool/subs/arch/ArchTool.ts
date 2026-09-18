@@ -9,6 +9,7 @@ import { InstrumentInteractionSystem, Interactor } from "../../../instrument"
 import { PressActivation } from "../common/PressActivation"
 import { SqueezeAdjust } from "../common/SqueezeAdjust"
 import { WAND_TILT } from "../wand/WandTool"
+import THUMBNAIL_URL from "./thumbnail.png?url"
 
 /** The length of the hair at creation, in meters. */
 const CORD = 0.5
@@ -293,6 +294,7 @@ export class ArchTool implements Tool {
 export const ARCH_TOOL_KIND: ToolKind = {
     label: "Arch",
     description: "A violin bow, held ahead of the hand the way a wand is: it plays whatever its hair is drawn across, anywhere along its length, and the hair bends where it meets the matter.",
+    thumbnail: THUMBNAIL_URL,
     tags: ["contact", "wide", "sustained", "adjustable"],
     create: context => new ArchTool(context),
 }
