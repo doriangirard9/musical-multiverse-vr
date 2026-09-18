@@ -2,6 +2,8 @@ export * as inputs from "./xr/inputs"
 export * as node3dapi from "./node3d/node3dapi.ts"
 export * as app from "./app"
 export * as menus from "./menus"
+export * as tool from "./tool"
+export * as instrument from "./instrument"
 
 import { HashRouter } from "./router/HashRouter.ts";
 import { ROUTES } from "./router/routes.ts";

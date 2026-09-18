@@ -1,9 +1,10 @@
-import { AbstractMesh, Color3, CreateCylinder, Mesh, StandardMaterial, Vector3 } from "@babylonjs/core"
+import { Color3, CreateCylinder, Mesh, StandardMaterial, Vector3 } from "@babylonjs/core"
 import { Tool } from "../../Tool"
 import { ToolKind } from "../../ToolKind"
 import { ToolContext } from "../../ToolContext"
 import { tools } from "../../../xr/inputs"
 import { ConnectionManager } from "../../../app/node3d/ConnectionManager"
+import { Node3dManager } from "../../../app/node3d/Node3dManager"
 import { NetworkManager } from "../../../network/NetworkManager"
 import { N3DConnectableInstance } from "../../../node3d/instance/N3DConnectableInstance"
 import { N3DConnectionInstance } from "../../../node3d/instance/N3DConnectionInstance"
@@ -45,8 +46,9 @@ const POLE_COLORS = [new Color3(0.85, 0.15, 0.15), new Color3(0.2, 0.3, 0.9)]
  * The hand that moves a module and wires it at the same time.
  *
  * @remarks
- * The trigger takes a module exactly as the plain hand does: the hitboxes are asked for, and the world
- * itself carries and synchronises what is held. What this hand adds happens while the module travels.
+ * A module is taken exactly as the plain hand takes it: the hitboxes are asked for, and the world
+ * itself carries and synchronises what is held, and says so. What this hand adds happens while the
+ * module travels.
  * Every tick, each of its ports links to the nearest compatible port within reach, and every link of
  * the module pulled further out than the reach comes undone. Letting go freezes what is linked.
  *
@@ -65,7 +67,7 @@ export class MagnetTool implements Tool {
     constructor(context: ToolContext){
         this.#context = context
 
-        // The hitboxes, so the trigger takes a module and the world carries it, and nothing else: the
+        // The hitboxes, so a module can be taken and the world carries it, and nothing else: the
         // connections stay closed, so no rival cable is dragged out of a port by this hand.
         context.interactions.pointer.enable()
         context.interactions.hitboxes.enable()
@@ -73,14 +75,22 @@ export class MagnetTool implements Tool {
         const ray = tools.InputVisualPointer.CreateSimple(context.scene, context.controller.pointer)
         const poles = POLE_COLORS.map((color, index) => MagnetTool.#createPole(context, color, index))
 
-        const trigger = context.controller.trigger
-        const taking = trigger.onDown.add(() => this.#take())
-        const letting = trigger.onUp.add(() => this.#release())
+        // The hold is not guessed from the trigger: the world says what it hands over, so a module
+        // taken with two hands, or let go because the hand lost the right to hold it, is followed
+        // just the same.
+        const nodes = Node3dManager.getInstance()
+        const taking = nodes.onNodeGrabbed.add(({node, pointers}) => {
+            if(pointers.includes(context.controller.pointer)) this.#take(node)
+        })
+        const letting = nodes.onNodeReleased.add(({node, pointers}) => {
+            if(node !== this.#held) return
+            if(pointers.length === 0 || pointers.includes(context.controller.pointer)) this.#release()
+        })
         const ticking = context.scene.onBeforeRenderObservable.add(() => this.#tick())
 
         this.#unhook = () => {
-            trigger.onDown.remove(taking)
-            trigger.onUp.remove(letting)
+            taking.remove()
+            letting.remove()
             context.scene.onBeforeRenderObservable.remove(ticking)
             for(const pole of poles) pole.dispose(false, true)
             ray.remove()
@@ -99,7 +109,7 @@ export class MagnetTool implements Tool {
     /** Everything the tool put in the world or hooked onto it, undone at once. */
     readonly #unhook: () => void
 
-    /** The module the hand carries, none while the trigger is up or while it took nothing. */
+    /** The module the hand carries, none while it carries nothing. */
     #held: Node3DInstance | null = null
 
     /**
@@ -113,11 +123,11 @@ export class MagnetTool implements Tool {
     /** When the ports were last swept, in milliseconds. */
     #lastTick = 0
 
-    /** Take whatever module the hand points at, the world itself carrying it from there. */
-    #take(): void {
-        const mesh = this.#context.controller.pointer.targetMesh
-        const node = mesh === null ? null : MagnetTool.#nodeOf(mesh)
-        if(node !== null && !node.isLocked) this.#held = node
+    /** Watch over the module the hand has just been handed, the world itself carrying it. */
+    #take(node: Node3DInstance): void {
+        if(node.isLocked) return
+        this.#held = node
+        this.#armed.clear()
     }
 
     /** Let go: whatever is linked at this instant stays, and nothing is watched any more. */
@@ -210,14 +220,6 @@ export class MagnetTool implements Tool {
         for(const [, node] of NetworkManager.getInstance().node3d.nodes.entries()){
             yield* node.connectables.values()
         }
-    }
-
-    /** The module a mesh is the hitbox of, none when it is not one. That mesh alone is what a hand can take. */
-    static #nodeOf(mesh: AbstractMesh): Node3DInstance | null {
-        for(const [, node] of NetworkManager.getInstance().node3d.nodes.entries()){
-            if(mesh === node.boundingBoxMesh) return node
-        }
-        return null
     }
 
     /**

@@ -8,6 +8,7 @@ import { MeshUtils } from "../tools"
 import { ShakeBehavior } from "../../behaviours/ShakeBehavior"
 import { SceneManager } from "../../app/SceneManager"
 import { MenuSystem } from "../../app"
+import { PointerInput } from "../../xr/inputs/PointerInput"
 
 /**
  * A connection between two connectables of two Node3Ds.
@@ -26,6 +27,12 @@ export class N3DConnectionInstance{
 
     /** Notified on disposal of this connection. */
     readonly onDispose = new Observable<void>()
+
+    /** Notified when a hand takes hold of the cable, with the pointer holding it. */
+    readonly onGrab = new Observable<PointerInput[]>()
+
+    /** Notified when the hand holding the cable lets go, with the pointer that was holding it. */
+    readonly onRelease = new Observable<PointerInput[]>()
 
     constructor(
         private scene: Scene,
@@ -56,11 +63,13 @@ export class N3DConnectionInstance{
         this.shake.on_stop = (_, __) => {
             this._tube.visibility = .8
         }
-        this.shake.on_pick = () => {
+        this.shake.on_pick = pointer => {
             this._tube.visibility = .8
+            this.onGrab.notifyObservers([pointer])
         }
-        this.shake.on_drop = () => {
+        this.shake.on_drop = pointer => {
             this._tube.visibility = 1
+            this.onRelease.notifyObservers([pointer])
         }
         
     }

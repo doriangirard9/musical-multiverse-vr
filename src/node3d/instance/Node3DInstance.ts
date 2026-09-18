@@ -36,6 +36,7 @@ import { ChoiceMenu } from "../../menus/ChoiceMenu.ts";
 import { N3DConnectionInstance } from "./N3DConnectionInstance.ts";
 import { N3DButtonInstance } from "./N3DButtonInstance.ts";
 import { AudioWorldSystem } from "../../app/node3d/AudioDestinationSystem.ts";
+import { PointerInput } from "../../xr/inputs/PointerInput.ts";
 
 
 export class Node3DInstance implements Synchronized {
@@ -87,6 +88,9 @@ export class Node3DInstance implements Synchronized {
     /** Notified on connection creation. */
     readonly onConnectionCreated = new Observable<N3DConnectionInstance>()
 
+    /** Notified on button creation. */
+    readonly onButtonCreated = new Observable<N3DButtonInstance>()
+
     /** Are the node manual controls locked? If true, the node cannot be moved or rotated manually. */
     set isLocked(value: boolean) {
         this.set_state("locked")
@@ -115,6 +119,19 @@ export class Node3DInstance implements Synchronized {
 
     /** On node3d disposed. */
     readonly onDispose = new Observable<void>()
+
+    /**
+     * Notified when hands start holding this node, with the pointers holding it.
+     *
+     * @remarks
+     * A node is held by the world itself, through its bounding box, whatever the tool the hand
+     * holds. Told here rather than guessed from a trigger, so a hold made with two hands, or given
+     * up because a hand lost the right to hold, is known just the same.
+     */
+    readonly onGrab = new Observable<PointerInput[]>()
+
+    /** Notified when the last hand holding this node lets go, with the pointers that were holding it. */
+    readonly onRelease = new Observable<PointerInput[]>()
 
 
     private declare root_transform: TransformNode
@@ -242,6 +259,7 @@ export class Node3DInstance implements Synchronized {
                 createButton(info) {
                     const button = new N3DButtonInstance(instance, instance.root_transform, highlightLayer, utilityLayer, info)
                     instance.buttons.set(info.id, button)
+                    instance.onButtonCreated.notifyObservers(button)
                 },
                 removeButton(id) {
                     instance.buttons.get(id)?.dispose()
@@ -378,6 +396,10 @@ export class Node3DInstance implements Synchronized {
         // Get previous data to copy back
         const isLocked = this.bounding_box?.isLocked ?? false
 
+        // A box thrown away while it was held is a hold that ends: said, so nobody is left carrying
+        // a node the world no longer gives it.
+        if(this.bounding_box?.holdable.isDragging) this.onRelease.notifyObservers([])
+
         this.bounding_box?.dispose()
 
         // Get bounds
@@ -420,6 +442,11 @@ export class Node3DInstance implements Synchronized {
         // On position change
         this.set_state("position")
         this.bounding_box.on_move = () => this.set_state("position")
+
+        // The bounding box is thrown away and built again whenever the meshes of the node move, so
+        // what listens to a hold is hooked back onto the new one here, not once and for all.
+        this.bounding_box.holdable.onGrabObservable.add(pointers => this.onGrab.notifyObservers(pointers))
+        this.bounding_box.holdable.onReleaseObservable.add(pointers => this.onRelease.notifyObservers(pointers))
 
         // On move observable
         this.bounding_box.boundingBox.onAfterWorldMatrixUpdateObservable.add(() => {

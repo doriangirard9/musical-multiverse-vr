@@ -86,14 +86,16 @@ export class N3DButtonInstance {
             visual.offset(-1)
         }
 
-        const on_pick_down = ()=>{
+        const on_pick_down = (pointers: PointerInput[])=>{
             config.press()
             this.onPressed.notifyObservers()
+            this.onGrab.notifyObservers(pointers)
             visual.offset(1)
         }
 
-        const on_pick_up = ()=>{
+        const on_pick_up = (pointers: PointerInput[])=>{
             config.release()
+            this.onRelease.notifyObservers(pointers)
             visual.offset(-1)
         }
 
@@ -125,13 +127,21 @@ export class N3DButtonInstance {
                 // The press does not say which pointer presses: it is on as long as one allowed
                 // pointer presses the button.
                 let pressed = false
-                const isPressedByAllowed = () => inputs.controllers.some(c =>
-                    c.pointer.targetMesh===draggable && c.trigger.isPressed() && buttons.isEnabledFor(c.pointer)
-                )
+                let pressers: PointerInput[] = []
+                const pressedByAllowed = () => inputs.controllers
+                    .filter(c => c.pointer.targetMesh===draggable && c.trigger.isPressed() && buttons.isEnabledFor(c.pointer))
+                    .map(c => c.pointer)
                 const check = () => {
-                    const shouldBePressed = isPressedByAllowed()
-                    if(shouldBePressed && !pressed) on_pick_down()
-                    else if(!shouldBePressed && pressed) on_pick_up()
+                    const pressing = pressedByAllowed()
+                    const shouldBePressed = pressing.length>0
+                    if(shouldBePressed && !pressed){
+                        pressers = pressing
+                        on_pick_down(pressers)
+                    }
+                    else if(!shouldBePressed && pressed){
+                        on_pick_up(pressers)
+                        pressers = []
+                    }
                     pressed = shouldBePressed
                 }
                 behavior = new InputPressBehavior(check, check, buttons)
@@ -142,11 +152,11 @@ export class N3DButtonInstance {
                     pointer=>{
                         if(!buttons.isEnabledFor(pointer)) return
                         pressing.add(pointer)
-                        if(pressing.size===1) on_pick_down()
+                        if(pressing.size===1) on_pick_down([...pressing])
                     },
                     pointer=>{
                         if(!pressing.delete(pointer)) return
-                        if(pressing.size===0) on_pick_up()
+                        if(pressing.size===0) on_pick_up([pointer])
                     },
                     undefined,
                     buttons,
@@ -172,5 +182,11 @@ export class N3DButtonInstance {
     readonly highlight
     readonly visual
     readonly onPressed = new Observable<void>()
+
+    /** Notified when hands press the button, with the pointers pressing it. */
+    readonly onGrab = new Observable<PointerInput[]>()
+
+    /** Notified when the last hand pressing the button lets go, with the pointers that were pressing it. */
+    readonly onRelease = new Observable<PointerInput[]>()
 
 }

@@ -20,8 +20,12 @@ export class HoldableBehaviour implements Behavior<AbstractMesh> {
 
     onMoveObservable = new Observable<void>()
     onRotateObservable = new Observable<void>()
-    onGrabObservable = new Observable<void>()
-    onReleaseObservable = new Observable<void>()
+
+    /** Notified when the target starts being held, with the pointers holding it. */
+    onGrabObservable = new Observable<PointerInput[]>()
+
+    /** Notified when the last pointer holding the target lets go, with the pointers that were holding it. */
+    onReleaseObservable = new Observable<PointerInput[]>()
 
     constructor(
         private moved?: TransformNode,
@@ -37,6 +41,9 @@ export class HoldableBehaviour implements Behavior<AbstractMesh> {
 
     attachedNode!: AbstractMesh
     private _isDragging = false
+
+    /** The pointers holding the target, kept so a release says who was holding. */
+    private _holders: PointerInput[] = []
     private holdBehaviour?: FullHoldBehaviour
     private twoPointerHoldBehaviour?: TwoPointerHoldBehaviour
 
@@ -84,11 +91,13 @@ export class HoldableBehaviour implements Behavior<AbstractMesh> {
 
         // No pointer
         if(pointers.length===0){
-            if(this._isDragging) this.onReleaseObservable.notifyObservers()
+            if(this._isDragging) this.onReleaseObservable.notifyObservers(this._holders)
             this._isDragging = false
+            this._holders = []
         }
         else{
-            if(!this._isDragging) this.onGrabObservable.notifyObservers()
+            this._holders = [...pointers]
+            if(!this._isDragging) this.onGrabObservable.notifyObservers(this._holders)
             this._isDragging = true
         }
 

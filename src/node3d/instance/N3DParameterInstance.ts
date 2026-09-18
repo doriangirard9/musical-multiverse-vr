@@ -106,6 +106,21 @@ export class N3DParameterInstance {
             }
         }
 
+        // Who holds the parameter, all its meshes taken together: the first hand to take it says a
+        // grab, the last to let go says a release.
+        const holders = this.holders
+        const hold = (pointer: PointerInput, held: boolean) => {
+            if(held){
+                if(holders.has(pointer)) return
+                holders.add(pointer)
+                if(holders.size===1) parameter.onGrab.notifyObservers([...holders])
+            }
+            else{
+                if(!holders.delete(pointer)) return
+                if(holders.size===0) parameter.onRelease.notifyObservers([pointer])
+            }
+        }
+
         const disposables: (()=>void)[] = []
 
         // The capability is asked per pointer: a hand whose tool did not ask for the parameters
@@ -144,6 +159,7 @@ export class N3DParameterInstance {
                 input=>{
                     if(!parameters.isEnabledFor(input)) return
                     dragging = true
+                    hold(input, true)
 
                     // Change
                     visual.offset(1)
@@ -169,9 +185,10 @@ export class N3DParameterInstance {
 
                     event.push(startingValue)
                 },
-                _=>{
+                input=>{
                     if(!dragging) return
                     dragging = false
+                    hold(input, false)
                     event.pop(this.getValue())
                     visual.offset(-1)
                 },
@@ -327,5 +344,14 @@ export class N3DParameterInstance {
     readonly onDragStart = new Observable<{value:number}>()
     readonly onDrag = new Observable<{value:number}>()
     readonly onDragStop = new Observable<{value:number}>()
+
+    /** The pointers holding the parameter, whichever of its meshes they took. */
+    private readonly holders = new Set<PointerInput>()
+
+    /** Notified when hands start dragging the parameter, with the pointers dragging it. */
+    readonly onGrab = new Observable<PointerInput[]>()
+
+    /** Notified when the last hand dragging the parameter lets go, with the pointer that let go. */
+    readonly onRelease = new Observable<PointerInput[]>()
 
 }

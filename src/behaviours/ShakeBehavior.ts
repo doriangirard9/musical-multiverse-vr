@@ -23,14 +23,14 @@ export class ShakeBehavior implements Behavior<AbstractMesh> {
     on_stop: (power: number, counter: number) => void = () => {}
 
     /**
-     * Called when the mesh is picked up.
+     * Called when the mesh is picked up, with the pointer that picked it.
      */
-    on_pick: () => void = () => {}
+    on_pick: (pointer: PointerInput) => void = () => {}
 
     /**
-     * Called when the mesh is dropped.
+     * Called when the mesh is dropped, with the pointer that was holding it.
      */
-    on_drop: () => void = () => {}
+    on_drop: (pointer: PointerInput) => void = () => {}
 
     /**
      * The minium shake power to consider it as a shake.
@@ -75,12 +75,12 @@ export class ShakeBehavior implements Behavior<AbstractMesh> {
         target.addBehavior(this.grab)
     }
 
-    onGrab(){
+    onGrab(pointer: PointerInput){
         if(this.interval!==null){
             clearInterval(this.interval)
             this.interval = null
         }
-        this.on_pick()
+        this.on_pick(pointer)
         this.shake_power = 0
         this.interval = setInterval(() => {
             this.setShakePower(Math.floor(this.shake_power * 0.9))
@@ -126,9 +126,9 @@ export class ShakeBehavior implements Behavior<AbstractMesh> {
         if(this.shake_power>=this.shake_threshold) this.on_shake(this.shake_power, this.shake_counter)
     }
 
-    onUp(){
+    onUp(pointer: PointerInput){
         this.setShakePower(0)
-        this.on_drop()
+        this.on_drop(pointer)
         if(this.interval!==null){
             clearInterval(this.interval)
             this.interval = null
