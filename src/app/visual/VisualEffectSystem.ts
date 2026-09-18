@@ -1,7 +1,5 @@
 import { Color3 } from "@babylonjs/core"
 import { NetworkManager } from "../../network/NetworkManager"
-import { InputManager } from "../../xr/inputs"
-import { SceneManager } from "../SceneManager"
 import { Node3DInstance } from "../../node3d/instance/Node3DInstance";
 import { EffectProfile, EffectSystem } from "../../visual/effects";
 import { edgeViewOf, nodeViewOf } from "../../node3d/graph/Node3DGraphAdapter";

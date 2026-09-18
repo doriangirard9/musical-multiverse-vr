@@ -22,6 +22,7 @@ export * from "./subs/common/BoxDriver"
 
 export * from "./subs/pointer/PointerTool"
 export * from "./subs/parameter/ParameterTool"
+export * from "./subs/magnet/MagnetTool"
 export * from "./subs/pencil/PencilTool"
 export * from "./subs/magic/MagicTool"
 export * from "./subs/sword/SwordTool"

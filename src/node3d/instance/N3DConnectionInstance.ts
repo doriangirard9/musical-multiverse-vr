@@ -122,43 +122,11 @@ export class N3DConnectionInstance{
     private connect(cA: N3DConnectableInstance, cB: N3DConnectableInstance): boolean{
         this.disconnect()
 
-        // Check that the connection is not a self connection
-        if(cA==cB){
-            this.menus.showMessage("Can't connect a node to itself", "red")
-            return false
-        }
-
-        // Check that the connection does not already exists
-        for(const connection of cA.connections){
-            if(connection.cInput == cB || connection.cOutput == cB){
-                this.menus.showMessage(`Already connected to ${cB.config.label}`, "red")
-                return false
-            }
-        }
-
-        // Check that the connection don't have the maximum number of connection
-        if(cA.connections.size >= (cA.config.max_connections??Number.MAX_SAFE_INTEGER)){
-            this.menus.showMessage(`The first connectable already have the maximum number of connection`, "red")
-            return false
-        }
-
-        if(cB.connections.size >= (cB.config.max_connections??Number.MAX_SAFE_INTEGER)){
-            this.menus.showMessage(`The second connectable already have the maximum number of connection`, "red")
-            return false
-        }
-        
-        // Check that the connections directions are compatible
-        let canConnect = false
-        if([cA.config.direction, cB.config.direction].includes("bidirectional")) canConnect = true
-        else if(cA.config.direction != cB.config.direction) canConnect = true
-        if(!canConnect){
-            this.menus.showMessage(`Cannot connect a ${cA.config.direction} port to a ${cB.config.direction} port`, "red")
-            return false
-        }
-
-        // Check that the connections types are compatibles
-        if(cA.config.type != cB.config.type){
-            this.menus.showMessage(`Can't connect a ${cA.config.type} to a ${cB.config.type}`, "red")
+        // Check that the link is acceptable, and tell the player why when it is not. This is the one
+        // place a refusal is shown, so the conditions themselves live on the connectable.
+        const refusal = cA.canConnectTo(cB)
+        if(refusal !== null){
+            this.menus.showMessage(refusal, "red")
             return false
         }
 
