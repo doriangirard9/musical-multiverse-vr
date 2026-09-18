@@ -214,7 +214,7 @@ export class App {
         ])
 
         // A pad to check the hands reach the instruments, until the real instruments carry behaviors.
-        new InstrumentTestPad(SceneManager.getInstance().getScene(), new Vector3(0, 1.1, 0.85))
+        // new InstrumentTestPad(SceneManager.getInstance().getScene(), new Vector3(0, 1.1, 0.85))
 
         await BarMenuSystem.initialize(
             SceneManager.getInstance(),

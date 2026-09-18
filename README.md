@@ -8,21 +8,28 @@ Client Url: https://musical-multiverse-vr-1.onrender.com/
 npm i
 ```
 
-### Run
-Client
-```
-npm run dev
-```
-Server
-```
-cd server-config; node server.js
-```
+### Scripts
+| Command | Purpose |
+| --- | --- |
+| `npm run dev` | Vite dev server for the client, over HTTPS on port 5173, exposed on the local network. `/api`, `/voice-signaling` and `/social-events` are proxied to the API server on port 3000. |
+| `npm run server` | API server (`server-config/`) in watch mode on port 3000: REST routes, accounts, database, and the voice and social WebSockets. |
+| `npm run all` | Both of the above in one terminal, through `concurrently`. |
+| `npm run all_headset` | Same as `all`, but authorizes `https://192.168.137.1:5173` as a CORS origin, to reach the client from a headset over a shared connection. |
+| `npm run build` | Type-checks with `tsconfig.build.json`, then builds the client into `dist/`. |
+| `npm run preview` | Serves the built client on port 5173. |
+| `npm run docs` | Runs TypeDoc from `src/index.ts` and writes the HTML documentation to `docs/`. |
+| `npm run nodeapi` | Generates the standalone `Node3D` declarations into `nodeapi/`: one `.d.ts` per module, plus `nodeapi/node3dapi.d.ts` bundling them into a single file. |
+
+Both servers must run for the client to work: the client calls the API through the Vite proxy,
+so `npm run all` is the usual way to start.
 
 ### Documentation
 A contributor walkthrough of the codebase lives in [`docs/`](docs/README.md):
 how the app boots, what every class does, the four wire protocols
 (audio / MIDI / automation / sync), how multiplayer sync works, and
 end-to-end recipes for adding new instruments, behaviors, and menus.
+
+
 
 ### Guide d'architecture
 #### Low coupling
