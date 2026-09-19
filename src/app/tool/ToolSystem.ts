@@ -1,6 +1,6 @@
 import { ControllerInput, InputManager } from "../../xr/inputs"
 import { BlocksMenu, BMenuBlock } from "../../menus/BlocksMenu"
-import { ARCH_TOOL_KIND, BRICK_TOOL_KIND, FLAIL_TOOL_KIND, FINGER_TOOL_KIND, MAGIC_TOOL_KIND, MAGNET_TOOL_KIND, ToolKind, ToolSlot, PARAMETER_TOOL_KIND, PENCIL_TOOL_KIND, POINTER_TOOL_KIND, RAY_TOOL_KIND, SOFT_WAND_TOOL_KIND, SWORD_TOOL_KIND, TWO_WAND_TOOL_KIND, WAND_TOOL_KIND } from "../../tool"
+import { ARCH_TOOL_KIND, BRICK_TOOL_KIND, FLAIL_TOOL_KIND, FINGER_TOOL_KIND, MAGIC_TOOL_KIND, MAGNET_TOOL_KIND, ToolKind, ToolSlot, PARAMETER_TOOL_KIND, PENCIL_TOOL_KIND, POINTER_TOOL_KIND, CRANE_TOOL_KIND, RAY_TOOL_KIND, SOFT_WAND_TOOL_KIND, SWORD_TOOL_KIND, TWO_WAND_TOOL_KIND, WAND_TOOL_KIND } from "../../tool"
 import { MenuSystem } from "../menu/MenuSystem"
 import { SceneManager } from "../SceneManager"
 import { PickFilter } from "../../xr/inputs/AbstractPointerInput"
@@ -203,7 +203,7 @@ export class ToolSystem {
 
     /** The kinds of tool offered to the user. */
     static readonly #KINDS: readonly ToolKind[] = [
-        POINTER_TOOL_KIND, MAGNET_TOOL_KIND, BRICK_TOOL_KIND, PARAMETER_TOOL_KIND, PENCIL_TOOL_KIND, MAGIC_TOOL_KIND, FINGER_TOOL_KIND, RAY_TOOL_KIND,
+        POINTER_TOOL_KIND, MAGNET_TOOL_KIND, BRICK_TOOL_KIND, CRANE_TOOL_KIND, PARAMETER_TOOL_KIND, PENCIL_TOOL_KIND, MAGIC_TOOL_KIND, FINGER_TOOL_KIND, RAY_TOOL_KIND,
         WAND_TOOL_KIND, SOFT_WAND_TOOL_KIND, TWO_WAND_TOOL_KIND, ARCH_TOOL_KIND, FLAIL_TOOL_KIND, SWORD_TOOL_KIND,
     ]
 
@@ -239,6 +239,11 @@ export class ToolSystem {
                 text: this.#labelOf(kind),
                 img: kind.thumbnail,
                 color: isHeld ? HELD_COLOR : isHeldByTheOther ? OTHER_HAND_COLOR : KIND_COLOR,
+                tooltip: [
+                    { content: kind.label },
+                    { content: kind.description, size: .5 },
+                    { content: kind.tags.join(", "), size: .4, color: "#ffffff9d" },
+                ],
                 width: ENTRY_SIDE,
                 height: ENTRY_SIDE,
                 onClick: () => {

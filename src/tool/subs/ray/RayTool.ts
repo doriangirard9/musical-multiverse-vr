@@ -207,7 +207,7 @@ export class RayTool implements Tool {
 /** The kind of the hand playing from a distance. */
 export const RAY_TOOL_KIND: ToolKind = {
     label: "Ray",
-    description: "A ray laying a point on whatever the hand aims at, as far as it can see: closing the grab drives that point under the surface, how fast it sinks is the force of the blow, and the trigger presses on what it reaches.",
+    description: "Lays a point on whatever the hand aims at, however far. The grab drives that point under the surface, and how fast it sinks is the force of the blow.",
     thumbnail: THUMBNAIL_URL,
     tags: ["distance", "contact", "precise", "percussive"],
     create: context => new RayTool(context),

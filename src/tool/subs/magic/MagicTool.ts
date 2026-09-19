@@ -668,7 +668,7 @@ export class MagicTool implements Tool {
 /** The kind of the hand holding a magic wand. */
 export const MAGIC_TOOL_KIND: ToolKind = {
     label: "Magic",
-    description: "A wand drawing like a pencil, but repeating what the drawing already repeats three times when released, each repetition carried one period further.",
+    description: "Draws a stroke, then finds what that stroke was already repeating and replays it three times over, each one carried one period further.",
     thumbnail: THUMBNAIL_URL,
     tags: ["tool", "precise"],
     create: context => new MagicTool(context),

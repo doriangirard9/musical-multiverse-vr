@@ -61,7 +61,7 @@ export class FingerTool extends WandTool {
 /** The kind of the hand pointing with a bare finger. */
 export const FINGER_TOOL_KIND: ToolKind = {
     label: "Finger",
-    description: "A bare finger, short, to press on what the hand touches from close by. Its length is set with the squeeze and the thumbstick.",
+    description: "A short finger pressing what the hand touches from close by, its length set with the squeeze and the thumbstick.",
     thumbnail: THUMBNAIL_URL,
     tags: ["contact", "precise", "sustained", "adjustable"],
     create: context => new FingerTool(context),

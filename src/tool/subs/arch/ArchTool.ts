@@ -293,7 +293,7 @@ export class ArchTool implements Tool {
 /** The kind of the hand holding a violin bow. */
 export const ARCH_TOOL_KIND: ToolKind = {
     label: "Arch",
-    description: "A violin bow, held ahead of the hand the way a wand is: it plays whatever its hair is drawn across, anywhere along its length, and the hair bends where it meets the matter.",
+    description: "Plays whatever its hair is drawn across, anywhere along its length, and the hair bends where it meets the matter.",
     thumbnail: THUMBNAIL_URL,
     tags: ["contact", "wide", "sustained", "adjustable"],
     create: context => new ArchTool(context),

@@ -9,6 +9,7 @@ import { NetworkManager } from "../../../network/NetworkManager"
 import { N3DConnectableInstance } from "../../../node3d/instance/N3DConnectableInstance"
 import { N3DConnectionInstance } from "../../../node3d/instance/N3DConnectionInstance"
 import { Node3DInstance } from "../../../node3d/instance/Node3DInstance"
+import { CarriedBlock, frameOf } from "../common/CarriedBlock"
 import THUMBNAIL_URL from "./thumbnail.png?url"
 
 /**
@@ -163,8 +164,8 @@ export class BrickTool implements Tool {
     /** The module the hand carries, none while it carries nothing. */
     #held: Node3DInstance | null = null
 
-    /** What is nested onto the held module, and where each of them stands relative to it. */
-    readonly #followers = [] as {node: Node3DInstance, relative: Matrix, wasLocked: boolean}[]
+    /** What is nested onto the held module, each keeping the place it holds relative to it. */
+    readonly #block = new CarriedBlock()
 
     /** The place the held module is offered, none while it is offered none. */
     #lock: Lock | null = null
@@ -193,32 +194,16 @@ export class BrickTool implements Tool {
         if(this.#context.controller.squeeze.isPressed()){
             for(const hook of BrickTool.#hooksOf(node)) hook.remove()
             this.#context.controller.pulse(...UNHOOK_PULSE)
-            return this.#reread()
+            return
         }
 
-        for(const follower of BrickTool.#stackOf(node)){
-            this.#followers.push({node: follower, relative: Matrix.Identity(), wasLocked: follower.isLocked})
-            // Frozen while it travels, so another hand cannot tear it out of the block in flight.
-            follower.isLocked = true
-        }
-        this.#reread()
-    }
-
-    /** Read again where each follower stands relative to the held module. */
-    #reread(): void {
-        const held = this.#held
-        if(held === null) return
-
-        const inverse = BrickTool.#frameOf(held).invert()
-        for(const follower of this.#followers){
-            BrickTool.#frameOf(follower.node).multiplyToRef(inverse, follower.relative)
-        }
+        // Frozen while they travel, so another hand cannot tear one out of the block in flight.
+        this.#block.take(node, BrickTool.#stackOf(node))
     }
 
     /** Let go of everything, giving the followers back the freedom they had. */
     #release(): void {
-        for(const follower of this.#followers) follower.node.isLocked = follower.wasLocked
-        this.#followers.length = 0
+        this.#block.release()
         this.#held = null
         this.#show(null)
     }
@@ -234,26 +219,11 @@ export class BrickTool implements Tool {
         if(now - this.#lastTick < TICK_INTERVAL) return
         this.#lastTick = now
 
-        // Turned as well as moved: the followers keep the place they hold in the block, so a stack
-        // turned in the hand turns as one piece.
-        this.#carry(held)
+        // The whole of the gesture reaches the stack, not only its carrying: a stack turned in the
+        // hand turns as one piece, and one grown in the hand grows as one piece, its modules pushed
+        // apart just as far as they grew.
+        this.#block.carry(held)
         this.#show(this.#lockOf(held))
-    }
-
-    /** Move every follower to where it stands relative to the held module, and say so to the others. */
-    #carry(held: Node3DInstance): void {
-        const frame = BrickTool.#frameOf(held)
-        const scale = new Vector3()
-        const rotation = new Quaternion()
-        const position = new Vector3()
-
-        for(const follower of this.#followers){
-            const box = follower.node.boundingBoxMesh
-            follower.relative.multiply(frame).decompose(scale, rotation, position)
-            box.rotationQuaternion = rotation.clone()
-            box.setAbsolutePosition(position)
-            follower.node.updatePosition()
-        }
     }
 
     /** Show the place offered where it is, or nothing at all when none is. */
@@ -291,6 +261,9 @@ export class BrickTool implements Tool {
             BrickTool.#settle(held)
             held.updatePosition()
 
+            // The stack goes where the module goes, this last jump onto its place included.
+            this.#block.carry(held)
+
             for(const [from, to] of lock.pairs) ConnectionManager.getInstance().connect(from, to)
             this.#context.controller.pulse(...SNAP_PULSE)
         }
@@ -327,7 +300,10 @@ export class BrickTool implements Tool {
 
         // What the hand would do to the module, ports and all: where it stands now, undone, then
         // where it would stand.
-        const move = BrickTool.#frameOf(held).invert().multiply(Matrix.Compose(Vector3.One(), rotation, position))
+        // The same scale on both sides: laying a module down does not change its size, and the frame
+        // carries the size now, so leaving it out of one side alone would slip a stray shrinking
+        // into the move and land every port somewhere else.
+        const move = frameOf(held).invert().multiply(Matrix.Compose(held.boundingBoxMesh.scaling.clone(), rotation, position))
         const pairs = BrickTool.#facingPorts(held, target, side, position, rotation, move)
         if(pairs.length === 0) return null
 
@@ -344,14 +320,13 @@ export class BrickTool implements Tool {
      * its middle while touching it.
      */
     #nearest(held: Node3DInstance): Node3DInstance | null {
-        const carried = new Set(this.#followers.map(it => it.node))
         const center = BrickTool.#centerOf(held)
 
         let nearest: Node3DInstance | null = null
         let spacing = Infinity
 
         for(const [, node] of NetworkManager.getInstance().node3d.nodes.entries()){
-            if(node === held || carried.has(node)) continue
+            if(node === held || this.#block.has(node)) continue
 
             const side = BrickTool.#centerOf(node).subtract(center)
             if(side.lengthSquared() < Number.EPSILON) continue
@@ -547,12 +522,6 @@ export class BrickTool implements Tool {
         return node.boundingBoxMesh.absolutePosition
     }
 
-    /** The place and the facing of a module, as one matrix. */
-    static #frameOf(node: Node3DInstance): Matrix {
-        const box = node.boundingBoxMesh
-        return Matrix.Compose(Vector3.One(), box.rotationQuaternion ?? Quaternion.Identity(), box.absolutePosition)
-    }
-
     /** The three axes a facing points at. */
     static #axesFrom(rotation: Quaternion): [Vector3, Vector3, Vector3] {
         const frame = Matrix.Identity()
@@ -717,7 +686,7 @@ export class BrickTool implements Tool {
 /** The kind of the hand that stacks modules and carries a stack as one piece. */
 export const BRICK_TOOL_KIND: ToolKind = {
     label: "Brick",
-    description: "A brick: a module carried against another one is shown the place it would take on it, laid parallel and flush against that side, and letting go there lays it exactly there and wires the ports that end up facing each other. No place is shown unless something would wire. Taking a module takes the whole stack nested onto it, and taking it with the squeeze already pressed takes that module alone.",
+    description: "A module carried against another is shown where it would sit, flush and parallel, and letting go there wires the ports that face each other. Taking a module takes the stack nested on it.",
     thumbnail: THUMBNAIL_URL,
     tags: ["tool", "contact", "precise"],
     create: context => new BrickTool(context),

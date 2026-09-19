@@ -53,7 +53,7 @@ export class PointerTool implements Tool {
 /** The kind of the plain hand, held by both hands at startup. */
 export const POINTER_TOOL_KIND: ToolKind = {
     label: "Pointer",
-    description: "The plain hand: it shows the ray of its controller and lets the ordinary interactions of the world happen, selecting and grabbing included.",
+    description: "The plain hand: its ray selects, grabs and triggers everything the world already answers to.",
     thumbnail: THUMBNAIL_URL,
     tags: ["tool", "distance", "default"],
     create: context => new PointerTool(context),

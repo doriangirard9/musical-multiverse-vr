@@ -1,6 +1,7 @@
 import { Scene } from "@babylonjs/core"
 import { Button, Container, Control, Image, Rectangle, ScrollViewer, TextBlock } from "@babylonjs/gui"
 import { AbstractMenu } from "./AbstractMenu"
+import { N3DTextDescription } from "../node3d/instance/utils/N3DText"
 
 export interface BMenuMenu {
     width: number
@@ -15,6 +16,11 @@ export interface BMenuBlock {
     color?: string
     disabled?: boolean
     size?: number
+    /**
+     * What is shown floating above the menu while the pointer rests on the block.
+     * A string makes one line, a list makes lines of their own size and color.
+     */
+    tooltip?: N3DTextDescription|string
     width?: number
     height?: number
 }
@@ -43,6 +49,7 @@ export class BlocksMenu extends AbstractMenu {
     ) {
         super(scene, renderScene)
         this.initPanel("choice_menu", 1, 1, 256)
+        this.initLabel("tooltip")
 
         if(menuData) this.set(menuData)
     }
@@ -122,6 +129,7 @@ export class BlocksMenu extends AbstractMenu {
                     control = BlocksMenu.createImage(sub_block)
                 }
                 if(control) BlocksMenu.setCommon(control, sub_block)
+                if(control) this.bindTooltip(control, sub_block)
                 if(control) target.addControl(control)
                 return control
             }
@@ -129,6 +137,28 @@ export class BlocksMenu extends AbstractMenu {
 
         return root
     }
+    /**
+     * Make the block show its tooltip above the menu while the pointer rests on it.
+     *
+     * @remarks
+     * This goes through the pointer observables and not through pointerEnterAnimation, which only
+     * a Button has and which setButtonCommon already uses for the background of the block.
+     */
+    private bindTooltip(control: Control, block: BMenuBlock){
+        if(!block.tooltip || block.sub) return
+
+        control.isPointerBlocker = true
+        control.onPointerEnterObservable.add(()=>{
+            this.label!.set(block.tooltip!)
+            this.label!.show()
+            this.label!.updatePosition()
+        })
+        control.onPointerOutObservable.add(()=>{
+            this.label!.hide()
+            this.label!.updatePosition()
+        })
+    }
+
     private static setCommon(button: Control, block: BMenuBlock){
         button.isEnabled = !block.disabled
         if(!!block.disabled) button.alpha = 0.5

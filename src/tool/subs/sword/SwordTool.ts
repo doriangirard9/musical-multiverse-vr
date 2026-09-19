@@ -234,7 +234,7 @@ export class SwordTool implements Tool {
 /** The kind of the hand holding a sword. */
 export const SWORD_TOOL_KIND: ToolKind = {
     label: "Sword",
-    description: "A sword whose blade, swung fast enough, cuts away every node and every connection it goes through.",
+    description: "A blade that cuts away every node and every connection it passes through, as long as it is swung fast enough.",
     thumbnail: THUMBNAIL_URL,
     tags: ["tool", "wide"],
     create: context => new SwordTool(context),

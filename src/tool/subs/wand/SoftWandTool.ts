@@ -118,7 +118,7 @@ export class SoftWandTool extends WandTool {
 /** The kind of the hand holding a soft wand. */
 export const SOFT_WAND_TOOL_KIND: ToolKind = {
     label: "Soft wand",
-    description: "A wand on a spring: it hangs, straightens under the squeeze and bounces off whatever it strikes, so the gesture is the one of the wrist.",
+    description: "Hangs on a spring, straightens under the squeeze and bounces off whatever it strikes, so the gesture is the one of the wrist.",
     thumbnail: THUMBNAIL_URL,
     tags: ["contact", "physical", "percussive"],
     create: context => new SoftWandTool(context),

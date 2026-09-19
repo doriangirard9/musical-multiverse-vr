@@ -170,7 +170,7 @@ export class ParameterTool implements Tool {
 /** The kind of the hand that only tunes the nodes. */
 export const PARAMETER_TOOL_KIND: ToolKind = {
     label: "Parameter",
-    description: "A hand that only tunes: it drags the parameters and presses the buttons of the nodes, and leaves them where they are.",
+    description: "A hand that only tunes: it drags parameters and presses buttons, and never moves or grabs anything.",
     thumbnail: THUMBNAIL_URL,
     tags: ["tool", "distance", "precise"],
     create: context => new ParameterTool(context),

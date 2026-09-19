@@ -98,7 +98,7 @@ export class PencilTool implements Tool {
 /** The kind of the hand holding a pencil. */
 export const PENCIL_TOOL_KIND: ToolKind = {
     label: "Pencil",
-    description: "A pencil drawing in the world as long as the trigger is held, the strokes being shared with the other players.",
+    description: "Draws in the air as long as the trigger is held, every stroke seen by the other players.",
     thumbnail: THUMBNAIL_URL,
     tags: ["tool", "precise"],
     create: context => new PencilTool(context),
