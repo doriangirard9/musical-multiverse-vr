@@ -53,6 +53,9 @@ class Wam3DGeneratorN3D implements Node3D {
 
         let count = 0
         let wamNode: any = null
+        // Several fields may sit on one WAM parameter, and unbound fields all come as "none":
+        // the node keeps one parameter per id, so a repeated id gets a suffix.
+        const ids = new Set<string>()
         gui.wam_generator.dispose()
 
         gui.wam_generator = this.gui = await WamGUIGenerator.create_and_init({
@@ -60,14 +63,16 @@ class Wam3DGeneratorN3D implements Node3D {
                 root: gui.root,
                 defineField(settings) {
                     count++
+                    const id = ids.has(settings.id) ? `${settings.id}_${count}` : settings.id
+                    ids.add(id)
                     context.createParameter({
-                        id: `param${count}`,
+                        id,
                         meshes: settings.target,
                         getLabel() { return settings.getLabel() },
 
-                        getMax() { return 1 },
-                        getMin() { return 0 },
-                        getExponant() { return 1 },
+                        getMax() { return settings.getMax() },
+                        getMin() { return settings.getMin() },
+                        getExponant() { return settings.getExponant() },
                         getStepSize() { return settings.getStepSize() },
 
                         getValue() { return settings.getValue() },

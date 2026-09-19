@@ -25,7 +25,7 @@ export class BooleanN3DParameter implements Node3DParameter {
     }
 
     getMin(): number { return 0 }
-    getMax(): number { return 0 }
+    getMax(): number { return 1 }
     getStepSize(): number { return 1 }
     getExponant(): number { return 1 }
 
