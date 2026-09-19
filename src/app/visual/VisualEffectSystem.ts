@@ -145,8 +145,10 @@ export class VisualEffectSystem {
 
         // Effects
         function getProfile(){
-            const isBidirectionnal = connection.inputConnectable!.config.direction === "bidirectional" &&
-            connection.outputConnectable!.config.direction === "bidirectional"
+            // A cable can lose its ends and still be ticked for a frame or two, while it is being
+            // taken apart or rewired onto other ports, so neither end is taken for granted here.
+            const isBidirectionnal = connection.inputConnectable?.config.direction === "bidirectional" &&
+            connection.outputConnectable?.config.direction === "bidirectional"
             const speed = graph.isLive(edgeViewOf(connection)) ? LIVE_SPEED : IDLE_SPEED
             return tubeProfile(speed, isBidirectionnal)
         }
@@ -164,6 +166,8 @@ export class VisualEffectSystem {
         }
 
         connection.onDispose.add(()=>{
+            // The cable is gone, so the effects riding on it have nothing left to read.
+            effects.dispose()
             if (!midiAnalyser) return
             if (midiTapTarget && midiTapInstalled && midiTapOriginal) {
                 const target = midiTapTarget as { scheduleEvents?: unknown }
