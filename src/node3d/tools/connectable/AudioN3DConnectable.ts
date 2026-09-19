@@ -6,6 +6,8 @@ import { Node3DConnectable } from "../../Node3DConnectable";
  */
 export namespace AudioN3DConnectable{
 
+    export const Type = "audio"
+
     export const Color = Color3.FromHexString("#00FF00")
 
     /**
@@ -33,7 +35,7 @@ export namespace AudioN3DConnectable{
             readonly audioNode: AudioNode,
         ){}
 
-        get type(){ return "audio" }
+        get type(){ return AudioN3DConnectable.Type }
 
         get color(){ return Color }
 
@@ -74,7 +76,7 @@ export namespace AudioN3DConnectable{
             this.audioNode = audioNode
         }
 
-        get type(){ return "audio" }
+        get type(){ return AudioN3DConnectable.Type }
 
         get direction(){ return "input" as "input" }
 
@@ -120,7 +122,7 @@ export namespace AudioN3DConnectable{
             readonly audioNode: AudioNode,
         ){}
 
-        get type(){ return "audio" }
+        get type(){ return AudioN3DConnectable.Type }
 
         get direction(){ return "output" as "output" }
 
@@ -161,7 +163,7 @@ export namespace AudioN3DConnectable{
 
         ){}
 
-        get type(){ return "audio" }
+        get type(){ return AudioN3DConnectable.Type }
 
         get direction(){ return "output" as "output" }
 

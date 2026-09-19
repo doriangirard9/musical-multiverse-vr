@@ -20,6 +20,8 @@ export interface MidiN3DConnection {
  */
 export namespace MidiN3DConnectable{
 
+    export const Type = "midi"
+
     export const Color = Color3.FromHexString("#33BB88")
 
     /**
@@ -34,7 +36,7 @@ export namespace MidiN3DConnectable{
             readonly wamNode: WamNode,
         ){}
 
-        get type(){ return "midi" }
+        get type(){ return MidiN3DConnectable.Type }
 
         get direction(){ return "input" as "input" }
 
@@ -75,7 +77,7 @@ export namespace MidiN3DConnectable{
             this.wamNode = wamNode
         }
 
-        get type(){ return "midi" }
+        get type(){ return MidiN3DConnectable.Type }
 
         get direction(){ return "input" as "input" }
 
@@ -120,7 +122,7 @@ export namespace MidiN3DConnectable{
             readonly wamNode: WamNode,
         ){}
 
-        get type(){ return "midi" }
+        get type(){ return MidiN3DConnectable.Type }
 
         get direction(){ return "output" as "output" }
 
@@ -166,7 +168,7 @@ export namespace MidiN3DConnectable{
             readonly on_remove: (wamNode:WamNode) => void = ()=>{},
         ){}
 
-        get type(){ return "midi" }
+        get type(){ return MidiN3DConnectable.Type }
 
         get direction(){ return "output" as "output" }
 

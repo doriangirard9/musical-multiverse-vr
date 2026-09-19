@@ -44,6 +44,8 @@ interface AutomationInputInfo extends AutomationParameterInfo{
  * Simple implementations of Node3DConnectable for the "automation" protocol.
  */
 export namespace AutomationN3DConnectable {
+    export const Type = "automation"
+
     export const Color = Color3.FromHexString("#515252")
 
     /**
@@ -60,7 +62,7 @@ export namespace AutomationN3DConnectable {
             },
         ) { }
 
-        get type() { return "automation" }
+        get type() { return AutomationN3DConnectable.Type }
 
         get direction() { return "input" as "input" }
 
@@ -106,7 +108,7 @@ export namespace AutomationN3DConnectable {
     //         readonly maxConnections: number = Infinity
     //     ) { }
 
-    //     get type() { return "automation" }
+    //     get type() { return AutomationN3DConnectable.Type }
 
     //     get direction() { return "input" as "input" }
 
@@ -162,7 +164,7 @@ export namespace AutomationN3DConnectable {
             this._value = c => c.setValue(c.getMin())
         }
 
-        get type() { return "automation" }
+        get type() { return AutomationN3DConnectable.Type }
 
         get direction() { return "output" as "output" }
 

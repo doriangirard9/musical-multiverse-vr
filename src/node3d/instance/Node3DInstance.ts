@@ -37,6 +37,11 @@ import { N3DConnectionInstance } from "./N3DConnectionInstance.ts";
 import { N3DButtonInstance } from "./N3DButtonInstance.ts";
 import { AudioWorldSystem } from "../../app/node3d/AudioDestinationSystem.ts";
 import { PointerInput } from "../../xr/inputs/PointerInput.ts";
+import { N3DHandleInstance } from "./N3DHandleInstance.ts";
+import { Node3DN3DConnectable } from "../tools/connectable/Node3DN3DConnectable.ts";
+import { InputMultiHoverBehavior } from "../../xr/inputs/tools/InputMultiHoverBehavior.ts";
+import { N3DInteractions } from "./N3DInteractions.ts";
+import { N3DText } from "./utils/N3DText.ts";
 
 
 export class Node3DInstance implements Synchronized {
@@ -104,6 +109,35 @@ export class Node3DInstance implements Synchronized {
     /** Get the enclosing box, a box enclosing the node's meshes. */
     get enclosingBox() { return this.enclosing_box! }
 
+    /** Has the node asked for a bounding box yet? Before that there is no frame to read or write. */
+    get hasBoundingBox() { return this.bounding_box !== null }
+
+    /** Are hands holding this node, here, on this peer? */
+    get isHeld() { return this.bounding_box?.holdable.isDragging ?? false }
+
+    /** Has the node been disposed? */
+    get isDisposed() { return this.disposed }
+
+    /**
+     * The handle this node has on itself, the one given to it as `context.self`.
+     * Made at instantiation, once the observables it relays exist, and disposed with the instance.
+     */
+    declare self: N3DHandleInstance
+
+    /**
+     * Register something to be undone when the node is disposed.
+     *
+     * @remarks
+     * What the node hands out about itself, handles above all, has to die with it, and the one
+     * holding it may be another node that does not know when this one goes. So the undoing is
+     * registered here and the returned function takes it back, for what ends earlier on its own.
+     * @returns A function that unregisters it, for the case where it was undone before the node was.
+     */
+    own(dispose: () => void): () => void {
+        this.disposables.add(dispose)
+        return () => { this.disposables.delete(dispose) }
+    }
+
     /** Every connection touching this node (deduplicated across all its ports). */
     get connections(): N3DConnectionInstance[] {
         const set = new Set<N3DConnectionInstance>()
@@ -146,6 +180,7 @@ export class Node3DInstance implements Synchronized {
         const label = this.factory.label
 
         const highlighter = this.highlighter = new N3DHighlighter(highlightLayer)
+        this.self = new N3DHandleInstance(this, this)
         const menus = MenuSystem.getInstance()
         let lastMenu: AbstractMenu|null = null
 
@@ -171,6 +206,8 @@ export class Node3DInstance implements Synchronized {
         this.enclosing_box.isPickable = false
         this.enclosing_box.parent = root_transform
         this.enclosing_box.resetLocalMatrix()
+
+        this.createSelfConnectable()
 
        
         this.gui = await this.factory.createGUI({
@@ -205,6 +242,26 @@ export class Node3DInstance implements Synchronized {
                 // The WAM's name
                 setLabel(label: string) {
                     root_transform.name = `${label} root`
+                },
+
+                self: this.self,
+
+                // The other nodes
+                async createNode3D(kind, frame) {
+                    const created = await Node3dManager.getInstance().addNode3d(kind, frame.position ?? instance.root_transform.absolutePosition.clone())
+                    if(!created) return null
+                    const handle = new N3DHandleInstance(created, instance)
+                    handle.setFrame(frame)
+                    return handle
+                },
+                listKinds() {
+                    return [...Node3dManager.getInstance().builder.FACTORY_KINDS]
+                },
+                async describeKind(kind) {
+                    const factory = await Node3dManager.getInstance().builder.getFactory(kind)
+                    if(!factory) return null
+                    const {label, description, tags} = factory
+                    return {label, description, tags}
                 },
 
                 // Draggable parameters
@@ -382,6 +439,105 @@ export class Node3DInstance implements Synchronized {
             throw e
         }
     }
+
+    /**
+     * The port every node carries on its hitbox, so a cable of type "node3d" can be dropped on it.
+     *
+     * @remarks
+     * What the cable delivers to the other end is a handle on this node, made here per cable and
+     * disposed when that cable is closed, so whatever the other end registered through it goes
+     * with the cable. The port is a target only: taking hold of the hitbox is for moving the node,
+     * not for dragging a cable out of it.
+     *
+     * It sits on the enclosing box because that mesh lives as long as the node, while the hitbox
+     * itself is thrown away and made again whenever the node's meshes move. The box is unpickable
+     * and invisible outside of a cable drag, and only turns pickable while a cable is being drawn,
+     * so a hand resting on a node does not see a port there.
+     */
+    private createSelfConnectable() {
+        const instance = this
+        const box = this.enclosing_box!
+        const ioEventBus = IOEventBus.getInstance()
+        const {utilityLayer, highlightLayer} = this.shared
+
+        // The handle made for a cable has to die with the node at the other end too, and that node
+        // is only known once the cable is complete: the host says so right after, synchronously, in
+        // the same call (see N3DConnectionInstance.connect), and the handle waiting here is the one
+        // of that cable. Should a cable ever stop between the two, the handle left waiting is simply
+        // replaced by the next one, and dies by the other roads.
+        let pending: N3DHandleInstance | null = null
+        const info: Node3DConnectable = {
+            id: Node3DInstance.SELF_PORT,
+            meshes: [box],
+            type: Node3DN3DConnectable.Type,
+            direction: "input",
+            label: this.factory.label,
+            color: Node3DN3DConnectable.Color,
+            connectAsInput: () => pending = new N3DHandleInstance(instance, instance),
+            connectAsOutput() { },
+            disconnectAsInput(handle: N3DHandleInstance) { handle.dispose() },
+            disconnectAsOutput() { },
+        }
+        const completing = this.onConnectionCreated.add(connection => {
+            if(pending === null || connection.inputConnectable?.config !== info) return
+            const receiver = connection.outputConnectable?.instance
+            if(receiver) pending.alsoOwnedBy(receiver)
+            pending = null
+        })
+
+        // Pickable only while a cable of its own type is drawn, which is the only time it is a target
+        // for anything. Not for the other types: the box wraps the node, ports included, and would
+        // catch the cables meant for them. And never for a cable drawn out of this very node: a node
+        // does not hold itself.
+        const unsubscribe = ioEventBus.on('IO_CONNECT', payload => {
+            box.isPickable = payload.pickType === 'down'
+                && payload.connectable.config.type === Node3DN3DConnectable.Type
+                && payload.connectable.instance !== instance
+        })
+
+        // The standard highlight would not show on an invisible mesh, so the box itself is shown
+        // instead, faintly, as the bounding box is when hovered, with the label of the node.
+        const text = new N3DText(`text ${info.id}`, [box], utilityLayer.utilityLayerScene)
+        text.set(info.label)
+        const hovering = new Set<PointerInput>()
+        const hover = new InputMultiHoverBehavior(
+            pointer => {
+                if(!N3DInteractions.connections.isEnabledFor(pointer)) return
+                hovering.add(pointer)
+                if(hovering.size === 1){
+                    box.visibility = Node3DInstance.SELF_PORT_VISIBILITY
+                    text.show()
+                    text.updatePosition()
+                }
+            },
+            pointer => {
+                if(!hovering.delete(pointer)) return
+                if(hovering.size === 0){
+                    box.visibility = 0
+                    text.hide()
+                }
+            },
+            N3DInteractions.connections,
+        )
+        box.addBehavior(hover)
+
+        const connectable = new N3DConnectableInstance(instance, info, highlightLayer, utilityLayer, ioEventBus, true, false)
+        const dispose = connectable.dispose
+        connectable.dispose = () => {
+            dispose()
+            completing.remove()
+            unsubscribe()
+            box.removeBehavior(hover)
+            text.dispose()
+        }
+        this.connectables.set(info.id, connectable)
+    }
+
+    /** The id of the port every node carries on its hitbox. */
+    static readonly SELF_PORT = "node3d_self"
+
+    /** How much of the enclosing box is shown while a cable hovers it. */
+    static readonly SELF_PORT_VISIBILITY = 0.2
 
     //// BOUNDING BOX ////
     private boxes = [] as AbstractMesh[]

@@ -10,6 +10,7 @@ import { InputManager } from "../xr/inputs/InputManager";
 import { ControllerInput } from "../xr/inputs/ControllerInput";
 import { ToolKind } from "../tool/ToolKind";
 import { InstrumentInteractionSystem } from "../instrument/InstrumentInteractionSystem";
+import { Node3DFrame, Node3DHandle } from "./Node3DHandle";
 
 
 
@@ -80,6 +81,36 @@ export interface Node3DContext{
      * Change le nom du Node3D.
      */
     setLabel(label: string): void
+
+    /**
+     * La poignée sur ce Node3D lui-même.
+     * Elle vit aussi longtemps que le Node3D.
+     */
+    readonly self: Node3DHandle
+
+
+
+    //// Les autres Node3D ////
+
+    /**
+     * Crée un Node3D du kind donné dans le monde partagé et le pose sur la frame donnée.
+     * La poignée retournée vit aussi longtemps que ce Node3D et que le Node3D créé.
+     * @param kind Le kind du Node3D, un de ceux de {@link Node3DContext.listKinds}.
+     * @param frame Où poser le Node3D. Ce qui n'est pas donné est laissé au choix de l'hôte.
+     * @returns La poignée sur le Node3D créé, ou null si le kind est inconnu.
+     */
+    createNode3D(kind: string, frame: Partial<Node3DFrame>): Promise<Node3DHandle|null>
+
+    /**
+     * Les kinds de Node3D que l'hôte sait créer. Rien n'est chargé, ce sont des noms.
+     */
+    listKinds(): string[]
+
+    /**
+     * Ce qu'un kind dit de lui-même. Charge la factory de ce kind, et seulement celle-là.
+     * @returns null si le kind est inconnu ou n'a pu être chargé.
+     */
+    describeKind(kind: string): Promise<{label: string, description: string, tags: string[]}|null>
 
 
 

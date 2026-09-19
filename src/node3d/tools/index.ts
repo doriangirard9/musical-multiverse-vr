@@ -5,6 +5,7 @@ export * from "./connectable/MidiN3DConnectable"
 export * from "./connectable/AutomationN3DConnectable"
 export * from "./connectable/SyncN3DConnectable"
 export * from "./connectable/ConnectableUtils"
+export * from "./connectable/Node3DN3DConnectable"
 
 // Utils
 export * from "./utils/MeshUtils"
@@ -12,6 +13,7 @@ export * from "./utils/StateUtils"
 export * from "./utils/InputUtils"
 export * from "./utils/ToolUtils"
 export * from "./utils/NoteUtils"
+export * from "./utils/FrameUtils"
 
 // GUI Components
 export * from "./gui"
