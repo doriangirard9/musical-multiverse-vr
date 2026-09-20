@@ -10,7 +10,7 @@ import { InputManager } from "../xr/inputs/InputManager";
 import { ControllerInput } from "../xr/inputs/ControllerInput";
 import { ToolKind } from "../tool/ToolKind";
 import { InstrumentInteractionSystem } from "../instrument/InstrumentInteractionSystem";
-import { Node3DFrame, Node3DHandle } from "./Node3DHandle";
+import { Node3DFrame, Node3DGroupSnapshot, Node3DHandle } from "./Node3DHandle";
 
 
 
@@ -100,6 +100,32 @@ export interface Node3DContext{
      * @returns La poignée sur le Node3D créé, ou null si le kind est inconnu.
      */
     createNode3D(kind: string, frame: Partial<Node3DFrame>): Promise<Node3DHandle|null>
+
+    /**
+     * Photographie un groupe de Node3D: chacun d'eux, les câbles entre eux, et la place de chacun.
+     * Les câbles qui vont vers un Node3D hors du groupe ne sont pas gardés, ils ne sont pas au
+     * groupe. Les Node3D qui ne sont pas dans le monde partagé sont laissés de côté.
+     * @param handles Les poignées sur les Node3D à photographier.
+     * @param origin Le repère dans lequel les places sont gardées. Le monde si rien n'est donné.
+     *      Donner le sien, c'est garder un groupe qui suivra ensuite la position, l'orientation et
+     *      la taille de ce Node3D.
+     * @returns La photographie, à rendre à {@link Node3DContext.loadNodes}.
+     */
+    saveNodes(handles: Node3DHandle[], origin?: Node3DFrame): Node3DGroupSnapshot
+
+    /**
+     * Remet dans le monde un groupe photographié par {@link Node3DContext.saveNodes}, câbles
+     * compris. Les Node3D créés sont neufs, ils n'ont que les câbles que le groupe portait.
+     * Les poignées retournées vivent aussi longtemps que ce Node3D et que les Node3D créés.
+     * @param snapshot La photographie du groupe.
+     * @param origin Le repère dans lequel les places sont rendues. Le monde si rien n'est donné.
+     *      Ce n'est pas forcément celui de la photographie: un groupe gardé dans le repère d'un
+     *      Node3D et rendu dans celui-ci, déplacé, tourné ou agrandi entre temps, revient déplacé,
+     *      tourné et agrandi d'autant.
+     * @returns Les poignées, dans l'ordre où les Node3D avaient été donnés. Un Node3D qui n'a pu
+     *      être créé manque simplement.
+     */
+    loadNodes(snapshot: Node3DGroupSnapshot, origin?: Node3DFrame): Promise<Node3DHandle[]>
 
     /**
      * Les kinds de Node3D que l'hôte sait créer. Rien n'est chargé, ce sont des noms.

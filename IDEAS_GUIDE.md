@@ -55,7 +55,7 @@ Une instance répond à : *où est-il, dans quel état, à qui appartient-il, qu
 | --- | --- | --- | --- | --- |
 | Tool | `ToolKind` + `Tool` | `ToolKind` (`#KINDS` de `ToolSystem`) | `Tool`, un par main | `ToolSlot` |
 | Node3D | `Node3DFactory` + `Node3D` + `Node3DGUI` | `Node3DFactory`, identifié par un `kind` string (`FACTORY_KINDS`) | `Node3DInstance` (gui + node + ports) | `Node3dManager.addNode3d` |
-| Protocole de connexion | `Node3DConnectable` | protocole : `Node3DConnectable.type` (`"audio"`, `"midi"`, `"automation"`, sync) | un `Node3DConnectable` est un **port** d'une instance ; une `N3DConnectionInstance` est un **lien** entre deux ports | `ConnectionManager.connect` |
+| Protocole de connexion | `Node3DConnectable` | protocole : `Node3DConnectable.type` (`"audio"`, `"midi"`, `"automation"`, sync, `"node3d"`) | un `Node3DConnectable` est un **port** d'une instance ; une `N3DConnectionInstance` est un **lien** entre deux ports | `ConnectionManager.connect` |
 | Instrument behavior | `Behavior` babylon sur `InstrumentInteractionSystem` | classe de `src/instrument/behavior` (`StrikeBehavior`, `HoldBehavior`...) | un behaviour attaché à un mesh d'une instance de Node3D | le Node3D, dans `create` |
 | Node3DParameter | `Node3DParameter` | interface `Node3DParameter` | `N3DParameterInstance`, synchronisé par clé | `context.createParameter` |
 | Effect | `Effect` + factory `(ctx, params)` | id enregistré dans `EffectRegistry` | `Effect` monté par un `EffectSystem` sur un mesh, piloté par un `EffectProfile` | `VisualEffectSystem` |
@@ -68,7 +68,7 @@ La connexion est la seule famille à trois étages, et c'est là que le vocabula
 plus souvent :
 
 - le **protocole** : le `type` string, sa couleur, la forme de l'objet que `connectAsInput`
-  retourne. C'est le type de contenu. Il y en a quatre : audio, midi, automation, sync.
+  retourne. C'est le type de contenu. Il y en a cinq : audio, midi, automation, sync, node3d.
 - le **port** (connectable) : une entrée ou une sortie d'une instance de Node3D, avec son mesh,
   sa direction, son `max_connections`. Il appartient à l'instance de node.
 - le **lien** (connection) : une paire (port de sortie, port d'entrée), synchronisée comme deux
@@ -94,14 +94,64 @@ Ce qu'un Node3D **peut** faire : créer ses ports, paramètres et boutons ; ouvr
 
 Ce qu'un Node3D **ne peut pas** faire aujourd'hui (socles A et B de `IDEAS.md`) :
 
-- voir les autres nodes, leurs positions, leurs connexions, les autres joueurs ;
+- voir les autres nodes, leurs positions, leurs connexions, les autres joueurs, **sauf ceux qui
+  sont cablés sur un de ses ports `node3d`** : ceux-là, il les voit entièrement par leur
+  `Node3DHandle` (voir 2.1.2 et 2.4). C'est la porte de sortie du socle A : une idée « le node
+  voit ses voisins » qui accepte de dire « ses voisins sont ceux qu'on lui a branchés » ne dépend
+  plus de A du tout ;
 - être l'autorité d'une simulation : sa logique tourne sur chaque client, seul l'état par clés
   est partagé. Une simulation non déterministe (fluide, pendule, aléa) diverge d'un client à
   l'autre sans règle d'autorité.
 
 Un type de Node3D est une `Node3DFactory` : `label`, `description`, `tags` (singulier,
 minuscules, anglais, `_`), `createGUI`, `create`. Les tags standards sont documentés dans
-`Node3D.d.ts` ; un node porte tous ceux qui s'appliquent.
+`Node3D.d.ts` ; un node porte tous ceux qui s'appliquent. Les tags disent aussi ce que le node est
+pour le joueur, et cinq rôles reviennent assez souvent pour mériter chacun sa règle propre.
+
+#### 2.1.1 Node3D instrument (`instrument`, `live_instrument`, `controller`)
+
+Un module qu'on joue à la main plutôt qu'on ne règle. `HyperKeyboardN3D` en est le patron : une
+grille de meshes, chacun portant un behaviour d'instrument (2.3), et des sorties midi ou
+automation. Ce qui le définit n'est pas de faire du son (un instrument peut n'émettre que du
+midi vers un autre node) mais que **le geste est l'entrée** : la matière, la surface, la
+disposition des touches sont la vraie interface, pas un paramètre.
+
+Trois règles qui lui sont propres. Sa disposition est un choix de jeu à part entière : un clavier
+en cube à trois axes n'est pas un clavier en ligne, et l'idée doit dire ce que l'axe supplémentaire
+porte (octave, timbre, voix). Il reçoit une **force** et une **vélocité**, jamais un type d'outil
+(2.3), donc la même surface se joue au doigt, à la baguette ou au rayon sans un cas de plus. Et ce
+qu'il produit sort par un port, ce qui le rend branchable : un instrument qui fabrique lui-même son
+son au lieu de le sortir en midi se coupe de tout le reste du graphe.
+
+#### 2.1.2 Node3D de gestion (`holder`)
+
+Un module dont la matière première est **d'autres modules**. Il porte un ou plusieurs ports du
+protocole `node3d` (2.4) ; on lui câble des nodes, et il reçoit sur chacun un `Node3DHandle` :
+position, taille, paramètres, ports, câbles, clonage, suppression. `PlaqueN3D` (une planche qui
+emmène ce qu'on pose dessus) et `RandomizerN3D` (un bouton qui retire les câbles entre les nodes
+gérés et les redistribue au hasard) sont les deux exemples.
+
+C'est la seule famille de node qui agit sur le graphe, donc la seule où R7 (réversibilité) mord
+vraiment. Ses règles : ce qui n'est pas câblé n'est **pas** touché, ce qui permet de secouer un
+patch de l'intérieur sans le débrancher du reste ; les câbles `node3d` eux-mêmes sont de la
+structure, pas du signal, et un gestionnaire ne les défait ni ne les redistribue, sinon il se
+détruit lui-même ; l'action se fait **sur un pair seulement**, celui qui a pressé le bouton, et
+c'est l'état ordinaire des nodes touchés qui la propage, jamais le gestionnaire (sinon chaque pair
+tire son propre hasard). Un même node câblé deux fois donne deux poignées : c'est l'`id` réseau
+qui dit qu'il n'y en a qu'un. Et la poignée meurt avec le câble, avec le node tenu ou avec le
+gestionnaire, indifféremment : `detach` est appelé une fois, quelle que soit la cause, rien ne se
+compte à la main.
+
+Une idée de gestionnaire se formule presque toujours pareil : *quelle opération sur un ensemble de
+modules vaut la peine d'être un objet qu'on tient*. Ranger, cloner en grille, figer, échanger deux
+modules, enregistrer un état et le rappeler, contraindre les paramètres les uns aux autres.
+
+#### 2.1.3 Les trois autres rôles
+
+Générateur (`generator`, produit sans entrée), effet (`effect`, transforme entre une entrée et une
+sortie), consommateur (`consumer`, sortie audio, visualiseur, enregistreur). Ils n'ont pas de règle
+propre au-delà de celles du Node3D ; ils comptent surtout parce que `VisualEffectSystem` choisit le
+profil visuel d'un node d'après ce rôle déduit du graphe (2.6).
 
 ### 2.2 Tool
 
@@ -118,8 +168,15 @@ Un tool demande explicitement les interactions ordinaires du monde qu'il veut, u
 Un tool agit sur le graphe **par les managers publics** (`ConnectionManager.connect`,
 `Node3dManager`, `VisualTube` d'aperçu), jamais par un accès direct aux internes d'une instance.
 
-Deux groupes de types : les outils d'application (tag `tool` : pointeur, paramètre, crayon) et les
-outils d'instrument (baguettes, arche, fléau, épée...) qui portent des `Interactor`.
+Trois groupes de types. Les **outils d'application** (tag `tool` : pointeur, paramètre, crayon)
+manipulent le graphe et l'interface. Les **outils d'instrument** (baguettes, archet, fléau,
+épée...) portent un `Interactor` et ne servent qu'à jouer la matière (2.3). Les **outils de
+geste** (`MagicTool`, crâne, blob) lisent un mouvement entier de la main et en tirent un acte :
+ils n'ont pas de pointeur ordinaire mais une analyse à eux, et tombent tous sous R5.
+
+L'outil est le point d'entrée le moins cher du projet : une seule instance par main, rien de
+synchronisé, rien à déclarer aux autres joueurs, et l'accès aux managers publics. Une idée qui
+tient dans un outil comme dans un node s'écrit comme un outil (R3).
 
 ### 2.3 Instrument, et instrument interaction
 
@@ -152,6 +209,14 @@ c'est l'instrument qui décide quoi en faire.
 | midi | `"midi"` | un `WamNode` (événements WAM) | `subscribe/unsubscribe` sur les changements de `WamNode` |
 | automation | `"automation"` | des valeurs de paramètre (`AutomationParameterInfo`) | l'info du paramètre cible |
 | sync | sync | un `Container` de timing (start, duration) qui cascade | `{input, output}` |
+| node3d | `"node3d"` | un `Node3DHandle` sur le node à l'autre bout | la poignée elle-même, livrée à `attach` |
+
+Le protocole `node3d` est à part, et c'est la seule exception à « le lien ne transporte pas du
+contenu » : il ne transporte pas de signal du tout, il livre **une prise sur un module**. Le côté
+entrée est fourni par l'hôte sur tout node, donc un node qui veut en tenir d'autres n'écrit que le
+côté sortie (`Node3DN3DConnectable.Output`). Un câble `node3d` est de la **structure** : il ne
+passe pas dans les mêmes idées que les quatre autres, il ne se mixe pas, il ne s'opère pas, et un
+gestionnaire (2.1.2) l'ignore quand il retouche le graphe.
 
 Un lien se fait en deux appels : `input.connectAsInput()` retourne un objet, passé à
 `output.connectAsOutput(obj)`. La déconnexion suit l'ordre inverse. **Le lien n'a pas de
@@ -193,6 +258,62 @@ Un menu est une liste de choix ouverts pour une main (`context.openMenu`). Un mu
 n'est qu'un Node3D tagué `generator` (produit du son ou du midi sans entrée) ; il n'a pas
 d'interface à part.
 
+
+### 2.8 Tableau des types de contenu d'idée
+
+Les huit familles disent ce que l'hôte sait accueillir. Ce tableau-ci dit ce qu'on **écrit**
+concrètement quand on a une idée : c'est la liste dans laquelle une idée doit se ranger, et
+l'entrée de `/idea-generation` pour ce projet. Chaque ligne est un type de contenu ; les colonnes
+sont ce qu'il faut savoir avant d'écrire l'idée.
+
+| type de contenu | exemple existant | ce que le joueur y fait | état | ce qu'il voit | coût |
+| --- | --- | --- | --- | --- | --- |
+| **Node3D instrument** (2.1.1) | `HyperKeyboardN3D`, `DrumPlateKitN3D`, maracas | frappe, tient, frotte, pince une matière ; la disposition est l'interface | synchro par clés ; le jeu lui-même est local et immédiat | lui-même, la force et la vélocité reçues | moyen (GUI + behaviours + sortie) |
+| **Node3D générateur** | `OscillatorN3D`, `SequencerN3D`, `NoteBoxN3D` | règle, programme, déclenche ; produit sans entrée | synchro par clés (le motif, le tempo) | lui-même | moyen |
+| **Node3D effet** | WAM 3D, filtres | insère entre deux modules, règle | synchro par clés | lui-même | faible si WAM, moyen sinon |
+| **Node3D sortie / visualiseur** | `AudioOutputN3D`, `visualizer/` | écoute, regarde, place dans l'espace | souvent rien | lui-même, son signal audio | faible |
+| **Node3D de gestion** (2.1.2) | `PlaqueN3D`, `RandomizerN3D` | câble des modules dessus, puis agit sur tout le paquet d'un geste | synchro par clés ; ce qu'il change est l'état des nodes tenus, poussé depuis un seul pair | **les nodes qu'on lui a câblés**, entièrement (frame, paramètres, ports, câbles, clone, delete) | moyen, mais R7 obligatoire |
+| **Protocole de connexion** | audio, midi, automation, sync, node3d | branche un type de câble qui n'existait pas | le lien (deux ids de node, deux ids de port) | rien des deux bouts, sauf ce que l'objet de connexion porte | élevé : touche tous les nodes du protocole |
+| **Port sur un node** | une sortie midi de plus | vise, branche, débranche | appartient à l'instance | rien des autres ports | très faible |
+| **Tool d'application** | pointeur, paramètre, crayon | manipule le graphe, l'interface, l'espace | **aucun**, local à une main | ce que son pointeur touche, plus les managers publics | faible |
+| **Tool d'instrument** | baguette, archet, fléau | joue la matière par un `Interactor` | aucun | ce que son interactor vise et touche | faible |
+| **Tool de geste** | `MagicTool`, blob, crâne | dessine ou bouge, et l'analyse du mouvement décide | aucun | son propre tracé | moyen, plus un banc (R5) |
+| **Instrument behavior** | `Strike`, `Pluck`, `Rub`, `Hold` | une nouvelle manière de jouer une surface | aucun | l'interactor qui le touche, jamais l'outil | faible |
+| **Node3DParameter / Button** | slider, `BooleanN3DParameter` | règle (synchro) ou déclenche (local) | paramètre synchro, bouton local | rien | très faible |
+| **Effect visuel** | `EffectRegistry` | ne fait rien, regarde | aucun, jamais synchro | l'`AudioSignal` du mesh, dans `[0,1]` | très faible |
+| **Menu** | `BlocksMenu` | choisit | aucun | ce qu'on lui donne | très faible |
+
+Lecture de la colonne **coût** : elle dit dans quel ordre attaquer (section 7, point 4), pas si
+l'idée est bonne. La colonne **ce qu'il voit** est la réponse à R3, déjà écrite ; la colonne
+**état** est la réponse à R2.
+
+### 2.9 Amorces par type, pour la génération d'idées
+
+Ce tableau est fait pour l'étape 1 de `/idea-generation` : les **mots à injecter** vont dans les
+termes « liés au sujet » de `words.json`, et la **question génératrice** est la forme que doit
+prendre l'idée une fois la combinaison trouvée. Le vocabulaire aléatoire, lui, reste étranger au
+projet : ne pas le remplir avec cette colonne.
+
+| type de contenu | verbes amorces | mots à injecter | question génératrice | piège propre |
+| --- | --- | --- | --- | --- |
+| Node3D instrument | frapper, pincer, frotter, souffler, tenir, glisser, empiler | touche, grille, corde, peau, anche, axe, octave, timbre, vélocité, résonance | quelle matière, et que dit chacun des trois axes ? | fabriquer son son au lieu de le sortir par un port |
+| Node3D générateur | répéter, dériver, semer, compter, attendre | motif, graine, mesure, tempo, pas, boucle, hasard | qu'est-ce qui se programme à la main, qu'est-ce qui se tire ? | un aléa non semé casse la synchro (socle B) |
+| Node3D effet | filtrer, retarder, plier, saturer, mélanger | gain, délai, spectre, seuil, enveloppe | pourquoi le poser dans l'espace plutôt que le régler dans un menu ? | mettre la logique dans le câble (socle C) |
+| Node3D sortie | écouter, montrer, enregistrer, mesurer | haut-parleur, salle, distance, trace, niveau | que voit-on du son qu'on n'entendait pas ? | faire passer du PCM par l'état (socle D) |
+| Node3D de gestion | ranger, figer, cloner, échanger, mémoriser, secouer | plaque, poignée, paquet, grille, verrou, rappel, ordre | quelle opération sur un ensemble de modules mérite d'être un objet qu'on tient ? | toucher ce qui n'est pas câblé, ou tirer le hasard sur chaque pair |
+| Protocole de connexion | transporter, convertir, accorder | couleur, tension, distance, lumière, horloge | ce contenu tient-il dans un nombre ? alors c'est de l'automation avec une unité (socle E) | inventer un protocole pour ce qu'un scalaire porterait |
+| Port sur un node | ouvrir, exposer, doubler | entrée, sortie, direction, limite | quel node gagne à exposer ce qu'il gardait pour lui ? | un port ne connaît pas les autres ports |
+| Tool d'application | viser, saisir, couper, coller, étirer, trier | rayon, pince, loupe, aimant, règle, gomme | quelle manipulation du graphe est aujourd'hui pénible à deux mains ? | toucher les internes au lieu des managers |
+| Tool d'instrument | frapper, gratter, caresser, lancer | baguette, archet, maillet, gant, souffle | quel geste physique manque pour jouer ce qui existe déjà ? | une condition « seulement avec cet outil » écrite dans l'instrument |
+| Tool de geste | dessiner, répéter, tracer, effacer | spirale, boucle, symétrie, échelle, période | que peut-on lire d'un mouvement entier qu'un clic ne dit pas ? | une distance en mètres (R5) |
+| Instrument behavior | maintenir, relâcher, glisser, gratter | contact, force, durée, surface, arête | quelle manière de toucher une surface n'a pas encore de nom ? | modifier le système au lieu d'ajouter un behaviour |
+| Paramètre / bouton | régler, basculer, déclencher | plage, pas, exposant, unité | synchronisé ou instantané ? l'un des deux, jamais les deux | un toggle partagé est un paramètre, pas un bouton |
+| Effect visuel | pulser, gonfler, teinter, trembler | grave, aigu, attaque, flux, halo | que rend visible l'audio qu'on ne voit pas ? | décider quelque chose depuis un effet |
+| Menu | choisir, nommer, classer | liste, catégorie, tag, aperçu | quel choix est aujourd'hui caché ? | une option de plus sans décision de jeu (R6) |
+
+Une idée sortie de `/idea-generation` n'est pas finie tant qu'elle n'a pas **une ligne de ces
+tableaux** comme réponse à R1, puis un passage par R2 à R7.
+
 ---
 
 ## 3. Règles de conception d'une idée
@@ -202,9 +323,9 @@ répond pas n'est pas prête ; une idée qui y répond mal est à reformuler ou 
 
 ### R1. Nommer la famille, le type et le niveau
 
-Dire d'abord : *c'est un nouveau type de X*, ou *c'est un comportement de l'instance de X*,
+Dire d'abord quelle ligne du tableau 2.8 l'idée occupe, puis : *c'est un nouveau type de X*, ou *c'est un comportement de l'instance de X*,
 ou *c'est une capacité de l'hôte que X n'a pas*. Une idée qui demande une famille nouvelle le dit comme un socle. Un titre d'idée porte la famille en préfixe
-quand ce n'est pas évident (« Tool Loupe », « Node3D Paroi », « Effect Battement »,
+quand ce n'est pas évident (« Tool Loupe », « Node3D Paroi », « Effect Battement », « Holder Établi »,
 « Behavior Farouche »).
 
 ### R2. Dire ce qui est état, et qui l'a
@@ -220,7 +341,10 @@ Un Node3D ne voit que lui-même et le joueur. Un tool voit ce que son pointeur t
 managers publics. Une idée « par proximité », « par voisinage », « selon la salle » dépend du
 socle A si elle est portée par un node, et n'en dépend pas si elle est portée par un tool
 (c'est la main qui calcule). Préférer le tool quand les deux sont possibles : c'est ce qui a
-sauvé l'aimant (1.1).
+sauvé l'aimant (1.1). Troisième voie, souvent la meilleure pour un node : **faire câbler**. Un
+port `node3d` livre une poignée complète sur chaque module branché (2.1.2), sans socle A, au prix
+d'un geste explicite du joueur. Le voisinage devient un choix au lieu d'une distance, ce qui est
+presque toujours une meilleure décision de jeu (R6).
 
 ### R4. Passer par le lien existant
 

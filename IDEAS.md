@@ -1038,6 +1038,79 @@ port.
 
 ---
 
+## 10. Tenir un paquet de modules
+
+Un gestionnaire (`holder`, 2.1.2 du guide) est un module dont la matière première est d'autres
+modules : on lui câble des nodes sur son port `node3d`, et il reçoit sur chacun une poignée
+complète, position, échelle, paramètres, ports, câbles, clone, suppression. `PlaqueN3D` et
+`RandomizerN3D` ouvrent la voie ; ce thème la continue. La question est toujours la même : quelle
+opération sur un ensemble de modules mérite d'être un objet qu'on tient. Trois règles tiennent
+tout le thème : ce qui n'est pas câblé n'est pas touché, les câbles `node3d` sont de la structure
+et aucun gestionnaire ne les défait, et l'action part du seul pair qui l'a déclenchée, l'état
+ordinaire des nodes touchés faisant le reste. Décidé : la poignée est l'API que « un node qui en
+crée ou en bouge un autre » disait manquante, au prix d'un câble explicite, et c'est ce prix qui
+rend l'idée acceptable.
+
+### 10.1 Node3D Coffre
+Quatre cases de mémoire, un bouton par case, et un paramètre de fondu qui traverse en continu
+d'une case à l'autre. Garder écrit la place et toutes les valeurs de paramètres des nodes câblés ;
+le fondu les réapplique en valeur normalisée, donc un patch entier se déforme d'un seul geste
+entre deux configurations trouvées à la main. On compose par transitions au lieu de régler module
+par module. Le rappel réserve une case au « juste avant », sans quoi personne n'ose rappeler (R7).
+
+### 10.2 Node3D Attelage
+On choisit un paramètre sur chacun de deux nodes câblés et la relation qui les lie : égal,
+inverse, proportionnel, décalé. Tout passe en valeur normalisée, donc un délai s'attelle à une
+fréquence et une taille à un gain, sans câble d'automation ni convertisseur. La décision est de
+dire quel couple de réglages devient un seul geste. Réversible sans rien écrire : débrancher le
+câble de gestion rompt l'attelage et laisse les deux valeurs où elles sont.
+
+### 10.3 Node3D Guirlande
+Un bouton câble en série tous les nodes qu'on lui a donnés, sortie vers entrée, dans l'ordre où on
+les lui a câblés, et un interrupteur ferme la chaîne en boucle. L'ordre de câblage au gestionnaire
+devient l'ordre du signal, ce qui fait du branchement un rangement plutôt qu'une visée. Décidé :
+il retient les câbles qu'il a posés et ne retire jamais que ceux-là, un câble fait à la main entre
+deux nodes gérés lui reste étranger.
+
+### 10.4 Node3D Échangeur
+Deux ports de gestion et un bouton : les deux nodes échangent leur place et leurs câbles, chacun
+se reposant sur le port de même type en face de lui. Essayer un module à la place d'un autre cesse
+d'être une reprise de tout le patch pour devenir une pression. Rappuyer rend l'état d'avant, et ce
+qui n'a pas de port correspondant en face n'est pas déplacé mais signalé.
+
+### 10.5 Node3D Pince
+Le node qu'on lui câble est court-circuité : ce qui entrait chez lui va directement à ce que ses
+sorties alimentaient, et il reste en place, débranché, ses réglages intacts. Retirer une pièce de
+la chaîne sans perdre ni sa position ni ce qu'on avait trouvé dessus, et l'y remettre aussitôt.
+La moins chère du thème, et celle qui manque le plus en jeu.
+
+### 10.6 Node3D Budget
+La somme des valeurs normalisées d'un même paramètre sur les nodes câblés reste constante : monter
+l'un descend les autres, à proportion. La décision passe de « combien je mets » à « au profit de
+qui », ce qu'aucun réglage ne demande aujourd'hui. C'est le seul gestionnaire du thème qui pose une
+contrainte au lieu d'une commodité, et un mixage s'y fait sans table de mixage.
+
+### 10.7 Node3D Balancier
+Un curseur visible passe d'un node géré au suivant au rythme d'un port sync, et pousse à chaque
+passage un paramètre du node visité avant de le relâcher. L'ordre de câblage devient une partition
+dont les pas sont des modules réels et non des cases : déplacer un module dans la séquence, c'est
+le rebrancher. Le port sync porte le temps, donc les pairs voient le même curseur sans autorité à
+inventer.
+
+### 10.8 Node3D Essaim
+Un node câblé est la reine ; un paramètre donne le nombre, et le gestionnaire maintient autant de
+clones autour d'elle, un second paramètre dispersant leurs réglages autour des siens. Régler la
+reine règle le chœur, et la dispersion fait la différence entre un unisson et une nappe. Baisser
+le nombre ne supprime que les clones qu'il a faits, jamais la reine ni ce qu'on a posé à côté.
+
+### 10.9 Node3D Presse
+Un seul paramètre de serrage rapproche les nodes gérés de leur barycentre et réduit leur échelle
+d'autant, l'écartement se lisant sur l'encombrement réel de chacun et non sur une distance fixée.
+Un patch entier devient une maquette qu'on emporte à une main, puis se rouvre à l'identique. Rien
+à défaire : le retour est le même paramètre dans l'autre sens.
+
+---
+
 ## Ordre d'attaque suggéré
 
 1. **Les socles**, dans cet ordre : E (unité, receveur exposé, hook de lecture), F (base
@@ -1129,8 +1202,10 @@ en unité que E couvre déjà. Sans décision de jeu, ce n'est pas une idée (R6
 maximale, poise qui résiste au secouage. Le lien porte un scalaire fixé par son protocole (C) et
 rien d'autre ; tout le reste est un module posé entre deux ports (R4).
 
-**Un node qui en crée ou en bouge un autre.** Ruche qui essaime, germination, piston. Aucune API
-pour ça, et la spore (9.5) fait déjà le pari de la contagion par le graphe.
+**Un node qui en crée ou en bouge un autre, sans qu'on le lui ait demandé.** Ruche qui essaime,
+germination, piston. La poignée d'un port `node3d` fait exactement ça depuis les gestionnaires
+(thème 10), mais au prix d'un câble posé à la main : ce qui reste refusé est le node qui agit sur
+ce qu'on ne lui a pas donné. La spore (9.5) fait le même pari par le graphe.
 
 **Une simulation non déterministe sans autorité.** Cirque de puces, ruche d'aléa autour de chaque
 note, graine qui pousse, toboggan à bille, balle de note, pluie qui joue les instruments. Soit le

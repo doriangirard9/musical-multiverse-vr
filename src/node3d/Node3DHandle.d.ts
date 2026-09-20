@@ -110,6 +110,18 @@ export interface Node3DHandleConnection{
 
 
 /**
+ * De quoi refaire un groupe de Node3D à l'identique: chacun avec son kind, son état et ses
+ * paramètres, et les câbles qui les relient entre eux.
+ *
+ * C'est une photographie, elle ne suit plus les Node3D une fois prise, et elle est faite de
+ * données simples, donc elle se range dans l'état d'un Node3D. Ce qu'il y a dedans appartient à
+ * l'hôte: on ne le lit pas, on le rend tel quel à {@link Node3DContext.loadNodes}.
+ */
+export type Node3DGroupSnapshot = Record<string, any>
+
+
+
+/**
  * Une poignée sur un Node3D, le sien ou un autre.
  * Elle permet de lire et changer ses paramètres, sa position, ses connexions, et de le cloner ou
  * le supprimer.

@@ -48,6 +48,7 @@ import { SERVER_NAME } from "../../options.ts";
 import { Sequencer12N3DFactory, Sequencer16N3DFactory } from "../../node3d/subs/SequencerN3D.ts";
 import { PlaqueN3DFactory } from "../../node3d/subs/PlaqueN3D.ts";
 import { RandomizerN3DFactory } from "../../node3d/subs/RandomizerN3D.ts";
+import { ChestN3DFactory } from "../../node3d/subs/chest/ChestN3D.ts";
 
 export type Node3DConfig = { name: string, wam3d: WAMGuiInitCode }
 
@@ -77,7 +78,7 @@ export class Node3DBuilder {
     FACTORY_KINDS = [
         "audiooutput", "oscillator", "maracas", "handmaracas", "livepiano", "notesbox", "pianoroll", "drumkit", "wamsampler", "drumsampler", "pro54michel", "butterchurn", "screen", "box_screen", "sphere_screen", "cylinder_screen", "isf_shader", "spectrum_bars", "oscilloscope", "spectogram", "livegain",
         "hyperkeyboard", "drumplatekit", "automation_controller", "the_cube", "harp", "large_harp", "voice", "gaze", "sequencer12", "sequencer16", "audio_plaque", "superformula", "superformula3d", "fluid_field", "rain_plinko", "ai_composer", "ai_composer_improv", "ai_composer_drums", "ai_composer_basic", "ai_composer_vae",
-        "plaque", "randomizer",
+        "plaque", "randomizer", "chest",
         ...Object.keys(examples).map(k => `wam3d-${k}`),
         ...SERVER_KINDS.map(k => `server-${k}`),
     ]
@@ -177,6 +178,7 @@ export class Node3DBuilder {
         if (kind == "particle") return ParticleEmitterN3DFactory
         if (kind == "plaque") return PlaqueN3DFactory
         if (kind == "randomizer") return RandomizerN3DFactory
+        if (kind == "chest") return ChestN3DFactory
 
         // Debug
         if (kind == "sync_debug") return SyncDebugN3DFactory

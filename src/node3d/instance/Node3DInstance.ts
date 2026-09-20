@@ -5,6 +5,7 @@ import {
     MeshBuilder,
     Vector3,
     Quaternion, Color3,
+    Matrix,
     Vector2,
     Observer,
     Observable,
@@ -19,11 +20,13 @@ import { IOEventBus } from "../../eventBus/IOEventBus";
 import { XRManager } from "../../xr/XRManager";
 import { SyncManager } from "../../network/sync/SyncManager";
 import { Node3dManager } from "../../app/node3d/Node3dManager.ts";
+import { Serialization } from "../../app/node3d/Serialization.ts";
+import { Node3DGraphDescription } from "../../network/Node3DNetwork.ts";
 import { Doc } from "yjs";
 import { Synchronized } from "../../network/sync/Synchronized";
 import { N3DHighlighter } from "./utils/N3DHighlighter";
 import { N3DShared } from "./N3DShared";
-import { AutomationN3DConnectable } from "../tools";
+import { AutomationN3DConnectable, FrameUtils } from "../tools";
 import { SceneManager } from "../../app/SceneManager.ts";
 import { InputManager } from "../../xr/inputs/InputManager.ts";
 import { ToolSystem } from "../../app/tool/ToolSystem.ts";
@@ -38,10 +41,15 @@ import { N3DButtonInstance } from "./N3DButtonInstance.ts";
 import { AudioWorldSystem } from "../../app/node3d/AudioDestinationSystem.ts";
 import { PointerInput } from "../../xr/inputs/PointerInput.ts";
 import { N3DHandleInstance } from "./N3DHandleInstance.ts";
+import { Node3DFrame } from "../Node3DHandle.ts";
 import { Node3DN3DConnectable } from "../tools/connectable/Node3DN3DConnectable.ts";
 import { InputMultiHoverBehavior } from "../../xr/inputs/tools/InputMultiHoverBehavior.ts";
 import { N3DInteractions } from "./N3DInteractions.ts";
 import { N3DText } from "./utils/N3DText.ts";
+
+
+/** The frame a group of nodes is saved in and loaded in when no other one is given. */
+const WORLD_ORIGIN: Node3DFrame = {position: Vector3.Zero(), rotation: Quaternion.Identity(), scale: 1}
 
 
 export class Node3DInstance implements Synchronized {
@@ -253,6 +261,48 @@ export class Node3DInstance implements Synchronized {
                     const handle = new N3DHandleInstance(created, instance)
                     handle.setFrame(frame)
                     return handle
+                },
+                saveNodes(handles, origin) {
+                    const alive = handles.filter(handle => handle instanceof N3DHandleInstance && handle.isAlive) as N3DHandleInstance[]
+
+                    // Only what was given: a cable towards a node left outside is not the group's.
+                    // The saved nodes come out in the order they were given, which is the order
+                    // the places are written in and read back in.
+                    const graph = Serialization.getInstance().save(alive.map(handle => handle.target), false)
+                    const root = origin ?? WORLD_ORIGIN
+                    const places = alive.map(handle => [...FrameUtils.relative(handle.getFrame(), root).asArray()])
+
+                    // Copied out of the shared document, so what is put away stops following what
+                    // it was taken from.
+                    return JSON.parse(JSON.stringify({graph, places}))
+                },
+                async loadNodes(snapshot, origin) {
+                    const {graph, places} = snapshot as {graph: Node3DGraphDescription, places: number[][]}
+                    const root = origin ?? WORLD_ORIGIN
+                    const frames = places.map(place => FrameUtils.absolute(Matrix.FromArray(place), root))
+
+                    const placed: Node3DGraphDescription = {
+                        nodes: graph.nodes.map((node, index) => ({
+                            ...node,
+                            position: frames[index].position.asArray(),
+                            rotation: frames[index].rotation.asArray(),
+                        })),
+                        connections: graph.connections,
+                    }
+                    const created = await Serialization.getInstance().load(placed)
+
+                    // A node the host could not create is simply missing from what comes back, and
+                    // then nothing says any more which place was meant for which node: the frames
+                    // are only laid on a group that came back whole.
+                    const aligned = created.length === placed.nodes.length
+                    return created.map((node, index) => {
+                        const handle = new N3DHandleInstance(node, instance)
+
+                        // Laid again, and after the load: the state of a node carries the place it
+                        // held when it was photographed, and that is written last.
+                        if(aligned) handle.setFrame(frames[index])
+                        return handle
+                    })
                 },
                 listKinds() {
                     return [...Node3dManager.getInstance().builder.FACTORY_KINDS]
