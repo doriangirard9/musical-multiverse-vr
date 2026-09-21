@@ -12,29 +12,16 @@ import { N3DConnectionInstance } from "../../../node3d/instance/N3DConnectionIns
 import { frameOf } from "../common/CarriedBlock"
 import THUMBNAIL_URL from "./thumbnail.png?url"
 
-/**
- * How far the hand must travel to tear one more module off, in multiples of the size of that module.
- *
- * Nothing here is in meters: the same gesture peels the same patch whether it was built to be held
- * in the hand or to be walked into.
- */
+/** How far the hand must travel to tear one more module off, in multiples of the size of that module. */
 const PEEL_FACTOR = 0.55
 
 /**
  * How near the hand must come back for the last module torn off to stick again, in multiples of its
- * size.
- *
- * Strictly under {@link PEEL_FACTOR}: the gap between the two is what keeps a hand held still at the
- * edge of a bond from tearing and sticking the same module many times a second.
+ * size. Under {@link PEEL_FACTOR}, so a hand held still at a bond does not tear and stick over and over.
  */
 const MERGE_FACTOR = 0.3
 
-/**
- * How many modules one gesture may peel.
- *
- * A patch wired end to end is one single sheet, and a hand that peels everything peels nothing in
- * particular. The front stops here, and what is left is always the far end of the sheet.
- */
+/** How many modules one gesture may peel, a patch wired end to end being one single sheet. */
 const MAX_PEELED = 32
 
 /** The delay between two sweeps, in milliseconds. */
@@ -119,36 +106,19 @@ type Wire = {
  * The hand that peels a patch off itself, the way a sticker is lifted from its backing.
  *
  * @remarks
- * A module is taken exactly as the plain hand takes it, and the world itself carries it. What this
- * hand adds is what stays behind: past a first pull, a copy of the module is left stuck where it
- * stood, with the same parameters and the same cables, so the one in the hand reads as the one that
- * came off. Pull further and the neighbour comes off in turn, then its neighbour, each leaving its
- * own copy, the front running along the cables and never across open space.
+ * Pulling a module away leaves a copy of it standing where it was, and pulling further takes its
+ * neighbours along one cable at a time, each leaving its own copy. Coming back sticks the last one
+ * peeled again, so how far the hand pulls is how much of the patch is copied, and the gesture can
+ * be stopped or undone anywhere along the way.
  *
- * Each bond further from the hand holds harder: a module one cable out needs half the travel of one
- * two cables out. So how far the hand pulls says how much of the patch comes off, and the gesture
- * can be stopped anywhere along the way.
- *
- * It undoes itself. Come back and the last module peeled sticks again, exactly onto its copy, which
- * is taken out of the world as if it had never been made. Sticking back needs a closer return than
- * peeling needed a pull, so a hand held still at the edge of a bond does not flicker.
- *
- * The shape of what comes off is read once, at the take, while the patch is still whole: a module
- * that peels late snaps straight to the place it held in the original, never to where it happens to
- * stand at that moment. That is what makes the copy come off with the shape of the thing copied
- * rather than stretched out along the gesture.
- *
- * Letting go keeps whatever has come off, so stopping early simply copies less. A pull let go before
- * anything came off keeps nothing instead: the module goes back where it was taken from, since this
- * hand is for copying a patch and not for dragging one out of shape.
+ * It is how a piece of a patch is lifted out of it, its shape and its wiring included, without
+ * being built a second time.
  */
 export class BlobTool implements Tool {
 
     constructor(context: ToolContext){
         this.#context = context
 
-        // The hitboxes, so a module can be taken and the world carries it, and nothing else: the
-        // connections stay closed, so no cable is dragged out of a port by this hand.
         context.interactions.pointer.enable()
         context.interactions.hitboxes.enable()
 
@@ -159,9 +129,6 @@ export class BlobTool implements Tool {
         const shell = BlobTool.#createShell(context)
         mark.setEnabled(false)
 
-        // The hold is not guessed from the trigger: the world says what it hands over, so a module
-        // taken with two hands, or let go because the hand lost the right to hold it, is followed
-        // just the same.
         const nodes = Node3dManager.getInstance()
         const taking = nodes.onNodeGrabbed.add(({node, pointers}) => {
             if(pointers.includes(context.controller.pointer)) this.#take(node)
@@ -261,12 +228,7 @@ export class BlobTool implements Tool {
 
     /**
      * Take the module the world has just handed over, and photograph the patch it belongs to.
-     *
-     * @remarks
-     * The whole photograph is taken here, while the patch is still whole: the place each module
-     * holds, and every cable between them. Everything the gesture does afterwards is read off this
-     * photograph and never off the world, which is by then busy changing under the cables being
-     * drawn.
+     * The gesture is played out against that photograph, so it copies the patch as it was taken.
      */
     #take(node: Node3DInstance): void {
         if(node.isLocked) return
@@ -277,19 +239,11 @@ export class BlobTool implements Tool {
     }
 
     /**
-     * Let go of everything.
-     *
-     * @remarks
-     * What came off stays off, where it stands and wired as it is wired: a gesture that tore
-     * something is never undone at its end. The followers are given back exactly the freedom they
-     * had.
-     *
-     * A pull that tore nothing is another matter: no copy was left behind, so letting go there would
-     * simply have dragged a module out of the patch, which is not what this hand is for. It is put
-     * back exactly where it was taken from, and the world is left as it was found.
+     * Let go of everything: what came off stays off, wired as it is wired.
+     * A pull that tore nothing puts its module back where it was taken from, this hand being for
+     * copying a patch and not for dragging one out of shape.
      */
     #release(): void {
-        // Before the pieces go, since this is read off the photograph.
         const held = this.#held
         const first = this.#pieces[0]
         if(held !== null && this.#peeled === 0 && first !== undefined
@@ -313,25 +267,21 @@ export class BlobTool implements Tool {
         this.#dressBlob(0)
     }
 
+    /** Run the front along the patch, as far as the hand has drawn it. */
     #tick(): void {
         const held = this.#held
         if(held === null) return
 
-        // A module taken out of the world while it was carried is no longer carried.
         if(NetworkManager.getInstance().node3d.nodes.getId(held) === undefined) return this.#release()
 
         const now = performance.now()
         if(now - this.#lastTick < TICK_INTERVAL) return
         this.#lastTick = now
 
-        // How far the hand has drawn the sheet away from where it lay. One single number drives the
-        // whole front, so what the hand feels and what the patch does cannot drift apart.
         const travel = Vector3.Distance(this.#start, held.boundingBoxMesh.absolutePosition)
 
         this.#carry()
 
-        // At most one module changes state per sweep, so the front is seen running along the patch
-        // rather than jumping through it.
         if(!this.#pending){
             const next = this.#pieces[this.#peeled]
             const last = this.#peeled > 0 ? this.#pieces[this.#peeled - 1] : undefined
@@ -349,12 +299,7 @@ export class BlobTool implements Tool {
 
     /**
      * Tear the next module off the sheet, leaving a copy of it stuck where it stood.
-     *
-     * @remarks
-     * Building the copy is not instant, so the gesture may have ended, or the front moved, by the
-     * time it stands: a copy that arrives too late is taken straight back out of the world, and the
-     * front is left where it now is. A module whose copy could not be built at all stops the front
-     * for the rest of the gesture rather than being tried again every sweep.
+     * A module that cannot be copied stops the front there for the rest of the gesture.
      */
     async #peel(): Promise<void> {
         const held = this.#held
@@ -379,8 +324,6 @@ export class BlobTool implements Tool {
             piece.stamp = stamp
             this.#peeled = index + 1
 
-            // The module the hand holds is carried by the world and never written here. The others
-            // snap to the place they held in the patch, which is where they belong from now on.
             if(index > 0){
                 piece.wasLocked = piece.node.isLocked
                 piece.node.isLocked = true
@@ -397,10 +340,7 @@ export class BlobTool implements Tool {
 
     /**
      * Stick the last module peeled back onto its copy, and take that copy out of the world.
-     *
-     * @remarks
-     * Only ever the last one: sticking a module back from the middle of what came off would leave a
-     * hole in the sheet, and the front would no longer be a front.
+     * Only ever the last one, so the front stays a front.
      */
     #stick(): void {
         const index = this.#peeled - 1
@@ -412,8 +352,6 @@ export class BlobTool implements Tool {
         this.#peeled = index
         this.#stuck = false
 
-        // The cables go before the copy does, so none of them is left hanging off a module that is
-        // being taken out of the world.
         this.#rewire()
         if(stamp !== null) void stamp.dispose()
 
@@ -427,12 +365,8 @@ export class BlobTool implements Tool {
 
     /**
      * Put every module that came off back where it stands in the sheet.
-     *
-     * @remarks
-     * Worked out every sweep from the place read at the take, never from where the module stood one
-     * sweep ago, so nothing drifts over a long gesture. Because that place carries the size and the
-     * facing, the whole of the gesture reaches the sheet: it turns when the module in the hand turns
-     * and spreads out when it grows.
+     * The whole of the gesture reaches it: it turns when the hand turns and spreads out when the
+     * module in the hand grows.
      */
     #carry(): void {
         const held = this.#held
@@ -448,14 +382,7 @@ export class BlobTool implements Tool {
         }
     }
 
-    /**
-     * Does the world know this module well enough for it to be copied?
-     *
-     * @remarks
-     * A module is written into the world in two steps, and it answers to its name before it says
-     * what kind of thing it is. Everything that copies has to ask for both, since a copy is built
-     * from the kind alone.
-     */
+    /** Does the world know this module well enough for it to be copied? */
     static #known(node: Node3DInstance): boolean {
         const world = NetworkManager.getInstance().node3d.nodes
         const id = world.getId(node)
@@ -469,7 +396,6 @@ export class BlobTool implements Tool {
         const position = new Vector3()
         frame.decompose(scale, rotation, position)
 
-        // The scale is uniform everywhere in this project, so one of its three sides says it all.
         const box = node.boundingBoxMesh
         box.rotationQuaternion = rotation
         box.scaling.setAll(scale.x)
@@ -477,17 +403,15 @@ export class BlobTool implements Tool {
         node.updatePosition()
     }
 
-    /** The copy of a module, left standing exactly where that module stood at the take. */
+    /**
+     * The copy of a module, left standing exactly where that module stood at the take.
+     * None for a module the world does not know well enough yet. Its cables are drawn afterwards.
+     */
     async #stamp(piece: Piece): Promise<Node3DInstance | null> {
-        // A module still being built, or already taken out of the world, has no kind to copy yet:
-        // the world knows it by name a moment before it says what it is made of. Copying it then
-        // would ask for a module of no kind at all, which is not a thing the world can build.
         if(!BlobTool.#known(piece.node)) return null
 
         const serialization = Serialization.getInstance()
 
-        // Alone: the cables of the copy are drawn afterwards, and they are not the cables this
-        // module has right now, since half of what it hangs onto may already have come off.
         const [stamp] = await serialization.load(serialization.save([piece.node], false))
         if(stamp === undefined) return null
 
@@ -497,18 +421,7 @@ export class BlobTool implements Tool {
 
     /**
      * Draw and drop the cables of the copies, so the patch reads the same on both sides of the peel.
-     *
-     * @remarks
-     * One rule, applied to every cable of the photograph: an end that has come off is replaced by
-     * its copy, an end that still holds is left as it is. A cable with neither end off is the
-     * original one and is not touched.
-     *
-     * So a copy hangs onto the modules its original hung onto, and the moment one of those comes off
-     * in turn, the cable swings over to that one's copy on its own. That is the sticker being lifted
-     * one bond at a time, and it needs no case of its own.
-     *
-     * A port that will take no more cables simply goes without: the gesture is never stopped by one,
-     * and a short pulse says the patch came off one cable short.
+     * A port that will take no more cables simply goes without, a short pulse saying so.
      */
     #rewire(): void {
         for(const edge of this.#edges){
@@ -534,17 +447,7 @@ export class BlobTool implements Tool {
         }
     }
 
-    /**
-     * One cable between two named ports, or none when those ports would refuse it.
-     *
-     * @remarks
-     * The refusal is asked for rather than found out: a port already holding as many cables as it
-     * takes is the ordinary case here, since peeling wires a copy onto a port the original is still
-     * wired onto.
-     *
-     * The manager tells nothing of what it made, so the new cable is picked out by looking at what
-     * the port holds before and after.
-     */
+    /** One cable between two named ports, or none when those ports would refuse it. */
     static #link(from: Node3DInstance, fromPort: string, to: Node3DInstance, toPort: string): N3DConnectionInstance | null {
         const output = from.connectables.get(fromPort)
         const input = to.connectables.get(toPort)
@@ -559,16 +462,8 @@ export class BlobTool implements Tool {
 
     /**
      * Photograph the patch a module belongs to: every module it reaches through cables, and how.
-     *
-     * @remarks
-     * The spreading follows the cables and nothing else, so what comes off is what is wired
-     * together, which is the thing the player built rather than the things that happen to stand
-     * close by. It is walked nearest cable first, so the run of modules that may come off is always
-     * a run outward from the hand.
-     *
-     * A module the world cannot yet name is left out, and so is the cable leading to it: one being
-     * built has no kind to copy, and photographing it would only stop the peel later on, in the
-     * middle of the gesture, rather than here.
+     * What is wired together is what may come off, so the hand copies the thing the player built
+     * and not what happens to stand close by.
      */
     #spread(from: Node3DInstance): void {
         if(!BlobTool.#known(from)) return
@@ -623,16 +518,7 @@ export class BlobTool implements Tool {
 
     /**
      * Draw the slime: one strand behind every module that came off, one more on the bond about to
-     * give.
-     *
-     * @remarks
-     * A module that came off stays joined to the copy it came from by a strand, for as long as the
-     * hand holds the gesture. That is what says which copy came out of which module, and it is the
-     * one thing that reads at a glance when a dozen of them are travelling at once.
-     *
-     * Of the modules still holding, only the one at the front is drawn, with the cube that announces
-     * it. Everything behind it has already given, everything ahead of it is not being pulled on yet,
-     * and drawing them all would say nothing about where the peel has got to.
+     * give. It says which copy came out of which module, and where the peel has got to.
      */
     #show(travel: number): void {
         const piece = this.#pieces[this.#peeled]
@@ -642,8 +528,6 @@ export class BlobTool implements Tool {
 
         this.#dressBlob(strain)
 
-        // Every module that came off travels wrapped in slime, with a strand of it running back to
-        // the copy standing where it was taken from.
         let drawn = 0
         for(let index = 0; index < this.#peeled; index++){
             const peeled = this.#pieces[index]
@@ -664,13 +548,10 @@ export class BlobTool implements Tool {
             return
         }
 
-        // The cube stands on the module that is next, and grows solid as its bond gives.
         this.#mark.setEnabled(true)
         this.#mark.material!.alpha = MARK_ALPHA * strain
         BlobTool.#dress(this.#mark, piece.node)
 
-        // The strand of the bond itself runs from where that module still lies to whatever pulls on
-        // it: the module it hangs from once that one has come off, the hand itself while nothing has.
         const anchor = piece.parent !== null && piece.parent.stamp !== null
             ? piece.parent.node.boundingBoxMesh.absolutePosition
             : this.#held!.boundingBoxMesh.absolutePosition
@@ -720,7 +601,11 @@ export class BlobTool implements Tool {
         mark.position.copyFrom(box.absolutePosition)
     }
 
-    /** What the slime wrapped around a module is made of: green, and well seen through. */
+    /**
+     * What the slime wrapped around a module is made of: green, and well seen through.
+     * Both of its sides are drawn, so a module reads as sitting inside a lump of slime rather than
+     * behind a pane of it.
+     */
     static #createShell(context: ToolContext): StandardMaterial {
         const material = new StandardMaterial("blob shell", context.scene)
         material.diffuseColor = SHELL_COLOR
@@ -729,16 +614,12 @@ export class BlobTool implements Tool {
         material.alpha = SHELL_ALPHA
         material.transparencyMode = StandardMaterial.MATERIAL_ALPHABLEND
 
-        // Both sides, so the far wall of the cube is seen through the near one and the module reads
-        // as sitting inside a lump of slime rather than behind a pane of it.
         material.backFaceCulling = false
         return material
     }
 
     /**
      * The slime at this place in the reserve, made the first time that place is asked for.
-     *
-     * @remarks
      * Unpickable, so a module wrapped in slime is still taken by the hand through its own hitbox.
      */
     #skin(index: number): Mesh {
@@ -771,12 +652,7 @@ export class BlobTool implements Tool {
         return material
     }
 
-    /**
-     * The strand at this place in the reserve, made the first time that place is asked for.
-     *
-     * @remarks
-     * Drawn along Y and one unit long, so laying it between two points is one scale and one turn.
-     */
+    /** The strand at this place in the reserve, made the first time that place is asked for. */
     #thread(index: number): Mesh {
         const known = this.#threads[index]
         if(known !== undefined) return known
@@ -791,13 +667,7 @@ export class BlobTool implements Tool {
         return thread
     }
 
-    /**
-     * Lay one strand between two points, and say whether there was anything to lay.
-     *
-     * @remarks
-     * Two points on top of each other have no direction to turn towards, which happens the moment a
-     * module snaps into place, so no strand is spent on them.
-     */
+    /** Lay one strand between two points, and say whether there was anything to lay. */
     #stretch(index: number, from: Vector3, to: Vector3, width: number): boolean {
         const along = to.subtract(from)
         const length = along.length()

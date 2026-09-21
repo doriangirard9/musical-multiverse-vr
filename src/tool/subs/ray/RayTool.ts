@@ -1,5 +1,4 @@
 
-// The ray hand: a point laid on what the hand aims at, from as far as the hand can see.
 
 import { AbstractMesh, Color3, CreateIcoSphere, Mesh, Observer, Ray, Scene, StandardMaterial, Vector3 } from "@babylonjs/core"
 import { Tool } from "../../Tool"
@@ -35,15 +34,10 @@ const VELOCITY_RATE = 0.5
  * drives it under the surface, and the trigger presses on what it reaches.
  *
  * @remarks
- * A hand that cannot reach an instrument still has to be able to strike it, so the gesture is moved
- * from the arm to the hand: the harder the grab closes, the further the point sinks, and how fast it
- * sinks is the force of the blow. Nothing distinguishes it from a wand for the instrument, which
- * never asks what kind of thing plays it.
- *
- * Touching and pressing are two buttons rather than two depths of the same one: the grab reaches the
- * matter, the trigger activates it, exactly as the trigger does for every other hand.
- *
- * The ball is only there to be seen: it is not pickable, so the hand never plays it.
+ * A hand that cannot reach an instrument still has to be able to strike it, so the gesture moves
+ * from the arm to the hand: the harder the grab closes, the further the point sinks, and how fast
+ * it sinks is the force of the blow. The grab reaches the matter, the trigger activates it, exactly
+ * as for every other hand.
  */
 export class RayTool implements Tool {
 
@@ -54,7 +48,6 @@ export class RayTool implements Tool {
 
         this.#visual = tools.InputVisualPointer.CreateSimple(context.scene, context.controller.pointer)
 
-        // The ray reads what the pointer of the hand may pick, so the filters put on that hand hold.
         context.interactions.pointer.enable()
 
         const material = new StandardMaterial("ray hand dot", context.scene)
@@ -116,7 +109,12 @@ export class RayTool implements Tool {
     /** Scratch vector for the travel of the frame, so moving the point allocates nothing. */
     readonly #travel = new Vector3()
 
-    /** Lay the point on what the ray meets, and drive it in as deep as the grab asks. */
+    /**
+     * Lay the point on what the ray meets, and drive it in as deep as the grab asks.
+     * What the ray meets is what the pointer of the hand may pick, so the filters put on that hand
+     * hold. The touch comes first, so a point reaching the matter this very frame presses on it at
+     * once.
+     */
     #update(): void {
         const pointer = this.#context.controller.pointer
         const ray = new Ray(pointer.origin, pointer.forward, REACH)
@@ -140,7 +138,6 @@ export class RayTool implements Tool {
             this.#interactor.setAim(pick.pickedMesh, this.#point)
         }
 
-        // After the touch, so a point reaching the matter this very frame presses on it at once.
         this.#activation.update()
         this.#show(depth)
     }

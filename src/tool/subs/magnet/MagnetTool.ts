@@ -46,38 +46,27 @@ const POLE_COLORS = [new Color3(0.85, 0.15, 0.15), new Color3(0.2, 0.3, 0.9)]
  * The hand that moves a module and wires it at the same time.
  *
  * @remarks
- * A module is taken exactly as the plain hand takes it: the hitboxes are asked for, and the world
- * itself carries and synchronises what is held, and says so. What this hand adds happens while the
- * module travels.
- * Every tick, each of its ports links to the nearest compatible port within reach, and every link of
- * the module pulled further out than the reach comes undone. Letting go freezes what is linked.
+ * A module is taken as any hand takes it. While it travels, its ports wire themselves to the
+ * compatible ports they are brought near, and a link stretched far enough comes undone. Letting go
+ * freezes what is linked.
  *
- * Nothing is aimed at, so nothing is missed: the decision is where the modules go, not which port the
- * ray is on. And the reach is a multiple of the size of the module held, never a distance of the world.
+ * Nothing is aimed at: the decision is where the modules go, not which port the ray is on. The reach
+ * follows the size of the module, so the same gesture wires the same way at every scale.
  *
- * A link only comes undone after having been within the reach, so a module taken with a long cable
- * already hanging off it keeps that cable however far it is carried: to let one go, bring its two ends
- * together first, then pull away. Cables another tool stretched on purpose therefore survive this hand.
- *
- * Nothing is added to the nodes nor to the network, and nothing is shown before the fact: a link either
- * exists, and draws its own cable for every player, or it does not.
+ * A cable already stretched when the module was taken survives the trip however far it goes: to let
+ * one go, bring its two ends together first, then pull away.
  */
 export class MagnetTool implements Tool {
 
     constructor(context: ToolContext){
         this.#context = context
 
-        // The hitboxes, so a module can be taken and the world carries it, and nothing else: the
-        // connections stay closed, so no rival cable is dragged out of a port by this hand.
         context.interactions.pointer.enable()
         context.interactions.hitboxes.enable()
 
         const ray = tools.InputVisualPointer.CreateSimple(context.scene, context.controller.pointer)
         const poles = POLE_COLORS.map((color, index) => MagnetTool.#createPole(context, color, index))
 
-        // The hold is not guessed from the trigger: the world says what it hands over, so a module
-        // taken with two hands, or let go because the hand lost the right to hold it, is followed
-        // just the same.
         const nodes = Node3dManager.getInstance()
         const taking = nodes.onNodeGrabbed.add(({node, pointers}) => {
             if(pointers.includes(context.controller.pointer)) this.#take(node)
@@ -112,35 +101,30 @@ export class MagnetTool implements Tool {
     /** The module the hand carries, none while it carries nothing. */
     #held: Node3DInstance | null = null
 
-    /**
-     * The links whose two ends the magnet has seen within its reach, the only ones it may undo.
-     *
-     * Until a link is in there it is ignored, which is what leaves a cable stretched across the room
-     * alone while the module it hangs off travels.
-     */
+    /** The links the magnet may undo: those it has seen with both ends within its reach. */
     readonly #armed = new Set<N3DConnectionInstance>()
 
     /** When the ports were last swept, in milliseconds. */
     #lastTick = 0
 
-    /** Watch over the module the hand has just been handed, the world itself carrying it. */
+    /** Take over the module the world has just handed to this hand. */
     #take(node: Node3DInstance): void {
         if(node.isLocked) return
         this.#held = node
         this.#armed.clear()
     }
 
-    /** Let go: whatever is linked at this instant stays, and nothing is watched any more. */
+    /** Let go of the module, leaving whatever is linked at this instant. */
     #release(): void {
         this.#held = null
         this.#armed.clear()
     }
 
+    /** Wire the module carried to where it has been brought. */
     #tick(): void {
         const held = this.#held
         if(held === null) return
 
-        // A module taken out of the world while it was carried is no longer carried.
         if(NetworkManager.getInstance().node3d.nodes.getId(held) === undefined) return this.#release()
 
         const now = performance.now()
@@ -152,7 +136,7 @@ export class MagnetTool implements Tool {
         this.#linkNear(held, range)
     }
 
-    /** Arm the links of the module whose two ends are within reach, and undo the armed ones pulled out of it. */
+    /** Undo the links of the module pulled out of reach. */
     #unlinkFar(held: Node3DInstance, range: number): void {
         for(const link of held.connections){
             const from = link.inputConnectable
@@ -183,7 +167,6 @@ export class MagnetTool implements Tool {
             }
 
             if(nearest === null) continue
-            // The new link is within reach, so the next tick arms it on its own.
             ConnectionManager.getInstance().connect(port, nearest)
             this.#context.controller.pulse(...ATTACH_PULSE)
         }

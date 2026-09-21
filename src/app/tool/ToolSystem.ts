@@ -26,12 +26,9 @@ const KIND_COLOR = "#8b97a6"
  * The two hands of the user, and the menu used to choose what each of them holds.
  *
  * @remarks
- * Each hand is a {@link ToolSlot} bound to one controller. The X button opens the selection menu of
- * the left hand, the A button the one of the right hand, so the menu always concerns the hand that
- * asked for it. Selecting a kind swaps the tool of that hand alone.
- *
- * The system owns the catalog of the available kinds: a tool file declares its kind, and this
- * class decides which ones the user is offered.
+ * The X button opens the menu of the left hand, the A button the one of the right, so the menu
+ * always concerns the hand that asked for it and changes that hand alone. The system owns the
+ * catalog: a tool file declares its kind, and this class decides which ones the user is offered.
  */
 export class ToolSystem {
 
@@ -73,10 +70,8 @@ export class ToolSystem {
     /**
      * Give a hand a tool of a kind that is not in the catalog, and keep the way back.
      *
-     * @remarks
      * The hand takes back what it held when the returned handle is disposed. The user stays in
-     * charge of his hands: choosing another tool in the menu meanwhile drops the equipment, and
-     * disposing it then changes nothing.
+     * charge of his hands: choosing another tool in the menu meanwhile drops the equipment.
      *
      * @param controller - The controller of the hand to equip.
      * @param kind - The kind to put in that hand.
@@ -90,7 +85,6 @@ export class ToolSystem {
 
         let equipped = true
 
-        // The user chose something else himself : the hand is not ours anymore.
         const observer = slot.onChange.add(() => {
             if(slot.kind !== kind){
                 equipped = false
@@ -115,12 +109,8 @@ export class ToolSystem {
      * The kinds the menu of a hand lists: the catalog, and what that hand holds when it comes from
      * elsewhere.
      *
-     * @remarks
-     * A tool can be put in a hand without passing by the menu, by {@link equip}: a drumstick taken
-     * from a kit is not a kind the user may choose, it is a kind the world gave him. Listing it
-     * anyway keeps the menu telling the truth about what the hand holds, and leaves the way back
-     * visible next to it. It is listed first, so the entry marked as held never hides under a
-     * scroll.
+     * A kind the world gave the hand, a drumstick taken from a kit, is listed first: the menu tells
+     * the truth about what the hand holds, and the way back stays visible next to it.
      *
      * @param slot - The hand the menu is opened for.
      */
@@ -133,10 +123,8 @@ export class ToolSystem {
     /**
      * Open the selection menu of a hand, or close it when it is the one already open.
      *
-     * @remarks
-     * The hand is lent to the menu for as long as it stands, so that a tool with no pointer of its
-     * own still leaves the user able to choose in the menu he just opened. Its equipment does not
-     * move, so the menu keeps showing the real tool as held.
+     * The hand is lent to the menu for as long as it stands, so a tool with no pointer of its own
+     * still leaves the user able to choose in the menu he just opened.
      *
      * @param slot - The hand the menu applies to.
      */

@@ -1,5 +1,3 @@
-// The bridge between a hand and the instruments: a point of matter moved by the hand each frame.
-
 import { AbstractMesh, BoundingBox, Color3, CreateIcoSphere, Mesh, Observer, Ray, Scene, StandardMaterial, Vector3 } from "@babylonjs/core"
 import { ControllerInput, PressableInput } from "../../../xr/inputs"
 import { InstrumentInteractionSystem, Interactor } from "../../../instrument"
@@ -72,14 +70,10 @@ export interface PointDriverOptions {
  * A ball of matter moved by a hand, stating what it sweeps through.
  *
  * @remarks
- * The detection lives here rather than in the interaction system, which detects nothing: how a point
- * meets a mesh is the business of whoever moves it. A ball moving fast crosses a thin mesh entirely
- * within one frame, so the touch is looked for along the segment travelled since the last frame
- * rather than at the position of the moment, which is what keeps a fast strike from going through a
- * drum skin unheard.
- *
- * A touch stays open while the ball remains in the box of the mesh it entered, so a stick resting on
- * a skin keeps holding it, and closes as soon as the ball leaves that box.
+ * The touch is looked for along the segment travelled since the last frame, never at the position
+ * of the moment, which is what keeps a fast strike from going through a drum skin unheard. It stays
+ * open while the ball remains in the box of the mesh it entered, so a stick resting on a skin keeps
+ * holding it.
  *
  * The trigger of the controller presses the ball, which activates whatever it touches, and a green
  * halo on the ball says so. The halo belongs here rather than to the hands, so every hand moving a
@@ -186,7 +180,11 @@ export class PointDriver {
     /** Scratch vector for the travel of the frame, so moving the point allocates nothing. */
     readonly #travel = new Vector3()
 
-    /** Move the point, then state what it sweeps through, what it looks at and how hard it presses. */
+    /**
+     * Move the point, then state what it sweeps through, what it looks at and how hard it presses.
+     * The pressure comes after the sweep, so a point that entered the matter this very frame
+     * presses on it at once.
+     */
     #update(): void {
         const scene = this.#options.scene
         const current = this.#options.position()
@@ -199,7 +197,6 @@ export class PointDriver {
 
         if(this.#hittable === true) this.#aim(current)
 
-        // After the sweep, so a point that entered the matter this very frame presses on it at once.
         this.#activation?.update()
         this.#show(current)
     }
@@ -247,7 +244,6 @@ export class PointDriver {
         const touched = this.interactor.touchedMesh
         if(touched === null) return
 
-        // Nothing was met, so the ball either stays in the matter it entered, or has left it.
         if(PointDriver.#reaches(touched, current, radius) === false) this.interactor.clearTouch()
     }
 
@@ -282,13 +278,8 @@ export class PointDriver {
     /**
      * Does the ball still reach the box of the mesh?
      *
-     * @remarks
-     * The whole ball counts, not its middle: a touch opens as soon as the sweep meets a face within
-     * a radius ahead, so a ball whose middle is still outside is already in contact. Asking the
-     * middle to be inside closed such a touch on the very next frame, which made a hand approaching
+     * The whole ball counts, not its middle: asking the middle to be inside made a hand approaching
      * slowly press and release over and over instead of resting on the mesh.
-     *
-     * The box is enough here: it only decides whether a touch already opened goes on.
      */
     static #reaches(mesh: AbstractMesh, point: Vector3, radius: number): boolean {
         if(mesh.isDisposed() === true) return false

@@ -14,30 +14,19 @@ import THUMBNAIL_URL from "./thumbnail.png?url"
 
 /**
  * How wide the air between two modules may be for one to be offered a place on the other, as a
- * share of the size of the smaller of the two.
- *
- * Measured between the faces, never between the middles: a small module brought against a large one
- * would otherwise have to be pushed inside it before anything was offered. And nothing here is in
- * meters, so the same gesture builds the same stack at every scale.
+ * share of the size of the smaller of the two. Measured between the faces, never the middles.
  */
 const SNAP_RANGE_FACTOR = 1.2
 
 /**
  * How near the place offered the module has to be held for the place to show and to take, as a
- * share of the size of the module held, on top of the air the place itself leaves.
- *
- * This is what makes the stacking a decision rather than an accident: the place appears, and the
- * hand either goes to it or does not. The air is added in because a module held right against its
- * place is already that far from it, and that hand is plainly aiming at it.
+ * share of its size. This is what makes stacking a decision rather than an accident.
  */
 const LOCK_REACH_SHARE = 0.7
 
 /**
  * The air left between two nested modules, as a share of the size of the smaller of the two.
- *
- * Not nothing: two faces flush against each other hide the cable that runs between them, and a
- * player has to see what a stack wired. Wide enough for the cable to read, narrow enough that the
- * two modules still read as one piece.
+ * Wide enough for the cable between them to be seen, narrow enough that they read as one piece.
  */
 const NEST_GAP_SHARE = 0.45
 
@@ -46,10 +35,7 @@ const PARALLEL_ANGLE_DEG = 20
 
 /**
  * How close two ports have to be to face each other, as a share of the size of the smaller module.
- *
- * The air left between two nested modules plus what a port sunk into its own face adds: a stack
- * this hand has just made must read as a stack when it is read again, so this follows the air
- * rather than standing on its own.
+ * It follows the air left between two nested modules, so a stack this hand made reads as a stack.
  */
 const FACE_GAP_SHARE = NEST_GAP_SHARE + 0.35
 
@@ -93,32 +79,17 @@ type Lock = {
  * The hand that stacks modules, and carries a stack as one piece.
  *
  * @remarks
- * While a module is carried near another one, the place it would take on it is worked out and shown
- * as a ghost: laid parallel, flush against the side it is being brought to, its ports facing the
- * ports of the other. Letting go there lays it exactly on that place and wires the facing ports:
- * stacking is chaining, and the cable is there with a tube of no length at all. No place is offered
- * unless at least one link would be made, so modules never glue themselves together for nothing.
+ * A module brought near another is offered the place it would take on it, shown as a ghost, and
+ * letting go there lays it down and wires the ports that face: stacking is chaining. Taking a
+ * module takes the stack with it; taking it with the squeeze pressed pulls it out of its stack.
  *
- * Nesting is not a state and nothing is written anywhere: two modules are nested when they are
- * parallel, linked, and the two ports of that link sit on the faces that touch. It is read again
- * every time it is asked, from the world itself, so any hand pulling a module out of a stack
- * un-nests it without knowing this tool exists.
- *
- * Taking a module takes everything nested onto it, near to near, and the whole patch travels as one
- * piece, turned as well as carried. Taking it with the squeeze already pressed takes that module
- * alone: it is how one module is pulled out of its stack.
- *
- * The hold itself is not guessed from the trigger: the world says what it hands over
- * ({@link Node3dManager.onNodeGrabbed}), so a module taken with two hands, or let go because the
- * hand lost the right to hold it, is followed just the same.
+ * It is how a patch is built by hand, the wiring coming with the building.
  */
 export class BrickTool implements Tool {
 
     constructor(context: ToolContext){
         this.#context = context
 
-        // The hitboxes, so a module can be taken and the world carries it, and nothing else: the
-        // connections stay closed, so no cable is dragged out of a port by this hand.
         context.interactions.pointer.enable()
         context.interactions.hitboxes.enable()
 
@@ -176,15 +147,8 @@ export class BrickTool implements Tool {
 
     /**
      * Take a module, and with it everything nested onto it, near to near.
-     *
-     * @remarks
-     * Whether the stack comes along is decided here, at the moment the module is taken, and never
-     * again: taken with the squeeze pressed, the module comes off its stack and travels alone. It
-     * cannot be decided while carrying, because the squeeze is already what turns a held module
-     * instead of moving it, and a module that can only turn can never be pulled out of anything.
-     *
-     * Coming off a stack undoes the links that held it there, and those alone. A cable running to
-     * a module it was merely wired to is not what held it, and it goes on running.
+     * Taken with the squeeze pressed, it comes off its stack alone, undoing the links that held it
+     * there and those alone.
      */
     #take(node: Node3DInstance): void {
         if(node.isLocked) return
@@ -197,7 +161,6 @@ export class BrickTool implements Tool {
             return
         }
 
-        // Frozen while they travel, so another hand cannot tear one out of the block in flight.
         this.#block.take(node, BrickTool.#stackOf(node))
     }
 
@@ -208,20 +171,20 @@ export class BrickTool implements Tool {
         this.#show(null)
     }
 
+    /**
+     * Keep the stack with the module that carries it, and offer it a place.
+     * The whole of the gesture reaches it: a stack turned in the hand turns as one piece.
+     */
     #tick(): void {
         const held = this.#held
         if(held === null) return
 
-        // A module taken out of the world while it was carried is no longer carried.
         if(NetworkManager.getInstance().node3d.nodes.getId(held) === undefined) return this.#release()
 
         const now = performance.now()
         if(now - this.#lastTick < TICK_INTERVAL) return
         this.#lastTick = now
 
-        // The whole of the gesture reaches the stack, not only its carrying: a stack turned in the
-        // hand turns as one piece, and one grown in the hand grows as one piece, its modules pushed
-        // apart just as far as they grew.
         this.#block.carry(held)
         this.#show(this.#lockOf(held))
     }
@@ -245,7 +208,6 @@ export class BrickTool implements Tool {
         this.#ghost.position.copyFrom(lock.position)
         this.#ghost.isVisible = true
 
-        // The place appearing is felt, once, so the hand knows without looking away from what it does.
         if(!had) this.#context.controller.pulse(...LOCK_PULSE)
     }
 
@@ -261,7 +223,6 @@ export class BrickTool implements Tool {
             BrickTool.#settle(held)
             held.updatePosition()
 
-            // The stack goes where the module goes, this last jump onto its place included.
             this.#block.carry(held)
 
             for(const [from, to] of lock.pairs) ConnectionManager.getInstance().connect(from, to)
@@ -276,11 +237,8 @@ export class BrickTool implements Tool {
      * offered none.
      *
      * @remarks
-     * The place is worked out without moving anything: the held module is rigid, its hitbox and its
-     * ports travel together, so where each port would land is the one turn and shift that would
-     * lay the module down, applied to where the port is now. A place with nothing to wire is no
-     * place, and a place the hand is not near enough to is not shown: it would put a module down
-     * somewhere the hand never aimed at.
+     * A place with nothing to wire is no place, and a place the hand is not near enough to is not
+     * offered: it would put a module down somewhere the hand never aimed at.
      */
     #lockOf(held: Node3DInstance): Lock | null {
         const target = this.#nearest(held)
@@ -294,15 +252,9 @@ export class BrickTool implements Tool {
         const radius = BrickTool.#radiusOf(target, side) + BrickTool.#radiusAt(held, side, rotation) + air
         const position = BrickTool.#centerOf(target).add(side.scale(radius))
 
-        // Near enough to be meant: the hand is what puts a module on a place, not the room.
         const reach = LOCK_REACH_SHARE * BrickTool.#sizeOf(held) + air
         if(Vector3.Distance(BrickTool.#centerOf(held), position) > reach) return null
 
-        // What the hand would do to the module, ports and all: where it stands now, undone, then
-        // where it would stand.
-        // The same scale on both sides: laying a module down does not change its size, and the frame
-        // carries the size now, so leaving it out of one side alone would slip a stray shrinking
-        // into the move and land every port somewhere else.
         const move = frameOf(held).invert().multiply(Matrix.Compose(held.boundingBoxMesh.scaling.clone(), rotation, position))
         const pairs = BrickTool.#facingPorts(held, target, side, position, rotation, move)
         if(pairs.length === 0) return null
@@ -314,10 +266,7 @@ export class BrickTool implements Tool {
      * The module the held one is being brought to: the one whose face it is nearest, the carried
      * block aside.
      *
-     * @remarks
-     * The air between the two faces is what is read, not the distance between the two middles. A
-     * large module is large in every direction, and a module brought against its side is far from
-     * its middle while touching it.
+     * The air between the two faces is what is read, not the distance between the two middles.
      */
     #nearest(held: Node3DInstance): Node3DInstance | null {
         const center = BrickTool.#centerOf(held)
@@ -363,12 +312,8 @@ export class BrickTool implements Tool {
     }
 
     /**
-     * Are these two modules nested one onto the other?
-     *
-     * @remarks
-     * Three things at once, none of them stored anywhere: they are parallel, a link runs between
-     * them, and the two ports of that link sit on the faces that touch. Pulling one away breaks
-     * the last of the three, so a stack comes apart with any hand and any tool.
+     * Are these two modules nested one onto the other: parallel, linked, and that link running
+     * between the faces that touch? Read from the world, so a stack comes apart with any tool.
      */
     static #isNested(a: Node3DInstance, b: Node3DInstance): boolean {
         return BrickTool.#hookBetween(a, b) !== null
@@ -376,12 +321,7 @@ export class BrickTool implements Tool {
 
     /**
      * The link by which one module hangs onto another one, none when they only happen to be wired.
-     *
-     * @remarks
-     * This is what tells a stack from a patch. A cable running across the room between two modules
-     * that face anywhere is a wire and nothing more; the same cable between two parallel faces a
-     * hand's width apart is what holds a brick onto a brick. Only the second is a hook, and only a
-     * hook is undone when a module is pulled out of its stack.
+     * This is what tells a stack from a patch, and only a hook is undone by pulling a module out.
      */
     static #hookBetween(a: Node3DInstance, b: Node3DInstance): N3DConnectionInstance | null {
         if(a === b) return null
@@ -454,12 +394,8 @@ export class BrickTool implements Tool {
     }
 
     /**
-     * The couples of ports the two facing sides would wire, the held module being where it is offered.
-     *
-     * @remarks
-     * The conditions of a link are asked of the port itself, silently: a hand trying every port
-     * against every port would drown the player in the red messages the one place that creates
-     * links shows. A port already spoken for is not taken twice.
+     * The couples of ports the two facing sides would wire, the held module being where it is
+     * offered. A port already spoken for is not taken twice.
      */
     static #facingPorts(
         held: Node3DInstance,
@@ -483,7 +419,6 @@ export class BrickTool implements Tool {
             const here = BrickTool.#placeOf(port)
             if(here === null) continue
 
-            // Where the port would be once the module is laid down, which is where it matters.
             const place = Vector3.TransformCoordinates(here, move)
             if(!BrickTool.#isOnFace(center, heldRadius, place, back)) continue
 
@@ -587,11 +522,7 @@ export class BrickTool implements Tool {
     }
 
     /**
-     * The facing that lays a module parallel to another one while turning it the least.
-     *
-     * @remarks
-     * Twenty four facings keep two boxes parallel, one per way of laying the axes of one onto the
-     * axes of the other. The one nearest what the hand is already holding is kept, so a module
+     * The facing that lays a module parallel to another one while turning it the least, so a module
      * held flat stays flat instead of spinning onto its side on its own.
      */
     static #parallelTo(axes: [Vector3, Vector3, Vector3], current: Quaternion): Quaternion {
@@ -614,6 +545,7 @@ export class BrickTool implements Tool {
     /** The twenty four turns that lay the axes of a box onto the axes of a box, worked out once. */
     static #turnsCache: Matrix[] | null = null
 
+    /** Those turns, worked out on the first ask and kept. */
     static #turns(): Matrix[] {
         if(BrickTool.#turnsCache !== null) return BrickTool.#turnsCache
 
@@ -626,7 +558,6 @@ export class BrickTool implements Tool {
                 const x = unit[order[0]].scale(signs & 1 ? -1 : 1)
                 const y = unit[order[1]].scale(signs & 2 ? -1 : 1)
                 const z = unit[order[2]].scale(signs & 4 ? -1 : 1)
-                // Only half of them are turns: the others put the box through the mirror.
                 if(Vector3.Dot(Vector3.Cross(x, y), z) < 0) continue
                 const turn = Matrix.Identity()
                 Matrix.FromXYZAxesToRef(x, y, z, turn)

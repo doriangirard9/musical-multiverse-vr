@@ -1,5 +1,4 @@
 
-// The finger hand: a bare wand the user presses into the matter and leaves there.
 
 import { Color3 } from "@babylonjs/core"
 import { ToolKind } from "../../ToolKind"

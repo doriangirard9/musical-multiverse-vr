@@ -11,20 +11,11 @@ import THUMBNAIL_URL from "./thumbnail.png?url"
 
 /**
  * How far the sling reaches from one module to the next, in multiples of the size of the module it
- * reaches from.
- *
- * Nothing here is in meters: a patch built small is slung at arm's length, the same patch built to
- * be walked into is slung across the room, and the same gesture lifts the same load at every scale.
+ * reaches from. In no meters, so the same gesture lifts the same load at every scale.
  */
 const REACH_FACTOR = 1.2
 
-/**
- * How many modules the crane may lift at once.
- *
- * A room built close enough is one single chain, and a hand that lifts everything lifts nothing in
- * particular. The nearest are kept, so what is left on the ground is always the far end of the
- * structure.
- */
+/** How many modules the crane may lift at once, the nearest first. */
 const MAX_FOLLOWERS = 64
 
 /** The delay between two sweeps carrying the load along, in milliseconds. */
@@ -56,45 +47,24 @@ const GEAR_COLOR = new Color3(0.25, 0.27, 0.3)
  * The hand that lifts a whole structure, and not only the module it took.
  *
  * @remarks
- * A module is taken exactly as the plain hand takes it, and the world itself carries it. What this
- * hand adds happens around it: at the moment of the take, the structure the module belongs to is
- * slung, read from the world by spreading from neighbour to neighbour, and everything the sling
- * reaches is lifted with it, held in place as it was.
+ * Taking a module slings everything standing close to it, near to near, and the whole load travels
+ * as one piece, turned and grown as well as carried. What is slung is what looks like one thing,
+ * which is what the eye already told the player before the hand moved, and a cube around each
+ * module says what is coming along.
  *
- * The spreading is a proximity, never a link: a module within {@link REACH_FACTOR} times the size
- * of the module it is next to belongs to the same load, and carries the spreading further. So what
- * is lifted is what looks like one thing, which is what the eye already told the player before the
- * hand moved.
- *
- * The load is slung once and never again: what is hooked stays hooked until it is set down, so a
- * module brushed past on the way is not swallowed, and one left behind does not come running. Each
- * one is shown by a translucent cube while it travels, so what is about to move is seen before it
- * moves.
- *
- * The whole of the gesture reaches the load, not only its carrying: it turns when the module turns,
- * and grows when the module grows, every module keeping the place it holds relative to the one in
- * the hand. And every step is worked out from where the load stood when it was slung, never from
- * where it stood one frame ago, so nothing drifts over a long gesture.
- *
- * Nothing is written anywhere and nothing is added to the nodes: the load exists for as long as the
- * hand holds it, and setting it down leaves the world as any other hand would have left it.
+ * It is how a corner of the room is moved without taking it apart first.
  */
 export class CraneTool implements Tool {
 
     constructor(context: ToolContext){
         this.#context = context
 
-        // The hitboxes, so a module can be taken and the world carries it, and nothing else: the
-        // connections stay closed, so no cable is dragged out of a port by this hand.
         context.interactions.pointer.enable()
         context.interactions.hitboxes.enable()
 
         const ray = tools.InputVisualPointer.CreateSimple(context.scene, context.controller.pointer)
         const crane = CraneTool.#createCrane(context)
 
-        // The hold is not guessed from the trigger: the world says what it hands over, so a module
-        // taken with two hands, or let go because the hand lost the right to hold it, is followed
-        // just the same.
         const nodes = Node3dManager.getInstance()
         const taking = nodes.onNodeGrabbed.add(({node, pointers}) => {
             if(pointers.includes(context.controller.pointer)) this.#take(node)
@@ -140,12 +110,7 @@ export class CraneTool implements Tool {
 
     /**
      * Take the module the world has just handed over, and the structure around it with it.
-     *
-     * @remarks
-     * A module frozen by another hand is not taken, and neither are the frozen ones around it: what
-     * is locked is meant to stay where it is. The followers are frozen for the trip instead, so no
-     * other hand tears one out of the structure in flight, and given back at the end exactly the
-     * freedom they had.
+     * What another hand froze is left where it is, and a pulse says whether a structure came along.
      */
     #take(node: Node3DInstance): void {
         if(node.isLocked) return
@@ -155,7 +120,6 @@ export class CraneTool implements Tool {
         this.#block.take(node, this.#spread(node))
         for(const follower of this.#block.nodes) this.#marks.set(follower, this.#createMark())
 
-        // Felt without looking: a structure came along, or the module travels alone.
         const [strength, duration] = this.#block.size > 0 ? LIFT_PULSE : ALONE_PULSE
         this.#context.controller.pulse(strength, duration)
         this.#carry()
@@ -169,11 +133,11 @@ export class CraneTool implements Tool {
         this.#held = null
     }
 
+    /** Keep the load with the module that carries it. */
     #tick(): void {
         const held = this.#held
         if(held === null) return
 
-        // A module taken out of the world while it was carried is no longer carried.
         if(NetworkManager.getInstance().node3d.nodes.getId(held) === undefined) return this.#release()
 
         const now = performance.now()
@@ -183,14 +147,7 @@ export class CraneTool implements Tool {
         this.#carry()
     }
 
-    /**
-     * Put every follower back where it stands in the structure, and lay its cube over it.
-     *
-     * @remarks
-     * The block does the carrying, the tool only keeps what is shown in step with what is carried:
-     * a module taken out of the world mid-flight leaves the block on its own, and loses its cube
-     * here.
-     */
+    /** Put every follower back where it stands in the structure, and lay its cube over it. */
     #carry(): void {
         const held = this.#held
         if(held === null) return
@@ -211,15 +168,8 @@ export class CraneTool implements Tool {
 
     /**
      * Everything the structure of a module reaches, the nearest first.
-     *
-     * @remarks
-     * The spreading goes from neighbour to neighbour, and the reach of each step is a share of the
-     * size of the module the step starts from: a large module gathers what stands far from it, a
-     * small one only what stands right against it. That is what makes a patch of small modules and
+     * Each step reaches as far as the size of the module it starts from, so a patch built small and
      * the same patch built large come out as the same structure.
-     *
-     * The queue is walked in the order things were reached, so cutting it at {@link MAX_FOLLOWERS}
-     * cuts the far end of the structure off rather than a piece out of its middle.
      */
     *#spread(from: Node3DInstance): Generator<Node3DInstance> {
         const taken = new Set<Node3DInstance>([from])
@@ -287,7 +237,10 @@ export class CraneTool implements Tool {
         return 2 * Math.max(extend.x, extend.y, extend.z)
     }
 
-    /** The little crane held ahead of the hand: a mast, a jib, and a hook hanging off its cable. */
+    /**
+     * The little crane held ahead of the hand: a mast, a jib, and a hook hanging off its cable.
+     * The jib runs forward, so the hook hangs ahead of the hand and never inside it.
+     */
     static #createCrane(context: ToolContext): Mesh[] {
         const frame = new StandardMaterial("crane frame", context.scene)
         frame.diffuseColor = FRAME_COLOR
@@ -303,8 +256,6 @@ export class CraneTool implements Tool {
         mast.material = frame
         mast.position.set(0, 0, CRANE_OFFSET)
 
-        // The jib runs forward from the top of the mast, so the hook hangs ahead of the hand and
-        // never inside it.
         const jib = CreateBox("crane jib", {width: JIB_THICKNESS, height: JIB_THICKNESS, depth: JIB_LENGTH}, context.scene)
         jib.parent = mast
         jib.isPickable = false

@@ -1,5 +1,3 @@
-// The modules that travel with the one a hand holds, each keeping the place it holds in the block.
-
 import { Matrix, Quaternion, Vector3 } from "@babylonjs/core"
 import { NetworkManager } from "../../../network/NetworkManager"
 import { Node3DInstance } from "../../../node3d/instance/Node3DInstance"
@@ -7,10 +5,8 @@ import { Node3DInstance } from "../../../node3d/instance/Node3DInstance"
 /**
  * The frame of a module: where it stands, how it faces, and how large it is.
  *
- * @remarks
- * The size is in there, and that is what makes a block move as one piece under the whole of a
- * gesture rather than under its carrying alone: a module grown in the hand is a scale in this
- * frame, so every follower reading its place through it is pushed out just as far as it grew.
+ * The size is in there, which is what makes a block grown in the hand spread out instead of
+ * piling up.
  */
 export function frameOf(node: Node3DInstance): Matrix {
     const box = node.boundingBoxMesh
@@ -28,14 +24,10 @@ type Follower = {
  * A set of modules carried along with the one a hand holds, held in place as they were.
  *
  * @remarks
- * The place each follower holds is read once, relative to the module held, and written back every
- * tick from that same reading: never from where the follower stood one frame ago, so nothing drifts
- * over a long gesture, and never from anything absolute, so the block is a shape rather than a set
- * of positions.
- *
- * Because the frame carries the size, the three things a hand does to the module it holds reach the
- * block the same way: carried, turned, grown. A block grown in the hand spreads out instead of
- * piling up.
+ * The place each follower holds is read once and written back from that same reading, never from
+ * where it stood one frame ago, so the block is a shape rather than a set of positions and nothing
+ * drifts over a long gesture. The three things a hand does to the module it holds reach the block
+ * the same way: carried, turned, grown.
  *
  * What travels is frozen for the trip, so no other hand tears a piece out of the block in flight,
  * and given back at the end exactly the freedom it had. A module taken out of the world mid-flight
@@ -84,7 +76,6 @@ export class CarriedBlock {
 
             follower.relative.multiply(frame).decompose(scale, rotation, position)
 
-            // The scale is uniform everywhere in this project, so one of its three sides says it all.
             const box = follower.node.boundingBoxMesh
             box.rotationQuaternion = rotation.clone()
             box.scaling.setAll(scale.x)

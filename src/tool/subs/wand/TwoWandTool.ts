@@ -1,5 +1,4 @@
 
-// The double wand hand: two wands the user brings together or apart.
 
 import { Vector3 } from "@babylonjs/core"
 import { Tool } from "../../Tool"

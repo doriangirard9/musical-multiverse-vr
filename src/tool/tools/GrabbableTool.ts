@@ -73,7 +73,6 @@ export class GrabbableTool {
 
         this.#rest()
 
-        // Only a hand takes the object: the other pointers pass over it.
         this.#grab = new tools.InputGrabBehavior(
             pointer => { const hand = GrabbableTool.#handOf(pointer); if(hand) this.equip(hand) },
             () => {},
@@ -103,14 +102,15 @@ export class GrabbableTool {
 
         this.unequip()
         const equipment = system.equip(controller, this.kind)
-        // The tool took the object as it was created: keep the way back with it.
         if(this.#held?.controller === controller) this.#held.equipment = equipment
         else equipment.dispose()
     }
 
-    /** Take the object out of the hand holding it, if any, and put it back at rest. */
+    /**
+     * Take the object out of the hand holding it, if any, and put it back at rest.
+     * Giving the hand its tool back is what puts the object down, so there is nothing else to undo.
+     */
     public unequip(): void {
-        // Disposing the equipment disposes the tool, which puts the object back and clears the hold.
         this.#held?.equipment?.dispose()
     }
 

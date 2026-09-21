@@ -12,13 +12,12 @@ import { N3DInteractions } from "../node3d/instance/N3DInteractions"
  * One hand of the user, and the tool currently held by it.
  *
  * @remarks
- * The slot owns the visual node following the controller, so a tool only has to parent its
- * meshes to it. It is made of two layers:
+ * What the hand is equipped with is public: the {@link kind} the user is holding, and the
+ * {@link override} that replaces it without being seen. The life of the one tool living in the
+ * hand is private, and follows from them.
  *
- * - what the hand is equipped with, which is public: the {@link kind} the user is holding, and the
- *   {@link override} that replaces it without being seen;
- * - the life of the instance, which is private: the hand holds one tool at a time, and changing
- *   what it is equipped with disposes the previous tool before creating the new one.
+ * The slot also owns the visual node following the controller, so a tool only has to parent its
+ * meshes to it.
  */
 export class ToolSlot {
 
@@ -61,7 +60,6 @@ export class ToolSlot {
             pickFilters: ToolSlot.#pickFiltersOf(slot),
         }
 
-        // Off until the tool of the hand asks for them, so a hand never interacts by default.
         this.#context.interactions.disable()
 
         this.#equipped = kind
@@ -74,10 +72,8 @@ export class ToolSlot {
     /**
      * The kind the hand is equipped with, none for an empty hand.
      *
-     * @remarks
-     * This is the equipment as the user sees it: what he chose, or what the world put in his hand.
-     * It is what the selection menu shows as held, and it does not follow an {@link override}: a
-     * hand lent to something else is still equipped with what it will take back.
+     * The equipment as the user sees it, and what the selection menu shows as held: a hand lent to
+     * something else by an {@link override} is still equipped with what it will take back.
      */
     public get kind(): ToolKind|null { return this.#equipped }
 
@@ -100,10 +96,8 @@ export class ToolSlot {
     /**
      * Lend the hand to a kind, without changing what it is equipped with.
      *
-     * @remarks
-     * How a tool is put in a hand for the time of something, the selection menu being the one that
-     * does it. The equipment stays what it is and takes its place back when the override is dropped,
-     * whatever it became meanwhile.
+     * The equipment stays what it is and takes its place back when the override is dropped,
+     * whatever it became meanwhile. The selection menu is what lends a hand this way.
      *
      * @param kind - The kind to lend the hand to, none to give the hand back.
      */
@@ -206,7 +200,6 @@ export class ToolSlot {
     /**
      * Put in the hand the kind it must now hold, and nothing else.
      *
-     * @remarks
      * Two tools never live on the same hand, and what a tool asked of the world goes away with it.
      * A hand already holding the right kind is left alone, so nothing restarts for nothing.
      */

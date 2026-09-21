@@ -1,5 +1,3 @@
-// The bridge between a hand and the instruments: a box of matter moved by the hand each frame.
-
 import { AbstractMesh, Color3, CreateBox, Matrix, Mesh, Observer, Quaternion, Ray, Scene, StandardMaterial, Vector3 } from "@babylonjs/core"
 import { ControllerInput, PressableInput } from "../../../xr/inputs"
 import { InstrumentInteractionSystem, Interactor } from "../../../instrument"
@@ -76,17 +74,10 @@ export interface BoxDriverOptions {
  *
  * @remarks
  * The sibling of `PointDriver` for a hand whose matter is a volume rather than a ball: a key, a
- * mallet head, a hand itself. A box is not swept along its travel the way a ball is: it is large
- * enough to stay in contact with what it meets from one frame to the next, so the touch is simply
- * the first solid mesh whose box it overlaps, kept as long as the overlap lasts. Both boxes are
- * oriented ones, the box of the driver as the hand turns it and the box of the mesh as the mesh
- * turns it, so a tilted key on a tilted skin reads right.
- *
- * The trigger of the controller presses the box, which activates whatever it touches, and a green
- * halo around the box says so. The box itself is shown too, and a hand with a visual of its own
- * hides it with {@link baseVisible}.
- *
- * A box made not {@link hittable} keeps being moved, pressed and shown, but meets nothing.
+ * mallet head, a hand itself. It touches the first solid mesh it overlaps, both boxes being
+ * oriented ones, so a tilted key on a tilted skin reads right. The trigger presses it, and a green
+ * halo says so. A box made not {@link hittable} keeps being moved, pressed and shown, but meets
+ * nothing.
  */
 export class BoxDriver {
 
@@ -124,7 +115,6 @@ export class BoxDriver {
         baseMaterial.diffuseColor = BASE_COLOR
         this.#baseMaterial = baseMaterial
 
-        // The base is also the hull the overlaps are read from, so it is never disabled, only hidden.
         this.#base = CreateBox(`${options.label} base`, { width: size.x, height: size.y, depth: size.z }, options.scene)
         this.#base.isPickable = false
         this.#base.material = baseMaterial
@@ -199,7 +189,11 @@ export class BoxDriver {
     /** Scratch vector for the center of the box in the space of the mesh it meets. */
     readonly #local = new Vector3()
 
-    /** Move the box, then state what it overlaps, what it looks at and how hard it presses. */
+    /**
+     * Move the box, then state what it overlaps, what it looks at and how hard it presses.
+     * The pressure comes after the overlap, so a box that entered the matter this very frame
+     * presses on it at once.
+     */
     #update(): void {
         const scene = this.#options.scene
         const current = this.#options.position()
@@ -218,7 +212,6 @@ export class BoxDriver {
             this.#aim(current)
         }
 
-        // After the overlap, so a box that entered the matter this very frame presses on it at once.
         this.#activation?.update()
         this.#show(current, rotation)
     }
@@ -271,11 +264,8 @@ export class BoxDriver {
      * Where the box meets the mesh: the point of the oriented box of the mesh nearest to the center
      * of the box, and the normal facing back from it towards that center.
      *
-     * @remarks
-     * The box of the mesh is taken as the mesh turns it, not as the axes of the world cut it: the
-     * center is brought into the space of the mesh, clamped to the box there, and brought back. A
-     * key laid on a tilted skin then meets the skin where the skin is, not the corner of the
-     * upright box around it.
+     * The box of the mesh is taken as the mesh turns it, so a key laid on a tilted skin meets the
+     * skin where the skin is, not the corner of the upright box around it.
      */
     #contactOf(mesh: AbstractMesh, current: Vector3): void {
         const box = mesh.getBoundingInfo().boundingBox

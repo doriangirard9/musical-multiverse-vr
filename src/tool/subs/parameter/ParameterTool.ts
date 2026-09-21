@@ -63,11 +63,8 @@ export class ParameterTool implements Tool {
     /**
      * Load the model and hang it on the hand, unless the attachment is gone by then.
      *
-     * @remarks
-     * Laid out by a holder node rather than by the imported root itself, as the magic wand is: the
-     * root carries the axis conversion of the glTF import, which writing an orientation over it
-     * would throw away. Unlike the wand, the model is not pushed forward: its center stays on the
-     * origin of the pointer.
+     * It is laid out by a holder node, the imported root carrying the axis conversion of the glTF
+     * import, and its center stays on the origin of the pointer.
      */
     #loadModel(): void {
         ImportMeshAsync(PARAMETER_MODEL_URL, this.#context.scene).then(result => {
@@ -81,8 +78,6 @@ export class ParameterTool implements Tool {
             holder.rotationQuaternion = Quaternion.FromEulerAngles(0, MODEL_YAW, 0)
             holder.scaling.setAll(MODEL_SIZE)
 
-            // Read before the model is hung on the hand, while its roots still stand at the origin
-            // of the world: the box then comes out in the space of the model.
             const bounds = ParameterTool.#boundsOf(result.meshes, holder)
 
             for(const mesh of result.meshes){
@@ -99,13 +94,9 @@ export class ParameterTool implements Tool {
      * The own box of the model in the space of the hand: the bounding box of its mesh, as the mesh
      * turns it, carried through the placement of the holder.
      *
-     * @remarks
-     * Not the box the axes cut around the model, but the one the mesh was built in: the bounds of
-     * the mesh in its own space, and the whole transform of the mesh, its own and the placement of
-     * the holder, to say where and how that box stands in the hand. A tilted mesh keeps its tilt
-     * rather than growing a box around it.
-     *
-     * The mesh with the most vertices stands for the model. None when the model has no geometry.
+     * Not the box the axes cut around the model, but the one the mesh was built in, so a tilted
+     * mesh keeps its tilt. None when the model has no geometry. It has to be read before the model
+     * is hung on the hand, while its roots still stand at the origin of the world.
      */
     static #boundsOf(meshes: AbstractMesh[], holder: TransformNode): { center: Vector3, rotation: Quaternion, size: Vector3 } | null {
         let mesh: AbstractMesh | undefined
@@ -135,9 +126,7 @@ export class ParameterTool implements Tool {
     /**
      * Hang the box of matter on the hand, carried where the model is.
      *
-     * @remarks
      * The key is a box of matter cut to the model, so it plays the instruments it is pushed into.
-     * The model is the visual, so the box of the driver itself stays hidden.
      *
      * @param bounds - The box of the model in the space of the hand.
      */

@@ -1,5 +1,3 @@
-// The soft wand hand: a wand hanging on a slack spring, thrown up by what its ball hits.
-
 import { Observer, Scene } from "@babylonjs/core"
 import { ToolKind } from "../../ToolKind"
 import { ToolContext } from "../../ToolContext"
@@ -38,11 +36,8 @@ const MAX_STEP = 0.05
  * throws the wand up out of the way.
  *
  * @remarks
- * The wand is a tilt and an angular speed, moved by a slack spring pulling it toward the tilt the
- * squeeze asks for: a blow is a speed given to it, not a position it is placed at, so how high it
- * flies and how long it hangs up there come out of the motion itself rather than being timed.
- * {@link REST_STIFFNESS} is what makes it soft — released, the wand takes a second or two to come
- * back down, so it never strikes twice on its own.
+ * A blow throws the wand up rather than placing it, so how high it flies comes out of the blow
+ * itself. Released, it takes a second or two to come back down, and never strikes twice on its own.
  */
 export class SoftWandTool extends WandTool {
 
@@ -67,7 +62,12 @@ export class SoftWandTool extends WandTool {
     /** How fast the wand swings, in radians per second. */
     #speed = 0
 
-    /** Move the wand by one step of its motion, and throw it up on whatever it runs into. */
+    /**
+     * Move the wand by one step of its motion, and throw it up on whatever it runs into.
+     * A blow is a speed given to the wand, so it leaves on its own from where it was stopped, and
+     * never a slower one than it already carries, so a wand on its way out of the matter is not
+     * held back by the matter it is still in.
+     */
     #update(): void {
         const step = this.#scene.getEngine().getDeltaTime() / 1000
         if(step <= 0) return
@@ -82,9 +82,6 @@ export class SoftWandTool extends WandTool {
         let tilt = this.tilt + this.#speed * clamped
 
         if(this.#isBlocked() === true){
-            // The blow is a speed given to the wand: it leaves on its own from where it was stopped.
-            // Never a slower one than it already carries, so a wand on its way out of the matter is
-            // not held back by the matter it is still in.
             this.#speed = Math.max(this.#speed, BOUNCE_SPEED)
             tilt = this.tilt + this.#speed * clamped
         }
@@ -100,14 +97,8 @@ export class SoftWandTool extends WandTool {
 
     /**
      * Is the ball of the wand in the matter?
-     *
-     * @remarks
-     * What is asked is the touch of the point of matter at the end of the wand, the very one that
-     * plays the instruments, so the wand bounces on exactly what it plays and on nothing else.
-     *
-     * A ray cast from the hand along the shaft was tried instead, and is what made the wand bounce
-     * off nothing: it met whatever stood anywhere between the hand and the ball, and it met it
-     * before the ball ever arrived, so the wand was thrown back without a sound having been made.
+     * Asked of the point that plays the instruments, so the wand bounces on exactly what it plays.
+     * A ray along the shaft was tried, and bounced the wand off whatever stood in front of it.
      */
     #isBlocked(): boolean {
         return this.driver.interactor.touchedMesh !== null

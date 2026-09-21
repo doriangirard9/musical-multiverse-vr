@@ -10,7 +10,13 @@ const POINT_RADIUS = 0.015
 
 /**
  * The plain hand: it shows the ray of its controller and lets every world interaction happen.
- * Selecting and grabbing are driven by the meshes of the world, so this hand only owns the ray visual.
+ *
+ * @remarks
+ * The only hand asking the world for its ordinary interactions: the parameters, the buttons, the
+ * hitboxes and the links answer a pointing hand and nothing else. Selecting and grabbing are driven
+ * by the meshes of the world, so this hand only owns the ray visual and a point of matter that
+ * meets nothing: it does not play the instruments, but still carries a point for whatever looks
+ * for one.
  */
 export class PointerTool implements Tool {
 
@@ -18,12 +24,8 @@ export class PointerTool implements Tool {
         this.#context = context
         this.#visual = tools.InputVisualPointer.CreateSimple(context.scene, context.controller.pointer)
 
-        // The only hand asking for the ordinary interactions of the world: the parameters, the
-        // buttons, the hitboxes and the links answer a pointing hand and nothing else.
         context.interactions.enable()
 
-        // A point of matter at the origin of the pointer, meeting nothing: the plain hand does not
-        // play the instruments, but still carries a point for whatever looks for one.
         const pointer = context.controller.pointer
         this.#driver = new PointDriver({
             label: `pointer ${context.side}`,

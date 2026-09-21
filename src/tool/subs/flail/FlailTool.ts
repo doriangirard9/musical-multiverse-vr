@@ -1,5 +1,4 @@
 
-// The flail hand: a ball swinging at the end of a chain, played by the hand that swings it.
 
 import { Color3, CreateCylinder, CreateIcoSphere, Mesh, Observer, Quaternion, Scene, StandardMaterial, Vector3 } from "@babylonjs/core"
 import { Tool } from "../../Tool"
@@ -78,19 +77,10 @@ const MAX_STEP = 0.1
  *
  * @remarks
  * The ball is not placed by the hand, it is thrown by it: it falls, it swings, and the chain holds
- * it back, so what it does is the consequence of how the hand moved and not of where the hand is.
- * That is the whole point of the hand — the force of a blow is the force the user built up, and a
- * ball still swinging keeps playing after the arm has stopped.
+ * it back. The force of a blow is the force the user built up by turning the wrist, and a ball
+ * still swinging keeps playing after the arm has stopped. Closing the grab reins the chain in.
  *
- * The swing is a speed and a position integrated in world space: gravity and the stretched chain
- * pull on the speed, the speed moves the ball, and nothing ever places it. The hand moving its end
- * of the chain stretches it, and that stretch is the whole drag on the ball, which is what lets the
- * user wind the flail up by turning the wrist. Closing the grab pulls the chain in, so a swing can
- * be reined in short and let out again without ever letting go of the flail.
- *
- * The point of matter follows the ball, so how hard the flail strikes is read from the travel of the
- * ball itself: nothing here says anything of the gesture, since the ball already is the gesture.
- * Neither the ball nor the chain is pickable: the hand never plays itself.
+ * It is the hand for playing with momentum rather than with aim.
  */
 export class FlailTool implements Tool {
 
@@ -119,7 +109,6 @@ export class FlailTool implements Tool {
             onChange: chain => { this.#chain = chain },
         })
 
-        // The ball starts hanging still under the hand, so it falls into its swing rather than jumping.
         this.#readAnchor()
         this.#position.copyFrom(this.#anchor)
         this.#position.y -= this.#reach
@@ -133,8 +122,6 @@ export class FlailTool implements Tool {
             direction: () => this.#swing,
         })
 
-        // Once the physics of the frame is done, and before the driver, which runs before the
-        // render and reads the ball where this leaves it.
         this.#observer = context.scene.onAfterPhysicsObservable.add(() => this.#update())
     }
 
@@ -221,11 +208,8 @@ export class FlailTool implements Tool {
      * Integrate the swing over one step: gravity and the chain pull on the speed, the speed moves
      * the ball.
      *
-     * @remarks
-     * The chain acts on the speed alone and only once stretched: past its length it pulls the ball
-     * back towards the hand, the harder the further it is stretched, and does nothing at all while
-     * the ball is closer than that, since a chain never pushes. The position is never corrected, so
-     * everything the ball does is something it was made to do.
+     * The chain pulls only once stretched, a chain never pushing, and swallows what stretches it so
+     * the ball does not spring back. The position is never corrected.
      *
      * @param step - The length of the step, in seconds.
      */
@@ -237,10 +221,8 @@ export class FlailTool implements Tool {
         if(length > reach && length > 0){
             this.#offset.scaleInPlace(1 / length)
 
-            // The chain pulls the ball back in, the harder the further it is stretched.
             this.#velocity.subtractInPlace(this.#offset.scale((length - reach) * STIFFNESS * step))
 
-            // And it swallows what stretches it, so it does not spring back like a rubber band.
             const stretching = Vector3.Dot(this.#velocity, this.#offset)
             if(stretching > 0){
                 this.#velocity.subtractInPlace(this.#offset.scale(stretching * Math.min(1, CHAIN_DAMPING * step)))

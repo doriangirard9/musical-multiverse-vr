@@ -50,11 +50,8 @@ const EDGE_ALPHA = 0.35
 
 /**
  * A sword whose blade cuts what it goes through when it is swung fast enough.
- *
- * @remarks
- * The blade is fitted with a box hugging the model, turned with it, which shows red when the
- * sword moves faster than {@link CUT_SPEED}. While it shows, every node and every connection its
- * box meets is removed from the world. A sword moved slowly cuts nothing, so the world can be
+ * When the blade move fast enough, it shows a red box hugging it, and every node and every connection that box meets is removed from the world.
+ * A sword moved slowly cuts nothing, so the world can be
  * walked through with it in hand.
  */
 export class SwordTool implements Tool {
@@ -128,10 +125,8 @@ export class SwordTool implements Tool {
     /**
      * Load the sword model and hang it on the hand, unless the attachment is gone by then.
      *
-     * @remarks
-     * The model is laid out by a holder node rather than by the imported root itself: that root
-     * carries the axis conversion glTF files are imported with, which writing an orientation over it
-     * would throw away. The holder takes the placement, the imported roots keep their own.
+     * It is laid out by a holder node, the imported root carrying the axis conversion of the glTF
+     * import, which writing an orientation over it would throw away.
      */
     #loadModel(): void {
         ImportMeshAsync(SWORD_MODEL_URL, this.#context.scene).then(result => {
@@ -140,8 +135,6 @@ export class SwordTool implements Tool {
                 return
             }
 
-            // The grip raises the whole sword above the pointing direction of the hand; the holder
-            // then lays the model along the raised axis.
             const grip = new TransformNode("sword grip", this.#context.scene)
             grip.parent = this.#context.visual
             grip.rotation.x = -TILT
@@ -150,9 +143,6 @@ export class SwordTool implements Tool {
             const holder = new TransformNode("sword", this.#context.scene)
             holder.parent = grip
 
-            // The model comes in one unit long, centered on the origin and already lying along the
-            // axis the hand points at, but the wrong way round: a half turn puts its tip forward,
-            // and half its length of offset brings its base onto the hand and its tip outward.
             holder.rotationQuaternion = Quaternion.FromEulerAngles(0, MODEL_YAW, MODEL_ROLL)
             holder.scaling.setAll(LENGTH)
             holder.position.z = LENGTH / 2
@@ -208,9 +198,7 @@ export class SwordTool implements Tool {
     /**
      * Hang the box of matter on the blade, carried where the edge is.
      *
-     * @remarks
-     * The blade is the visual, so the box of the driver itself stays hidden. Its size is the size
-     * of the edge in the world, the edge being scaled with the model.
+     * The blade is the visual, so the box of the driver itself stays hidden.
      */
     #createDriver(edge: Mesh): void {
         const box = edge.getBoundingInfo().boundingBox

@@ -1,5 +1,4 @@
 
-// The arch hand: a violin bow whose hair plays whatever it is drawn across.
 
 import { AbstractMesh, Color3, CreateCylinder, CreateTube, Mesh, Observer, Quaternion, Ray, Scene, StandardMaterial, TransformNode, Vector3 } from "@babylonjs/core"
 import { Tool } from "../../Tool"
@@ -53,22 +52,12 @@ const MAX_STEP = 0.1
  * across.
  *
  * @remarks
- * The hair runs ahead of the hand and along the way it points, exactly as a wand does, so the bow is
- * held like every other hand: what sets it apart is that a wand meets the world with its end alone,
- * while the bow meets it anywhere along its whole length.
+ * Where a wand meets the world with its end alone, the bow meets it anywhere along its hair, so a
+ * mesh crossing it is played wherever the hand happens to hold it. The force is read at the spot
+ * it is met, so drawing the bow lengthwise sounds as almost nothing and sweeping it across sounds
+ * as the whole gesture: that is what tells a brushed sound from a struck one.
  *
- * The hair is not a point but a line, so the hand does not look ahead of itself the way a wand does:
- * it casts a ray from the frog toward the tip, no further than the hair is long, and whatever that
- * ray meets is what the hair rests on. A mesh crossing the hair anywhere along it is therefore
- * played, wherever the hand happens to hold it.
- *
- * The point of matter is laid where the hair is met, and the velocity is read at that very spot
- * rather than on the hand: drawing the bow along a mesh lengthwise reads as almost nothing,
- * sweeping it across reads as the whole gesture, which is what tells a brushed sound from a struck
- * one.
- *
- * The hair bends where it is met, so the contact is seen before it is heard. Neither the stick nor
- * the hair is pickable: the hand never plays itself.
+ * The hair bends where it is met, so the contact is seen before it is heard.
  */
 export class ArchTool implements Tool {
 
@@ -200,7 +189,11 @@ export class ArchTool implements Tool {
         Vector3.TransformCoordinatesToRef(ends[1], matrix, this.#anchors[1])
     }
 
-    /** Cast the hair from the frog to the tip, and lay the point of matter where it is met. */
+    /**
+     * Cast the hair from the frog to the tip, and lay the point of matter where it is met.
+     * The hair is never met further than it is long, however far apart its ends are read, and the
+     * cast comes first so hair landing on a mesh this very frame presses on it at once.
+     */
     #update(): void {
         this.#readAnchors()
 
@@ -210,7 +203,6 @@ export class ArchTool implements Tool {
         if(spacing === 0) return
         this.#direction.scaleInPlace(1 / spacing)
 
-        // The hair is never met further than it is long, however far apart its ends are read.
         const ray = new Ray(from, this.#direction, this.#cord)
         const pick = this.#scene.pickWithRay(ray, mesh => ArchTool.#isSolid(mesh))
 
@@ -231,7 +223,6 @@ export class ArchTool implements Tool {
         this.#previous[0].copyFrom(this.#anchors[0])
         this.#previous[1].copyFrom(this.#anchors[1])
 
-        // After the cast, so hair landing on a mesh this very frame presses on it at once.
         this.#activation.update()
     }
 

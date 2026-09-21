@@ -72,7 +72,11 @@ export class PencilTool implements Tool {
         return Math.max(size.x, size.y, size.z)
     }
 
-    /** Load the pencil model and hang it on the hand, unless the attachment is gone by then. */
+    /**
+     * Load the pencil model and hang it on the hand, unless the attachment is gone by then.
+     * The glTF root carries its own orientation, so the yaw is composed with it, never written over
+     * it.
+     */
     #loadModel(): void {
         ImportMeshAsync(PENCIL_MODEL_URL, this.#context.scene).then(result => {
             const model = result.meshes[0]
@@ -82,7 +86,6 @@ export class PencilTool implements Tool {
             }
             model.parent = this.#context.visual
 
-            // The glTF root carries its own orientation, so the yaw is composed with it, not written over it.
             const yaw = Quaternion.FromEulerAngles(0, MODEL_YAW, 0)
             model.rotationQuaternion = model.rotationQuaternion === null ? yaw : model.rotationQuaternion.multiply(yaw)
             model.scaling.scaleInPlace(MODEL_SCALE)

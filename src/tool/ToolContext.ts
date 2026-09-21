@@ -29,23 +29,14 @@ export interface ToolInteraction {
  * The ordinary interactions of the world, each one asked for on its own.
  *
  * @remarks
- * Dragging a parameter, pressing a button, taking a node by its hitbox and linking two connectables
- * are not the business of any single tool: they are what the world offers to a hand that points at
- * it. They are off for everyone unless a hand asks for them, so a hand playing an instrument does
- * not disturb the nodes it sweeps through.
+ * What the world offers to a hand that points at it, off for everyone unless a hand asks for it, so
+ * a hand playing an instrument does not disturb the nodes it sweeps through. A tool asks for them
+ * one by one, and {@link pointer} is the ground of the others: without it the hand picks nothing.
  *
- * They are asked for one by one, since a tool rarely wants all of them: a hand that moves the nodes
- * around has no use for the parameters, and one that plays them has no use for the hitboxes.
  * ```ts
  * context.interactions.pointer.enable()
  * context.interactions.hitboxes.enable()
- * context.interactions.parameters.enable()
  * ```
- *
- * The {@link pointer} one is the ground of the others: without it the pointer of the hand picks
- * nothing, so the other interactions have nothing to answer, and a tool reading
- * `controller.pointer.targetMesh` or `target` reads nothing. It is not asked for on its own by
- * the others: a tool asking for any of them asks for the pointer too, and drops it with them.
  */
 export interface ToolInteractions extends Record<ToolInteractionKind, ToolInteraction> {
 
