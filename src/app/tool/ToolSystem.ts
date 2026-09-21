@@ -1,9 +1,8 @@
 import { ControllerInput, InputManager } from "../../xr/inputs"
 import { BlocksMenu, BMenuBlock } from "../../menus/BlocksMenu"
-import { ARCH_TOOL_KIND, BLOB_TOOL_KIND, BRICK_TOOL_KIND, FLAIL_TOOL_KIND, FINGER_TOOL_KIND, MAGIC_TOOL_KIND, MAGNET_TOOL_KIND, ToolKind, ToolSlot, PARAMETER_TOOL_KIND, PENCIL_TOOL_KIND, POINTER_TOOL_KIND, CRANE_TOOL_KIND, RAY_TOOL_KIND, SOFT_WAND_TOOL_KIND, SWORD_TOOL_KIND, TWO_WAND_TOOL_KIND, WAND_TOOL_KIND } from "../../tool"
+import { ARCH_TOOL_KIND, BLOB_TOOL_KIND, BRICK_TOOL_KIND, FLAIL_TOOL_KIND, FINGER_TOOL_KIND, MAGIC_TOOL_KIND, MAGNET_TOOL_KIND, MENU_POINTER_TOOL_KIND, ToolKind, ToolSlot, PARAMETER_TOOL_KIND, PENCIL_TOOL_KIND, POINTER_TOOL_KIND, CRANE_TOOL_KIND, RAY_TOOL_KIND, SOFT_WAND_TOOL_KIND, SWORD_TOOL_KIND, TWO_WAND_TOOL_KIND, WAND_TOOL_KIND } from "../../tool"
 import { MenuSystem } from "../menu/MenuSystem"
 import { SceneManager } from "../SceneManager"
-import { PickFilter } from "../../xr/inputs/AbstractPointerInput"
 
 /** The width of the selection menu, in grid cells. */
 const MENU_WIDTH = 6
@@ -61,15 +60,6 @@ export class ToolSystem {
     }
 
     /**
-     * Give a hand the tool of a kind.
-     * @param slot - The hand to change.
-     * @param kind - The kind to hold.
-     */
-    public select(slot: ToolSlot, kind: ToolKind): void {
-        slot.select(kind)
-    }
-
-    /**
      * The hand holding a controller.
      * @param controller - The controller of one of the two hands.
      * @returns The slot of that hand, or undefined when the controller is not a hand.
@@ -118,40 +108,6 @@ export class ToolSystem {
         }
     }
 
-    /**
-     * Restrict what the pointer of a hand can pick, for as long as its current tool is held.
-     *
-     * @remarks
-     * The filter goes on the pointer of that side only, whatever the other hand holds, and is
-     * attached to the tool of the hand, not to the hand: it is dropped as soon as the hand takes
-     * another tool. Adding the same filter twice changes nothing.
-     *
-     * @param slot - The hand, or the controller of the hand.
-     * @param filter - Refuses the meshes the pointer must pass through.
-     */
-    public addFilter(slot: ToolSlot|ControllerInput, filter: PickFilter): void {
-        this.#slotOf(slot)?.pickFilters.add(filter)
-    }
-
-    /**
-     * Remove a filter added by {@link addFilter} to a hand.
-     * @param slot - The hand, or the controller of the hand.
-     * @param filter - The filter to remove. Removing one the hand does not hold changes nothing.
-     */
-    public removeFilter(slot: ToolSlot|ControllerInput, filter: PickFilter): void {
-        this.#slotOf(slot)?.pickFilters.remove(filter)
-    }
-
-    /** Does a hand hold a filter? */
-    public hasFilter(slot: ToolSlot|ControllerInput, filter: PickFilter): boolean {
-        return this.#slotOf(slot)?.pickFilters.has(filter) ?? false
-    }
-
-    /** The slot itself, or the slot of a controller. */
-    #slotOf(slot: ToolSlot|ControllerInput): ToolSlot|undefined {
-        return slot instanceof ToolSlot ? slot : this.slotOf(slot)
-    }
-
     /** The kinds of tool offered to the user, in the order the menu lists them. */
     public get kinds(): readonly ToolKind[] { return ToolSystem.#KINDS }
 
@@ -169,12 +125,22 @@ export class ToolSystem {
      * @param slot - The hand the menu is opened for.
      */
     public kindsFor(slot: ToolSlot): readonly ToolKind[] {
-        if(ToolSystem.#KINDS.includes(slot.kind)) return ToolSystem.#KINDS
-        return [slot.kind, ...ToolSystem.#KINDS]
+        const kind = slot.kind
+        if(kind === null || ToolSystem.#KINDS.includes(kind)) return ToolSystem.#KINDS
+        return [kind, ...ToolSystem.#KINDS]
     }
 
     /**
      * Open the selection menu of a hand, or close it when it is the one already open.
+     *
+     * @remarks
+     * The hand is lent to the menu for as long as it stands, by an override: whatever it is equipped
+     * with, it holds the bare pointer meanwhile, so the menu is always reachable. A tool asking for
+     * no pointer of its own, a sword or a pencil, would otherwise leave the hand unable to click the
+     * menu it just opened. The equipment itself does not move, so the menu still shows the real
+     * tool as held, and the hand takes it back when the menu hides, unless the user chose another
+     * one in it.
+     *
      * @param slot - The hand the menu applies to.
      */
     public toggleMenu(slot: ToolSlot): void {
@@ -183,9 +149,14 @@ export class ToolSystem {
             return
         }
 
-        this.#menu = this.#createMenu(slot)
+        // Built before the hand is lent, so the menu tells what the hand is equipped with.
+        const menu = this.#createMenu(slot)
+        this.#menu = menu
         this.#openedFor = slot
-        this.menus.open(this.#menu)
+        this.menus.open(menu)
+
+        slot.override(MENU_POINTER_TOOL_KIND)
+        menu.onHide.addOnce(() => slot.override(null))
     }
 
     // Instance
@@ -247,7 +218,7 @@ export class ToolSystem {
                 width: ENTRY_SIDE,
                 height: ENTRY_SIDE,
                 onClick: () => {
-                    this.select(slot, kind)
+                    slot.select(kind)
                     this.menus.close()
                 },
             } as BMenuBlock

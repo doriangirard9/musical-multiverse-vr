@@ -22,6 +22,7 @@ export * from "./subs/common/BoxDriver"
 export * from "./subs/common/CarriedBlock"
 
 export * from "./subs/pointer/PointerTool"
+export * from "./subs/pointer/MenuPointerTool"
 export * from "./subs/parameter/ParameterTool"
 export * from "./subs/magnet/MagnetTool"
 export * from "./subs/brick/BrickTool"

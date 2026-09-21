@@ -13,13 +13,20 @@ import { N3DInteractions } from "../node3d/instance/N3DInteractions"
  *
  * @remarks
  * The slot owns the visual node following the controller, so a tool only has to parent its
- * meshes to it. Selecting a kind disposes the previous tool before creating the new one:
- * two tools never live on the same hand.
+ * meshes to it. It is made of two layers:
+ *
+ * - what the hand is equipped with, which is public: the {@link kind} the user is holding, and the
+ *   {@link override} that replaces it without being seen;
+ * - the life of the instance, which is private: the hand holds one tool at a time, and changing
+ *   what it is equipped with disposes the previous tool before creating the new one.
  */
 export class ToolSlot {
 
 
-    /** Notified after the held tool changed, with the slot itself. */
+    /**
+     * Notified after the equipped kind changed, with the slot itself.
+     * An override is not a change of equipment, so it never notifies.
+     */
     public readonly onChange = new Observable<ToolSlot>()
 
     constructor(
@@ -30,7 +37,7 @@ export class ToolSlot {
         public readonly controller: ControllerInput,
 
         scene: Scene,
-        kind: ToolKind,
+        kind: ToolKind|null,
     ){
         this.#visual = new TransformNode(`${side} hand`, scene)
         this.#follow()
@@ -57,35 +64,70 @@ export class ToolSlot {
         // Off until the tool of the hand asks for them, so a hand never interacts by default.
         this.#context.interactions.disable()
 
-        this.#kind = kind
-        this.#tool = kind.create(this.#context)
+        this.#equipped = kind
+        this.#refresh()
     }
 
-    /** The kind currently held by the hand. */
-    public get kind(): ToolKind { return this.#kind }
 
-    /** The tool currently held by the hand. */
-    public get tool(): Tool { return this.#tool }
+    //// What the hand is equipped with ////
 
     /**
-     * Replace the held tool by a new one of the given kind.
-     * Selecting the kind already held does nothing.
-     * @param kind - The kind to hold.
+     * The kind the hand is equipped with, none for an empty hand.
+     *
+     * @remarks
+     * This is the equipment as the user sees it: what he chose, or what the world put in his hand.
+     * It is what the selection menu shows as held, and it does not follow an {@link override}: a
+     * hand lent to something else is still equipped with what it will take back.
      */
-    public select(kind: ToolKind): void {
-        if(kind === this.#kind) return
+    public get kind(): ToolKind|null { return this.#equipped }
 
-        this.#tool.dispose()
-        this.#context.interactions.disable()
-        this.#context.pickFilters.clear()
-        this.#tool = kind.create(this.#context)
-        this.#kind = kind
+    /**
+     * Equip the hand with a kind, or empty it.
+     * Equipping the kind already equipped does nothing.
+     * @param kind - The kind to equip, none to leave the hand empty.
+     */
+    public select(kind: ToolKind|null): void {
+        if(kind === this.#equipped) return
+
+        this.#equipped = kind
+        this.#refresh()
         this.onChange.notifyObservers(this)
     }
 
+    /** The kind replacing the equipment for the time being, none when the hand is its own. */
+    public get overridden(): ToolKind|null { return this.#override }
+
+    /**
+     * Lend the hand to a kind, without changing what it is equipped with.
+     *
+     * @remarks
+     * The override takes the place of the equipment in the hand and nowhere else: {@link kind} does
+     * not move, {@link onChange} does not fire, and the hand takes its equipment back as soon as the
+     * override is dropped, whatever it became meanwhile. It is how a tool is put in a hand for the
+     * time of something, the selection menu being the one that does it.
+     *
+     * @param kind - The kind to lend the hand to, none to give the hand back.
+     */
+    public override(kind: ToolKind|null): void {
+        if(kind === this.#override) return
+
+        this.#override = kind
+        this.#refresh()
+    }
+
+    /** The kind really in the hand: the override when there is one, the equipment otherwise. */
+    public get held(): ToolKind|null { return this.#override ?? this.#equipped }
+
+    /** The tool currently held by the hand, none when the hand is empty. */
+    public get tool(): Tool|null { return this.#tool }
+
     /** Dispose the held tool and the visual node of the hand. */
     public dispose(): void {
-        this.#tool.dispose()
+        this.#equipped = null
+        this.#override = null
+        this.#instantiated = null
+        this.#tool?.dispose()
+        this.#tool = null
         this.#context.interactions.disable()
         this.#context.pickFilters.clear()
         this.#followObserver?.remove()
@@ -147,9 +189,41 @@ export class ToolSlot {
 
     readonly #context: ToolContext
 
-    #tool: Tool
 
-    #kind: ToolKind
+    //// The life of the instance ////
+
+    /** The kind the hand is equipped with, what it takes back once no override stands in the way. */
+    #equipped: ToolKind|null = null
+
+    /** The kind replacing the equipment for the time being. */
+    #override: ToolKind|null = null
+
+    /** The kind the living tool was created from, so a refresh knows whether anything changed. */
+    #instantiated: ToolKind|null = null
+
+    /** The one tool living in the hand, none while the hand is empty. */
+    #tool: Tool|null = null
+
+    /**
+     * Put in the hand the kind it must now hold, and nothing else.
+     *
+     * @remarks
+     * Two tools never live on the same hand: the previous one is disposed, and what it asked of the
+     * world is taken back with it, before the new one is created. A hand holding the right kind
+     * already is left alone, so equipping a kind twice, or dropping an override that changed
+     * nothing, does not restart the tool.
+     */
+    #refresh(): void {
+        const kind = this.held
+        if(kind === this.#instantiated) return
+
+        this.#tool?.dispose()
+        this.#context.interactions.disable()
+        this.#context.pickFilters.clear()
+
+        this.#tool = kind?.create(this.#context) ?? null
+        this.#instantiated = kind
+    }
 
     #followObserver?: { remove(): void }
 
