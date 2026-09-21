@@ -134,12 +134,9 @@ export class ToolSystem {
      * Open the selection menu of a hand, or close it when it is the one already open.
      *
      * @remarks
-     * The hand is lent to the menu for as long as it stands, by an override: whatever it is equipped
-     * with, it holds the bare pointer meanwhile, so the menu is always reachable. A tool asking for
-     * no pointer of its own, a sword or a pencil, would otherwise leave the hand unable to click the
-     * menu it just opened. The equipment itself does not move, so the menu still shows the real
-     * tool as held, and the hand takes it back when the menu hides, unless the user chose another
-     * one in it.
+     * The hand is lent to the menu for as long as it stands, so that a tool with no pointer of its
+     * own still leaves the user able to choose in the menu he just opened. Its equipment does not
+     * move, so the menu keeps showing the real tool as held.
      *
      * @param slot - The hand the menu applies to.
      */
@@ -149,7 +146,6 @@ export class ToolSystem {
             return
         }
 
-        // Built before the hand is lent, so the menu tells what the hand is equipped with.
         const menu = this.#createMenu(slot)
         this.#menu = menu
         this.#openedFor = slot

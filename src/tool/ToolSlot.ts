@@ -101,10 +101,9 @@ export class ToolSlot {
      * Lend the hand to a kind, without changing what it is equipped with.
      *
      * @remarks
-     * The override takes the place of the equipment in the hand and nowhere else: {@link kind} does
-     * not move, {@link onChange} does not fire, and the hand takes its equipment back as soon as the
-     * override is dropped, whatever it became meanwhile. It is how a tool is put in a hand for the
-     * time of something, the selection menu being the one that does it.
+     * How a tool is put in a hand for the time of something, the selection menu being the one that
+     * does it. The equipment stays what it is and takes its place back when the override is dropped,
+     * whatever it became meanwhile.
      *
      * @param kind - The kind to lend the hand to, none to give the hand back.
      */
@@ -208,10 +207,8 @@ export class ToolSlot {
      * Put in the hand the kind it must now hold, and nothing else.
      *
      * @remarks
-     * Two tools never live on the same hand: the previous one is disposed, and what it asked of the
-     * world is taken back with it, before the new one is created. A hand holding the right kind
-     * already is left alone, so equipping a kind twice, or dropping an override that changed
-     * nothing, does not restart the tool.
+     * Two tools never live on the same hand, and what a tool asked of the world goes away with it.
+     * A hand already holding the right kind is left alone, so nothing restarts for nothing.
      */
     #refresh(): void {
         const kind = this.held
