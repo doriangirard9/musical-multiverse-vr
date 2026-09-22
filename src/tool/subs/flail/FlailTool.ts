@@ -260,8 +260,8 @@ export class FlailTool implements Tool {
 /** The kind of the hand swinging a flail. */
 export const FLAIL_TOOL_KIND: ToolKind = {
     label: "Flail",
-    description: "A ball on a chain, swinging around the hand: it strikes with the momentum it was given and keeps playing once the arm has stopped. The grab reels it in.",
+    description: "A physics-based flail whose head can strike instruments.",
     thumbnail: THUMBNAIL_URL,
-    tags: ["contact", "physical", "percussive", "adjustable"],
+    tags: ["playing", "contact", "percussive", "adjustable", "length", "flail", "physic", "weapon"],
     create: context => new FlailTool(context),
 }

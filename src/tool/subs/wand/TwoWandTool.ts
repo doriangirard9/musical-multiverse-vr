@@ -93,9 +93,9 @@ export class TwoWandTool implements Tool {
 
 /** The kind of the hand holding two wands of adjustable spacing. */
 export const TWO_WAND_TOOL_KIND: ToolKind = {
-    label: "Two wands",
-    description: "Open like scissors around the pointing direction and close onto each other as the squeeze is pressed: one hand, two voices.",
+    label: "Double Stick",
+    description: "A double-headed stick whose grab pressure controls the angle between the heads.",
     thumbnail: THUMBNAIL_URL,
-    tags: ["contact", "percussive", "wide", "adjustable"],
+    tags: ["playing", "contact", "wand", "percussive", "adjustable", "angle", "double"],
     create: context => new TwoWandTool(context),
 }

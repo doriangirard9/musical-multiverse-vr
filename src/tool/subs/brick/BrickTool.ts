@@ -617,8 +617,8 @@ export class BrickTool implements Tool {
 /** The kind of the hand that stacks modules and carries a stack as one piece. */
 export const BRICK_TOOL_KIND: ToolKind = {
     label: "Brick",
-    description: "A module carried against another is shown where it would sit, flush and parallel, and letting go there wires the ports that face each other. Taking a module takes the stack nested on it.",
+    description: "Build installations by snapping nodes together. Nodes are automatically aligned and their inputs and outputs connected. Connected nodes move as a group.",
     thumbnail: THUMBNAIL_URL,
-    tags: ["tool", "contact", "precise"],
+    tags: ["build", "group", "place", "connect", "lego"],
     create: context => new BrickTool(context),
 }

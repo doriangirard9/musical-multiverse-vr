@@ -206,6 +206,6 @@ export const RAY_TOOL_KIND: ToolKind = {
     label: "Ray",
     description: "Lays a point on whatever the hand aims at, however far. The grab drives that point under the surface, and how fast it sinks is the force of the blow.",
     thumbnail: THUMBNAIL_URL,
-    tags: ["distance", "contact", "precise", "percussive"],
+    tags: ["playing", "distance", "ray"],
     create: context => new RayTool(context),
 }

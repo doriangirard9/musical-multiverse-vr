@@ -714,8 +714,8 @@ export class BlobTool implements Tool {
 /** The kind of the hand that peels a patch off itself, leaving a copy stuck behind. */
 export const BLOB_TOOL_KIND: ToolKind = {
     label: "Blob",
-    description: "Pulls a copy out of the module it holds and leaves the original stuck in place: pull further and the modules wired to it come off in turn, come back and they stick again.",
+    description: "Copies nodes and their connections by dragging from a node. Dragging farther propagates the copy to connected nodes, preserving the connections between the copies.",
     thumbnail: THUMBNAIL_URL,
-    tags: ["tool", "contact", "wide"],
+    tags: ["build", "clone", "blob", "connect", "drag", "pull"],
     create: context => new BlobTool(context),
 }

@@ -223,8 +223,8 @@ export class MagnetTool implements Tool {
 /** The kind of the hand that moves a module and wires it as it goes. */
 export const MAGNET_TOOL_KIND: ToolKind = {
     label: "Magnet",
-    description: "The module it carries wires itself to the compatible ports passing in reach, nearest first, and unwires a link pulled back out.",
+    description: "Moves a node and automatically connects or disconnects its inputs and outputs based on their distance from other nodes's connectors.",
     thumbnail: THUMBNAIL_URL,
-    tags: ["tool", "distance", "wide"],
+    tags: ["build", "group", "place", "connect", "magnet", "proximity"],
     create: context => new MagnetTool(context),
 }

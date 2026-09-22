@@ -28,7 +28,14 @@ export interface ToolKind {
      *
      * @remarks
      * The standard tags, a tool carrying every one that fits:
-     *
+     * 
+     *  `"build"`: The tool is for building, not for playing.
+     *  `"playing"`: The tool is for playing, not for building.
+     * 
+     *  `"place"`: The tool can change the position of a module in the world.
+     *  `"connect"`: The tool can connect modules together.
+     *  `"group"`: The tool can move several modules at once, as a group.
+     * 
      *  `"contact"`: Plays the instruments by meeting their matter, with a point that has a place in
      *  the world. (example: a wand)
      *  `"distance"`: Reaches instruments further than the arm goes. (example: the ray)

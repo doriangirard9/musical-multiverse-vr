@@ -282,8 +282,8 @@ export class CraneTool implements Tool {
 /** The kind of the hand that lifts a whole structure at once. */
 export const CRANE_TOOL_KIND: ToolKind = {
     label: "Crane",
-    description: "Lifts the module it holds with everything standing around it, near to near: the whole load follows the hand and keeps its shape.",
+    description: "Moves a group of nodes by propagating movement from the grabbed node to nearby nodes.",
     thumbnail: THUMBNAIL_URL,
-    tags: ["tool", "contact", "wide"],
+    tags: ["build", "group", "place", "crane", "proximity"],
     create: context => new CraneTool(context),
 }

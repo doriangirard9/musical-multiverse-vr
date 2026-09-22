@@ -40,9 +40,9 @@ export class GrowingWandTool extends WandTool {
 
 /** The kind of the hand holding a wand growing with the squeeze. */
 export const WAND_TOOL_KIND: ToolKind = {
-    label: "Grow Wand",
-    description: "Grows under the pressure on the squeeze and shrinks back on its own once released: a reach held, never set.",
+    label: "Grow Stick",
+    description: "A stick whose length depends on how much the grab button is pressed.",
     thumbnail: THUMBNAIL_URL,
-    tags: ["contact", "percussive", "precise", "adjustable"],
+    tags: ["playing", "contact", "wand", "percussive", "adjustable", "length"],
     create: context => new GrowingWandTool(context),
 }
