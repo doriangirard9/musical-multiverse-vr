@@ -92,6 +92,7 @@ export class BrickTool implements Tool {
 
         context.interactions.pointer.enable()
         context.interactions.hitboxes.enable()
+        context.interactions.parameters.enable()
 
         const ray = tools.InputVisualPointer.CreateSimple(context.scene, context.controller.pointer)
         const brick = BrickTool.#createBrick(context)

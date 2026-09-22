@@ -63,6 +63,7 @@ export class MagnetTool implements Tool {
 
         context.interactions.pointer.enable()
         context.interactions.hitboxes.enable()
+        context.interactions.parameters.enable()
 
         const ray = tools.InputVisualPointer.CreateSimple(context.scene, context.controller.pointer)
         const poles = POLE_COLORS.map((color, index) => MagnetTool.#createPole(context, color, index))

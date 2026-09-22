@@ -61,6 +61,8 @@ export class CraneTool implements Tool {
 
         context.interactions.pointer.enable()
         context.interactions.hitboxes.enable()
+        context.interactions.parameters.enable()
+        context.interactions.connections.enable()
 
         const ray = tools.InputVisualPointer.CreateSimple(context.scene, context.controller.pointer)
         const crane = CraneTool.#createCrane(context)
