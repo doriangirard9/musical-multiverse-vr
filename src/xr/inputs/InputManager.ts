@@ -12,7 +12,7 @@ import { ControllerInput } from "./ControllerInput";
 import { PointerInput } from "./PointerInput";
 import { AbstractPointerInput, PickFilter } from "./AbstractPointerInput";
 import { InputCapability } from "./InputCapability";
-import { XRManager } from "../XRManager";
+import { XRPlatform } from "../../app/platform/XRPlatform";
 
 export interface PointerMovementEvent {
     origin: Immutable<Vector3>,
@@ -50,7 +50,7 @@ export class InputManager {
         
     public static getInstance(): InputManager { return this.instance }
 
-    public static create(xrHelper: Nullable<WebXRDefaultExperience>, scene: Scene[]) { this.instance = new InputManager(xrHelper, scene) }
+    public static create(scene: Scene[]) { this.instance = new InputManager(scene) }
     
     
     //// OBSERVERS ////
@@ -122,10 +122,7 @@ export class InputManager {
 
     private _toucheds = new Map<AbstractMesh,number>()
 
-    private constructor(
-        xrHelper: Nullable<WebXRDefaultExperience>,
-        scenes: Scene[],
-    ){
+    private constructor(private scenes: Scene[]){
         const im = this
 
         // The pointer capability is a pick filter refusing everything: a pointer it is disabled
@@ -198,20 +195,13 @@ export class InputManager {
             })
         }
 
-        // Register document observers : based on key presses and mouse events
-        this._registerDocument(scenes)
-        
-        // Register XR observers : based on XR controller events
-        if (xrHelper) {
-            this._registerXR(xrHelper, XRManager.getInstance(), scenes)
-        }
-
         // General scene control : based on camera per example
         this._registerScene(scenes)
     }
 
-    _registerDocument(scenes: Scene[]){
+    _registerDocument(){
         const im = this
+        const scenes = this.scenes
 
         for(const scene of scenes){
             scene.skipPointerDownPicking = true
@@ -247,8 +237,9 @@ export class InputManager {
         im.right.thumbstick._registerMouseWheelObserver()
     }
 
-    _registerXR(xrHelper: WebXRDefaultExperience, xrManager: XRManager, scenes: Scene[]){
+    _registerXR(xrHelper: WebXRDefaultExperience, xrManager: XRPlatform){
         const im = this
+        const scenes = this.scenes
 
         function initController(controller: WebXRInputSource){
             controller.onMotionControllerInitObservable.addOnce(()=>{

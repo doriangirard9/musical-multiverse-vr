@@ -1,7 +1,7 @@
 import { Vector3, WebXRCamera, WebXRFeatureName } from "@babylonjs/core";
-import { XRManager } from "../../xr/XRManager";
 import { N3DShop, N3DShopObject, N3DShopType } from "./N3DShop";
 import { InputManager } from "../../xr/inputs/InputManager";
+import { XRPlatform } from "../../app/platform/XRPlatform";
 
 const TRANSITION_TIME = 250 // ms
 
@@ -29,7 +29,7 @@ export class N3DShopCamera implements N3DShopType {
         this.shop = shop
 
         if(this.cameras.length==1){
-            const camera = XRManager.getInstance().xrHelper.baseExperience.camera
+            const camera = XRPlatform.getInstance().xrHelper.baseExperience.camera
             
             shop.inputs.y_button.onDown.add(()=>{
                 if(DEBUG_LOG) console.log(`[Y Button] pressed - selected: ${this.selected}, to_show: ${this.to_show}`)
@@ -98,7 +98,7 @@ export class N3DShopCamera implements N3DShopType {
         
         if(index==this.selected) return
 
-        const camera = XRManager.getInstance().xrHelper.baseExperience.camera
+        const camera = XRPlatform.getInstance().xrHelper.baseExperience.camera
         
         // From position and rotation
         let fromPosition: Vector3

@@ -17,7 +17,6 @@ import { BoundingBox } from "../../behaviours/boundingBox/BoundingBox";
 import { N3DParameterInstance, ParameterChangeMode } from "./N3DParameterInstance";
 import { N3DConnectableInstance } from "./N3DConnectableInstance";
 import { IOEventBus } from "../../eventBus/IOEventBus";
-import { XRManager } from "../../xr/XRManager";
 import { SyncManager } from "../../network/sync/SyncManager";
 import { Node3dManager } from "../../app/node3d/Node3dManager.ts";
 import { Serialization } from "../../app/node3d/Serialization.ts";
@@ -427,12 +426,8 @@ export class Node3DInstance implements Synchronized {
                 },
 
                 getPlayerPosition() {
-                    const xrManager = XRManager.getInstance();
-                    if (xrManager.xrHelper && xrManager.xrHelper.baseExperience) {
-                        const vrCamera = xrManager.xrHelper.baseExperience.camera;
-                        return { position: vrCamera.globalPosition.clone(), rotation: vrCamera.absoluteRotation.clone() }
-                    }
-                    else return { position: Vector3.Zero(), rotation: Quaternion.Identity() }
+                    const camera = instance.root_transform.getScene().activeCamera!
+                    return { position: camera.globalPosition.clone(), rotation: camera.absoluteRotation.clone() }
                 },
 
                 getPosition() {

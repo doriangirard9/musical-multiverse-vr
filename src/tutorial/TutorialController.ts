@@ -23,7 +23,6 @@ import {
     Vector3,
     WebXRState,
 } from "@babylonjs/core"
-import { XRManager } from "../xr/XRManager"
 import { InputManager } from "../xr/inputs/InputManager"
 import { Node3dManager } from "../app/node3d/Node3dManager"
 import { ConnectionManager } from "../app/node3d/ConnectionManager"
@@ -31,6 +30,7 @@ import type { N3DConnectableInstance } from "../node3d/instance/N3DConnectableIn
 import type { N3DParameterInstance } from "../node3d/instance/N3DParameterInstance"
 import { N3DText } from "../node3d/instance/utils/N3DText"
 import { getDrumMidi } from "../node3d/subs/drums/DrumMidiMap"
+import { XRPlatform } from "../app/platform/XRPlatform";
 
 const TOTAL_OBJECTIVES = TUTORIAL_STEPS.length - 1
 const BEAT_KINDS = {
@@ -423,7 +423,7 @@ export class TutorialController {
     }
 
     static startWhenInXR(audioContext: AudioContext): void {
-        const baseExperience = XRManager.getInstance().xrHelper?.baseExperience
+        const baseExperience = XRPlatform.getInstance().xrHelper?.baseExperience
         if (!baseExperience) return
         if (baseExperience.state === WebXRState.IN_XR) {
             TutorialController.start(audioContext)

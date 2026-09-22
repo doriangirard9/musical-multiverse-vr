@@ -16,9 +16,9 @@ import { ProjectsPage } from "./ui/pages/ProjectsPage.ts";
 import { LoadingOverlay } from "./ui/pages/LoadingOverlay.ts";
 import { SessionAPIClient } from "./network/SessionAPIClient.ts";
 import { installConsoleFilter } from "./utils/logger.ts";
-import { XRManager } from "./xr/XRManager.ts";
 import { SessionConnector } from "./network/SessionConnector.ts";
 import { RandomUtils } from "./node3d/tools/utils/RandomUtils.ts";
+import { XRPlatform } from "./app/platform/XRPlatform.ts";
 
 installConsoleFilter();
 
@@ -203,7 +203,7 @@ let onload = async() => {
                         if (tutorialMode) {
                             TutorialController.startWhenInXR(Node3dManager.getInstance().getAudioContext());
                         }
-                        if(await XRManager.hasXRSupport()) loadingOverlay.show(appRoot!, 'Session ready ! Click on the headset icon below to enter VR.', false, 100, 'Audio will unlock on your first interaction if needed.')
+                        if(await XRPlatform.hasXRSupport()) loadingOverlay.show(appRoot!, 'Session ready ! Click on the headset icon below to enter VR.', false, 100, 'Audio will unlock on your first interaction if needed.')
                         else loadingOverlay.hide()
                         
                         // Remove spinner if it exists

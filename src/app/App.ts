@@ -1,7 +1,6 @@
-import { Color3, Color4, CreateAudioEngineAsync, FreeCamera, Vector3 } from "@babylonjs/core";
+import { Color3, CreateAudioEngineAsync, Vector3 } from "@babylonjs/core";
 import { NetworkManager } from "../network/NetworkManager.ts";
 import { InputManager } from "../xr/inputs/InputManager.ts";
-import { XRManager } from "../xr/XRManager.ts";
 import { AppOrchestrator } from "./AppOrchestrator.ts";
 import { ConnectionManager } from "./node3d/ConnectionManager.ts";
 import { Node3dManager } from "./node3d/Node3dManager.ts";
@@ -11,7 +10,6 @@ import { Serialization } from "./node3d/Serialization.ts";
 import { UIManager } from "./UIManager.ts";
 import { AvatarSystem } from "./social/AvatarSystem.ts";
 import { NetworkEventBus } from "../eventBus/NetworkEventBus.ts";
-import { RandomUtils } from "../node3d/tools/utils/RandomUtils.ts";
 import { Doc } from "yjs";
 import { HandMenuSystem } from "./menu/HandMenuSystem.ts";
 import { WamTransportManager } from "./node3d/WamTransportManager.ts";
@@ -31,9 +29,9 @@ import { BarMenuSystem } from "./menu/BarMenuSystem.ts";
 import { DrawingSystem } from "./social/DrawingSystem.ts";
 import { ParameterJaugeSystem } from "./feedback/ParameterJaugeSystem.ts";
 import { ToolSystem } from "./tool/ToolSystem.ts";
-import { InstrumentTestPad } from "./instrument/InstrumentTestPad.ts";
-import { NonXRManager } from "../nonxr/NonXRManager.ts";
+import { PCPlatform } from "./platform/PCPlatform.ts";
 import { VisualEffectSystem } from "./visual/VisualEffectSystem.ts";
+import { XRPlatform } from "./platform/XRPlatform.ts";
 
 let _app: App
 
@@ -93,16 +91,16 @@ export class App {
 
         BabylonsJSFix.fix()
 
-        report("Preparing XR runtime")
-        UIManager.initialize()
-        if(await XRManager.hasXRSupport()) await XRManager.initialize(SceneManager.getInstance().getScene(), audioEngine)
-        else await NonXRManager.initialize(SceneManager.getInstance().getScene())
-
         report("Preparing inputs")
-        InputManager.create(XRManager.getInstance()?.xrHelper ?? null, [
+        InputManager.create([
             SceneManager.getInstance().getScene(),
             SceneManager.getInstance().getUtilityLayer().utilityLayerScene
         ])
+
+        report("Preparing XR runtime")
+        UIManager.initialize()
+        if(await XRPlatform.hasXRSupport()) await XRPlatform.initialize(SceneManager.getInstance().getScene(), audioEngine)
+        else await PCPlatform.initialize()
 
         report("Preparing menus")
         await MenuSystem.initialize(

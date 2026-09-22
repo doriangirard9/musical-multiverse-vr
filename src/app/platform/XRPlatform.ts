@@ -1,15 +1,16 @@
-import {XRInputManager} from "./XRInputManager.ts";
+import {XRInputManager} from "../../xr/XRInputManager.ts";
 import * as B from "@babylonjs/core";
-import {withTimeout} from "../utils/utils.ts";
+import {withTimeout} from "../../utils/utils.ts";
 import {Nullable} from "@babylonjs/core";
+import { InputManager } from "../../xr/inputs/InputManager.ts";
 
 /**
  * Responsible for the XR experience, camera, player controls. 
  */
-export class XRManager {
-    private static _instance: XRManager;
+export class XRPlatform {
+    private static _instance: XRPlatform;
     public xrInputManager!: XRInputManager;
-    public xrHelper?: B.WebXRDefaultExperience;
+    public xrHelper!: B.WebXRDefaultExperience;
     public handTracking!: B.WebXRHandTracking
     private _scene!: B.Scene;
     public xrFeaturesManager!: B.WebXRFeaturesManager;
@@ -26,11 +27,11 @@ export class XRManager {
     }
 
     public static async initialize(scene: B.Scene, audioEngine: B.AudioEngineV2): Promise<void> {
-        this._instance = new XRManager()
+        this._instance = new XRPlatform()
         await this._instance.init(scene, audioEngine)
     }
 
-    public static getInstance(): XRManager {
+    public static getInstance(): XRPlatform {
         return this._instance;
     }
 
@@ -86,7 +87,7 @@ export class XRManager {
                         try {
                             // Dynamic import to avoid circular dependency
                             // TODO: What the fuck. 
-                            import("../app/social/AvatarSystem.ts").then(({ AvatarSystem }) => {
+                            import("../social/AvatarSystem.ts").then(({ AvatarSystem }) => {
                                 AvatarSystem.getInstance().offsetSpawnIfNeeded();
                             });
                         } catch (_) { /* AvatarSystem not yet initialized */ }
@@ -117,10 +118,13 @@ export class XRManager {
             });
             audioEngine.listener.attach(this.xrHelper.baseExperience.camera);
 
+            InputManager.getInstance()._registerXR(this.xrHelper, this)
+            InputManager.getInstance()._registerDocument()
+
             return true;
         } catch (error) {
             console.error("XR initialization failed:", error);
-            this.xrHelper = undefined;
+            this.xrHelper = undefined!;
             return false;
         }
     }

@@ -1,7 +1,7 @@
 import * as GUI from "@babylonjs/gui";
 import * as B from "@babylonjs/core";
-import { XRManager } from "../../xr/XRManager.ts";
 import { SceneManager } from "../SceneManager.ts";
+import { XRPlatform } from "../platform/XRPlatform.ts";
 
 interface ButtonLabel {
     mesh: B.Mesh;
@@ -39,7 +39,7 @@ export class ControlsUISystem {
     private labels: Map<string, ButtonLabel> = new Map();
     private visible: boolean = false;
     private scene: B.Scene;
-    private xrManager: XRManager;
+    private xrManager: XRPlatform;
     private updateObserver: B.Nullable<B.Observer<B.Scene>> = null;
     private hasLoggedUpdate: boolean = false;
     private debugGrids: Map<string, B.TransformNode> = new Map();
@@ -51,7 +51,7 @@ export class ControlsUISystem {
     constructor(){
         ControlsUISystem._instance = this
         this.scene = SceneManager.getInstance().getScene();
-        this.xrManager = XRManager.getInstance();
+        this.xrManager = XRPlatform.getInstance();
         this._createLabels();
         this.contextPanels.push(this._createContextPanel("tutorial-control-hint-0"))
         this.contextPanels.push(this._createContextPanel("tutorial-control-hint-1"))
