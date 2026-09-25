@@ -81,6 +81,13 @@ exprimable, tout verrou se contourne et aucun pictogramme ne peut annoncer un é
 Petit socle, mais il touche le contrat de `Node3DConnectable` et la boucle de
 `ConnectionManager.connect`, donc il se décide une fois pour toutes.
 
+**K. Un lien monté chez un seul joueur.** `ConnectionManager.connect` écrit le lien dans yjs,
+donc tout branchement est celui de tout le monde à l'instant où il se fait. Monter un lien réel,
+l'`AudioNode` et le `WamNode` compris, sans l'écrire dans l'état partagé, puis le publier ou le
+jeter, n'est pas possible aujourd'hui. C'est ce que demande le brouillon (1.23), et c'est aussi
+ce qui ferait entendre un aperçu à celui qui vise sans le faire entendre aux autres. Petit socle,
+mais il touche la seule voie d'écriture du graphe, donc il se décide une fois pour toutes.
+
 ---
 
 ## 1. Porter, poser, câbler à la main
@@ -105,7 +112,9 @@ sans laquelle rien de tout ça ne se livre.
 ### 1.2 Tool Harpon
 Le rayon plante un harpon dans un port de sortie ; on recule la main, le câble se tend derrière
 elle, et on l'accroche à une entrée à portée de bras. Au squeeze le harpon pend au bout d'un fil
-et se balance avec le geste, pour atteindre un port sous, derrière ou hors du rayon.
+et se balance avec le geste, pour atteindre un port sous, derrière ou hors du rayon. Un harpon
+lâché en l'air y reste planté et pend, attrapable par n'importe quelle autre main : un même lien
+se fait alors à deux, chacun par un bout, d'un bout à l'autre de la salle.
 Décision de jeu : câbler deux modules éloignés sans traverser la salle. Là où le pinceau (1.1)
 vise plusieurs entrées près d'une sortie, le harpon vise une entrée loin d'une sortie.
 
@@ -243,6 +252,55 @@ Les deux mains écartées puis rapprochées replient la zone de jeu : les module
 vestibulaire, aucun snap turn.
 Décidé : c'est une transformation locale de la vue du joueur, jamais un déplacement des nodes,
 que l'état `position` synchroniserait à tout le monde.
+
+### 1.21 Tool Sécateur
+Le rayon balayé coupe chaque câble qu'il traverse, dans l'ordre du geste, la course du balayage
+disant combien en part du geste et jamais en mètres. Rien ici ne défait en nombre : douze liens
+se débranchent un par un, si bien qu'on ne refait pas un routage, on le contourne. Le squeeze
+recolle dans l'ordre inverse de la coupe tant que l'outil vit, et le repentir (1.26) reprend ce
+qui va plus loin.
+Décision de jeu : jeter une moitié de patch, parce que c'est devenu aussi rapide que l'éviter.
+
+### 1.22 Tool Standardiste
+Les câbles d'un module sont aspirés dans la main et y pendent en gerbe, puis se reversent sur un
+autre module : chacun retrouve un port du bon protocole, dans l'ordre, et ce qui ne trouve pas
+preneur reste pendu au fantôme d'empreinte (1.10). Là où l'empreinte garde la place en attendant
+un remplaçant et où le roque (1.11) échange deux modules, la standardiste porte le câblage
+jusqu'à un module qui est déjà ailleurs et qu'on ne veut pas déplacer.
+Décision de jeu : déménager le câblage plutôt que le module.
+
+### 1.23 Tool Brouillon
+Trigger tenu, tout ce que la main branche ou débranche n'est monté que chez moi : je l'entends,
+personne d'autre ne l'entend ni ne le voit, et le patch de la salle ne bouge pas. Relâcher publie
+le brouillon en liens ordinaires, le squeeze le jette, et ce qui ne s'applique plus au moment de
+publier est sauté. Toucher au patch d'un autre cesse de vouloir dire l'abîmer pendant qu'on
+cherche, ce qui est le vrai frein à y toucher. Demande K.
+Décision de jeu : essayer d'abord, décider ensuite si ça mérite d'être entendu par les autres.
+
+### 1.24 Tool Calque
+L'outil ne travaille que dans un protocole à la fois, changé d'un cran : les ports et les câbles
+des quatre autres s'effacent de sa vue et cessent d'être touchables. Un `pickFilters` et rien de
+plus, mais dans un patch de cinquante câbles c'est ce qui rend une entrée midi visable. Ce n'est
+pas une aide à la lecture : c'est ce dans quoi la main travaille, et le cran est le geste qui
+ouvre le routage midi ou le routage d'automation.
+Décision de jeu : dans quelle couche du patch je suis, plutôt que laquelle je vise juste.
+
+### 1.25 Tool Greffe
+Un câble coupé en son milieu emporte tout ce qui pend derrière : la branche du graphe reste
+accrochée à la main par son bout libre, câblée à elle-même, et se rebranche d'un geste sur une
+autre sortie compatible. Une chaîne d'effets se fait écouter par une autre source sans être
+démontée. La descente s'arrête aux nodes `consumer` comme la laisse (1.6), sinon c'est le patch
+entier qu'on tient.
+Décision de jeu : faire écouter la même chaîne à autre chose, au lieu de la refaire.
+
+### 1.26 Tool Repentir
+L'outil garde ce que ma main a fait au graphe depuis qu'il est apparu et le défait cran par
+cran : un lien fait, un lien coupé, un module posé, un balayage de sécateur (1.21). Il ne défait
+jamais ce qu'un autre a fait, et un cran devenu inapplicable, parce que le port a disparu ou
+qu'il est scellé (2.1), est sauté sans bruit. R7 est demandée de chaque idée du carnet et rien ne
+la donne en général ; un outil local qui ne se souvient que d'une main la donne sans historique
+partagé ni autorité, donc sans socle.
+Décision de jeu : oser un geste large, parce qu'il se reprend.
 
 ---
 
@@ -1117,11 +1175,16 @@ Un patch entier devient une maquette qu'on emporte à une main, puis se rouvre �
    opérateur), C (le scalaire du lien, avant tout opérateur pour ne rien écrire deux fois),
    G (entrée midi écoutante), puis A (vue du monde), puis B (autorité). D ne bloque que l'audio
    transporté (7.5 audio, 7.8). H, I et J se font avec la première idée qui les demande ; J est
-   le moins cher et débloque à lui seul 2.2, 2.4 et le blocage du curseur 1.3.
-2. **Ce qui ne dépend d'aucun socle.** La toise (1.15) et le curseur (1.3) d'abord, parce que
+   le moins cher et débloque à lui seul 2.2, 2.4 et le blocage du curseur 1.3. K se fait avec le
+   brouillon (1.23), qu'il est seul à bloquer.
+2. **Ce qui ne dépend d'aucun socle.** Le calque (1.24) et le repentir (1.26) avant tout le
+   reste : le premier est un `pickFilters`, le second rend tous les outils du thème essayables
+   sans crainte. Puis la toise (1.15) et le curseur (1.3), parce que
    l'aimant leur prend leur étalon et leur portée ; puis l'aimant (1.1) avec la propolis (2.1),
    qui ne se livrent pas l'un sans l'autre, le mousqueton (1.5) et l'empreinte (1.10) juste
-   après, puis le roque (1.11), qui est l'empreinte à deux emplacements. Ensuite le Corps (4.1),
+   après, puis le roque (1.11), qui est l'empreinte à deux emplacements, la standardiste (1.22)
+   qui reprend son fantôme, le sécateur (1.21) et la greffe (1.25) qui descendent le graphe comme
+   la laisse. Ensuite le Corps (4.1),
    les ports qui fuient (2.6), ce qui joue derrière toi (8.3), la main d'échelle (1.14), le
    BeatGhost (2.11), le phonographe (4.14), les coulisses (8.5), la baguette qui s'allonge
    (3.12), le nuage (6.10) qui ne tient qu'à sa graine, la voile (4.8), et la baliste (4.7) qui

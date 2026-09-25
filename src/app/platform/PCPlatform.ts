@@ -4,12 +4,25 @@ import { ControllerInput } from "../../xr/inputs/ControllerInput.ts";
 import { ButtonInput } from "../../xr/inputs/ButtonInput.ts";
 import { SceneManager } from "../SceneManager.ts";
 
+/**
+ * TODO: a vérifier et déplacer
+ * The y the eyes of the player sit at, in meters.
+ *
+ * @remarks
+ * Held here rather than next to `GROUND_HEIGHT` because it is the desktop camera it describes: in a
+ * headset the height of the eyes is the height of the player, and the rig alone stands on the floor.
+ */
+export const CAMERA_HEIGHT = 1.6
+
 /** How far in front of the camera the selected hand sits, along the mouse ray, and how far the
  * wheel can push or pull it. */
 const HAND_DISTANCE = 0.4
 const HAND_DISTANCE_MIN = 0.1
 const HAND_DISTANCE_MAX = 3
 const HAND_DISTANCE_STEP = 1.1
+
+/** Radians of hand rotation per pixel of mouse movement, while alt is held. */
+const HAND_ROTATION_SPEED = 0.006
 
 /** Where a hand waits when it is not the selected one, relative to the camera. */
 const IDLE_FORWARD = 0.55
@@ -38,8 +51,8 @@ export class PCPlatform {
 
         // Create the non xr camera
         const camera = scene.getScene().activeCamera!! as FreeCamera
-        camera.position = new Vector3(0,1.6,0)
-        camera.setTarget(new Vector3(1,1.6,0))
+        camera.position = new Vector3(0,CAMERA_HEIGHT,0)
+        camera.setTarget(new Vector3(1,CAMERA_HEIGHT,0))
         camera.minZ = 0.01
         camera.maxZ = 1000
 
@@ -78,8 +91,8 @@ export class PCPlatform {
             if(!rotateEvent){
                 canvas?.requestPointerLock?.()
                 rotateEvent =  (e: MouseEvent)=>{
-                    camera.rotation.y -= e.movementX * 0.002
-                    camera.rotation.x -= e.movementY * 0.002
+                    camera.rotation.y += e.movementX * 0.002
+                    camera.rotation.x += e.movementY * 0.002
                 }
                 document.addEventListener("mousemove", rotateEvent)
             }
@@ -139,11 +152,11 @@ export class PCPlatform {
  * hand is carried a little in front of the camera along the mouse ray and aims along it, the wheel
  * pushing it further or pulling it closer, while the other waits a little in front of its own side.
  * The left click is the selected hand trigger, the right click its grab, ctrl its upper button, e
- * its lower one, the arrow keys the right thumbstick, and a, b, x and y their own buttons.
+ * its lower one, the arrow keys the right thumbstick, and a, b, x and y their own buttons. Holding
+ * alt turns the selected hand instead of moving it, and pressing alt without moving the mouse puts
+ * it back straight.
  */
 function simulateControllers(camera: FreeCamera) {
-
-    console.log("[PCPlatform] simulateControllers")
 
     const scene = SceneManager.getInstance().getScene()
 
@@ -157,6 +170,15 @@ function simulateControllers(camera: FreeCamera) {
     let upperHeld = false
     let lowerHeld = false
 
+    // How each hand is turned away from the ray it hangs on. Kept per side, so switching hands does
+    // not hand over the rotation of the other one.
+    const handRotation = { left: Matrix.Identity(), right: Matrix.Identity() }
+
+    // Alt turns the selected hand instead of moving it. Whether the mouse moved at all is what tells
+    // a turn from a plain press, which resets the rotation.
+    let altRotating = false
+    let altMoved = false
+
     // The mouse is tracked here rather than read from scene.pointerX : the camera is created with
     // its controls detached, so the scene never updates its own pointer position.
     const canvas = scene.getEngine().getRenderingCanvas()
@@ -165,6 +187,10 @@ function simulateControllers(camera: FreeCamera) {
 
     const onMouseMove = (event: MouseEvent) => {
         if(!canvas) return
+        if(altRotating){
+            turnHand(event.movementX, event.movementY)
+            return
+        }
         const bounds = canvas.getBoundingClientRect()
         mouseX = event.clientX - bounds.left
         mouseY = event.clientY - bounds.top
@@ -198,6 +224,29 @@ function simulateControllers(camera: FreeCamera) {
     function upperButton(){ return inputs && (selected === "right" ? inputs.b_button : inputs.y_button) }
     function lowerButton(){ return inputs && (selected === "right" ? inputs.a_button : inputs.x_button) }
 
+    // Reused by the rotation, for the same reason as the vectors above.
+    const frame = new Matrix()
+    const turned = new Matrix()
+    const delta = new Matrix()
+
+    /**
+     * Turn the selected hand by a step of mouse movement.
+     *
+     * The step is applied around the axes of the ray the hand hangs on, not around the axes of the
+     * hand itself, so the same movement of the mouse always turns it the same way on screen however
+     * far it has already been turned.
+     */
+    function turnHand(dx: number, dy: number){
+        if(dx === 0 && dy === 0) return
+        altMoved = true
+        Matrix.RotationYawPitchRollToRef(
+            dx * HAND_ROTATION_SPEED, dy * HAND_ROTATION_SPEED, 0, delta,
+        )
+        const current = handRotation[selected]
+        current.multiplyToRef(delta, turned)
+        current.copyFrom(turned)
+    }
+
     /** Aim a hand and let it pick, which is all the rest of the app reads of a hand. */
     function place(hand: ControllerInput, isSelected: boolean){
         if(isSelected){
@@ -222,6 +271,20 @@ function simulateControllers(camera: FreeCamera) {
         Vector3.CrossToRef(forward, right, up)
         up.normalize()
 
+        // The rotation given by alt, carried into the axes the ray gives, so it turns the hand
+        // without moving it.
+        const rotation = handRotation[hand.side === "left" ? "left" : "right"]
+        if(!rotation.isIdentity()){
+            Matrix.FromXYZAxesToRef(right, up, forward, frame)
+            rotation.multiplyToRef(frame, turned)
+            Vector3.TransformNormalToRef(Vector3.Right(), turned, right)
+            Vector3.TransformNormalToRef(Vector3.Up(), turned, up)
+            Vector3.TransformNormalToRef(Vector3.Forward(), turned, forward)
+            right.normalize()
+            up.normalize()
+            forward.normalize()
+        }
+
         hand.pointer._raytrace(origin, forward, right, up, scenes)
     }
 
@@ -231,7 +294,6 @@ function simulateControllers(camera: FreeCamera) {
         if(!inputs){
             inputs = InputManager.getInstance()
             if(!inputs) return
-            console.log("[PCPlatform] inputs wired")
 
             // The buttons and the right thumbstick already know their own keys.
             for(const button of [inputs.x_button, inputs.y_button, inputs.a_button, inputs.b_button]){
@@ -247,8 +309,6 @@ function simulateControllers(camera: FreeCamera) {
 
         if(frames++ < 3 || frames % 120 === 0){
             const p = selectedHand()!.pointer
-            console.log("[PCPlatform]", selected, "mouse", mouseX, mouseY,
-                "origin", p.origin.toString(), "forward", p.forward.toString(), "hit", p.hit)
         }
     })
 
@@ -330,15 +390,33 @@ function simulateControllers(camera: FreeCamera) {
         if(event.key === " ") switchHand()
         else if(event.key === "e" || event.key === "E") setLower(true)
         else if(event.key === "Control") setUpper(true)
+        else if(event.key === "Alt"){
+            // Alt alone gives the focus to the browser menu bar, which eats the release.
+            event.preventDefault()
+            altRotating = true
+            altMoved = false
+        }
     }
 
     const onKeyUp = (event: KeyboardEvent) => {
         if(event.key === "e" || event.key === "E") setLower(false)
         else if(event.key === "Control") setUpper(false)
+        else if(event.key === "Alt"){
+            event.preventDefault()
+            stopTurning()
+        }
+    }
+
+    /** A press of alt that never moved the mouse is a reset, not a turn. */
+    function stopTurning(){
+        if(!altRotating) return
+        altRotating = false
+        if(!altMoved) handRotation[selected] = Matrix.Identity()
     }
 
     // Losing the focus eats the release events, so let go of everything.
     const release = () => {
+        altRotating = false
         setTrigger(false)
         setSqueeze(false)
         setUpper(false)
@@ -418,6 +496,8 @@ const CONTROLS: [string, string][] = [
     ["Z Q S D / W A S D", "se déplacer"],
     ["Shift maintenu + souris", "tourner la caméra"],
     ["Souris", "viser avec la main sélectionnée"],
+    ["Alt maintenu + souris", "tourner la main sélectionnée"],
+    ["Alt seul", "remettre la main d'aplomb"],
     ["Molette", "rapprocher ou éloigner la main"],
     ["Espace", "changer de main"],
     ["Clic gauche", "gâchette"],

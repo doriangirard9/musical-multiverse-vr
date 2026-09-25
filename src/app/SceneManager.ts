@@ -4,6 +4,9 @@ import '@babylonjs/loaders/glTF';
 import { WaveGround } from "../world/ground/WaveGround.ts";
 import { SoundwaveEmitter } from "../world/soundwave/SoundwaveEmitter.ts";
 
+/** The height of the floor of the world, in meters: the y the player walks on. */
+export const GROUND_HEIGHT = -1.5
+
 /**
  * Manager responsible of the BabylonJS scenes and the renderer.
  */
@@ -178,13 +181,13 @@ export class SceneManager {
 
 
         // Soundwave emitter
-        this.soundwaveEmitter = new SoundwaveEmitter(this.scene, -2+.5+.1, 80)
+        this.soundwaveEmitter = new SoundwaveEmitter(this.scene, GROUND_HEIGHT+.1, 80)
 
         // Ground
         const waveGround = this.waveGround = new WaveGround(30,30)
         waveGround.put(15,15,5,5,0)
         waveGround.root.scaling.copyFromFloats(groundSize.width, .1, groundSize.depth)
-        waveGround.root.position.copyFromFloats(0, -2+.45, 0)
+        waveGround.root.position.copyFromFloats(0, GROUND_HEIGHT-.05, 0)
 
         setInterval(() => {
             waveGround.update()
@@ -198,7 +201,7 @@ export class SceneManager {
 
         // Create ground
         const ground = B.MeshBuilder.CreateBox("ground", groundSize, this.scene)
-        ground.position.y -= 2
+        ground.position.y = GROUND_HEIGHT - groundSize.height/2
         ground.checkCollisions = true
         ground.isVisible = false
         //ground.receiveShadows = true
@@ -215,10 +218,9 @@ export class SceneManager {
 
         const createWall = (width: number, height: number, depth: number, posX: number, posY: number, posZ: number) => {
             const wall = B.MeshBuilder.CreateBox("wall", { width, height, depth }, this.scene)
-            wall.position.set(posX, posY, posZ)
+            wall.position.set(posX, posY + GROUND_HEIGHT - groundSize.height/2, posZ)
             wall.checkCollisions = true
             wall.isVisible = false
-            wall.position.y -= 2
             return wall;
         };
 
