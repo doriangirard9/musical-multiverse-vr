@@ -16,7 +16,7 @@ export class RandomUtils{
         let result = ""
 
         // Name
-        const syllables = ["ka","lo","mi","ra","su","te","na","vi","do","fa","ze","xi"]
+        const syllables = ["ka","lo","mi","ra","su","te","na","vi","do","fa","ze","xi","yo","illou","tino","nelle","ko","he","tru","jio","dio","cou","pon","guon","tun"]
         const count = Math.floor(Math.random()*3)+1
         for(let i=0; i<count; i++) result += syllables[Math.floor(Math.random()*syllables.length)]
         result = result.charAt(0).toUpperCase() + result.slice(1)

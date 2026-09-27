@@ -157,9 +157,9 @@ export class App {
         ])
 
         report("Preparing visual effects")
-        VisualEffectSystem.initialize(
-            NetworkManager.getInstance(),
-        )
+        // VisualEffectSystem.initialize(
+        //     NetworkManager.getInstance(),
+        // )
 
         report("Preparing voice tools")
         MicrophoneSystem.initialize(audioContext)

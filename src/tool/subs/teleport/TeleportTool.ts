@@ -96,6 +96,7 @@ interface Landing {
 }
 
 /**
+ * TODO: le corriger et terminer correctement.
  * The hand that carries the player: it lobs an arc onto the floor, rings the spot it falls on, and
  * the trigger takes the player there.
  *
@@ -498,7 +499,7 @@ export class TeleportTool implements Tool {
 
 /** The kind of the hand that carries the player. */
 export const TELEPORT_TOOL_KIND: ToolKind = {
-    label: "Teleport",
+    label: "Teleport (BUGGY)",
     description: "Lobs an arc onto the floor and rings where it falls. The trigger takes the player to that ring, and an arc landing near a module is taken by it, facing it.",
     thumbnail: THUMBNAIL_URL,
     tags: ["tool", "distance"],
