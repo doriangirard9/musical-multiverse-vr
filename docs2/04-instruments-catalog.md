@@ -744,7 +744,7 @@ description. This is what makes "load any WAM" possible.
 | **File** | [`subs/drumSampler.ts`](../src/node3d/subs/drumSampler.ts) |
 
 A hardcoded bridge to the
-[Burns Audio DrumSampler](https://www.webaudiomodules.com/community/plugins/burns-audio/drumsampler/index.js)
+[Burns Audio DrumSampler with Velocity](https://mainline.i3s.unice.fr/WAMDrumSamplerVel/index.js)
 WAM. It's the same WAM the `XRDrumKit` plays into. Currently used as a
 class for the drum kit, not exposed as a separate spawnable.
 

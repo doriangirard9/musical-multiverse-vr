@@ -134,7 +134,7 @@ export class WamSamplerN3D implements Node3D {
     // this.context.createConnectable(listOut);
 
     this.wamInstance = await WamInitializer.getInstance()
-      .initWamInstance("https://www.webaudiomodules.com/community/plugins/burns-audio/drumsampler/index.js");
+      .initWamInstance("https://mainline.i3s.unice.fr/WAMDrumSamplerVel/index.js");
 
     // MIDI Input connectable — lazily resolve audioNode once WAM is ready
     const midiIn = new this.context.tools.MidiN3DConnectable.Input(
@@ -156,9 +156,8 @@ export class WamSamplerN3D implements Node3D {
   }
 
   private async _initWam() {
-    // Example: Burns Audio DrumSampler
     this.wamInstance = await WamInitializer.getInstance()
-      .initWamInstance("https://www.webaudiomodules.com/community/plugins/burns-audio/drumsampler/index.js");
+      .initWamInstance("https://mainline.i3s.unice.fr/WAMDrumSamplerVel/index.js");
 
     // // Register with shared transport (so it receives wam-transport via scheduleEvents)
     // this.transport.register(this.wamInstance.audioNode);
