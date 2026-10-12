@@ -54,6 +54,10 @@ export class SessionConnector {
         this.isTemporary = !!joinInfo.isTemporary;
         if (this.isTemporary) console.log('[SessionConnector] TEMPORARY session — no saving, state not persisted.');
 
+        // Start heartbeat immediately so the server doesn't evict us while
+        // we wait for CRDT state synchronization during initCRDTState().
+        this.startHeartbeat();
+
         return {
             participantId: this.participantId,
             sessionName: joinInfo.sessionName,
@@ -139,6 +143,11 @@ export class SessionConnector {
                 
                 // Update our participant ID with the new one
                 this.participantId = newJoinInfo.participantId;
+                this.isConnected = true;
+
+                // Restart heartbeat with the new participant ID so the server
+                // doesn't evict us while we load or wait again.
+                this.restartHeartbeat();
                 
                 // If we became participant #1 this time, load the CRDT data
                 if (newJoinInfo.participantNumber === 1 && newJoinInfo.crdtData) {
@@ -163,10 +172,8 @@ export class SessionConnector {
             this.showXRButton();
         }
 
-        // 3. Start Heartbeat
-        this.startHeartbeat();
-
-        // 4. Start auto-save — SAUF si la session est temporaire (jamais persistée).
+        // 3. Start auto-save — SAUF si la session est temporaire (jamais persistée).
+        // Note: Heartbeat is already running (started in connect() or restartHeartbeat()).
         if (!this.isTemporary) {
             this.startAutoSave();
         }
@@ -241,14 +248,30 @@ export class SessionConnector {
     }
 
     private startHeartbeat(): void {
-        this.heartbeatInterval = setInterval(async () => {
+        if (this.heartbeatInterval) return; // Already running
+        // Send first heartbeat immediately, then every 15 seconds
+        const sendHeartbeat = async () => {
             if (!this.isConnected || !this.participantId) return;
             try {
                 await this.api.heartbeat(this.sessionId, this.participantId);
             } catch (e) {
                 console.error('[SessionConnector] Heartbeat failed:', e);
             }
-        }, 15000);
+        };
+        sendHeartbeat(); // Don't wait for the first interval
+        this.heartbeatInterval = setInterval(sendHeartbeat, 15000);
+    }
+
+    /**
+     * Restart heartbeat with the current (potentially new) participant ID.
+     * Used after re-enrollment.
+     */
+    private restartHeartbeat(): void {
+        if (this.heartbeatInterval) {
+            clearInterval(this.heartbeatInterval);
+            this.heartbeatInterval = null;
+        }
+        this.startHeartbeat();
     }
 
     private startAutoSave(): void {
