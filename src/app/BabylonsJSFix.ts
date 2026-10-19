@@ -6,6 +6,9 @@ import { Node, Observable } from "@babylonjs/core";
 export class BabylonsJSFix {
 
     static fix(){
+        // Patching twice would stack the wrappers, as a hot reload would do
+        if((Observable.prototype as any)._babylonjs_fixed) return
+        ;(Observable.prototype as any)._babylonjs_fixed = true
 
         //// Bad behavior implementation ////
         // Solution: I remove the behavior from the list before calling detach
@@ -34,41 +37,34 @@ export class BabylonsJSFix {
 
         //// Observer stopping all other oversables early ////
         // Solution: Wrap the callback in a try/catch to avoid stopping other observers
+        // The wrapper keeps the original callback in _original, so removeCallback can still find it.
+        // addOnce is not patched: it already goes through add.
         const old_add = Observable.prototype.add
         Observable.prototype.add = function(this:any, callback: any, ...other: any[]){
             if(callback==null || callback==undefined) return old_add.call(this, callback, ...other) as any
-            const safe_callback = (...params: any[]) => {
+            const safe_callback = function(this:any, ...params: any[]){
                 try{
-                    callback(...params)
+                    return callback.apply(this, params)
                 }catch(e: Error|any){
                     console.error("Error in observable callback", e?.message, e?.stack)
                 }
-            }
-            callback._safe_fix_version = safe_callback
+            } as any
+            safe_callback._original = callback
             return old_add.call(this, safe_callback, ...other) as any
         }
 
-        // Solution: Wrap the callback in a try/catch to avoid stopping other observers
-        const old_add_once = Observable.prototype.add
-        Observable.prototype.addOnce = function(this:any, callback: any, ...other: any[]){
-            if(callback==null || callback==undefined) return old_add_once.call(this, callback, ...other) as any
-            const safe_callback = (...params: any[]) => {
-                try{
-                    callback(...params)
-                }catch(e: Error|any){
-                    console.error("Error in observable callback", e?.message, e?.stack)
+        // Solution: Compare with the original callback instead of the wrapper
+        // Mirrors Observable.removeCallback of babylonjs 8.56
+        Observable.prototype.removeCallback = function(this:any, callback: any, scope?: any){
+            for(const observer of this._observers){
+                if(observer._willBeUnregistered) continue
+                const original = observer.callback._original ?? observer.callback
+                if(original === callback && (!scope || scope === observer.scope)){
+                    this._deferUnregister(observer)
+                    return true
                 }
             }
-            callback._safe_fix_version = safe_callback
-            return old_add_once.call(this, safe_callback, ...other) as any
-        }
-
-        const old_removeCallback = Observable.prototype.removeCallback
-        Observable.prototype.removeCallback = function(this:any, callback: any, ...other: any[]){
-            if(callback==null || callback==undefined) return old_removeCallback.call(this, callback, ...other) as any
-            const ret = old_removeCallback.call(this, callback._safe_fix_version, ...other)
-            delete callback._safe_fix_version
-            return ret
+            return false
         }
     }
 }

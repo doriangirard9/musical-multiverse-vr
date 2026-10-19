@@ -326,9 +326,8 @@ export class AbstractMenu {
      * Dispose all resources
      */
     dispose() {
-        if (this.label) {
-            this.label?.dispose?.()
-        }
+        if(this.label) this.label.dispose()
+        this._plane.material!.dispose()
         this.texture.dispose()
         this._plane.dispose()
         this._root.dispose()

@@ -48,7 +48,7 @@ export class BlocksMenu extends AbstractMenu {
         menuData?: BMenuMenu
     ) {
         super(scene, renderScene)
-        this.initPanel("choice_menu", 1, 1, 256)
+        this.initPanel("blocks_menu", 1, 1, 256)
         this.initLabel("tooltip")
 
         if(menuData) this.set(menuData)

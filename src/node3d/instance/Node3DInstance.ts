@@ -729,9 +729,9 @@ export class Node3DInstance implements Synchronized {
 
     public async dispose() {
         if (this.disposed) return
+        this.disposed = true
         this.onDispose.notifyObservers()
         this.on_dispose()
-        this.disposed = true
         this.set_state("delete")
         this.highlighter.dispose()
         this.bounding_box?.dispose()
