@@ -1,5 +1,9 @@
 import { DynamicTexture, Material, Scene, StandardMaterial, Texture, Vector4 } from "@babylonjs/core";
 
+/**
+ * A dynamic texture that can be dynamically filled to contains other texture.
+ * Useful to optimise the rendering by merging multiple materials as one.
+ */
 export class TextureAtlas{
 
     private _texture
@@ -24,37 +28,72 @@ export class TextureAtlas{
         this._material.alphaMode = Material.MATERIAL_ALPHATEST
     }
 
+    /**
+     * Is there no slot left for another texture.
+     */
+    get isFull(){ return this.y >= this.total }
+
     async add(src: string){
+        if(this.isFull) throw new Error("TextureAtlas is full")
+
+        // Reserve the slot before awaiting, so concurrent calls get distinct slots
+        const x = this.x
+        const y = this.y
+        this.x += this.tile
+        if(this.x >= this.total){
+            this.x = 0
+            this.y += this.tile
+        }
+
         // Draw
         const image = new Image()
         image.src = src
         await image.decode()
 
         const ctx = this._texture.getContext()
-        ctx.drawImage(image, this.x, this.y, this.tile, this.tile)
+        ctx.drawImage(image, x, y, this.tile, this.tile)
         this._texture.update(false)
 
-        const rect = new Vector4(
-            this.x/this.total,
-            (this.y+this.tile)/this.total,
-            (this.x+this.tile)/this.total,
-            this.y/this.total,
+        return new Vector4(
+            x/this.total,
+            (y+this.tile)/this.total,
+            (x+this.tile)/this.total,
+            y/this.total,
         )
-        
-        // Step
-        this.x += this.tile
-        if(this.x >= this.total){
-            this.x = 0
-            this.y += this.tile
-            if(this.y >= this.total){
-                throw new Error("TextureAtlas is full")
-            }
-        }
-
-        return rect
     }
 
     get atlas(){ return this._texture as Texture }
 
     get material(){ return this._material }
+}
+
+/**
+ * Automatic dispatcher for multiple atlases.
+ */
+export class MultiTextureAtlas{
+
+    private _atlases = [] as TextureAtlas[]
+
+    constructor(
+        readonly label: string,
+        readonly scene: Scene,
+        readonly tile: number = 64,
+        readonly total: number = 512
+    ){}
+
+    /**
+     * Add a texture to the first atlas with a free slot, creating a new atlas when they are all full.
+     * @returns The uv rect of the texture and the material of the atlas holding it.
+     */
+    async add(src: string){
+        let atlas = this._atlases.find(it => !it.isFull)
+        if(!atlas){
+            atlas = new TextureAtlas(`${this.label} ${this._atlases.length}`, this.scene, this.tile, this.total)
+            this._atlases.push(atlas)
+        }
+        const uv = await atlas.add(src)
+        return { uv, material: atlas.material, atlas: atlas.atlas }
+    }
+
+    get atlases(): readonly TextureAtlas[] { return this._atlases }
 }
