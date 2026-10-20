@@ -242,6 +242,7 @@ export class ProjectsPage {
                                 </div>
                                 <div style="display:flex; gap:6px; margin-left:12px;">
                                     <button class="wj-btn wj-btn-mini wj-btn-rename-session" data-session-id="${s.id}" data-session-name="${this.escapeHtml(s.name)}" title="Rename session" style="background:#333; color:#fff; border:none;">Rename</button>
+                                    <button class="wj-btn wj-btn-mini wj-btn-toggle-visibility" data-session-id="${s.id}" data-public="${s.is_public ? '1' : '0'}" title="Toggle visibility" style="background:#333; color:#fff; border:none;">${s.is_public ? 'Make Private' : 'Make Public'}</button>
                                     <button class="wj-btn wj-btn-mini wj-btn-toggle-lock-session" data-session-id="${s.id}" data-locked="${s.is_locked ? '1' : '0'}" title="Toggle lock" style="background:#333; color:#fff; border:none;">${s.is_locked ? 'Unlock' : 'Lock'}</button>
                                     <button class="wj-btn wj-btn-mini wj-btn-delete-session" data-session-id="${s.id}" title="Delete session" style="background:#dc3545; color:#fff; border:none;">Delete</button>
                                     <button class="wj-btn wj-btn-mini wj-btn-invite" data-session-id="${s.id}" title="Invite collaborator" style="background:#333; color:#fff; border:none;">Invite</button>
@@ -325,6 +326,16 @@ export class ProjectsPage {
                     const sessionId = (btn as HTMLElement).dataset.sessionId;
                     const isLocked = (btn as HTMLElement).dataset.locked === '1';
                     if (sessionId) this.handleToggleLockSession(el, sessionId, !isLocked);
+                });
+            });
+
+            listEl.querySelectorAll('.wj-btn-toggle-visibility').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const sessionId = (btn as HTMLElement).dataset.sessionId;
+                    const isPublic = (btn as HTMLElement).dataset.public === '1';
+                    if (sessionId) this.handleToggleVisibility(el, sessionId, !isPublic);
                 });
             });
 
@@ -524,6 +535,18 @@ export class ProjectsPage {
             await this.loadProjects(el);
         } catch (e) {
             const msg = e instanceof ApiError ? e.message : 'Failed to lock/unlock session';
+            errorEl.textContent = msg;
+            errorEl.classList.add('wj-visible');
+        }
+    }
+
+    private async handleToggleVisibility(el: HTMLElement, sessionId: string, shouldBePublic: boolean): Promise<void> {
+        const errorEl = el.querySelector('#wj-projects-error') as HTMLElement;
+        try {
+            await this.api.request('PUT', `/sessions/${sessionId}`, { isPublic: shouldBePublic });
+            await this.loadProjects(el);
+        } catch (e) {
+            const msg = e instanceof ApiError ? e.message : 'Failed to change session visibility';
             errorEl.textContent = msg;
             errorEl.classList.add('wj-visible');
         }

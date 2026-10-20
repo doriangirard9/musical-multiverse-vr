@@ -74,7 +74,7 @@ export class SessionBrowserPage {
                 ${user ? `
                 <div class="wj-tabs">
                     <button class="wj-tab wj-active" data-tab="public">Public Sessions</button>
-                    <button class="wj-tab" data-tab="invited">Private Sessions</button>
+                    <button class="wj-tab" data-tab="invited">Invited Sessions</button>
                     <button class="wj-tab" data-tab="mine">My Sessions</button>
                 </div>
                 ` : ''}
@@ -232,7 +232,7 @@ export class SessionBrowserPage {
                         ${tab === 'mine'
                             ? 'No sessions yet. Go to <span class="wj-link" id="wj-goto-projects">My Projects</span> to create one.'
                             : tab === 'invited'
-                            ? 'No private session invitations yet.'
+                            ? 'No invited sessions yet.'
                             : 'No public sessions available.'}
                     </div>
                 `;
