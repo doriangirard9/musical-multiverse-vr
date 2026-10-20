@@ -36,13 +36,13 @@ export class ShopMenuSystem {
         readonly nodeManager: Node3dManager,
         readonly menus: MenuSystem,
         readonly options: { allowedKinds?: ReadonlySet<string> } = {},
+        readonly canEdit = true,
     ){
-        InputManager.getInstance().y_button.onDown.add(()=>{
-            this.toggle()
-        })
+        if(canEdit) InputManager.getInstance().y_button.onDown.add(()=>this.toggle())
     }
 
     toggle(){
+        if(!this.canEdit) return
         if(!this.menu){
             this.menu = new ShopMenu(
                 this.scene.getScene(),

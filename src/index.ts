@@ -179,6 +179,7 @@ let onload = async() => {
                             doc,
                             {
                                 tutorial: tutorialMode,
+                                canEdit: connectionInfo.canEdit !== false,
                                 onProgress: (text, progress, detail) => loadingOverlay.update(text, 18 + Math.round(progress * 0.62), detail ?? ''),
                             }
                         )

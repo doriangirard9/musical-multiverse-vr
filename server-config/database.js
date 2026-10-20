@@ -58,6 +58,7 @@ function initDatabase() {
             name TEXT NOT NULL,
             is_public INTEGER DEFAULT 1,
             is_locked INTEGER DEFAULT 0,
+            access_mode TEXT DEFAULT 'open',
             max_users INTEGER DEFAULT 32,
             share_token TEXT UNIQUE,
             crdt_data TEXT,
@@ -104,6 +105,28 @@ function initDatabase() {
         if (!e.message.includes('duplicate column name')) {
             console.warn('[Database] Migration error (non-critical):', e.message);
         }
+    }
+
+    try {
+        const sessionsInfo = db.prepare('PRAGMA table_info(sessions)').all();
+        const hasAccessMode = sessionsInfo.some(col => col.name === 'access_mode');
+        if (!hasAccessMode) {
+            db.prepare("ALTER TABLE sessions ADD COLUMN access_mode TEXT DEFAULT 'open'").run();
+            db.prepare("UPDATE sessions SET access_mode = CASE WHEN is_public = 0 THEN 'regulated' ELSE 'open' END").run();
+            console.log('[Database] Added access_mode column to sessions table');
+        }
+    } catch (e) {
+        if (!e.message.includes('duplicate column name')) {
+            console.warn('[Database] Access mode migration error (non-critical):', e.message);
+        }
+    }
+
+    // Normalize the previous viewer-mode value. Persistence locking remains in is_locked.
+    try {
+        db.prepare("UPDATE sessions SET access_mode = CASE WHEN is_locked = 1 THEN 'open' ELSE 'closed' END WHERE access_mode = 'locked'").run();
+        db.prepare("UPDATE sessions SET access_mode = 'regulated' WHERE is_public = 0 AND access_mode = 'open'").run();
+    } catch (e) {
+        console.warn('[Database] Access mode normalization error:', e.message);
     }
 
     // Create indexes for performance

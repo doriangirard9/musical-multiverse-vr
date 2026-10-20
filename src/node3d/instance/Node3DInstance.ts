@@ -752,6 +752,7 @@ export class Node3DInstance implements Synchronized {
         audioManager: Node3dManager,
         onAdd?: (instance:Node3DInstance)=>void,
         onRemove?: (instance:Node3DInstance)=>void,
+        canWrite = true,
     ) {
         const syncmanager: SyncManager<Node3DInstance, string> = new SyncManager({
             name: "node3d_instances",
@@ -765,6 +766,7 @@ export class Node3DInstance implements Synchronized {
                 onRemove?.(instance)
                 await instance.dispose()
             },
+            canWrite,
         })
         // syncmanager.add(node_id,node,kind)
         return syncmanager

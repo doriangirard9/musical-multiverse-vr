@@ -46,14 +46,17 @@ export class ToolSystem {
         readonly scenes: SceneManager,
         readonly inputs: InputManager,
         readonly menus: MenuSystem,
+        readonly canEdit = true,
     ){
         const scene = scenes.getScene()
 
-        this.left = new ToolSlot("left", inputs.left, scene, ToolSystem.DEFAULT_KIND)
-        this.right = new ToolSlot("right", inputs.right, scene, ToolSystem.DEFAULT_KIND)
+        this.left = new ToolSlot("left", inputs.left, scene, ToolSystem.DEFAULT_KIND, canEdit)
+        this.right = new ToolSlot("right", inputs.right, scene, ToolSystem.DEFAULT_KIND, canEdit)
 
-        inputs.x_button.onDown.add(() => this.toggleMenu(this.left))
-        inputs.a_button.onDown.add(() => this.toggleMenu(this.right))
+        if(canEdit){
+            inputs.x_button.onDown.add(() => this.toggleMenu(this.left))
+            inputs.a_button.onDown.add(() => this.toggleMenu(this.right))
+        }
     }
 
     /**
@@ -77,6 +80,7 @@ export class ToolSystem {
      * @param kind - The kind to put in that hand.
      */
     public equip(controller: ControllerInput, kind: ToolKind): {dispose(): void} {
+        if(!this.canEdit) return { dispose(){} }
         const slot = this.slotOf(controller)
         if(!slot) return { dispose(){} }
 
@@ -129,6 +133,7 @@ export class ToolSystem {
      * @param slot - The hand the menu applies to.
      */
     public toggleMenu(slot: ToolSlot): void {
+        if(!this.canEdit) return
         if(this.#openedFor === slot && this.menus.current_menu === this.#menu){
             this.menus.close()
             return

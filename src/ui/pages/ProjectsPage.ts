@@ -7,7 +7,7 @@ interface ProjectInfo {
     name: string;
     description: string;
     session_count: number;
-    sessions?: Array<{ id: string; name: string; is_public: number; is_locked?: number; created_at: string }>;
+        sessions?: Array<{ id: string; name: string; is_public: number; is_locked?: number; access_mode?: 'open' | 'regulated' | 'closed'; created_at: string }>;
 }
 
 interface CollaboratorInfo {
@@ -77,6 +77,21 @@ export class ProjectsPage {
                                 <option value="1">Public (Visible to everyone)</option>
                                 <option value="0">Private (Invite only)</option>
                             </select>
+                            <div class="wj-form-group">
+                                <label class="wj-label">Collaboration mode</label>
+                                <select class="wj-input" id="wj-session-access-mode">
+                                    <option value="open">Open (everyone can edit)</option>
+                                    <option value="regulated">Regulated (collaborators only)</option>
+                                    <option value="closed">Closed (view only)</option>
+                                </select>
+                            </div>
+                            <div class="wj-form-group">
+                                <label class="wj-label">Persistence</label>
+                                <select class="wj-input" id="wj-session-persistence">
+                                    <option value="0">Saved to database</option>
+                                    <option value="1">Locked (shared, not saved)</option>
+                                </select>
+                            </div>
                         </div>
                         <div class="wj-form-group">
                             <label class="wj-label">Max Users</label>
@@ -238,12 +253,13 @@ export class ProjectsPage {
                             <div class="wj-session-item" data-session-id="${s.id}" style="display:flex; justify-content:space-between; align-items:center; padding:8px; background:var(--bg-hover); border-radius:4px; margin-bottom:8px; cursor:pointer;">
                                 <div style="flex:1; overflow:hidden;">
                                     <div style="font-weight:500; color:var(--text-primary);">${this.escapeHtml(s.name)}</div>
-                                    <div style="font-size:12px; color:var(--text-secondary);">${s.is_public ? 'Public' : 'Private'}${s.is_locked ? ' • Locked' : ''}</div>
+                                    <div style="font-size:12px; color:var(--text-secondary);">${s.is_public ? 'Public' : 'Private'} • ${this.accessModeLabel(s.access_mode)}${s.is_locked ? ' • Locked (not saved)' : ''}</div>
                                 </div>
                                 <div style="display:flex; gap:6px; margin-left:12px;">
                                     <button class="wj-btn wj-btn-mini wj-btn-rename-session" data-session-id="${s.id}" data-session-name="${this.escapeHtml(s.name)}" title="Rename session" style="background:#333; color:#fff; border:none;">Rename</button>
                                     <button class="wj-btn wj-btn-mini wj-btn-toggle-visibility" data-session-id="${s.id}" data-public="${s.is_public ? '1' : '0'}" title="Toggle visibility" style="background:#333; color:#fff; border:none;">${s.is_public ? 'Make Private' : 'Make Public'}</button>
-                                    <button class="wj-btn wj-btn-mini wj-btn-toggle-lock-session" data-session-id="${s.id}" data-locked="${s.is_locked ? '1' : '0'}" title="Toggle lock" style="background:#333; color:#fff; border:none;">${s.is_locked ? 'Unlock' : 'Lock'}</button>
+                                    <button class="wj-btn wj-btn-mini wj-btn-cycle-mode" data-session-id="${s.id}" data-mode="${this.accessMode(s.access_mode, s.is_public)}" title="Change collaboration mode" style="background:#333; color:#fff; border:none;">Mode: ${this.accessModeLabel(s.access_mode)}</button>
+                                    <button class="wj-btn wj-btn-mini wj-btn-toggle-persistence" data-session-id="${s.id}" data-locked="${s.is_locked ? '1' : '0'}" title="Toggle persistence" style="background:#333; color:#fff; border:none;">${s.is_locked ? 'Unlock persistence' : 'Lock persistence'}</button>
                                     <button class="wj-btn wj-btn-mini wj-btn-delete-session" data-session-id="${s.id}" title="Delete session" style="background:#dc3545; color:#fff; border:none;">Delete</button>
                                     <button class="wj-btn wj-btn-mini wj-btn-invite" data-session-id="${s.id}" title="Invite collaborator" style="background:#333; color:#fff; border:none;">Invite</button>
                                     <button class="wj-btn wj-btn-mini wj-btn-collaborators" data-session-id="${s.id}" title="Manage collaborators" style="background:#333; color:#fff; border:none;">Collaborators</button>
@@ -319,13 +335,23 @@ export class ProjectsPage {
                 });
             });
 
-            listEl.querySelectorAll('.wj-btn-toggle-lock-session').forEach(btn => {
+            listEl.querySelectorAll('.wj-btn-cycle-mode').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const sessionId = (btn as HTMLElement).dataset.sessionId;
+                    const currentMode = (btn as HTMLElement).dataset.mode as 'open' | 'regulated' | 'closed';
+                    if (sessionId) this.handleChangeAccessMode(el, sessionId, this.nextAccessMode(currentMode));
+                });
+            });
+
+            listEl.querySelectorAll('.wj-btn-toggle-persistence').forEach(btn => {
                 btn.addEventListener('click', (e) => {
                     e.preventDefault();
                     e.stopPropagation();
                     const sessionId = (btn as HTMLElement).dataset.sessionId;
                     const isLocked = (btn as HTMLElement).dataset.locked === '1';
-                    if (sessionId) this.handleToggleLockSession(el, sessionId, !isLocked);
+                    if (sessionId) this.handleTogglePersistence(el, sessionId, !isLocked);
                 });
             });
 
@@ -457,6 +483,8 @@ export class ProjectsPage {
         const projIdInput = el.querySelector('#wj-session-project-id') as HTMLInputElement;
         const nameInput = el.querySelector('#wj-session-name') as HTMLInputElement;
         const visSelect = el.querySelector('#wj-session-visibility') as HTMLSelectElement;
+            const accessModeSelect = el.querySelector('#wj-session-access-mode') as HTMLSelectElement;
+            const persistenceSelect = el.querySelector('#wj-session-persistence') as HTMLSelectElement;
         const maxInput = el.querySelector('#wj-session-max-users') as HTMLInputElement;
         const errorEl = el.querySelector('#wj-projects-error') as HTMLElement;
 
@@ -470,6 +498,8 @@ export class ProjectsPage {
                 projectId: projIdInput.value,
                 name: nameInput.value.trim(),
                 isPublic: visSelect.value === '1',
+                accessMode: visSelect.value === '1' ? accessModeSelect.value : 'regulated',
+                isLocked: persistenceSelect.value === '1',
                 maxUsers: parseInt(maxInput.value, 10) || 32
             });
 
@@ -528,13 +558,25 @@ export class ProjectsPage {
         }
     }
 
-    private async handleToggleLockSession(el: HTMLElement, sessionId: string, shouldLock: boolean): Promise<void> {
+    private async handleChangeAccessMode(el: HTMLElement, sessionId: string, accessMode: 'open' | 'regulated' | 'closed'): Promise<void> {
         const errorEl = el.querySelector('#wj-projects-error') as HTMLElement;
         try {
-            await this.api.request('PUT', `/sessions/${sessionId}`, { isLocked: shouldLock });
+            await this.api.request('PUT', `/sessions/${sessionId}`, { accessMode });
             await this.loadProjects(el);
         } catch (e) {
-            const msg = e instanceof ApiError ? e.message : 'Failed to lock/unlock session';
+            const msg = e instanceof ApiError ? e.message : 'Failed to change collaboration mode';
+            errorEl.textContent = msg;
+            errorEl.classList.add('wj-visible');
+        }
+    }
+
+    private async handleTogglePersistence(el: HTMLElement, sessionId: string, isLocked: boolean): Promise<void> {
+        const errorEl = el.querySelector('#wj-projects-error') as HTMLElement;
+        try {
+            await this.api.request('PUT', `/sessions/${sessionId}`, { isLocked });
+            await this.loadProjects(el);
+        } catch (e) {
+            const msg = e instanceof ApiError ? e.message : 'Failed to change session persistence';
             errorEl.textContent = msg;
             errorEl.classList.add('wj-visible');
         }
@@ -638,5 +680,21 @@ export class ProjectsPage {
         } catch (e) {
             list.innerHTML = `<div class="wj-empty-state">${this.escapeHtml(e instanceof ApiError ? e.message : 'Failed to load collaborators')}</div>`;
         }
+    }
+
+    private accessMode(mode?: 'open' | 'regulated' | 'closed', isPublic?: number): 'open' | 'regulated' | 'closed' {
+        if (mode === 'open' || mode === 'regulated' || mode === 'closed') return mode;
+        return isPublic ? 'open' : 'regulated';
+    }
+
+    private accessModeLabel(mode?: 'open' | 'regulated' | 'closed'): string {
+        const normalized = this.accessMode(mode, 1);
+        return normalized === 'open' ? 'Open' : normalized === 'regulated' ? 'Regulated' : 'Closed';
+    }
+
+    private nextAccessMode(mode: 'open' | 'regulated' | 'closed'): 'open' | 'regulated' | 'closed' {
+        if (mode === 'open') return 'regulated';
+        if (mode === 'regulated') return 'closed';
+        return 'open';
     }
 }

@@ -8,6 +8,7 @@ interface SessionInfo {
     name: string;
     is_public: number;
     is_locked?: number;
+    access_mode?: 'open' | 'regulated' | 'closed';
     max_users: number;
     project_name: string;
     owner_username: string;
@@ -250,7 +251,7 @@ export class SessionBrowserPage {
                                 ${s.is_public ? '🌐 Public' : '🔒 Private'}
                             </span>
                             <span>${this.escapeHtml(s.project_name)} · ${this.escapeHtml(s.owner_username)}</span>
-                            ${s.is_locked ? '<span style="color:#ff6b6b; font-weight:500;">Locked</span>' : ''}
+                            <span>${this.accessModeLabel(s.access_mode)}${s.is_locked ? ' • Locked (not saved)' : ''}</span>
                         </div>
                     </div>
                     <div class="wj-participants">
@@ -362,5 +363,11 @@ export class SessionBrowserPage {
         const div = document.createElement('div');
         div.textContent = str;
         return div.innerHTML;
+    }
+
+    private accessModeLabel(mode?: 'open' | 'regulated' | 'closed'): string {
+        if (mode === 'closed') return 'Closed';
+        if (mode === 'regulated') return 'Regulated';
+        return 'Open';
     }
 }

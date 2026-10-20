@@ -20,6 +20,7 @@ export class SessionConnector {
     private saveInterval: ReturnType<typeof setInterval> | null = null;
     private isConnected = false;
     private sessionLocked = false;
+    private canEdit = true;
     private hasPendingSave = false;
     private lastSavedSnapshot: string | null = null;
     /** Session temporaire (éphémère) → aucune sauvegarde, état jamais persisté. */
@@ -45,12 +46,13 @@ export class SessionConnector {
      * Executes the API connection protocol.
      * Returns connection info. Does NOT initialize the CRDT state yet.
      */
-    async connect(): Promise<SessionConnectionInfo & { crdtData?: string; sessionLocked?: boolean }> {
+    async connect(): Promise<SessionConnectionInfo & { crdtData?: string; sessionLocked?: boolean; sessionMode?: 'open' | 'regulated' | 'locked'; canEdit?: boolean }> {
         // 1. Join API call
         const joinInfo = await this.api.joinSession(this.sessionId, this.shareToken);
         this.participantId = joinInfo.participantId;
         this.isConnected = true;
         this.sessionLocked = joinInfo.sessionLocked || false;
+        this.canEdit = joinInfo.canEdit !== false;
         this.isTemporary = !!joinInfo.isTemporary;
         if (this.isTemporary) console.log('[SessionConnector] TEMPORARY session — no saving, state not persisted.');
 
@@ -64,7 +66,9 @@ export class SessionConnector {
             maxUsers: joinInfo.maxUsers,
             participantNumber: joinInfo.participantNumber,
             crdtData: joinInfo.crdtData,
-            sessionLocked: this.sessionLocked
+            sessionLocked: this.sessionLocked,
+            sessionMode: joinInfo.sessionMode,
+            canEdit: this.canEdit,
         };
     }
 
@@ -284,6 +288,11 @@ export class SessionConnector {
         // Skip auto-save for locked sessions
         if (this.sessionLocked) {
             console.log('[SessionConnector] Skipping auto-save for locked session');
+            return;
+        }
+
+        if (!this.canEdit) {
+            console.log('[SessionConnector] Skipping auto-save for read-only participant');
             return;
         }
 
