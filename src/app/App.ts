@@ -1,10 +1,8 @@
-import { CreateAudioEngineAsync, Vector3 } from "@babylonjs/core";
+import { Color3, CreateAudioEngineAsync, Vector3 } from "@babylonjs/core";
 import { NetworkManager } from "../network/NetworkManager.ts";
 import { InputManager } from "../xr/inputs/InputManager.ts";
-import { XRManager } from "../xr/XRManager.ts";
 import { AppOrchestrator } from "./AppOrchestrator.ts";
 import { ConnectionManager } from "./node3d/ConnectionManager.ts";
-import ControlsUISystem from "./menu/ControlsUISystem.ts";
 import { Node3dManager } from "./node3d/Node3dManager.ts";
 import { PlayerManager } from "./PlayerManager.ts";
 import { SceneManager } from "./SceneManager.ts";
@@ -12,7 +10,6 @@ import { Serialization } from "./node3d/Serialization.ts";
 import { UIManager } from "./UIManager.ts";
 import { AvatarSystem } from "./social/AvatarSystem.ts";
 import { NetworkEventBus } from "../eventBus/NetworkEventBus.ts";
-import { RandomUtils } from "../node3d/tools/utils/RandomUtils.ts";
 import { Doc } from "yjs";
 import { HandMenuSystem } from "./menu/HandMenuSystem.ts";
 import { WamTransportManager } from "./node3d/WamTransportManager.ts";
@@ -26,16 +23,20 @@ import { TUTORIAL_KINDS } from "../tutorial/TutorialScenario.ts";
 import { AudioWorldSystem } from "./node3d/AudioDestinationSystem.ts";
 import { MicrophoneSystem } from "./MicrophoneSystem.ts";
 import { VoiceChatSystem } from "./social/VoiceChatSystem.ts";
+import { SocialCommunicationSystem } from "./social/SocialCommunicationSystem.ts";
+import { SocialWheelSystem } from "./social/SocialWheelSystem.ts";
 import { BarMenuSystem } from "./menu/BarMenuSystem.ts";
 import { DrawingSystem } from "./social/DrawingSystem.ts";
 import { ParameterJaugeSystem } from "./feedback/ParameterJaugeSystem.ts";
-import { PointerVisualSystem } from "./feedback/PointerVisualSystem.ts";
+import { ToolSystem } from "./tool/ToolSystem.ts";
+import { PCPlatform } from "./platform/PCPlatform.ts";
+import { VisualEffectSystem } from "./visual/VisualEffectSystem.ts";
+import { XRPlatform } from "./platform/XRPlatform.ts";
 
 let _app: App
 
 export class App {
     private static readonly DEBUG_LOG = false;
-    private controlsUI?: ControlsUISystem;
     private wakeLock: WakeLockSentinel|null = null; // Screen wake lock to prevent device sleep
 
     constructor() {
@@ -51,6 +52,8 @@ export class App {
 
     public async start(
         participantId: string,
+        username: string,
+        usercolor: Color3,
         roomName: string,
         doc: Doc,
         options: { tutorial?: boolean; onProgress?: (text: string, progress: number, detail?: string) => void } = {},
@@ -65,9 +68,6 @@ export class App {
             options.onProgress?.(text, Math.round((currentStep / totalSteps) * 100), detail || `elapsed ${elapsed}s`)
         }
         
-        const username = RandomUtils.randomName()
-        const usercolor = RandomUtils.randomColor()
-
         // Intialization of scene
         report("Preparing 3D scene")
         await SceneManager.initialize()
@@ -91,15 +91,16 @@ export class App {
 
         BabylonsJSFix.fix()
 
-        report("Preparing XR runtime")
-        UIManager.initialize()
-        await XRManager.getInstance()!!.init(SceneManager.getInstance().getScene(), audioEngine);
-
         report("Preparing inputs")
-        InputManager.create(XRManager.getInstance().xrHelper ?? null, [
+        InputManager.create([
             SceneManager.getInstance().getScene(),
             SceneManager.getInstance().getUtilityLayer().utilityLayerScene
         ])
+
+        report("Preparing XR runtime")
+        UIManager.initialize()
+        if(await XRPlatform.hasXRSupport()) await XRPlatform.initialize(SceneManager.getInstance().getScene(), audioEngine)
+        else await PCPlatform.initialize()
 
         report("Preparing menus")
         await MenuSystem.initialize(
@@ -122,7 +123,6 @@ export class App {
         await Promise.all([
             DrawingSystem.initialize(
                 NetworkManager.getInstance(),
-                InputManager.getInstance(),
                 SceneManager.getInstance(),
                 usercolor,
             ),
@@ -146,10 +146,6 @@ export class App {
                 InputManager.getInstance(),
                 Node3dManager.getInstance(),
             ),
-            PointerVisualSystem.initialize(
-                SceneManager.getInstance(),
-                InputManager.getInstance(),
-            ),
             HapticContactSystem.initialize(
                 InputManager.getInstance(),
                 WamTransportManager.getInstance(audioContext),
@@ -160,6 +156,11 @@ export class App {
             ),
         ])
 
+        report("Preparing visual effects")
+        // VisualEffectSystem.initialize(
+        //     NetworkManager.getInstance(),
+        // )
+
         report("Preparing voice tools")
         MicrophoneSystem.initialize(audioContext)
         VoiceChatSystem.initialize(
@@ -168,9 +169,26 @@ export class App {
             AvatarSystem.getInstance(),
             SceneManager.getInstance(),
         )
+        SocialCommunicationSystem.initialize(
+            NetworkManager.getInstance(),
+            InputManager.getInstance(),
+            AvatarSystem.getInstance(),
+            SceneManager.getInstance(),
+        )
+        SocialWheelSystem.initialize(
+            SceneManager.getInstance(),
+            InputManager.getInstance(),
+            MicrophoneSystem.getInstance(),
+            SocialCommunicationSystem.getInstance(),
+        )
 
         report("Preparing menus")
         await Promise.all([
+            ToolSystem.initialize(
+                SceneManager.getInstance(),
+                InputManager.getInstance(),
+                MenuSystem.getInstance(),
+            ),
             HandMenuSystem.initialize(
                 SceneManager.getInstance(),
                 InputManager.getInstance(),
@@ -192,6 +210,9 @@ export class App {
             ),
         ])
 
+        // A pad to check the hands reach the instruments, until the real instruments carry behaviors.
+        // new InstrumentTestPad(SceneManager.getInstance().getScene(), new Vector3(0, 1.1, 0.85))
+
         await BarMenuSystem.initialize(
             SceneManager.getInstance(),
             NetworkManager.getInstance().node3d,
@@ -204,23 +225,16 @@ export class App {
         const node3dBuilder = node3dManager.builder
         const node3dShared = node3dBuilder.getShared()
         
-        // create 3D controller button labels
+        // Controller labels are temporarily disabled while the tool menus own X/A.
         report("Preparing controller hints")
-        this.controlsUI = new ControlsUISystem();
-        
-        // Setup X button to toggle controls UI
-        InputManager.getInstance().x_button.onChange.add((event) => {
-            if (event.pressed) {
-                this.controlsUI?.toggle();
-            }
-        });
 
         if (App.DEBUG_LOG) console.log(node3dShared)
 
         window.addEventListener("keydown",async(e)=>{
             if(e.key=="p"){
                 let prompt = window.prompt("Enter Node3D kind to create:")
-                if(prompt) node3dManager.addNode3d(`${prompt}`, new Vector3(0,0,5))
+                if(prompt) node3dManager.builder.create(`${prompt}`)
+                //if(prompt) node3dManager.addNode3d(`${prompt}`, new Vector3(0,0,5))
             }
             else if(e.key=="i"){
                 await SceneManager.getInstance().toggleInspector()

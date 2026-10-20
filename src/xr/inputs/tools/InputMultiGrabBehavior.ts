@@ -1,6 +1,7 @@
 import { AbstractMesh, Behavior } from "@babylonjs/core";
 import { InputManager } from "../InputManager";
 import { PointerInput } from "../PointerInput";
+import { InputCapability } from "../InputCapability";
 
 
 /**
@@ -22,6 +23,13 @@ export class InputMultiGrabBehavior implements Behavior<AbstractMesh> {
 
         /** Called if the target is grabbed, and the pointer that is grabbing it moves. */
         private onMove?: (pointer: PointerInput) => void,
+
+        /**
+         * The capability filtering the behavior. While it is disabled the behavior acts as if the
+         * target was not there, and whatever it holds is released the moment it gets disabled.
+         * A behavior with no capability always acts.
+         */
+        private capability?: InputCapability,
     ) {}
 
     get name() { return this.constructor.name }
@@ -34,6 +42,7 @@ export class InputMultiGrabBehavior implements Behavior<AbstractMesh> {
 
     private add(pointer: PointerInput) {
         if (this.grabbed.has(pointer)) return
+        if (this.capability?.isEnabled() === false) return
         this.grabbed.add(pointer)
         this.onDown(pointer)
         if (this.onMove) {
@@ -75,6 +84,13 @@ export class InputMultiGrabBehavior implements Behavior<AbstractMesh> {
                 }
             })
         );
+
+        // Losing the capability in the middle of a grab releases it.
+        if (this.capability) {
+            const onDisable = () => this.grabbed.forEach(pointer => this.remove(pointer))
+            this.capability.onDisable.add(onDisable)
+            this.observables.push({ remove: () => this.capability!.onDisable.delete(onDisable) })
+        }
     }
 
     detach(): void {

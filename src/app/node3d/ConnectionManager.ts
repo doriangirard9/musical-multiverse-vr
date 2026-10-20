@@ -6,7 +6,7 @@ import { N3DConnectionInstance } from "../../node3d/instance/N3DConnectionInstan
 import { SceneManager } from "../SceneManager.ts";
 import { VisualTube } from "../../visual/VisualTube.ts";
 import { MenuSystem } from "../menu/MenuSystem.ts";
-import { AbstractPointerInput } from "../../xr/inputs/AbstractPointerInput.ts";
+import { AbstractPointerInput, PickFilter } from "../../xr/inputs/AbstractPointerInput.ts";
 
 /**
  * Manager responsible of connecting two connectable nodes together.
@@ -46,6 +46,9 @@ export class ConnectionManager {
     }
 
 
+    /** Filtre global posé pendant le drag d'une connexion : seuls les ports sont pickables. */
+    static readonly #PORTS_ONLY: PickFilter = (mesh) => !!mesh.metadata?.isConnectablePort
+
     /**
      * Réinitialise l'état de la connexion en cours et annule l'aperçu.
      */
@@ -53,12 +56,7 @@ export class ConnectionManager {
         this.disposePreview?.()
         this.disposePreview = null
         this.currentPort = null
-        AbstractPointerInput.PickPredicate = null
-    }
-
-    private isDirectionCompatible(from: N3DConnectableInstance, to: N3DConnectableInstance): boolean {
-        if ([from.config.direction, to.config.direction].includes("bidirectional")) return true
-        return from.config.direction !== to.config.direction
+        AbstractPointerInput.PickFilters.delete(ConnectionManager.#PORTS_ONLY)
     }
 
     private findNodeForMesh(mesh: any) {
@@ -74,12 +72,8 @@ export class ConnectionManager {
         const node = this.findNodeForMesh(targetMesh)
         if (!node || node === source.instance) return null
 
-        const compatibles = [...node.connectables.values()].filter(candidate => {
-            if (candidate === source) return false
-            if (candidate.config.type !== source.config.type) return false
-            if (!this.isDirectionCompatible(source, candidate)) return false
-            return true
-        })
+        const compatibles = [...node.connectables.values()]
+            .filter(candidate => source.canConnectTo(candidate) === null)
 
         return compatibles.length === 1 ? compatibles[0] : null
     }
@@ -93,7 +87,7 @@ export class ConnectionManager {
                 this.currentPort = data.connectable
                 
                 // Restrict picking to connection ports only during drag
-                AbstractPointerInput.PickPredicate = (mesh) => !!mesh.metadata?.isConnectablePort
+                AbstractPointerInput.PickFilters.add(ConnectionManager.#PORTS_ONLY)
 
                 // Preview
                 const tube = new VisualTube(this.scene, NetworkManager.getInstance().visual.tubes, (mesh)=>{

@@ -48,6 +48,27 @@ export class LoadingOverlay {
         this.update(text);
     }
 
+    showReady(
+        container: HTMLElement,
+        text: string,
+        detail: string,
+        actionLabel: string,
+        onAction: () => void,
+    ): void {
+        this.show(container, text, false, 100, detail)
+        if (!this.element) return
+
+        const action = document.createElement('button')
+        action.className = 'wj-btn wj-btn-primary wj-loading-action'
+        action.type = 'button'
+        action.textContent = actionLabel
+        action.addEventListener('click', () => {
+            onAction()
+            this.hide()
+        }, { once: true })
+        this.element.appendChild(action)
+    }
+
     hide(): void {
         if (this.element) {
             this.element.remove();

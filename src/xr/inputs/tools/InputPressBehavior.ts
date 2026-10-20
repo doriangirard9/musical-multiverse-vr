@@ -1,6 +1,7 @@
 import { AbstractMesh, Behavior, Nullable } from "@babylonjs/core";
 import { InputManager } from "../InputManager";
 import { ControllerInput } from "../ControllerInput";
+import { InputCapability } from "../InputCapability";
 
 
 /**
@@ -18,6 +19,13 @@ export class InputPressBehavior implements Behavior<AbstractMesh> {
 
         /** Called if the state (pointer is on target && trigger is pressed) becomes false. */
         private onUp: ()=>void,
+
+        /**
+         * The capability filtering the behavior. While it is disabled the behavior acts as if the
+         * target was not there, and whatever it holds is released the moment it gets disabled.
+         * A behavior with no capability always acts.
+         */
+        private capability?: InputCapability,
     ){}
 
     get name(){ return this.constructor.name }
@@ -25,7 +33,8 @@ export class InputPressBehavior implements Behavior<AbstractMesh> {
     private _pressers: Set<ControllerInput> = new Set()
     
     private checkPressed(inputManager: InputManager, target: AbstractMesh) {
-        const new_pressers = inputManager.controllers.filter(c=>{
+        // Nothing presses while the capability is disabled, so a press already open is released.
+        const new_pressers = this.capability?.isEnabled()===false ? [] : inputManager.controllers.filter(c=>{
             return (c.pointer.targetMesh===target) && c.trigger.isPressed()
         })
 
@@ -64,6 +73,12 @@ export class InputPressBehavior implements Behavior<AbstractMesh> {
                 if(e.pressable.controller.pointer.targetMesh===target) this.checkPressed(inputs, target)
             }),
         )
+
+        if(this.capability){
+            const onDisable = () => this.checkPressed(inputs, target)
+            this.capability.onDisable.add(onDisable)
+            this.observables.push({ remove: () => this.capability!.onDisable.delete(onDisable) })
+        }
     }
 
     detach(): void {

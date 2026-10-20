@@ -1,5 +1,4 @@
 import { Scene, MeshBuilder, AbstractMesh } from "@babylonjs/core";
-import { WebXRDefaultExperience } from "@babylonjs/core/XR/webXRDefaultExperience";
 import * as GUI from "@babylonjs/gui";
 import ThroneController from "./ThroneController";
 
@@ -24,7 +23,7 @@ export class ThroneUI {
     private standUpFill: GUI.Ellipse | null = null;
     private standUpText: GUI.TextBlock | null = null;
     
-    constructor(scene: Scene, _xr: WebXRDefaultExperience, throneController: ThroneController) {
+    constructor(scene: Scene, throneController: ThroneController) {
         this.scene = scene;
         this.throneController = throneController;
         

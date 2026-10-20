@@ -1,7 +1,6 @@
 import { Observable } from "@babylonjs/core"
-import { KeyboardInputs } from "../xr/inputs/KeyboardInputs"
 
-export type MicrophoneMode = "muted" | "push_to_talk" | "open_mic"
+export type MicrophoneMode = "muted" | "open_mic"
 export type MicrophoneStatus = "idle" | "requesting" | "ready" | "error"
 
 export interface MicrophoneState {
@@ -37,8 +36,6 @@ export class MicrophoneSystem {
     private status: MicrophoneStatus = "idle"
     private monitorEnabled = false
     private monitorLevel = 0.16
-    private talkLatch = false
-    private keyboardTalk = false
     private level = 0
     private error: string | null = null
 
@@ -72,7 +69,6 @@ export class MicrophoneSystem {
         this.inputGain.connect(this.analyser)
 
         setInterval(() => this.updateLevelMeter(), 100)
-        this.bindKeyboardPushToTalk()
         this.emitState()
     }
 
@@ -90,8 +86,7 @@ export class MicrophoneSystem {
 
     getModeLabel(): string {
         if (this.mode === "open_mic") return "Open mic"
-        if (this.mode === "push_to_talk") return "Push to talk"
-        return "Muted"
+        return "Closed"
     }
 
     getStream(): MediaStream | undefined {
@@ -99,11 +94,14 @@ export class MicrophoneSystem {
     }
 
     getBroadcastTrack(): MediaStreamTrack | null {
-        return this.mediaDestination.stream.getAudioTracks()[0] ?? null
+        // WebRTC transports the native capture track once permission is granted.
+        // Some browsers keep a MediaStreamDestination alive but encode silence
+        // after its source graph changes, even though local monitoring works.
+        return this.getInputTrack() ?? this.mediaDestination.stream.getAudioTracks()[0] ?? null
     }
 
     getBroadcastStream(): MediaStream {
-        return this.mediaDestination.stream
+        return this.stream ?? this.mediaDestination.stream
     }
 
     getBroadcastLevel(): number {
@@ -118,14 +116,8 @@ export class MicrophoneSystem {
         return this.stream?.getAudioTracks()[0] ?? null
     }
 
-    async cycleMode(): Promise<boolean> {
-        const next: MicrophoneMode =
-            this.mode === "muted"
-                ? "push_to_talk"
-                : this.mode === "push_to_talk"
-                    ? "open_mic"
-                    : "muted"
-        return this.setMode(next)
+    async toggleOpenMic(): Promise<boolean> {
+        return this.setMode(this.mode === "open_mic" ? "muted" : "open_mic")
     }
 
     async setMode(mode: MicrophoneMode): Promise<boolean> {
@@ -135,9 +127,6 @@ export class MicrophoneSystem {
         }
 
         this.mode = mode
-        if (mode !== "push_to_talk") {
-            this.talkLatch = false
-        }
         this.updateGate()
         this.updateInputTrackEnabled()
         this.emitState()
@@ -160,20 +149,6 @@ export class MicrophoneSystem {
         return true
     }
 
-    async toggleTalkLatch(): Promise<boolean> {
-        if (this.mode !== "push_to_talk") {
-            return this.setMode("push_to_talk")
-        }
-
-        const ready = await this.ensureReady()
-        if (!ready) return false
-
-        this.talkLatch = !this.talkLatch
-        this.updateGate()
-        this.emitState()
-        return true
-    }
-
     async ensureReady(): Promise<boolean> {
         if (this.status === "ready") return true
         if (this.capturePromise) return this.capturePromise
@@ -191,6 +166,7 @@ export class MicrophoneSystem {
         this.capturePromise = navigator.mediaDevices.getUserMedia({
             audio: {
                 channelCount: 1,
+                sampleRate: { ideal: 48_000 },
                 autoGainControl: true,
                 noiseSuppression: true,
                 echoCancellation: true,
@@ -199,6 +175,9 @@ export class MicrophoneSystem {
             this.stream = stream
             this.sourceNode = this.audioContext.createMediaStreamSource(stream)
             this.sourceNode.connect(this.inputGain)
+            // getUserMedia is triggered by a user action, so it is the safest time
+            // to resume the shared context on browsers that suspend it by default.
+            void this.audioContext.resume().catch(() => {})
             this.status = "ready"
             this.error = null
             this.updateGate()
@@ -218,23 +197,8 @@ export class MicrophoneSystem {
         return this.capturePromise
     }
 
-    private bindKeyboardPushToTalk(): void {
-        const keyboard = KeyboardInputs.getInstance()
-        keyboard.onDown("t", () => {
-            this.keyboardTalk = true
-            this.updateGate()
-            this.emitState()
-        })
-        keyboard.onUp("t", () => {
-            this.keyboardTalk = false
-            this.updateGate()
-            this.emitState()
-        })
-    }
-
     private isTalkActive(): boolean {
         if (this.mode === "open_mic") return this.status === "ready"
-        if (this.mode === "push_to_talk") return (this.keyboardTalk || this.talkLatch) && this.status === "ready"
         return false
     }
 
@@ -281,7 +245,6 @@ export class MicrophoneSystem {
 
     private updateInputTrackEnabled(): void {
         const track = this.getInputTrack()
-        if (!track) return
-        track.enabled = this.isTalkActive()
+        if (track) track.enabled = this.isTalkActive()
     }
 }

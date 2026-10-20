@@ -4,7 +4,7 @@ import { WamInitializer } from "../../app/WamInitializer";
 import type { Node3D, Node3DFactory, Node3DGUI } from "../Node3D";
 import { Node3DContext } from "../Node3DContext";
 import type { Node3DGUIContext } from "../Node3DGUIContext";
-import { MidiN3DConnectable } from "../tools";
+import { AudioN3DConnectable, MidiN3DConnectable } from "../tools";
 import { WamTransportManager } from "../../app/node3d/WamTransportManager";
 
 /**
@@ -81,8 +81,7 @@ export class WamSamplerN3DGUI implements Node3DGUI {
       { radius: 2 },
       this.context.scene
     );
-    // Use Color for visual consistency (even if it's audio, not MIDI)
-    this.tool.MeshUtils.setColor(this.audioOutput, MidiN3DConnectable.Color.toColor4());
+    this.tool.MeshUtils.setColor(this.audioOutput, AudioN3DConnectable.Color.toColor4());
     this.audioOutput.position.set(+halfW + 1.5, this.block.position.y, this.block.position.z);
     this.audioOutput.scaling.setAll(0.7);
     this.audioOutput.parent = this.root;
@@ -135,7 +134,7 @@ export class WamSamplerN3D implements Node3D {
     // this.context.createConnectable(listOut);
 
     this.wamInstance = await WamInitializer.getInstance()
-      .initWamInstance("https://www.webaudiomodules.com/community/plugins/burns-audio/drumsampler/index.js");
+      .initWamInstance("https://mainline.i3s.unice.fr/WAMDrumSamplerVel/index.js");
 
     // MIDI Input connectable — lazily resolve audioNode once WAM is ready
     const midiIn = new this.context.tools.MidiN3DConnectable.Input(
@@ -157,9 +156,8 @@ export class WamSamplerN3D implements Node3D {
   }
 
   private async _initWam() {
-    // Example: Burns Audio DrumSampler
     this.wamInstance = await WamInitializer.getInstance()
-      .initWamInstance("https://www.webaudiomodules.com/community/plugins/burns-audio/drumsampler/index.js");
+      .initWamInstance("https://mainline.i3s.unice.fr/WAMDrumSamplerVel/index.js");
 
     // // Register with shared transport (so it receives wam-transport via scheduleEvents)
     // this.transport.register(this.wamInstance.audioNode);
@@ -210,7 +208,7 @@ export class WamSamplerN3D implements Node3D {
 }
 
 export const WamSamplerN3DFactory: Node3DFactory<WamSamplerN3DGUI, WamSamplerN3D> = {
-  label: "wamsampler",
+  label: "Drum Sampler",
   async createGUI(context) { return new WamSamplerN3DGUI(context); },
   async create(context, gui) {
     const node = new WamSamplerN3D(context, gui);

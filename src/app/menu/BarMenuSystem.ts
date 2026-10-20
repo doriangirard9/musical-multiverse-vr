@@ -100,6 +100,7 @@ export class BarMenuSystem {
             plane.dispose()
             node.onDispose.removeCallback(dispose)
             that.showns.delete(node)
+            if(that.dispose === dispose) that.dispose = undefined
         }
         node.onDispose.addOnce(dispose)
 

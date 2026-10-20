@@ -124,6 +124,8 @@ export class NoteBoxN3D implements Node3D {
     private padButtons: Node3DButton[] = [];
     private playingSampleIndex: number = -1;
     private playTimeouts: Set<any> = new Set();
+    /** Les behaviours rendant les pads frappables, détachés avec le Node3D. */
+    private strikes: {detach():void}[] = [];
     private maxSamples: number = 16;
 
     constructor(private context: Node3DContext, private gui: NoteBoxN3DGUI) {
@@ -156,31 +158,47 @@ export class NoteBoxN3D implements Node3D {
                 meshes: [padMesh],
                 label: `Play sample ${index + 1}`,
                 color: new Color3(0.3, 0.3, 0.3),
-                press: () => {
-                    if (index < this.samples.length) {
-                        this.playingSampleIndex = index;
-                        this.gui.updatePadColor(index, new Color3(1, 0, 0));
-                        this.replaySample(index);
-
-                        const sample = this.samples[index];
-                        const duration = sample.duration || 1;
-
-                        const timeout = setTimeout(() => {
-                            if (this.playingSampleIndex === index) {
-                                this.gui.updatePadColor(index, new Color3(0.2, 0.8, 0.2));
-                                this.playingSampleIndex = -1;
-                            }
-                            this.playTimeouts.delete(timeout);
-                        }, duration * 1000);
-
-                        this.playTimeouts.add(timeout);
-                    }
-                },
+                press: () => this.playPad(index),
                 release: () => {}
             };
             this.padButtons.push(button);
             this.context.createButton(button);
+
+            // Un pad se joue aussi en le frappant, à la main ou à la baguette.
+            const strike = new this.context.instrument.StrikeBehavior({
+                onHit: () => this.playPad(index),
+            });
+            strike.attach(padMesh);
+            this.strikes.push(strike);
         });
+    }
+
+    /**
+     * Rejoue le sample d'un pad, et laisse le pad rouge le temps qu'il dure.
+     * Un pad déjà en train de jouer ignore le coup, pour qu'un pad frappé pendant qu'on le pointe
+     * ne parte pas deux fois.
+     * @param index Le pad joué.
+     */
+    private playPad(index: number) {
+        if (index >= this.samples.length) return;
+        if (this.playingSampleIndex === index) return;
+
+        this.playingSampleIndex = index;
+        this.gui.updatePadColor(index, new Color3(1, 0, 0));
+        this.replaySample(index);
+
+        const sample = this.samples[index];
+        const duration = sample.duration || 1;
+
+        const timeout = setTimeout(() => {
+            if (this.playingSampleIndex === index) {
+                this.gui.updatePadColor(index, new Color3(0.2, 0.8, 0.2));
+                this.playingSampleIndex = -1;
+            }
+            this.playTimeouts.delete(timeout);
+        }, duration * 1000);
+
+        this.playTimeouts.add(timeout);
     }
 
     updateSample(index: number){
@@ -290,6 +308,9 @@ export class NoteBoxN3D implements Node3D {
     }
 
     async dispose(): Promise<void> {
+        this.strikes.forEach(strike => strike.detach());
+        this.strikes.length = 0;
+
         this.playTimeouts.forEach(timeout => clearTimeout(timeout));
         this.playTimeouts.clear();
 

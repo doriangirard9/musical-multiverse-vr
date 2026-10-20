@@ -2,8 +2,10 @@ import { Color3, HighlightLayer, Matrix, Observable, Vector3 } from "@babylonjs/
 import { NodeCompUtils } from "../tools/utils/NodeCompUtils"
 import { Node3DParameter } from "../Node3DParameter"
 import { InputGrabBehavior } from "../../xr/inputs/tools/InputGrabBehavior"
+import { N3DInteractions } from "./N3DInteractions"
 import { Node3DInstance } from "./Node3DInstance"
 import { InputMultiHoverBehavior } from "../tools"
+import { PointerInput } from "../../xr/inputs/PointerInput"
 
 const highlightColor = Color3.Blue()
 
@@ -104,15 +106,39 @@ export class N3DParameterInstance {
             }
         }
 
+        // Who holds the parameter, all its meshes taken together: the first hand to take it says a
+        // grab, the last to let go says a release.
+        const holders = this.holders
+        const hold = (pointer: PointerInput, held: boolean) => {
+            if(held){
+                if(holders.has(pointer)) return
+                holders.add(pointer)
+                if(holders.size===1) parameter.onGrab.notifyObservers([...holders])
+            }
+            else{
+                if(!holders.delete(pointer)) return
+                if(holders.size===0) parameter.onRelease.notifyObservers([pointer])
+            }
+        }
+
         const disposables: (()=>void)[] = []
 
-        for(const draggable of config.meshes){        
+        // The capability is asked per pointer: a hand whose tool did not ask for the parameters
+        // passes over them without lighting them up nor moving them, while the other hand still does.
+        const parameters = N3DInteractions.parameters
+
+        for(const draggable of config.meshes){
+            const hovering = new Set<PointerInput>()
             const hover = new InputMultiHoverBehavior(
-                ()=>{
+                pointer=>{
+                    if(!parameters.isEnabledFor(pointer)) return
+                    hovering.add(pointer)
                     visual.offset(1)
-                }, ()=>{
+                }, pointer=>{
+                    if(!hovering.delete(pointer)) return
                     visual.offset(-1)
-                }
+                },
+                parameters,
             )
     
             let startingValue = 0
@@ -128,37 +154,47 @@ export class N3DParameterInstance {
                 return stepSize>=(this.getMax()-this.getMin())
             }
 
+            let dragging = false
             const drag = new InputGrabBehavior(
                 input=>{
+                    if(!parameters.isEnabledFor(input)) return
+                    dragging = true
+                    hold(input, true)
+
                     // Change
                     visual.offset(1)
                 
-                    stepSize = config.getStepSize()
-                    if(stepSize<=0){
+                    stepSize = this.getStepSize()
+                    if(!Number.isFinite(stepSize) || stepSize<=0){
                         stepSize = 0.001*(this.getMax()-this.getMin())
                         changeFactor = 0.2*(this.getMax()-this.getMin())
                     }
                     else{
                         changeFactor = stepSize*4
                     }
-                    startingValue = config.getValue() + stepSize/2
+                    startingValue = this.getValue() + stepSize/2
 
                     changeFactor*=2
 
                     // If stepCount is 2, the value is directly changed
                     if(isButton()){
-                        this.setValue(config.getValue()<(this.getMax()+this.getMin())/2 ? this.getMax() : this.getMin())
+                        this.setValue(this.getValue()<(this.getMax()+this.getMin())/2 ? this.getMax() : this.getMin())
                     }
                     
                     reverseMatrix.copyFrom(input.matrix).invertToRef(reverseMatrix)
 
                     event.push(startingValue)
                 },
-                _=>{
+                input=>{
+                    if(!dragging) return
+                    dragging = false
+                    hold(input, false)
                     event.pop(this.getValue())
                     visual.offset(-1)
                 },
                 input=>{
+                    if(!dragging) return
+
                     // If stepCount is 2, do nothing on drag
                     if(isButton())return
 
@@ -185,6 +221,7 @@ export class N3DParameterInstance {
 
                     event.set(newvalue)
                 },
+                parameters,
             )
             
             draggable.addBehavior(hover)
@@ -208,10 +245,12 @@ export class N3DParameterInstance {
     setValue(value: number, type: ParameterChangeMode = ParameterChangeMode.DIRECT_MANUAL){
         // Filter
         let v = value
-        if(v<this.getMin()) v = this.getMin()
-        if(v>this.getMax()) v = this.getMax()
+        const min = this.getMin()
+        const max = this.getMax()
+        if(v<min) v = min
+        if(v>max) v = max
         const stepSize = this.getStepSize()
-        if(stepSize>0) v = Math.round(v/stepSize)*stepSize
+        if(Number.isFinite(stepSize) && stepSize>0) v = Math.round(v/stepSize)*stepSize
         
         // Set the value
         if(type==ParameterChangeMode.DIRECT_MANUAL || type==ParameterChangeMode.MANUAL){
@@ -226,27 +265,32 @@ export class N3DParameterInstance {
 
     /** Get the current value of the parameter. */
     getValue(): number{
-        return this.config.getValue()
+        const value = this.config.getValue()
+        return Number.isFinite(value) ? value : this.getMin()
     }
 
     /** Get the maximum value of the parameter. */
     getMax(): number{
-        return this.config.getMax()
+        const max = this.config.getMax()
+        return Number.isFinite(max) ? max : 1
     }
 
     /** Get the minimum value of the parameter. */
     getMin(): number{
-        return this.config.getMin()
+        const min = this.config.getMin()
+        return Number.isFinite(min) ? min : 0
     }
 
     /** Get the step size of the parameter. */
     getStepSize(): number{
-        return this.config.getStepSize()
+        const stepSize = this.config.getStepSize()
+        return Number.isFinite(stepSize) && stepSize>=0 ? stepSize : 0
     }
 
     /** Get the exponent of the parameter. */
     getExponant(): number{
-        return this.config.getExponant()
+        const exponant = this.config.getExponant()
+        return Number.isFinite(exponant) && exponant>0 ? exponant : 1
     }
 
     /** Normalize a value between 0 and 1. */
@@ -255,7 +299,7 @@ export class N3DParameterInstance {
         const max = this.getMax()
         if(max<=min) return 0
         const n = (value - min) / (max - min)
-        return Math.pow(n, this.getExponant())
+        return Math.pow(Math.max(0, Math.min(1, n)), this.getExponant())
     }
 
     /** Denormalize a value between 0 and 1. */
@@ -263,7 +307,7 @@ export class N3DParameterInstance {
         const min = this.getMin()
         const max = this.getMax()
         if(max<=min) return min
-        const n = Math.pow(value, 1/this.getExponant())
+        const n = Math.pow(Math.max(0, Math.min(1, value)), 1/this.getExponant())
         return min + n * (max - min)
     }
 
@@ -286,7 +330,8 @@ export class N3DParameterInstance {
     getNormalizedStepSize(): number{
         const stepSize = this.getStepSize()
         if(stepSize<=0) return 0
-        return stepSize / (this.getMax() - this.getMin())
+        const range = this.getMax() - this.getMin()
+        return range>0 ? stepSize / range : 0
     }
 
     readonly dispose
@@ -299,5 +344,14 @@ export class N3DParameterInstance {
     readonly onDragStart = new Observable<{value:number}>()
     readonly onDrag = new Observable<{value:number}>()
     readonly onDragStop = new Observable<{value:number}>()
+
+    /** The pointers holding the parameter, whichever of its meshes they took. */
+    private readonly holders = new Set<PointerInput>()
+
+    /** Notified when hands start dragging the parameter, with the pointers dragging it. */
+    readonly onGrab = new Observable<PointerInput[]>()
+
+    /** Notified when the last hand dragging the parameter lets go, with the pointer that let go. */
+    readonly onRelease = new Observable<PointerInput[]>()
 
 }

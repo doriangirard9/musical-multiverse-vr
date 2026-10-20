@@ -108,6 +108,9 @@ export interface Node3DFactory<G extends Node3DGUI, T extends Node3D>{
      *  "midi": Un node3D qui produit ou consomme du MIDI.
      *  "audio": Un node3D qui produit ou consomme de l'audio
      *  "automation": Un node3D qui produit ou consomme de l'automation
+     *  "sync": Un node3D qui produit ou consomme de la synchronisation temporelle (câble de type "sync", voir SyncN3DConnectable)
+     *  "holder": Un node3D qui tient d'autres node3D par un câble de type "node3d" (voir Node3DN3DConnectable),
+     *      et reçoit une poignée (Node3DHandle) sur chacun d'eux.
      * 
      */
     tags: string[]

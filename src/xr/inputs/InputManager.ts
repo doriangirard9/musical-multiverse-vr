@@ -10,9 +10,9 @@ import { PressableInputEvent } from "./PressableInput";
 import { AxisInputEvent } from "./AxisInput";
 import { ControllerInput } from "./ControllerInput";
 import { PointerInput } from "./PointerInput";
-import { AbstractPointerInput } from "./AbstractPointerInput";
+import { AbstractPointerInput, PickFilter } from "./AbstractPointerInput";
 import { InputCapability } from "./InputCapability";
-import { XRManager } from "../XRManager";
+import { XRPlatform } from "../../app/platform/XRPlatform";
 
 export interface PointerMovementEvent {
     origin: Immutable<Vector3>,
@@ -34,12 +34,23 @@ export class InputManager {
     //// CAPABILITIES ////
     readonly movement  = new InputCapability()
 
+    /**
+     * The pointer of a hand looking for a target at all.
+     * Disabled means the pointer picks nothing: it has no target, so nothing in the world can
+     * answer it, and whoever reads its target reads nothing. What the world does with a pointer
+     * that reaches it is not decided here.
+     */
+    readonly pointer = new InputCapability()
+
+    /** The pick filter a disabled pointer gets: it refuses every mesh. */
+    static readonly #NOTHING: PickFilter = () => false
+
     //// SINGLETON ////
     private static instance: InputManager;
         
     public static getInstance(): InputManager { return this.instance }
 
-    public static create(xrHelper: Nullable<WebXRDefaultExperience>, scene: Scene[]) { this.instance = new InputManager(xrHelper, scene) }
+    public static create(scene: Scene[]) { this.instance = new InputManager(scene) }
     
     
     //// OBSERVERS ////
@@ -111,11 +122,16 @@ export class InputManager {
 
     private _toucheds = new Map<AbstractMesh,number>()
 
-    private constructor(
-        xrHelper: Nullable<WebXRDefaultExperience>,
-        scenes: Scene[],
-    ){
+    private constructor(private scenes: Scene[]){
         const im = this
+
+        // The pointer capability is a pick filter refusing everything: a pointer it is disabled
+        // for keeps following its controller, but picks nothing.
+        const pointers = () => [im.left.pointer, im.right.pointer, im.screen.pointer]
+        im.pointer.onPointerDisable.add(pointer => pointer.pickFilters.add(InputManager.#NOTHING))
+        im.pointer.onPointerEnable.add(pointer => { if(im.pointer.isEnabled()) pointer.pickFilters.delete(InputManager.#NOTHING) })
+        im.pointer.onDisable.add(() => { for(const pointer of pointers()) pointer.pickFilters.add(InputManager.#NOTHING) })
+        im.pointer.onEnable.add(() => { for(const pointer of pointers()) if(!im.pointer.isPointerDisabled(pointer)) pointer.pickFilters.delete(InputManager.#NOTHING) })
         
         // Link observers
         for(const button of [im.x_button, im.y_button, im.a_button, im.b_button]) {
@@ -179,20 +195,13 @@ export class InputManager {
             })
         }
 
-        // Register document observers : based on key presses and mouse events
-        this._registerDocument(scenes)
-        
-        // Register XR observers : based on XR controller events
-        if (xrHelper) {
-            this._registerXR(xrHelper, XRManager.getInstance(), scenes)
-        }
-
         // General scene control : based on camera per example
         this._registerScene(scenes)
     }
 
-    _registerDocument(scenes: Scene[]){
+    _registerDocument(){
         const im = this
+        const scenes = this.scenes
 
         for(const scene of scenes){
             scene.skipPointerDownPicking = true
@@ -228,8 +237,9 @@ export class InputManager {
         im.right.thumbstick._registerMouseWheelObserver()
     }
 
-    _registerXR(xrHelper: WebXRDefaultExperience, xrManager: XRManager, scenes: Scene[]){
+    _registerXR(xrHelper: WebXRDefaultExperience, xrManager: XRPlatform){
         const im = this
+        const scenes = this.scenes
 
         function initController(controller: WebXRInputSource){
             controller.onMotionControllerInitObservable.addOnce(()=>{

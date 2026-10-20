@@ -4,7 +4,9 @@ import {Scene} from "@babylonjs/core";
 import {SceneManager} from "../../app/SceneManager.ts";
 import {PlayerManager} from "../../app/PlayerManager.ts";
 import { HoldableBehaviour } from "./HoldableBehaviour.ts";
-import { InputHoverBehavior } from "../../xr/inputs/tools/InputHoverBehavior.ts";
+import { InputMultiHoverBehavior } from "../../xr/inputs/tools/InputMultiHoverBehavior.ts";
+import { PointerInput } from "../../xr/inputs/PointerInput.ts";
+import { N3DInteractions } from "../../node3d/instance/N3DInteractions.ts";
 import { IOEventBus } from "../../eventBus/IOEventBus.ts";
 
 
@@ -26,12 +28,16 @@ export class BoundingBox {
     constructor(private draggable: B.AbstractMesh) {
 
         // Create the bounding box
-        let w = this.draggable.getBoundingInfo().boundingBox.extendSize.x * 2
-        let h = this.draggable.getBoundingInfo().boundingBox.extendSize.y * 2
-        let d = this.draggable.getBoundingInfo().boundingBox.extendSize.z * 2
+        let w = this.draggable.getBoundingInfo().boundingBox.extendSizeWorld.x * 2
+        let h = this.draggable.getBoundingInfo().boundingBox.extendSizeWorld.y * 2
+        let d = this.draggable.getBoundingInfo().boundingBox.extendSizeWorld.z * 2
+
+        let center = this.draggable.getBoundingInfo().boundingBox.centerWorld
 
         const boundingBox = this.boundingBox = B.MeshBuilder.CreateBox(`boundingBox`, {width:w+.01, height:h+.01, depth:d+.1}, this.scene)
-        this.draggable.parent = this.boundingBox
+        boundingBox.position.copyFrom(center)
+        
+        this.draggable.setParent(boundingBox)
 
         // Assign a proper transparent material so visibility changes (hover/grab)
         // render correctly as translucent overlays. Without this, the default
@@ -56,7 +62,8 @@ export class BoundingBox {
         this.boundingBox.rotationQuaternion = B.Quaternion.FromEulerVector(this.boundingBox.rotation)
 
         // Holdable behaviour
-        this.holdable = new HoldableBehaviour()
+        const hitboxes = N3DInteractions.hitboxes
+        this.holdable = new HoldableBehaviour(undefined, hitboxes)
         this.holdable.onMoveObservable.add(()=>this.on_move())
         this.holdable.onRotateObservable.add(()=>this.on_move())
 
@@ -70,15 +77,22 @@ export class BoundingBox {
             else boundingBox.visibility = 0
         }
 
-        this.boundingBox.addBehavior(new InputHoverBehavior(
-            ()=>{
+        // The capability is asked per pointer: a hand whose tool did not ask for the hitboxes
+        // passes through the box without showing nor taking it, while the other hand still does.
+        const hovering = new Set<PointerInput>()
+        this.boundingBox.addBehavior(new InputMultiHoverBehavior(
+            pointer=>{
+                if(!hitboxes.isEnabledFor(pointer)) return
+                hovering.add(pointer)
                 hover = true
                 updateVisibility()
             },
-            ()=>{
-                hover = false
+            pointer=>{
+                if(!hovering.delete(pointer)) return
+                hover = hovering.size > 0
                 updateVisibility()
-            }
+            },
+            hitboxes,
         ))
         this.holdable.onGrabObservable.add(() => {
             took = true

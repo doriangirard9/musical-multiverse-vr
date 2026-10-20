@@ -1,13 +1,16 @@
-import {XRInputManager} from "./XRInputManager.ts";
+import {XRInputManager} from "../../xr/XRInputManager.ts";
 import * as B from "@babylonjs/core";
-import {withTimeout} from "../utils/utils.ts";
+import {withTimeout} from "../../utils/utils.ts";
 import {Nullable} from "@babylonjs/core";
+import { InputManager } from "../../xr/inputs/InputManager.ts";
 
-
-export class XRManager {
-    private static _instance: XRManager;
+/**
+ * Responsible for the XR experience, camera, player controls. 
+ */
+export class XRPlatform {
+    private static _instance: XRPlatform;
     public xrInputManager!: XRInputManager;
-    public xrHelper?: B.WebXRDefaultExperience;
+    public xrHelper!: B.WebXRDefaultExperience;
     public handTracking!: B.WebXRHandTracking
     private _scene!: B.Scene;
     public xrFeaturesManager!: B.WebXRFeaturesManager;
@@ -19,17 +22,23 @@ export class XRManager {
     private constructor() {
     }
 
-    public static getInstance(): XRManager {
-        if (!this._instance) {
-            this._instance = new XRManager();
-        }
+    public static async hasXRSupport(): Promise<boolean> {
+        return await B.WebXRSessionManager.IsSessionSupportedAsync('immersive-vr')
+    }
+
+    public static async initialize(scene: B.Scene, audioEngine: B.AudioEngineV2): Promise<void> {
+        this._instance = new XRPlatform()
+        await this._instance.init(scene, audioEngine)
+    }
+
+    public static getInstance(): XRPlatform {
         return this._instance;
     }
 
     /**
      * Initialize the WebXR experience, XRInputs and XR features
      */
-    public async init(scene: B.Scene, audioEngine: B.AudioEngineV2): Promise<boolean> {
+    private async init(scene: B.Scene, audioEngine: B.AudioEngineV2): Promise<boolean> {
         this._scene = scene;
 
         try {
@@ -78,7 +87,7 @@ export class XRManager {
                         try {
                             // Dynamic import to avoid circular dependency
                             // TODO: What the fuck. 
-                            import("../app/social/AvatarSystem.ts").then(({ AvatarSystem }) => {
+                            import("../social/AvatarSystem.ts").then(({ AvatarSystem }) => {
                                 AvatarSystem.getInstance().offsetSpawnIfNeeded();
                             });
                         } catch (_) { /* AvatarSystem not yet initialized */ }
@@ -109,10 +118,13 @@ export class XRManager {
             });
             audioEngine.listener.attach(this.xrHelper.baseExperience.camera);
 
+            InputManager.getInstance()._registerXR(this.xrHelper, this)
+            InputManager.getInstance()._registerDocument()
+
             return true;
         } catch (error) {
             console.error("XR initialization failed:", error);
-            this.xrHelper = undefined;
+            this.xrHelper = undefined!;
             return false;
         }
     }
@@ -151,6 +163,7 @@ export class XRManager {
             uiOptions: { sessionMode: 'immersive-vr' },
             optionalFeatures: [B.WebXRFeatureName.HAND_TRACKING],
             disableNearInteraction: true, // On gère ça nous même pour de meilleures performances
+            disablePointerSelection: true, // Le rayon et le picking sont les nôtres, voir InputManager et les tools
         });
         this.xrFeaturesManager = xrExperience.baseExperience.featuresManager;
         this.xrFeaturesManager.disableFeature(B.WebXRFeatureName.LAYERS)

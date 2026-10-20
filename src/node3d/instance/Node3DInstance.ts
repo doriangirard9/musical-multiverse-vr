@@ -5,10 +5,10 @@ import {
     MeshBuilder,
     Vector3,
     Quaternion, Color3,
+    Matrix,
     Vector2,
     Observer,
     Observable,
-    Color4
 } from "@babylonjs/core";
 import { Node3DConnectable } from "../Node3DConnectable";
 import { Node3DParameter } from "../Node3DParameter";
@@ -17,187 +17,39 @@ import { BoundingBox } from "../../behaviours/boundingBox/BoundingBox";
 import { N3DParameterInstance, ParameterChangeMode } from "./N3DParameterInstance";
 import { N3DConnectableInstance } from "./N3DConnectableInstance";
 import { IOEventBus } from "../../eventBus/IOEventBus";
-import { XRManager } from "../../xr/XRManager";
 import { SyncManager } from "../../network/sync/SyncManager";
 import { Node3dManager } from "../../app/node3d/Node3dManager.ts";
+import { Serialization } from "../../app/node3d/Serialization.ts";
+import { Node3DGraphDescription } from "../../network/Node3DNetwork.ts";
 import { Doc } from "yjs";
 import { Synchronized } from "../../network/sync/Synchronized";
 import { N3DHighlighter } from "./utils/N3DHighlighter";
 import { N3DShared } from "./N3DShared";
-import { AutomationN3DConnectable, MeshUtils } from "../tools";
+import { AutomationN3DConnectable, FrameUtils } from "../tools";
 import { SceneManager } from "../../app/SceneManager.ts";
 import { InputManager } from "../../xr/inputs/InputManager.ts";
+import { ToolSystem } from "../../app/tool/ToolSystem.ts";
+import * as instrument from "../../instrument/index.ts";
+import { InstrumentInteractionSystem } from "../../instrument/InstrumentInteractionSystem.ts";
 import { BoxWave } from "../../world/BoxWave.ts";
 import { MenuSystem } from "../../app/menu/MenuSystem.ts";
 import { AbstractMenu } from "../../menus/AbstractMenu.ts";
 import { ChoiceMenu } from "../../menus/ChoiceMenu.ts";
-import { ShakeBehavior } from "../../behaviours/ShakeBehavior.ts";
 import { N3DConnectionInstance } from "./N3DConnectionInstance.ts";
 import { N3DButtonInstance } from "./N3DButtonInstance.ts";
-import { EffectProfile, EffectSystem } from "../../visual/effects";
-import { Node3DGraph, NodeView, Role } from "../graph/Node3DGraph";
-import { nodeViewOf } from "../graph/Node3DGraphAdapter";
-import { AudioAnalyser, AudioSignalSnapshot } from "../../utils/AudioAnalyser";
 import { AudioWorldSystem } from "../../app/node3d/AudioDestinationSystem.ts";
+import { PointerInput } from "../../xr/inputs/PointerInput.ts";
+import { N3DHandleInstance } from "./N3DHandleInstance.ts";
+import { Node3DFrame } from "../Node3DHandle.ts";
+import { Node3DN3DConnectable } from "../tools/connectable/Node3DN3DConnectable.ts";
+import { InputMultiHoverBehavior } from "../../xr/inputs/tools/InputMultiHoverBehavior.ts";
+import { N3DInteractions } from "./N3DInteractions.ts";
+import { N3DText } from "./utils/N3DText.ts";
 
 
-// ---------------------------------------------------------------------------
-// Per-node visual profiles. Driven by graph state (inValidPath) + role
-// inferred from connectables. Each profile is a (id, effects) bundle handed
-// to EffectSystem; effects layer continuous breathing (corona) with
-// event-driven punches (spark, wave) so silence shows nothing and loud
-// passages show plenty.
-// ---------------------------------------------------------------------------
+/** The frame a group of nodes is saved in and loaded in when no other one is given. */
+const WORLD_ORIGIN: Node3DFrame = {position: Vector3.Zero(), rotation: Quaternion.Identity(), scale: 1}
 
-/**
- * Source node: small breathing corona whose color tracks the live spectrum.
- * No sparks here — generator-type sources (NoteBox, Oscillator, sequencers)
- * tend to read as "always busy" when the spark trigger fires on any flux,
- * so the visual would be permanent noise rather than a meaningful accent.
- */
-const SOURCE_NODE_PROFILE: EffectProfile = {
-    id: 'node_source',
-    effects: {
-        audio_corona: {
-            radiusSource: 'strength',
-            baseRadius: 0.35,
-            peakRadius: 0.65,
-            thickness: 0.035,
-            colorMode: 'spectrum',
-            spectrumGain: 2.6,
-            spectrumBassGain: 1.3,
-            spectrumMidGain: 1.4,
-            spectrumTrebleGain: 1.8,
-            brightness: 1.0,
-            brightnessSource: 'strength',
-            floorBrightness: 0.0,
-            peakBrightness: 0.7,
-            secondary: false,
-            smoothing: 100,
-        },
-    },
-}
-
-/**
- * Sink node: full visual presence.
- * - audio_corona: continuously-modulated halo whose color comes from the
- *   live spectrum (R=bass, G=mid, B=treble). Sustained presence that *is*
- *   the harmonic content.
- * - audio_scale: bounding box (and the GLB inside it) rides the kick (bass).
- * - audio_spark: spectrum-colored particle bursts on flux onsets.
- * - audio_wave: rare high-threshold ring explosions, per-ring spectrum-colored.
- */
-const SINK_NODE_PROFILE: EffectProfile = {
-    id: 'node_sink',
-    effects: {
-        audio_corona: {
-            radiusSource: 'strength',
-            baseRadius: 0.45,
-            peakRadius: 0.95,
-            thickness: 0.045,
-            colorMode: 'spectrum',
-            spectrumGain: 2.8,
-            spectrumBassGain: 1.2,
-            spectrumMidGain: 1.6,
-            spectrumTrebleGain: 2.4,
-            spectrumFloor: 0.04,
-            brightness: 1.3,
-            brightnessSource: 'strength',
-            floorBrightness: 0.0,
-            peakBrightness: 0.95,
-            secondary: true,
-            secondaryScale: 0.6,
-            smoothing: 90,
-        },
-        audio_scale: {
-            source: 'bass',
-            baseScale: 1,
-            peakScale: 1.4,
-            attack: 25,
-            release: 240,
-            threshold: 0.02,
-            autoNormalize: true,
-            peakHalfLife: 1800,
-            response: 'linear',
-        },
-        audio_spark: {
-            triggerSource: 'flux',
-            triggerThreshold: 0.28,
-            refractory: 80,
-            burstCount: 18,
-            capacity: 140,
-            minSize: 0.045,
-            maxSize: 0.11,
-            minLifeTime: 0.35,
-            maxLifeTime: 0.8,
-            emitPower: 2.0,
-            emitRadius: 0.18,
-            colorMode: 'spectrum',
-            spectrumGain: 3.2,
-            spectrumBassGain: 1.0,
-            spectrumMidGain: 1.5,
-            spectrumTrebleGain: 2.2,
-            brightness: 1.4,
-        },
-        audio_wave: {
-            source: 'flux',
-            lifetime: 1800,
-            startDiameter: 0.35,
-            endDiameter: 3.2,
-            thickness: 0.05,
-            threshold: 0.55,
-            sensitivity: 2.0,
-            refractory: 700,
-            envelopeHalfLife: 800,
-            maxRings: 6,
-            colorMode: 'spectrum',
-            spectrumGain: 3.0,
-            spectrumBassGain: 1.2,
-            spectrumMidGain: 1.5,
-            spectrumTrebleGain: 2.2,
-            brightness: 1.2,
-            thicknessSource: 'bass',
-            thicknessReactivity: 2.2,
-        },
-    },
-}
-
-/** Visualizer node: silent, lets the visualizer GUI itself carry the visuals. */
-const VIZ_NODE_PROFILE: EffectProfile = {
-    id: 'node_viz',
-    effects: {},
-}
-
-/**
- * Mid-chain effect node: no per-node visuals. Cable visuals already convey
- * what's flowing through; piling sparks on every intermediate node clutters
- * the chain.
- */
-const EFFECT_NODE_PROFILE: EffectProfile = {
-    id: 'node_effect',
-    effects: {},
-}
-
-/** Orphan / standalone: no effects. */
-const MUTED_NODE_PROFILE: EffectProfile = {
-    id: 'node_muted',
-    effects: {},
-}
-
-/**
- * Pick the per-node visual profile from graph state + role. Invalid path →
- * muted (dormant); valid path → role-based character.
- */
-function profileForNode(role: Role, inValidPath: boolean): EffectProfile {
-    if (!inValidPath) return MUTED_NODE_PROFILE
-    switch (role) {
-        case 'source':     return SOURCE_NODE_PROFILE
-        case 'sink':       return SINK_NODE_PROFILE
-        case 'effect':     return EFFECT_NODE_PROFILE
-        case 'visualizer': return VIZ_NODE_PROFILE
-        default:           return MUTED_NODE_PROFILE
-    }
-}
 
 export class Node3DInstance implements Synchronized {
 
@@ -205,7 +57,7 @@ export class Node3DInstance implements Synchronized {
     static readonly CONNECTION_SIZE_MULTIPLIER = .1
 
     constructor(
-        private shared: N3DShared,
+        readonly shared: N3DShared,
         readonly factory: Node3DFactory<Node3DGUI, Node3D>,
     ) { }
 
@@ -239,6 +91,18 @@ export class Node3DInstance implements Synchronized {
     /** Notified when a parameter of the node stops being dragged (to change its value). */
     readonly onParameterDragStop = new Observable<{parameter:N3DParameterInstance, value:number}>()
 
+    /** Notified on connectable creation. */
+    readonly onConnectableCreated = new Observable<N3DConnectableInstance>()
+
+    /** Notified on parameter creation. */
+    readonly onParameterCreated = new Observable<{parameter:N3DParameterInstance,connection:N3DConnectableInstance}>()
+
+    /** Notified on connection creation. */
+    readonly onConnectionCreated = new Observable<N3DConnectionInstance>()
+
+    /** Notified on button creation. */
+    readonly onButtonCreated = new Observable<N3DButtonInstance>()
+
     /** Are the node manual controls locked? If true, the node cannot be moved or rotated manually. */
     set isLocked(value: boolean) {
         this.set_state("locked")
@@ -248,6 +112,38 @@ export class Node3DInstance implements Synchronized {
 
     /** Get the bounding box mesh for this node. Unstable, can be regenerated.*/
     get boundingBoxMesh() { return this.bounding_box!!.boundingBox }
+
+    /** Get the enclosing box, a box enclosing the node's meshes. */
+    get enclosingBox() { return this.enclosing_box! }
+
+    /** Has the node asked for a bounding box yet? Before that there is no frame to read or write. */
+    get hasBoundingBox() { return this.bounding_box !== null }
+
+    /** Are hands holding this node, here, on this peer? */
+    get isHeld() { return this.bounding_box?.holdable.isDragging ?? false }
+
+    /** Has the node been disposed? */
+    get isDisposed() { return this.disposed }
+
+    /**
+     * The handle this node has on itself, the one given to it as `context.self`.
+     * Made at instantiation, once the observables it relays exist, and disposed with the instance.
+     */
+    declare self: N3DHandleInstance
+
+    /**
+     * Register something to be undone when the node is disposed.
+     *
+     * @remarks
+     * What the node hands out about itself, handles above all, has to die with it, and the one
+     * holding it may be another node that does not know when this one goes. So the undoing is
+     * registered here and the returned function takes it back, for what ends earlier on its own.
+     * @returns A function that unregisters it, for the case where it was undone before the node was.
+     */
+    own(dispose: () => void): () => void {
+        this.disposables.add(dispose)
+        return () => { this.disposables.delete(dispose) }
+    }
 
     /** Every connection touching this node (deduplicated across all its ports). */
     get connections(): N3DConnectionInstance[] {
@@ -265,37 +161,62 @@ export class Node3DInstance implements Synchronized {
     /** On node3d disposed. */
     readonly onDispose = new Observable<void>()
 
+    /**
+     * Notified when hands start holding this node, with the pointers holding it.
+     *
+     * @remarks
+     * A node is held by the world itself, through its bounding box, whatever the tool the hand
+     * holds. Told here rather than guessed from a trigger, so a hold made with two hands, or given
+     * up because a hand lost the right to hold, is known just the same.
+     */
+    readonly onGrab = new Observable<PointerInput[]>()
+
+    /** Notified when the last hand holding this node lets go, with the pointers that were holding it. */
+    readonly onRelease = new Observable<PointerInput[]>()
+
 
     private declare root_transform: TransformNode
     private highlighter!: N3DHighlighter
     private observers = new Set<Observer<any>>()
     private disposables = new Set<() => void>()
 
-    /**
-     * Live audio-feature snapshot from the analyser tapped onto this node's
-     * primary audio path. Returns null for nodes with no audio connectable
-     * (purely structural / control-only nodes). Cheap; safe per frame —
-     * cable EffectSystems pull this each tick to colour and time their
-     * visuals to what's actually flowing through.
-     */
-    public getAudioSnapshot(): AudioSignalSnapshot | null {
-        return this._audioAnalyser?.snapshot() ?? null
-    }
-
     async instantiate() {
         const { scene, highlightLayer, utilityLayer, babylon, tools } = this.shared
 
         const instance = this
+        const label = this.factory.label
 
         const highlighter = this.highlighter = new N3DHighlighter(highlightLayer)
+        this.self = new N3DHandleInstance(this, this)
         const menus = MenuSystem.getInstance()
         let lastMenu: AbstractMenu|null = null
 
+
         // GUI related things
-        const root_transform = this.root_transform = new TransformNode("node3d root", scene)
+        const root_transform = this.root_transform = new TransformNode(`${label} root`, scene)
+        
+        const gui_root_transform = new TransformNode(`${label} gui root`, scene)
+        gui_root_transform.parent = root_transform
 
-        const gui_root_transform = new TransformNode("node3d gui root", scene)
+        this.root_box = MeshBuilder.CreateBox(`${label} movable hitbox`, {size:1}, this.shared.scene)
+        this.root_box.visibility = 0
+        this.root_box.receiveShadows = false
+        this.root_box.checkCollisions = false
+        this.root_box.isPickable = false
+        this.root_transform.parent = this.root_box
 
+        this.enclosing_box = MeshBuilder.CreateBox(`${label} node3d enclosing mesh`, {size:1}, this.shared.scene)
+        this.shared.shadowGenerator.addShadowCaster(this.enclosing_box, false)
+        this.enclosing_box.visibility = 0
+        this.enclosing_box.receiveShadows = false
+        this.enclosing_box.checkCollisions = false
+        this.enclosing_box.isPickable = false
+        this.enclosing_box.parent = root_transform
+        this.enclosing_box.resetLocalMatrix()
+
+        this.createSelfConnectable()
+
+       
         this.gui = await this.factory.createGUI({
             babylon, tools, scene,
 
@@ -309,10 +230,9 @@ export class Node3DInstance implements Synchronized {
             unhighlight: (...p) => highlighter.unhighlight(...p)
         })
 
-        gui_root_transform.parent = root_transform
         this.gui.root.parent = gui_root_transform
-        gui_root_transform.scaling.setAll(this.gui.worldSize * Node3DInstance.SIZE_MULTIPLIER)
 
+        gui_root_transform.scaling.setAll(this.gui.worldSize * Node3DInstance.SIZE_MULTIPLIER)
 
         // Node related things
         // TODO: Better exception handling
@@ -323,10 +243,74 @@ export class Node3DInstance implements Synchronized {
                 groupId: this.shared.groupId,
                 tools,
                 inputs: InputManager.getInstance(),
+                interaction: InstrumentInteractionSystem.getInstance(),
+                instrument,
 
                 // The WAM's name
                 setLabel(label: string) {
                     root_transform.name = `${label} root`
+                },
+
+                self: this.self,
+
+                // The other nodes
+                async createNode3D(kind, frame) {
+                    const created = await Node3dManager.getInstance().addNode3d(kind, frame.position ?? instance.root_transform.absolutePosition.clone())
+                    if(!created) return null
+                    const handle = new N3DHandleInstance(created, instance)
+                    handle.setFrame(frame)
+                    return handle
+                },
+                saveNodes(handles, origin) {
+                    const alive = handles.filter(handle => handle instanceof N3DHandleInstance && handle.isAlive) as N3DHandleInstance[]
+
+                    // Only what was given: a cable towards a node left outside is not the group's.
+                    // The saved nodes come out in the order they were given, which is the order
+                    // the places are written in and read back in.
+                    const graph = Serialization.getInstance().save(alive.map(handle => handle.target), false)
+                    const root = origin ?? WORLD_ORIGIN
+                    const places = alive.map(handle => [...FrameUtils.relative(handle.getFrame(), root).asArray()])
+
+                    // Copied out of the shared document, so what is put away stops following what
+                    // it was taken from.
+                    return JSON.parse(JSON.stringify({graph, places}))
+                },
+                async loadNodes(snapshot, origin) {
+                    const {graph, places} = snapshot as {graph: Node3DGraphDescription, places: number[][]}
+                    const root = origin ?? WORLD_ORIGIN
+                    const frames = places.map(place => FrameUtils.absolute(Matrix.FromArray(place), root))
+
+                    const placed: Node3DGraphDescription = {
+                        nodes: graph.nodes.map((node, index) => ({
+                            ...node,
+                            position: frames[index].position.asArray(),
+                            rotation: frames[index].rotation.asArray(),
+                        })),
+                        connections: graph.connections,
+                    }
+                    const created = await Serialization.getInstance().load(placed)
+
+                    // A node the host could not create is simply missing from what comes back, and
+                    // then nothing says any more which place was meant for which node: the frames
+                    // are only laid on a group that came back whole.
+                    const aligned = created.length === placed.nodes.length
+                    return created.map((node, index) => {
+                        const handle = new N3DHandleInstance(node, instance)
+
+                        // Laid again, and after the load: the state of a node carries the place it
+                        // held when it was photographed, and that is written last.
+                        if(aligned) handle.setFrame(frames[index])
+                        return handle
+                    })
+                },
+                listKinds() {
+                    return [...Node3dManager.getInstance().builder.FACTORY_KINDS]
+                },
+                async describeKind(kind) {
+                    const factory = await Node3dManager.getInstance().builder.getFactory(kind)
+                    if(!factory) return null
+                    const {label, description, tags} = factory
+                    return {label, description, tags}
                 },
 
                 // Draggable parameters
@@ -359,6 +343,7 @@ export class Node3DInstance implements Synchronized {
                     )
                     const connectable = new N3DConnectableInstance(instance, connectableinfo, highlightLayer, utilityLayer, IOEventBus.getInstance(), true, false)
                     instance.connectables.set(connectableinfo.id, connectable)
+                    instance.onParameterCreated.notifyObservers({parameter:param, connection:connectable})
                 },
                 removeParameter(id: Node3DParameter["id"]) {
                     instance.parameters.get(id)?.dispose()
@@ -370,6 +355,7 @@ export class Node3DInstance implements Synchronized {
                 createConnectable(info: Node3DConnectable) {
                     const connectable = new N3DConnectableInstance(instance, info, highlightLayer, utilityLayer, IOEventBus.getInstance())
                     instance.connectables.set(info.id, connectable)
+                    instance.onConnectableCreated.notifyObservers(connectable)
                 },
                 removeConnectable(id: Node3DConnectable["id"]) {
                     instance.connectables.get(id)?.dispose()
@@ -379,6 +365,7 @@ export class Node3DInstance implements Synchronized {
                 createButton(info) {
                     const button = new N3DButtonInstance(instance, instance.root_transform, highlightLayer, utilityLayer, info)
                     instance.buttons.set(info.id, button)
+                    instance.onButtonCreated.notifyObservers(button)
                 },
                 removeButton(id) {
                     instance.buttons.get(id)?.dispose()
@@ -426,13 +413,21 @@ export class Node3DInstance implements Synchronized {
                     )
                 },
 
-                getPlayerPosition() {
-                    const xrManager = XRManager.getInstance();
-                    if (xrManager.xrHelper && xrManager.xrHelper.baseExperience) {
-                        const vrCamera = xrManager.xrHelper.baseExperience.camera;
-                        return { position: vrCamera.globalPosition.clone(), rotation: vrCamera.absoluteRotation.clone() }
+                equipTool(controller, kind) {
+                    const equipment = ToolSystem.getInstance().equip(controller, kind)
+
+                    const dispose = () => {
+                        equipment.dispose()
+                        instance.disposables.delete(dispose)
                     }
-                    else return { position: Vector3.Zero(), rotation: Quaternion.Identity() }
+                    instance.disposables.add(dispose)
+
+                    return { dispose }
+                },
+
+                getPlayerPosition() {
+                    const camera = instance.root_transform.getScene().activeCamera!
+                    return { position: camera.globalPosition.clone(), rotation: camera.absoluteRotation.clone() }
                 },
 
                 getPosition() {
@@ -488,53 +483,113 @@ export class Node3DInstance implements Synchronized {
             root_transform.dispose()
             throw e
         }
-
-        // Audio reactivity: tap an analyser onto whichever audio connectable
-        // best represents this node (output for sources, input for sinks).
-        //
-        // updateBoundingBoxNow already ran during factory.create() (via
-        // addToBoundingBox), constructing the EffectSystem and activating it
-        // with a static signal. Now that the connectables exist and we can
-        // attach an analyser, re-activate with the live snapshot provider so
-        // every effect (and every downstream cable) sees real audio data.
-        const audioNode = this.findAudioNodeToMonitor()
-        if (audioNode !== null) {
-            const analyser = new AudioAnalyser(this.shared.audioContext)
-            this._audioAnalyser = analyser
-            analyser.tap(audioNode)
-            this._nodeEffect?.activate(() => analyser.snapshot())
-        }
     }
 
     /**
-     * Pick the audio connectable to monitor: output side for sources, input
-     * side for sinks. Effects with both pick output (lets cables downstream
-     * see the processed signal).
+     * The port every node carries on its hitbox, so a cable of type "node3d" can be dropped on it.
+     *
+     * @remarks
+     * What the cable delivers to the other end is a handle on this node, made here per cable and
+     * disposed when that cable is closed, so whatever the other end registered through it goes
+     * with the cable. The port is a target only: taking hold of the hitbox is for moving the node,
+     * not for dragging a cable out of it.
+     *
+     * It sits on the enclosing box because that mesh lives as long as the node, while the hitbox
+     * itself is thrown away and made again whenever the node's meshes move. The box is unpickable
+     * and invisible outside of a cable drag, and only turns pickable while a cable is being drawn,
+     * so a hand resting on a node does not see a port there.
      */
-    private findAudioNodeToMonitor(): AudioNode | null {
-        let outputAudio: AudioNode | null = null
-        let inputAudio: AudioNode | null = null
-        for (const c of this.connectables.values()) {
-            const cfg = c.config as { type: string | Symbol, direction: string, audioNode?: unknown }
-            if (cfg.type !== 'audio') continue
-            const node = cfg.audioNode
-            if ((node instanceof AudioNode) === false) continue
-            if (cfg.direction === 'output' && outputAudio === null) outputAudio = node as AudioNode
-            else if (cfg.direction === 'input' && inputAudio === null) inputAudio = node as AudioNode
+    private createSelfConnectable() {
+        const instance = this
+        const box = this.enclosing_box!
+        const ioEventBus = IOEventBus.getInstance()
+        const {utilityLayer, highlightLayer} = this.shared
+
+        // The handle made for a cable has to die with the node at the other end too, and that node
+        // is only known once the cable is complete: the host says so right after, synchronously, in
+        // the same call (see N3DConnectionInstance.connect), and the handle waiting here is the one
+        // of that cable. Should a cable ever stop between the two, the handle left waiting is simply
+        // replaced by the next one, and dies by the other roads.
+        let pending: N3DHandleInstance | null = null
+        const info: Node3DConnectable = {
+            id: Node3DInstance.SELF_PORT,
+            meshes: [box],
+            type: Node3DN3DConnectable.Type,
+            direction: "input",
+            label: this.factory.label,
+            color: Node3DN3DConnectable.Color,
+            connectAsInput: () => pending = new N3DHandleInstance(instance, instance),
+            connectAsOutput() { },
+            disconnectAsInput(handle: N3DHandleInstance) { handle.dispose() },
+            disconnectAsOutput() { },
         }
-        return outputAudio ?? inputAudio
+        const completing = this.onConnectionCreated.add(connection => {
+            if(pending === null || connection.inputConnectable?.config !== info) return
+            const receiver = connection.outputConnectable?.instance
+            if(receiver) pending.alsoOwnedBy(receiver)
+            pending = null
+        })
+
+        // Pickable only while a cable of its own type is drawn, which is the only time it is a target
+        // for anything. Not for the other types: the box wraps the node, ports included, and would
+        // catch the cables meant for them. And never for a cable drawn out of this very node: a node
+        // does not hold itself.
+        const unsubscribe = ioEventBus.on('IO_CONNECT', payload => {
+            box.isPickable = payload.pickType === 'down'
+                && payload.connectable.config.type === Node3DN3DConnectable.Type
+                && payload.connectable.instance !== instance
+        })
+
+        // The standard highlight would not show on an invisible mesh, so the box itself is shown
+        // instead, faintly, as the bounding box is when hovered, with the label of the node.
+        const text = new N3DText(`text ${info.id}`, [box], utilityLayer.utilityLayerScene)
+        text.set(info.label)
+        const hovering = new Set<PointerInput>()
+        const hover = new InputMultiHoverBehavior(
+            pointer => {
+                if(!N3DInteractions.connections.isEnabledFor(pointer)) return
+                hovering.add(pointer)
+                if(hovering.size === 1){
+                    box.visibility = Node3DInstance.SELF_PORT_VISIBILITY
+                    text.show()
+                    text.updatePosition()
+                }
+            },
+            pointer => {
+                if(!hovering.delete(pointer)) return
+                if(hovering.size === 0){
+                    box.visibility = 0
+                    text.hide()
+                }
+            },
+            N3DInteractions.connections,
+        )
+        box.addBehavior(hover)
+
+        const connectable = new N3DConnectableInstance(instance, info, highlightLayer, utilityLayer, ioEventBus, true, false)
+        const dispose = connectable.dispose
+        connectable.dispose = () => {
+            dispose()
+            completing.remove()
+            unsubscribe()
+            box.removeBehavior(hover)
+            text.dispose()
+        }
+        this.connectables.set(info.id, connectable)
     }
+
+    /** The id of the port every node carries on its hitbox. */
+    static readonly SELF_PORT = "node3d_self"
+
+    /** How much of the enclosing box is shown while a cable hovers it. */
+    static readonly SELF_PORT_VISIBILITY = 0.2
 
     //// BOUNDING BOX ////
     private boxes = [] as AbstractMesh[]
-    private bounding_mesh = null as null | Mesh
-    private red_bounding_mesh = null as null | Mesh
+    private root_box!: Mesh
     private bounding_box = null as null | BoundingBox
+    private enclosing_box = null as null | Mesh
     private doUpdateBoundingBox = false
-    private shake: ShakeBehavior|null = null
-    private _nodeEffect: EffectSystem | null = null
-    private _audioAnalyser: AudioAnalyser | null = null
-    private static readonly _graph = new Node3DGraph()
 
     private updateBoundingBoxNow() {
         if (this.disposed) return
@@ -542,109 +597,66 @@ export class Node3DInstance implements Synchronized {
         // Get previous data to copy back
         const isLocked = this.bounding_box?.isLocked ?? false
 
-        // The bounding mesh gets recreated; the effect attached to it must too.
-        this._nodeEffect?.dispose()
-        this._nodeEffect = null
+        // A box thrown away while it was held is a hold that ends: said, so nobody is left carrying
+        // a node the world no longer gives it.
+        if(this.bounding_box?.holdable.isDragging) this.onRelease.notifyObservers([])
 
-        if (this.bounding_mesh) this.shared.shadowGenerator.removeShadowCaster(this.bounding_mesh)
         this.bounding_box?.dispose()
-        this.bounding_mesh?.dispose()
-        this.red_bounding_mesh?.dispose()
 
-
-        // Update bounds shape
-        const bounds = this.boxes
+        // Get bounds
+        const worldBounds = this.boxes
             .map(it => it.getHierarchyBoundingVectors(true))
             .reduce((a, b) => ({ min: a.min.minimizeInPlace(b.min), max: a.max.maximizeInPlace(b.max) }))
 
-        const size = bounds.max.subtractInPlace(bounds.min)
-        this.bounding_mesh = MeshBuilder.CreateBox('box', {
-            width: size.x,
-            height: size.y,
-            depth: size.z,
+        const worldSize = worldBounds.max .subtract(worldBounds.min)
+        const worldCenter = worldSize.scale(.5) .addInPlace(worldBounds.min)
+
+        // Create the movable bounding box
+        this.root_transform.setParent(null)
+        this.root_box.dispose()
+
+        this.root_box = MeshBuilder.CreateBox('node3d hitbox mesh', {
+            width: worldSize.x,
+            height: worldSize.y,
+            depth: worldSize.z,
         }, this.shared.scene)
-        size.scaleInPlace(.5)
-        this.bounding_mesh.position.subtractInPlace(bounds.min).subtractInPlace(size)
-        //this.bounding_mesh.isVisible = false
-        this.bounding_mesh.visibility = 0
-        this.bounding_mesh.receiveShadows = false
-        this.bounding_mesh.checkCollisions = false
-        this.bounding_mesh.isPickable = false
+        this.root_box.position.copyFrom(worldCenter)
+        this.root_box.visibility = 0
+        this.root_box.receiveShadows = false
+        this.root_box.checkCollisions = false
+        this.root_box.isPickable = false
 
-        this.root_transform.parent = this.bounding_mesh
+        this.root_transform.setParent(this.root_box)
 
-        this.bounding_box = new BoundingBox(this.bounding_mesh)
+        // Resize enclosing box
+        const localSize = this.root_box.getBoundingInfo().boundingBox.extendSize
+        this.enclosing_box!.scaling.set(
+            localSize.x*2,
+            localSize.y*2,
+            localSize.z*2,
+        )
+        this.enclosing_box!.position.copyFrom(this.root_box.position)
+
+        this.bounding_box = new BoundingBox(this.root_box)
         this.bounding_box.isLocked = isLocked
-
-        // Shake to delete
-        // Shake-to-delete via the shared ShakeBehavior (same gesture for nodes and cables).
-        const bbox = this.bounding_box.boundingBox
-
-        const red_box = this.red_bounding_mesh = bbox.clone("red_box", bbox, true)
-        red_box.makeGeometryUnique()
-        MeshUtils.setColor(red_box, new Color4(1, 0, 0,1))
-        red_box.resetLocalMatrix()
-        red_box.isPickable = false
-        red_box.checkCollisions = false
-        red_box.visibility = 0
-
-        this.shake = new ShakeBehavior()
-        this.shake.shake_threshold = 5
-        bbox.addBehavior(this.shake)
-        this.shake.on_shake = (_, counter) => {
-            red_box.visibility = Math.min(1, counter / 12)
-            if(counter>10) this.dispose()
-        }
-        this.shake.on_stop = (_, __) => {
-            red_box.visibility = 0
-        }
-        this.shake.on_drop = () => {
-            red_box.visibility = 0
-        }
-
 
         // On position change
         this.set_state("position")
         this.bounding_box.on_move = () => this.set_state("position")
+
+        // The bounding box is thrown away and built again whenever the meshes of the node move, so
+        // what listens to a hold is hooked back onto the new one here, not once and for all.
+        this.bounding_box.holdable.onGrabObservable.add(pointers => this.onGrab.notifyObservers(pointers))
+        this.bounding_box.holdable.onReleaseObservable.add(pointers => this.onRelease.notifyObservers(pointers))
 
         // On move observable
         this.bounding_box.boundingBox.onAfterWorldMatrixUpdateObservable.add(() => {
             this.onMove.notifyObservers(this.bounding_box!!.boundingBox)
         })
         this.onMove.notifyObservers(this.bounding_box!!.boundingBox)
-
-        // Shadow Generator
-        this.shared.shadowGenerator.addShadowCaster(this.bounding_mesh, false)
-
-        // Per-node effect — provider polled each frame and rebuilds on profile
-        // id flip (e.g. when the graph rewires and this node's role changes).
-        // Activated with whatever live or static signal source is currently
-        // available; instantiate() upgrades to the analyser-backed provider
-        // once the connectables exist.
-        const view = nodeViewOf(this)
-        this._nodeEffect = EffectSystem.forMesh(
-            this.shared.scene, this.bounding_mesh, null,
-            () => Color3.White().toColor4(1),
-            () => this._currentNodeProfile(view),
-        )
-        const analyser = this._audioAnalyser
-        if (analyser !== null) {
-            this._nodeEffect.activate(() => analyser.snapshot())
-        } else {
-            this._nodeEffect.activate({ strength: 0, tone: 0 })
-        }
     }
 
-    /**
-     * Profile selection per frame. Role + graph-validity decide whether this
-     * node plays its full character (in a valid source→sink chain) or sits
-     * muted (orphan / standalone). Shake-warning is handled separately by
-     * the red bounding box mesh, so no flag here.
-     */
-    private _currentNodeProfile(view: NodeView): EffectProfile {
-        const graph = Node3DInstance._graph
-        return profileForNode(graph.roleOf(view), graph.inValidPath(view))
-    }
+    
 
     private updateBoundingBox() {
         if (!this.bounding_box) this.updateBoundingBoxNow()
@@ -717,17 +729,13 @@ export class Node3DInstance implements Synchronized {
 
     public async dispose() {
         if (this.disposed) return
+        this.disposed = true
         this.onDispose.notifyObservers()
         this.on_dispose()
-        this.disposed = true
         this.set_state("delete")
         this.highlighter.dispose()
-        this._nodeEffect?.dispose()
-        this._nodeEffect = null
-        this._audioAnalyser?.dispose()
-        this._audioAnalyser = null
         this.bounding_box?.dispose()
-        this.bounding_mesh?.dispose()
+        this.root_box.dispose()
         this.parameters.forEach(it => it.dispose())
         this.buttons.forEach(it => it.dispose())
         this.connectables.forEach(it => it.dispose())

@@ -1,7 +1,10 @@
 import { Behavior, HighlightLayer, Observable, TransformNode, UtilityLayerRenderer } from "@babylonjs/core"
-import { InputGrabBehavior } from "../../xr/inputs/tools/InputGrabBehavior"
-import { InputHoverBehavior } from "../../xr/inputs/tools/InputHoverBehavior"
+import { InputMultiGrabBehavior } from "../../xr/inputs/tools/InputMultiGrabBehavior"
+import { InputMultiHoverBehavior } from "../../xr/inputs/tools/InputMultiHoverBehavior"
 import { InputPressBehavior } from "../../xr/inputs/tools/InputPressBehavior"
+import { PointerInput } from "../../xr/inputs/PointerInput"
+import { InputManager } from "../../xr/inputs/InputManager"
+import { N3DInteractions } from "./N3DInteractions"
 import { Node3DButton } from "../Node3DButton"
 import { NodeCompUtils } from "../tools/utils/NodeCompUtils"
 import { N3DText } from "./utils/N3DText"
@@ -83,29 +86,81 @@ export class N3DButtonInstance {
             visual.offset(-1)
         }
 
-        const on_pick_down = ()=>{
+        const on_pick_down = (pointers: PointerInput[])=>{
             config.press()
             this.onPressed.notifyObservers()
+            this.onGrab.notifyObservers(pointers)
             visual.offset(1)
         }
 
-        const on_pick_up = ()=>{
+        const on_pick_up = (pointers: PointerInput[])=>{
             config.release()
+            this.onRelease.notifyObservers(pointers)
             visual.offset(-1)
         }
 
         const disposables: (()=>void)[] = []
 
+        // The capability is asked per pointer: a hand whose tool did not ask for the buttons
+        // passes over them without lighting nor pressing them, while the other hand still does.
+        const buttons = N3DInteractions.buttons
+        const inputs = InputManager.getInstance()
+
         for(const draggable of meshes){
-            const hover = new InputHoverBehavior(on_pointer_over, on_pointer_out)
+            const hovering = new Set<PointerInput>()
+            const hover = new InputMultiHoverBehavior(
+                pointer=>{
+                    if(!buttons.isEnabledFor(pointer)) return
+                    hovering.add(pointer)
+                    if(hovering.size===1) on_pointer_over()
+                },
+                pointer=>{
+                    if(!hovering.delete(pointer)) return
+                    if(hovering.size===0) on_pointer_out()
+                },
+                buttons,
+            )
             draggable.addBehavior(hover)
 
             let behavior: Behavior<any>
             if(config.supportSwipe){
-                behavior = new InputPressBehavior(on_pick_down, on_pick_up)
+                // The press does not say which pointer presses: it is on as long as one allowed
+                // pointer presses the button.
+                let pressed = false
+                let pressers: PointerInput[] = []
+                const pressedByAllowed = () => inputs.controllers
+                    .filter(c => c.pointer.targetMesh===draggable && c.trigger.isPressed() && buttons.isEnabledFor(c.pointer))
+                    .map(c => c.pointer)
+                const check = () => {
+                    const pressing = pressedByAllowed()
+                    const shouldBePressed = pressing.length>0
+                    if(shouldBePressed && !pressed){
+                        pressers = pressing
+                        on_pick_down(pressers)
+                    }
+                    else if(!shouldBePressed && pressed){
+                        on_pick_up(pressers)
+                        pressers = []
+                    }
+                    pressed = shouldBePressed
+                }
+                behavior = new InputPressBehavior(check, check, buttons)
             }
             else{
-                behavior = new InputGrabBehavior(on_pick_down, on_pick_up)
+                const pressing = new Set<PointerInput>()
+                behavior = new InputMultiGrabBehavior(
+                    pointer=>{
+                        if(!buttons.isEnabledFor(pointer)) return
+                        pressing.add(pointer)
+                        if(pressing.size===1) on_pick_down([...pressing])
+                    },
+                    pointer=>{
+                        if(!pressing.delete(pointer)) return
+                        if(pressing.size===0) on_pick_up([pointer])
+                    },
+                    undefined,
+                    buttons,
+                )
             }
             draggable.addBehavior(behavior)
 
@@ -127,5 +182,11 @@ export class N3DButtonInstance {
     readonly highlight
     readonly visual
     readonly onPressed = new Observable<void>()
+
+    /** Notified when hands press the button, with the pointers pressing it. */
+    readonly onGrab = new Observable<PointerInput[]>()
+
+    /** Notified when the last hand pressing the button lets go, with the pointers that were pressing it. */
+    readonly onRelease = new Observable<PointerInput[]>()
 
 }

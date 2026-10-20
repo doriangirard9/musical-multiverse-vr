@@ -6,7 +6,7 @@ import { InputManager } from "../../xr/inputs/InputManager";
 import { SceneManager } from "../SceneManager";
 import { NetworkEventBus } from "../../eventBus/NetworkEventBus";
 import { SyncManager } from "../../network/sync/SyncManager";
-import { XRManager } from "../../xr/XRManager";
+import { XRPlatform } from "../platform/XRPlatform";
 
 /** Distance below which another avatar is hidden (in meters) */
 const PROXIMITY_HIDE_DISTANCE = .5;
@@ -76,15 +76,16 @@ export class AvatarSystem {
         this._startProximityFade()
     }
 
-    // TODO: ça n'a rien à faire dans AvatarSystem, ça devrait être dans XRManager ou InputManager à la limite
+    // TODO: ça n'a rien à faire dans AvatarSystem, ça devrait être dans XRPlatform ou InputManager à la limite
     // Là, y a vraiment aucun rapport.
     /**
      * Offset the XR camera spawn position so new players don't overlap existing avatars.
      * Called after entering XR. Checks existing avatar positions and shifts if too close.
      */
     public offsetSpawnIfNeeded() {
+        // TODO: FAUT VRAIMENT VIRER CA PLUS RIEN NE DOIT FAIRE REFERENCE A LA VR
         try {
-            const xrManager = XRManager.getInstance()
+            const xrManager = XRPlatform.getInstance()
             if (!xrManager?.xrHelper?.baseExperience?.camera) return
 
             const camera = xrManager.xrHelper.baseExperience.camera

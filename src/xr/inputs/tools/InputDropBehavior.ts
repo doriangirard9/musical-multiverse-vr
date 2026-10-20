@@ -1,6 +1,7 @@
 import { AbstractMesh, Behavior, Nullable } from "@babylonjs/core";
 import { InputManager } from "../InputManager";
 import { PointerInput } from "../PointerInput";
+import { InputCapability } from "../InputCapability";
 
 
 /**
@@ -18,6 +19,12 @@ export class InputDropBehavior implements Behavior<AbstractMesh> {
     constructor(
         /** Called if a trigger is released while the associated pointer is pointing at the target. */
         private onDrop: (pointer:PointerInput)=>void,
+
+        /**
+         * The capability filtering the behavior. While it is disabled nothing is ever dropped on
+         * the target. A behavior with no capability always acts.
+         */
+        private capability?: InputCapability,
     ){}
 
     get name(){ return this.constructor.name }
@@ -35,6 +42,7 @@ export class InputDropBehavior implements Behavior<AbstractMesh> {
         this.observable = inputs.onTriggerUp.add(e=>{
             const pointer = e.pressable.controller?.pointer
             if(!pointer)return
+            if(this.capability?.isEnabled()===false) return
             if(pointer.targetMesh===target) this.onDrop(pointer)
         }, undefined, true)
     }

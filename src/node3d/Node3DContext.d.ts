@@ -7,6 +7,10 @@ import { Node3DParameter } from "./Node3DParameter";
 import { Node3DConnectable } from "./Node3DConnectable";
 import { Node3DButton } from "./Node3DButton";
 import { InputManager } from "../xr/inputs/InputManager";
+import { ControllerInput } from "../xr/inputs/ControllerInput";
+import { ToolKind } from "../tool/ToolKind";
+import { InstrumentInteractionSystem } from "../instrument/InstrumentInteractionSystem";
+import { Node3DFrame, Node3DGroupSnapshot, Node3DHandle } from "./Node3DHandle";
 
 
 
@@ -41,6 +45,30 @@ export interface Node3DContext{
     inputs: InputManager
 
     /**
+     * Les intéractions physiques entre les points de matière du monde et les meshes des instruments.
+     *
+     * Un point de matière est un `Interactor`: la tête d'une baguette, un bout de doigt, le bout
+     * d'un rayon. Le Node3D n'en crée pas et n'en déplace pas, il écoute ce qu'ils rencontrent.
+     * La façon usuelle de s'en servir n'est pas d'écouter ce système directement mais d'attacher
+     * un des behaviours de {@link Node3DContext.instrument} à un mesh.
+     */
+    readonly interaction: InstrumentInteractionSystem
+
+    /**
+     * Les classes qui font d'un mesh un instrument jouable: les behaviours à attacher à un mesh
+     * pour qu'il soit frappé, tenu, pincé, frotté, pressé, ou seulement désigné.
+     *
+     * Un behaviour s'attache comme tout behaviour babylon, et se détache dans le dispose du Node3D:
+     * ```ts
+     * const strike = new context.instrument.StrikeBehavior({
+     *     onHit: (force) => this.play(note, Math.min(1, force)),
+     * })
+     * strike.attach(gui.pad)
+     * ```
+     */
+    readonly instrument: typeof import("../instrument")
+
+    /**
      * Le group id du host Web Audio Module.
      */
     readonly groupId: string
@@ -53,6 +81,62 @@ export interface Node3DContext{
      * Change le nom du Node3D.
      */
     setLabel(label: string): void
+
+    /**
+     * La poignée sur ce Node3D lui-même.
+     * Elle vit aussi longtemps que le Node3D.
+     */
+    readonly self: Node3DHandle
+
+
+
+    //// Les autres Node3D ////
+
+    /**
+     * Crée un Node3D du kind donné dans le monde partagé et le pose sur la frame donnée.
+     * La poignée retournée vit aussi longtemps que ce Node3D et que le Node3D créé.
+     * @param kind Le kind du Node3D, un de ceux de {@link Node3DContext.listKinds}.
+     * @param frame Où poser le Node3D. Ce qui n'est pas donné est laissé au choix de l'hôte.
+     * @returns La poignée sur le Node3D créé, ou null si le kind est inconnu.
+     */
+    createNode3D(kind: string, frame: Partial<Node3DFrame>): Promise<Node3DHandle|null>
+
+    /**
+     * Photographie un groupe de Node3D: chacun d'eux, les câbles entre eux, et la place de chacun.
+     * Les câbles qui vont vers un Node3D hors du groupe ne sont pas gardés, ils ne sont pas au
+     * groupe. Les Node3D qui ne sont pas dans le monde partagé sont laissés de côté.
+     * @param handles Les poignées sur les Node3D à photographier.
+     * @param origin Le repère dans lequel les places sont gardées. Le monde si rien n'est donné.
+     *      Donner le sien, c'est garder un groupe qui suivra ensuite la position, l'orientation et
+     *      la taille de ce Node3D.
+     * @returns La photographie, à rendre à {@link Node3DContext.loadNodes}.
+     */
+    saveNodes(handles: Node3DHandle[], origin?: Node3DFrame): Node3DGroupSnapshot
+
+    /**
+     * Remet dans le monde un groupe photographié par {@link Node3DContext.saveNodes}, câbles
+     * compris. Les Node3D créés sont neufs, ils n'ont que les câbles que le groupe portait.
+     * Les poignées retournées vivent aussi longtemps que ce Node3D et que les Node3D créés.
+     * @param snapshot La photographie du groupe.
+     * @param origin Le repère dans lequel les places sont rendues. Le monde si rien n'est donné.
+     *      Ce n'est pas forcément celui de la photographie: un groupe gardé dans le repère d'un
+     *      Node3D et rendu dans celui-ci, déplacé, tourné ou agrandi entre temps, revient déplacé,
+     *      tourné et agrandi d'autant.
+     * @returns Les poignées, dans l'ordre où les Node3D avaient été donnés. Un Node3D qui n'a pu
+     *      être créé manque simplement.
+     */
+    loadNodes(snapshot: Node3DGroupSnapshot, origin?: Node3DFrame): Promise<Node3DHandle[]>
+
+    /**
+     * Les kinds de Node3D que l'hôte sait créer. Rien n'est chargé, ce sont des noms.
+     */
+    listKinds(): string[]
+
+    /**
+     * Ce qu'un kind dit de lui-même. Charge la factory de ce kind, et seulement celle-là.
+     * @returns null si le kind est inconnu ou n'a pu être chargé.
+     */
+    describeKind(kind: string): Promise<{label: string, description: string, tags: string[]}|null>
 
 
 
@@ -145,6 +229,24 @@ export interface Node3DContext{
      * C'est un élément visuel.
      */
     sendSignal(position: BABYLON.Vector3, red: number, green: number, blue: number): void
+
+
+
+    //// Gestion des outils ////
+
+    /**
+     * Équipe la main qui tient le controller donné avec un outil sur mesure,
+     * qui n'a pas besoin d'être dans le catalogue proposé à l'utilisateur.
+     * L'autre main garde ce qu'elle tient.
+     *
+     * L'outil précédent est rendu à la main quand l'objet retourné est disposé,
+     * ou automatiquement à la suppression du Node3D. Si entre temps l'utilisateur
+     * a lui même choisi un autre outil pour cette main, son choix est gardé.
+     *
+     * @param controller Le controller de la main à équiper.
+     * @param kind L'outil à mettre dans cette main.
+     */
+    equipTool(controller: ControllerInput, kind: ToolKind): {dispose(): void}
 
 
 

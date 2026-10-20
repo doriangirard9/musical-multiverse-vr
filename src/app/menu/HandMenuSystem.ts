@@ -13,6 +13,8 @@ import { BlocksMenu, BMenuBlock } from "../../menus/BlocksMenu"
 import { MicrophoneSystem } from "../MicrophoneSystem"
 import { MenuSystem } from "./MenuSystem"
 import { DrawingSystem } from "../social/DrawingSystem"
+import { VoiceChatSystem } from "../social/VoiceChatSystem"
+import { SocialWheelSystem } from "../social/SocialWheelSystem"
 
 
 /**
@@ -101,6 +103,12 @@ export class HandMenuSystem {
         buttons.push({ label: "↩ Leave session", color: "#ff9966", click: ()=>{
             window.location.hash = buildHash(ROUTES.SESSIONS)
         }})
+
+        if (SocialWheelSystem.hasInstance()) {
+            buttons.push({ label: "💬 Open communication wheel", color: "#8ce99a", click: () => {
+                SocialWheelSystem.toggle()
+            }})
+        }
 
         buttons.push({ label: `---`, color: "#ffffff"})
 
@@ -259,11 +267,11 @@ class TransportMenu{
                 width: 4, height: 2,
             })
             items.push({
-                text: "Mode",
+                text: micState.mode === "open_mic" ? "Close" : "Open",
                 color: micColor,
                 width: 2, height: 2,
                 onClick: () => {
-                    void microphone.cycleMode().then(success => {
+                    void microphone.toggleOpenMic().then(success => {
                         if (!success && microphone.getState().error) {
                             MenuSystem.getInstance().showMessage(microphone.getState().error!, "#ff8080")
                         } else {
@@ -293,19 +301,18 @@ class TransportMenu{
                 }
             })
 
-            if (micState.mode === "push_to_talk") {
+            if (VoiceChatSystem.hasInstance()) {
+                const voice = VoiceChatSystem.getInstance()
                 items.push({
-                    text: `Talk : ${micState.talkActive ? "On" : "Off"}`,
-                    color: micState.talkActive ? "#7ee787" : "#ffca5c",
+                    text: voice.isTestBotRunning() ? "Voice test bot: On" : "Voice test bot: Off",
+                    color: voice.isTestBotRunning() ? "#7ee787" : "#9fb4c8",
                     width: 4, height: 2,
                 })
                 items.push({
                     text: "Toggle",
-                    color: micState.talkActive ? "#7ee787" : "#ffca5c",
+                    color: voice.isTestBotRunning() ? "#7ee787" : "#9fb4c8",
                     width: 2, height: 2,
-                    onClick: () => {
-                        void microphone.toggleTalkLatch().then(() => this.updateMenu())
-                    }
+                    onClick: () => void voice.toggleTestBot().then(() => this.updateMenu()),
                 })
             }
         }

@@ -23,7 +23,7 @@ export * from "./node3d/Node3dManager"
 export * from "./node3d/ConnectionManager"
 export * from "./node3d/Node3DBuilder"
 
-export * from "./feedback/PointerVisualSystem"
+export * from "./tool/ToolSystem"
 export * from "./feedback/HapticContactSystem"
 export * from "./feedback/ParameterJaugeSystem"
 

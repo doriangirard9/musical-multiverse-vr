@@ -473,6 +473,11 @@
     transition: width 180ms ease-out;
 }
 
+.wj-loading-action {
+    min-width: 180px;
+    margin-top: 4px;
+}
+
 /* ========== HUD ========== */
 .wj-hud {
     position: fixed;

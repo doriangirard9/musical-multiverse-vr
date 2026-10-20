@@ -44,7 +44,7 @@ export class ContextMenuSystem {
     ){
         this.highlight = new BoxHighlight(scene.getScene(), Color3.Red())
 
-        inputs.y_button.onDown.add(()=>{
+        inputs.b_button.onDown.add(()=>{
             for(const pt of [targets.screen, targets.left]){
                 if(pt.target.node){
                     this.openNodeMenu(pt.target.node)

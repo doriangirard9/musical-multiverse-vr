@@ -1,185 +1,143 @@
 # CLAUDE.md
 
-Do not produce documentation files unless explicitly asked. Doc comments on code are governed by the Documentation section below.
+## Magic tool
 
-Comments stay slim and current. Delete stale context.
+State of the work on `src/tool/kind/magic/MagicTool.ts`, written to be picked up later.
 
----
+### What it is
 
-## CARDINAL RULES
+A hand tool, sibling of `PencilTool`. Holding the trigger draws a shared stroke exactly like the
+pencil does. Releasing it casts a spell: the tool looks for what the drawing was already repeating,
+and replays that pattern three more times, each replay carried one period further, so a spiral keeps
+spiralling, a staircase keeps climbing, nested squares keep nesting. A drawing that repeats nothing
+fizzles: three short haptic pulses, nothing drawn.
 
-1. Nothing misleading. Names, comments, abstractions, re-exports : anything that suggests one thing while doing another is the root defect to fight.
-2. No tech debt, no fake abstractions, no workarounds. If a downstream problem exists because of an upstream limitation, fix the upstream. Never take the simpler fix when a better long-term fix exists.
-3. Break down complex functions. Refactor with meaningful names, especially for conditionals. If a comment is needed to explain a name, rename instead.
-4. No deep imports across modules: only `#module/test` for test exports. Module boundaries cross through `index.ts` barrels only. No circular imports. Never re-export from another module.
-5. Uniform shape, zero branching on structure. Complexity lives at the authoring boundary only.
-6. Function definition order: outermost to innermost. Non-exported functions at the end, same outermost-to-innermost order.
-7. Never deprecate: delete and update what breaks. Never commit commented-out or unreachable code.
-8. Never fail silently.
-9. Never use this symbole `—`. if you find one, rewrite.
----
+Wired in at three places, as every tool kind is:
+`MagicTool.ts` itself, the export line in `src/tool/index.ts`, and the `#KINDS` entry in
+`src/app/tool/ToolSystem.ts`.
 
-## CLASS MEMBER ORDER
+### The one rule everything follows
 
-1. Public member variables
-2. Constructor
-3. Public methods
-4. Protected `didSet` / `willSet` callbacks
-5. Protected methods
-6. Private variables
-7. Private methods
-8. `#`-private variables
-9. `#`-private methods
+**Nothing is measured in meters, and nothing is measured per point.**
 
----
+The stroke is sampled every 50 ms, so the length of one sample says how fast the hand was moving, not
+how the drawing is shaped. And a gesture drawn small has to give the same figure as the same gesture
+drawn large. So every length in the algorithm is either a ratio of two lengths of the drawing, or a
+share of the whole stroke, and every direction comparison is an angle in degrees.
 
-DONT USE <div> unless for upmost primitives.
+Two earlier versions were thrown away for breaking this rule. Do not reintroduce an absolute
+distance without a very good reason.
 
----
+### How the algorithm works
 
-## NULLABILITY
+1. **Capture.** Every tick point is kept in `#points`. No thinning: `DrawingStroke` drops points
+   closer than `MIN_DISTANCE` for the drawn curve, but the analysis wants all of them.
 
-- `undefined` : not yet set. Will exist eventually.
-- `null` : explicitly cleared. Existed, now does not.
-- `?` : optional capability. Some instances have it, others do not.
+2. **Cut into stretches** (`#cut`). The stroke is broken at its elbows into `Stretch`es, each holding
+   its point range, direction, length, the elbow angle with the previous stretch, and the unit axis
+   that elbow turns around. A cut happens where the stroke bows further than `ELBOW_SHARPNESS` off
+   the straight chord of the current run, measured as a share of that chord, never between two
+   points, so tremor small next to the run does not create false elbows.
+   - While the stroke yields fewer than `MIN_STRETCHES`, the thresholds are loosened by `RELAX` in
+     turn. A gently curved stroke comes out in one or two pieces at first and needs this.
+   - The loosening is abandoned as soon as the count grows by more than `NOISE_BURST` in one step:
+     that is the tremor of the hand being cut up, not the drawing being read more closely.
+   - A stroke that never yields enough either way is cut into equal parts. This is what makes a plain
+     straight stroke work, with no case of its own for it.
+   - **The trailing stretch is always dropped.** The trigger is released wherever it is released, so
+     the last piece is a fragment whose length says when the hand stopped, not what was drawn.
+     Forgetting this is what made every scale wrong for a long time.
 
----
+3. **Identity** (`#identityOf`). Each stretch is described by the shape of the `window` elbows behind
+   it: for each, the elbow angle, the turn read against the first elbow of the identity, and the
+   length of the stretch before it read against the first stretch of the identity. Nothing absolute,
+   so two places of a drawing that face different ways and are not the same size still compare.
+   `#alike` calls two identities the same within `IDENTITY_ANGLE_DEG` and
+   `IDENTITY_LENGTH_TOLERANCE`.
 
-## CODE STYLE
+4. **Candidates** (`#select`). The last stretch is looked up among the earlier ones by identity. While
+   more than one answers, the window widens by one elbow. Widening also shrinks how many stretches
+   are eligible at all, so a round where only one is eligible is kept only for want of a better one:
+   it would win by default rather than by resemblance.
 
-### File Header
+5. **Choosing the period** (`#periodOf`, `#fitBetween`). Resemblance alone is not enough, and never
+   settles on a regular drawing. Every answering stretch names a candidate period, and each is tried
+   out: the two periods before the end of the stroke are resampled to `SAMPLES` evenly spaced points,
+   and a similarity is fitted from the earlier one onto the later one. The candidate kept is the one
+   whose fit lands closest. If even the best lands further than `MAX_RESIDUAL`, the drawing repeats
+   nothing and the spell fizzles.
 
-```ts
-// Copyright © 2026 InductiveArt. All rights reserved.
-// One-line purpose.
-```
+   The fit is the classic closed form: a 4x4 matrix built from the cross covariance of the two runs,
+   whose largest eigenvector is the quaternion of the best rotation, reached by iterating the matrix
+   on a vector. Then a least squares scale, then the translation. It is fitted to all the points
+   because two directions barely tell apart on a smooth stroke, and because a motion that also
+   travels, as a helix does, cannot be expressed by a pair of directions at all.
 
-Barrel files use `@packageDocumentation` instead. No author names, changelogs, or dates.
+6. **Repetition** (`#cast`). Everything drawn after the chosen stretch is one period. It is passed
+   through the fitted motion and drawn, three times, each pass starting from the previous result.
 
-### File Size
+### Test bench
 
-If a file needs more than four section separators, split it.
-
-### Access Modifiers
-
-Every member has an explicit modifier. Default to `#`-private; escalate only with reason. Always use ES `#field` syntax for private. Never the `private` keyword.
-
-### Interfaces as Contracts
-
-Public-facing classes implement an interface. Consumers depend on the interface.
-
-### Section Separators
-
-Format: `// region WORD`. Acts as a navigation marker.
-
-```ts
-// region Public
-```
-
-### Boolean Checks
-
-Explicit comparison only. No `!` for negation.
-
-```ts
-if (this.isDestroyed === false) { ... }
-if (this.isReady === true) { ... }
-```
-
-### Switch Statements
-
-Every case ends with `break`, `return`, or `// Falls through.`. Always include `default`.
-
-### Markers
-
-Include author initials and resolution path:
-- `TODO(xx):` : missing feature.
-- `FIXME(xx):` : broken code.
-- `WORKAROUND(xx):` : non-obvious solution; describe the proper fix.
-- `NOTE(xx):` : non-obvious context.
-
----
-
-## DOCUMENTATION
-
-Public and protected members get full doc comments. Private members only when the *why* is non-obvious; otherwise the name must be self-explanatory.
-
-First sentence: what it does. Following sentences: why, constraint, or tradeoff. Never restate code. Describe the system, not the reader : state what things are and who owns them; never instruct.
-
-Order: summary → `@remarks` → block tags → modifier tags.
-
-### Release Tags
-
-Members inherit the containing class tag. Tag only when different.
-- `@public` : stable
-- `@beta` : preview
-- `@alpha` : early dev
-- `@internal` : requires underscore prefix
-
-### Key Tags
-
-`@param name -` (dash separator) · `@returns` (not `@return`, omit if obvious) · `@throws` (one per exception) · `@remarks` · `@example` (fenced code) · `@see {@link S}` · `@defaultValue` · `@override` · `@sealed` · `@virtual`
-
-Do not use `@warning`, `@note`, `@author`.
-
-### `{@link}` Usage
-
-Use for: types not in the signature, cross-module references, `@see` targets, `@throws` types.
-Do not use for: types already in the signature, the containing class, or primitives.
-
----
-
-## COMMENTS
-
-A comment must not be ambiguous or refer to things in a vacuum.
-
-- Third person, professional, same terminology as code.
-- Capital letter, full stop. Acronyms uppercase.
-- Update or delete when code changes. A wrong comment is worse than no comment.
-- No changelogs in comments.
-- No em-dashes in comments.
-
----
-
-## ERROR HANDLING
-
-Queries return sensible defaults. Commands throw.
-
-- **Internal failures** (invalid state, spawn errors): log with full detail, then crash. Never hide defects.
-- **External failures** (network, malformed input): `try/catch`, handle gracefully.
-
-### Accessor Conventions
-
-- Property accessors (`get x`) are asserting : they throw if the value is missing.
-- `tryGetX()` methods are nullable; return type follows the Nullability convention.
-
----
-
-## ARCHITECTURE INTEGRITY
-
-All changes are explicit. If one file change forces edits in unrelated files, the architecture is wrong : report it instead of propagating the change.
-
----
-
-## TESTING
-
-File naming: `FileName_FeatureUnderTest.test.ts`.
-
-`__tests__/` folders never host tests directly. Tests live in `unit/` or `integration/` subfolders.
+`src/tool/kind/magic/magic.bench.mjs` is a plain-JS replica of the whole analysis, run on synthetic
+strokes with 4 mm of simulated tremor. It has no dependencies.
 
 ```sh
-npm run test:unit
-npm run test:integration
+node src/tool/kind/magic/magic.bench.mjs
+MS=6 MR=0.35 node src/tool/kind/magic/magic.bench.mjs   # override MIN_STRETCHES and MAX_RESIDUAL
 ```
 
-Integration tests verify module cooperation in controlled environments. Simulated components, no real network.
+It prints, per stroke: the stretch count and how they were cut, the period found, the scale, the
+residual, and where the three repetitions actually land, so a wrong answer is visible without a
+headset. **It is a replica, not the tool itself: any change to the algorithm has to be made in both.**
+It exists because most of the wrong turns on this tool were found by running it, and none by
+reasoning.
+
+Current results, all with tremor:
+
+| stroke | period | scale found | true scale | verdict |
+| --- | --- | --- | --- | --- |
+| straight line | 2 | 1.02 | 1.00 | carries straight on |
+| staircase | 2 | 1.03 | 1.00 | keeps climbing |
+| staircase, steps growing | 2 | 1.27 | 1.25 | steps keep growing |
+| spiral x1.5 | 2 | 1.15 | 1.14 | keeps opening |
+| same spiral, drawn 4x larger | 2 | 1.15 | 1.14 | same answer, which is the point |
+| nested squares | 1 | 1.24 | 1.20 | keeps nesting |
+| nested circles | 2 | 1.09 | 1.11 | keeps nesting |
+| nested curves | 4 | 1.20 | 1.20 | keeps advancing |
+| dna helix | 2 | 1.13 | 1.00 | advances, but swells |
+| whirlpool | 1 | 0.96 | 0.94 | keeps closing in |
+| arc studded with spikes | 2 | 0.97 | 1.00 | spikes carry on along the arc |
+| bell lob | varies | varies | | passes about half the time |
+| scribble | | | | fizzles, as it should |
+
+### Left to do
+
+- **The helix swells.** Its period comes out at a scale near 1.13 where a helix of constant radius
+  should give 1.00, so a repeated helix grows instead of running true. The advance along the axis is
+  right; only the scale is off. Suspect the scale being fitted on two periods that do not start at
+  the same phase.
+- **The bell lob is intermittent.** A single arc holds barely any period, so depending on the tremor
+  it either finds one or reports no fittable candidate. Raising `MIN_STRETCHES` to 8 made it pass
+  more often, not always. A lone arc arguably has no pattern to repeat, so the question of what it
+  should do is open.
+- **`DEBUG` is still `true`** at the top of `MagicTool.ts`. Every cast prints the cut, the period,
+  the scale and the residual to the console. Turn it off once the two points above are settled.
+- The thresholds were calibrated on the bench, not in a headset. `ELBOW_SHARPNESS`, `MIN_STRETCHES`
+  and `MAX_RESIDUAL` are the three worth revisiting against real hands.
+
+### Settled, do not redo
+
+- The stroke is cut on elbows, not on a fixed length or a fixed count. Anything else stops being a
+  property of the drawing.
+- `S` and the last stretch are the corresponding pair. Aligning the start of the pattern with the
+  last stretch instead was tried and measured: the repetitions fold back on themselves.
+- The identity cannot tell the two phases of a staircase apart, and no tolerance fixes it: both
+  phases have the same relative sequence, since each is read against its own first elbow. That is why
+  the choice is settled by fitting, not by resemblance.
+- The trailing stretch is dropped. See step 2.
 
 ---
 
-## CHANGE PROCEDURE
-
-1. Apply the modification.
-2. `npm run lint:fix`.
-3. `npm run build` (includes tests).
-4. Verify no unexpected cross-module edits.
-5. If many files affected, evaluate subsystem boundaries.
-```
+The previous contents of this file were a set of coding conventions, deleted before this work
+started. They are still in git at `HEAD:CLAUDE.md` if any of them are wanted back. One of them is
+worth keeping in mind here: no em dashes in comments.

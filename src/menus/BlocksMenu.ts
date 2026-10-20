@@ -1,6 +1,7 @@
 import { Scene } from "@babylonjs/core"
 import { Button, Container, Control, Image, Rectangle, ScrollViewer, TextBlock } from "@babylonjs/gui"
 import { AbstractMenu } from "./AbstractMenu"
+import { N3DTextDescription } from "../node3d/instance/utils/N3DText"
 
 export interface BMenuMenu {
     width: number
@@ -15,11 +16,25 @@ export interface BMenuBlock {
     color?: string
     disabled?: boolean
     size?: number
+    /**
+     * What is shown floating above the menu while the pointer rests on the block.
+     * A string makes one line, a list makes lines of their own size and color.
+     */
+    tooltip?: N3DTextDescription|string
     width?: number
     height?: number
 }
 
 export type BMenuGrid = (BMenuBlock|null)[][]
+
+/**
+ * How much wider than tall a block must be for its picture to sit beside its text.
+ * Anything squarer stacks the picture above the text, which is what a tile wants.
+ */
+const STACK_RATIO = 1.6
+
+/** The share of the height of a stacked button taken by its picture, the rest going to its text. */
+const STACK_IMAGE_SHARE = 0.72
 
 /**
  * A grid-based menu panel where blocks can occupy multiple cells.
@@ -33,7 +48,8 @@ export class BlocksMenu extends AbstractMenu {
         menuData?: BMenuMenu
     ) {
         super(scene, renderScene)
-        this.initPanel("choice_menu", 1, 1, 256)
+        this.initPanel("blocks_menu", 1, 1, 256)
+        this.initLabel("tooltip")
 
         if(menuData) this.set(menuData)
     }
@@ -99,7 +115,7 @@ export class BlocksMenu extends AbstractMenu {
                 let control = null
 
                 if(sub_block.onClick){
-                    if (sub_block.text && sub_block.img) control = BlocksMenu.createTextImageButton(sub_block)
+                    if (sub_block.text && sub_block.img) control = BlocksMenu.createTextImageButton(sub_block, w, h)
                     else if(sub_block.text) control = BlocksMenu.createTextButton(sub_block)
                     else if(sub_block.img) control = BlocksMenu.createImageButton(sub_block)
                 }
@@ -113,6 +129,7 @@ export class BlocksMenu extends AbstractMenu {
                     control = BlocksMenu.createImage(sub_block)
                 }
                 if(control) BlocksMenu.setCommon(control, sub_block)
+                if(control) this.bindTooltip(control, sub_block)
                 if(control) target.addControl(control)
                 return control
             }
@@ -120,6 +137,28 @@ export class BlocksMenu extends AbstractMenu {
 
         return root
     }
+    /**
+     * Make the block show its tooltip above the menu while the pointer rests on it.
+     *
+     * @remarks
+     * This goes through the pointer observables and not through pointerEnterAnimation, which only
+     * a Button has and which setButtonCommon already uses for the background of the block.
+     */
+    private bindTooltip(control: Control, block: BMenuBlock){
+        if(!block.tooltip || block.sub) return
+
+        control.isPointerBlocker = true
+        control.onPointerEnterObservable.add(()=>{
+            this.label!.set(block.tooltip!)
+            this.label!.show()
+            this.label!.updatePosition()
+        })
+        control.onPointerOutObservable.add(()=>{
+            this.label!.hide()
+            this.label!.updatePosition()
+        })
+    }
+
     private static setCommon(button: Control, block: BMenuBlock){
         button.isEnabled = !block.disabled
         if(!!block.disabled) button.alpha = 0.5
@@ -166,14 +205,51 @@ export class BlocksMenu extends AbstractMenu {
         return button
     }
 
-    /* A text and image button */
-    static createTextImageButton(block: BMenuBlock){
-        const button = Button.CreateImageButton("image button", block.text!, block.img!)
+    /**
+     * A text and image button.
+     *
+     * @remarks
+     * The shape of the block decides the arrangement: a block clearly wider than tall puts the
+     * picture beside the text, a squarer one stacks the picture above it, so a wrapping grid of
+     * tiles reads without the caller saying anything.
+     */
+    static createTextImageButton(block: BMenuBlock, width?: number, height?: number){
+        const stacked = !!width && !!height && width < height*STACK_RATIO
+
+        const button = stacked
+            ? BlocksMenu.createStackedTextImageButton(block)
+            : Button.CreateImageButton("image button", block.text!, block.img!)
+
         button.color = block.color ?? "white"
         button.fontSizeInPixels = 40
         BlocksMenu.setCommon(button, block)
-        BlocksMenu.fitText(button.textBlock!)
+        if(button.textBlock) BlocksMenu.fitText(button.textBlock)
         BlocksMenu.setButtonCommon(button, block)
+        return button
+    }
+
+    /**
+     * A button whose picture sits above its text, filling a square block.
+     * Its text is fitted here, the button itself holding neither of the two as its own.
+     */
+    static createStackedTextImageButton(block: BMenuBlock){
+        const button = new Button(block.text!)
+
+        const image = new Image("image", block.img!)
+        image.stretch = Image.STRETCH_UNIFORM
+        image.height = `${STACK_IMAGE_SHARE*100}%`
+        image.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP
+        image.isHitTestVisible = false
+        button.addControl(image)
+
+        const text = new TextBlock(block.text!, block.text!)
+        text.color = block.color ?? "white"
+        text.height = `${(1-STACK_IMAGE_SHARE)*100}%`
+        text.verticalAlignment = Control.VERTICAL_ALIGNMENT_BOTTOM
+        text.isHitTestVisible = false
+        button.addControl(text)
+        BlocksMenu.fitText(text)
+
         return button
     }
 

@@ -12,14 +12,14 @@ export class NetworkManager {
     private static readonly DEBUG_LOG = false;
 
     readonly doc: Y.Doc
-    private readonly playerId: string
+    readonly playerId: string
 
     readonly connection
     readonly visual
     readonly node3d
 
 
-    private constructor(playerId: string, roomName: string, doc: Y.Doc) {
+    private constructor(playerId: string, readonly roomName: string, doc: Y.Doc) {
         this.doc = doc;
         this.playerId = playerId;
         this.connection = new PeerToPeerManager(this.doc, this.playerId, roomName)

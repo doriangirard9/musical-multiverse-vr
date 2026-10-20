@@ -7,6 +7,8 @@ import { Node3DConnectable } from "../../Node3DConnectable";
  */
 export namespace SynxN3DConnectable {
 
+    export const Type = "sync"
+
     export const Color = Color3.FromHexString("#fff700")
 
     /**
@@ -125,7 +127,7 @@ export namespace SynxN3DConnectable {
             readonly container: Container,
         ) { }
 
-        get type() { return "sync" }
+        get type() { return SynxN3DConnectable.Type }
         get direction() { return "input" as const }
         get color() { return Color }
 
@@ -149,7 +151,7 @@ export namespace SynxN3DConnectable {
             readonly container: Container,
         ) { }
 
-        get type() { return "sync" }
+        get type() { return SynxN3DConnectable.Type }
         get direction() { return "output" as const }
         get color() { return Color }
 

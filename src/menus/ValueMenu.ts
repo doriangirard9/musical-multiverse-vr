@@ -5,6 +5,7 @@ import { AbstractMenu } from "./AbstractMenu"
 /**
  * A menu that displays a value.
  * Can be used to display a parameter value, such as volume or brightness.
+ * Show the value as a text value.
  */
 export class ValueMenu extends AbstractMenu {
 

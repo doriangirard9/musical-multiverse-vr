@@ -2,6 +2,7 @@ import { ApiClient } from '../../auth/ApiClient.ts';
 import { HashRouter } from '../../router/HashRouter.ts';
 import { ROUTES } from '../../router/routes.ts';
 import { MicrophoneSystem, type MicrophoneState } from '../../app/MicrophoneSystem.ts';
+import { VoiceChatSystem } from '../../app/social/VoiceChatSystem.ts';
 
 /**
  * In-game HUD showing session info and a leave button.
@@ -33,7 +34,9 @@ export class SessionHUD {
             <div class="wj-hud-mic" id="wj-hud-mic">
                 <button class="wj-btn wj-btn-secondary wj-hud-btn" id="wj-hud-mic-mode">Mic</button>
                 <button class="wj-btn wj-btn-secondary wj-hud-btn" id="wj-hud-mic-monitor">Monitor</button>
-                <button class="wj-btn wj-btn-secondary wj-hud-btn" id="wj-hud-mic-talk" hidden>Talk</button>
+                <button class="wj-btn wj-btn-secondary wj-hud-btn" id="wj-hud-voice-test" title="Start a local, continuous WebRTC tone test">Start voice test</button>
+                <button class="wj-btn wj-btn-secondary wj-hud-btn" id="wj-hud-voice-bot-nearer" title="Move the voice test bot 1 m closer. Shortcut: P" disabled>Bot -</button>
+                <button class="wj-btn wj-btn-secondary wj-hud-btn" id="wj-hud-voice-bot-farther" title="Move the voice test bot 1 m farther. Shortcut: O" disabled>Bot +</button>
                 <span class="wj-hud-mic-level" id="wj-hud-mic-level"><span></span></span>
             </div>
             <button class="wj-btn wj-btn-secondary wj-hud-btn" id="wj-hud-leave">Leave Session</button>
@@ -51,34 +54,56 @@ export class SessionHUD {
             const microphone = MicrophoneSystem.getInstance()
             const modeBtn = el.querySelector<HTMLButtonElement>('#wj-hud-mic-mode')
             const monitorBtn = el.querySelector<HTMLButtonElement>('#wj-hud-mic-monitor')
-            const talkBtn = el.querySelector<HTMLButtonElement>('#wj-hud-mic-talk')
+            const testBtn = el.querySelector<HTMLButtonElement>('#wj-hud-voice-test')
+            const botNearerBtn = el.querySelector<HTMLButtonElement>('#wj-hud-voice-bot-nearer')
+            const botFartherBtn = el.querySelector<HTMLButtonElement>('#wj-hud-voice-bot-farther')
             const levelEl = el.querySelector<HTMLSpanElement>('#wj-hud-mic-level')
 
             modeBtn?.addEventListener('click', () => {
-                void microphone.cycleMode()
+                void microphone.toggleOpenMic()
             })
             monitorBtn?.addEventListener('click', () => {
                 void microphone.toggleMonitor()
             })
-            talkBtn?.addEventListener('click', () => {
-                void microphone.toggleTalkLatch()
+            testBtn?.addEventListener('click', () => {
+                if (!VoiceChatSystem.hasInstance()) return
+                void VoiceChatSystem.getInstance().toggleTestBot().then(() => {
+                    renderVoiceTest()
+                })
+            })
+            botNearerBtn?.addEventListener('click', () => {
+                VoiceChatSystem.getInstance().adjustTestBotDistance(-1)
+                renderVoiceTest()
+            })
+            botFartherBtn?.addEventListener('click', () => {
+                VoiceChatSystem.getInstance().adjustTestBotDistance(1)
+                renderVoiceTest()
             })
 
+            const renderVoiceTest = () => {
+                const voice = VoiceChatSystem.hasInstance() ? VoiceChatSystem.getInstance() : undefined
+                const running = !!voice?.isTestBotRunning()
+                if (testBtn) testBtn.textContent = running ? 'Stop voice test' : 'Start voice test'
+                if (botNearerBtn) botNearerBtn.disabled = !running
+                if (botFartherBtn) botFartherBtn.disabled = !running
+                const distance = voice?.getTestBotDistance()
+                if (botNearerBtn) botNearerBtn.title = `Move bot 1 m closer. Shortcut: P${distance === undefined ? '' : ` (${distance.toFixed(1)} m)`}`
+                if (botFartherBtn) botFartherBtn.title = `Move bot 1 m farther. Shortcut: O${distance === undefined ? '' : ` (${distance.toFixed(1)} m)`}`
+            }
+
             const renderMic = (state: MicrophoneState) => {
-                if (modeBtn) modeBtn.textContent = `Mic: ${microphone.getModeLabel()}`
-                if (monitorBtn) monitorBtn.textContent = `Monitor: ${state.monitorEnabled ? 'On' : 'Off'}`
-                if (talkBtn) {
-                    talkBtn.hidden = state.mode !== 'push_to_talk'
-                    talkBtn.textContent = state.talkActive ? 'Talk: On' : 'Talk: Off'
-                }
+                if (modeBtn) modeBtn.textContent = state.mode === 'open_mic' ? 'Close mic' : 'Open mic'
+                if (monitorBtn) monitorBtn.textContent = state.monitorEnabled ? 'Monitor: On' : 'Monitor: Off'
+                renderVoiceTest()
                 if (levelEl) {
                     levelEl.style.setProperty('--wj-mic-level', `${Math.round(state.level * 100)}%`)
                     levelEl.classList.toggle('is-live', state.talkActive)
-                    levelEl.title = state.error ?? 'Hold T in push-to-talk mode for desktop testing.'
+                    levelEl.title = state.error ?? (state.talkActive ? 'Microphone is broadcasting.' : 'Microphone is closed.')
                 }
             }
 
             renderMic(microphone.getState())
+            renderVoiceTest()
             this.micObserver = microphone.onStateChanged.add(renderMic)
         }
 

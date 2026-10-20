@@ -293,9 +293,9 @@ export class RainPlinkoN3D implements Node3D {
 
         // Automation outputs.
         const A = T.AutomationN3DConnectable.Output;
-        this.outEnergy   = new A("impactEnergy", [gui.outEnergy],   "Impact Energy", 0);
-        this.outColumn   = new A("lastColumn",   [gui.outColumn],   "Last Column",   0.5);
-        this.outActivity = new A("rainActivity", [gui.outActivity], "Rain Activity", 0);
+        this.outEnergy   = new A("impactEnergy", [gui.outEnergy],   "Impact Energy");
+        this.outColumn   = new A("lastColumn",   [gui.outColumn],   "Last Column");
+        this.outActivity = new A("rainActivity", [gui.outActivity], "Rain Activity");
         for (const o of [this.outEnergy, this.outColumn, this.outActivity]) context.createConnectable(o);
 
         // Build drop + splash pools.
@@ -318,6 +318,7 @@ export class RainPlinkoN3D implements Node3D {
             stepCount: number, getter: () => number, setter: (v: number) => void,
             stringify: (real: number) => string,
         ) => {
+            const getStepSize = () => stepCount > 1 ? 1 / (stepCount - 1) : 0;
             const updateVisual = () => mesh.scaling.setAll(0.6 + norm(range, getter()) * 0.6);
             updateVisual();
             const setNorm = (v01: number) => {
@@ -328,7 +329,10 @@ export class RainPlinkoN3D implements Node3D {
             context.createParameter({
                 id, meshes: [mesh],
                 getLabel: () => label,
-                getStepCount: () => stepCount,
+                getMin: () => 0,
+                getMax: () => 1,
+                getExponant: () => 1,
+                getStepSize,
                 getValue: () => norm(range, getter()),
                 setValue: setNorm,
                 stringify: (v01: number) => stringify(denorm(range, v01)),
@@ -438,9 +442,9 @@ export class RainPlinkoN3D implements Node3D {
             // Automation outputs (smoothed).
             this.lastEnergy *= Math.exp(-dt * 3.5);                 // decay impact energy
             this.activity += ((activeCount / MAX_DROPS) - this.activity) * Math.min(1, dt * 4);
-            if (Math.abs(this.lastEnergy - lastSent.e) > VALUE_EPS) { this.outEnergy.value = this.lastEnergy; lastSent.e = this.lastEnergy; }
-            if (Math.abs(this.lastColumnNorm - lastSent.c) > VALUE_EPS) { this.outColumn.value = this.lastColumnNorm; lastSent.c = this.lastColumnNorm; }
-            if (Math.abs(this.activity - lastSent.a) > VALUE_EPS) { this.outActivity.value = this.activity; lastSent.a = this.activity; }
+            if (Math.abs(this.lastEnergy - lastSent.e) > VALUE_EPS) { this.outEnergy.normalizedValue = this.lastEnergy; lastSent.e = this.lastEnergy; }
+            if (Math.abs(this.lastColumnNorm - lastSent.c) > VALUE_EPS) { this.outColumn.normalizedValue = this.lastColumnNorm; lastSent.c = this.lastColumnNorm; }
+            if (Math.abs(this.activity - lastSent.a) > VALUE_EPS) { this.outActivity.normalizedValue = this.activity; lastSent.a = this.activity; }
             pulser.update([this.lastEnergy, this.lastColumnNorm, this.activity], dt);
         });
 

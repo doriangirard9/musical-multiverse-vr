@@ -1,6 +1,5 @@
 import { Color3, int, Vector2, Vector3 } from "@babylonjs/core"
 import { NetworkManager } from "../../network/NetworkManager"
-import { InputManager } from "../../xr/inputs"
 import { SceneManager } from "../SceneManager"
 import { Curve3D } from "../../world/curve/Curve3D"
 import { RandomUtils } from "../../node3d/tools/utils/RandomUtils"
@@ -11,7 +10,7 @@ import { RandomUtils } from "../../node3d/tools/utils/RandomUtils"
  * Manager for drawing in the 3D world.
  * It allows users to create and manipulate 3D curves that are synchronized across the network.
  * It uses the Curve3D class to represent individual curves and manages their synchronization using the NetworkManager.
- * It also handles user inputs related to drawing, allowing users to create and modify curves in real-time.
+ * The hands of the user feed the strokes: the system owns the curves, not the inputs.
  */
 export class DrawingSystem {
 
@@ -64,6 +63,14 @@ export class DrawingSystem {
         this.draw(points3D, color)
     }
 
+    /**
+     * Start a stroke drawn point by point, typically by a hand following the controller.
+     * @param color - The color of the stroke. Defaults to the local user color.
+     */
+    public startStroke(color: Color3 = this.usercolor): DrawingStroke {
+        return new DrawingStroke(this.create(color))
+    }
+
     // Instance
     static _instance?: DrawingSystem
 
@@ -82,12 +89,10 @@ export class DrawingSystem {
 
     constructor(
         readonly network: NetworkManager,
-        readonly inputs: InputManager,
         readonly scene: SceneManager,
         readonly usercolor: Color3,
     ){
         this.manager = Curve3D.getSyncManager(network.doc,scene.getScene(), this.onAdd.bind(this))
-        this.registerInputs()
     }
 
     private create(color: Color3): Curve3D {
@@ -103,26 +108,38 @@ export class DrawingSystem {
         },1000*60)
     }
 
+}
 
-    // Controls //
-    private registerInputs(){
-        let curve: Curve3D | undefined
-        let last_pos = new Vector3(0,9999,0)
-        this.inputs.b_button.setPressInterval(
-            100,
-            ()=>{
-                const pos = this.inputs.right.pointer.origin.clone()
-                if(last_pos.subtract(pos).length() > 0.05){
-                    if(curve) curve.points = [...curve.points, pos]
-                    last_pos.copyFrom(pos)
-                }
-            },
-            ()=>{
-                curve = this.create(this.usercolor)
-                last_pos = new Vector3(0,9999,0)
-            },
-        )
+
+/**
+ * A stroke being drawn in the world, fed point by point while the user draws.
+ * Points closer than {@link DrawingStroke.MIN_DISTANCE} to the previous one are dropped, so a still
+ * hand does not pile up points on the curve.
+ */
+export class DrawingStroke {
+
+
+    /** The minimal distance between two consecutive points of a stroke, in meters. */
+    public static readonly MIN_DISTANCE = 0.05
+
+    constructor(curve: Curve3D){
+        this.#curve = curve
     }
 
+    /**
+     * Append a point to the stroke, unless it is too close to the previous one.
+     * @param point - The world position to append.
+     */
+    public add(point: Vector3): void {
+        if(this.#last !== null && Vector3.Distance(this.#last, point) <= DrawingStroke.MIN_DISTANCE) return
+
+        this.#last = point.clone()
+        this.#curve.points = [...this.#curve.points as Vector3[], this.#last]
+    }
+
+
+    readonly #curve: Curve3D
+
+    #last: Vector3 | null = null
 
 }

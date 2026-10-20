@@ -8,10 +8,12 @@ import { WAMGuiInitCode, examples } from "wam3dgenerator";
 import { Wam3DGeneratorN3DFactory } from "../../node3d/subs/Wam3DGeneratorN3D.ts";
 import { N3DShared } from "../../node3d/instance/N3DShared.ts";
 import { MaracasN3DFactory } from "../../node3d/subs/maracas/MaracasN3D.ts";
+import { HandMaracasN3DFactory } from "../../node3d/subs/maracas/HandMaracasN3D.ts";
 import { NoteBoxN3DFactory } from "../../node3d/subs/NoteBoxN3D.ts";
 import { SpeakerN3DFactory } from "../../node3d/subs/speaker/SpeakerN3D.ts";
 import { PianoRollN3DFactory } from "../../node3d/subs/PianoRoll/PianoRoll3d.ts";
 import { DrumKitN3DFactory } from "../../node3d/subs/drumkit/DrumKitN3D.ts";
+import { WamSamplerN3DFactory } from "../../node3d/subs/drumSampler.ts";
 import { ButterchurnN3DFactory } from "../../node3d/subs/video/ButterchurnN3D.ts";
 import { IsfShaderN3DFactory } from "../../node3d/subs/video/IsfShaderN3D.ts";
 import { ScreenN3DFactory } from "../../node3d/subs/video/ScreenN3D.ts";
@@ -44,6 +46,9 @@ import ParticleEmitterN3DFactory from "../../node3d/subs/particle/ParticleEmitte
 import { N3DThumbnailRenderer } from "../../world/renderer/N3DThumbnailRenderer.ts";
 import { SERVER_NAME } from "../../options.ts";
 import { Sequencer12N3DFactory, Sequencer16N3DFactory } from "../../node3d/subs/SequencerN3D.ts";
+import { PlaqueN3DFactory } from "../../node3d/subs/PlaqueN3D.ts";
+import { RandomizerN3DFactory } from "../../node3d/subs/RandomizerN3D.ts";
+import { ChestN3DFactory } from "../../node3d/subs/chest/ChestN3D.ts";
 
 export type Node3DConfig = { name: string, wam3d: WAMGuiInitCode }
 
@@ -71,8 +76,9 @@ export class Node3DBuilder {
      * Some of the valid kinds of Node3D.
      */
     FACTORY_KINDS = [
-        "audiooutput", "oscillator", "maracas", "livepiano", "notesbox", "pianoroll", "drumkit", "pro54michel", "butterchurn", "screen", "box_screen", "sphere_screen", "cylinder_screen", "isf_shader", "spectrum_bars", "oscilloscope", "spectogram", "livegain",
+        "audiooutput", "oscillator", "maracas", "handmaracas", "livepiano", "notesbox", "pianoroll", "drumkit", "wamsampler", "drumsampler", "pro54michel", "butterchurn", "screen", "box_screen", "sphere_screen", "cylinder_screen", "isf_shader", "spectrum_bars", "oscilloscope", "spectogram", "livegain",
         "hyperkeyboard", "drumplatekit", "automation_controller", "the_cube", "harp", "large_harp", "voice", "gaze", "sequencer12", "sequencer16", "audio_plaque", "superformula", "superformula3d", "fluid_field", "rain_plinko", "ai_composer", "ai_composer_improv", "ai_composer_drums", "ai_composer_basic", "ai_composer_vae",
+        "plaque", "randomizer", "chest",
         ...Object.keys(examples).map(k => `wam3d-${k}`),
         ...SERVER_KINDS.map(k => `server-${k}`),
     ]
@@ -145,10 +151,12 @@ export class Node3DBuilder {
         if (kind == "sequencer16") return Sequencer16N3DFactory
         if (kind == "oscillator") return OscillatorN3DFactory
         if (kind == "maracas") return MaracasN3DFactory
+        if (kind == "handmaracas") return HandMaracasN3DFactory
         if (kind == "livepiano") return LivePianoN3DFactory
         if (kind == "notesbox") return NoteBoxN3DFactory
         if (kind == "pianoroll") return PianoRollN3DFactory
         if (kind == "drumkit") return DrumKitN3DFactory
+        if (kind == "wamsampler" || kind == "drumsampler") return WamSamplerN3DFactory
         if (kind == "butterchurn") return ButterchurnN3DFactory
         if (kind == "isf_shader") return IsfShaderN3DFactory
         if (kind == "screen") return ScreenN3DFactory
@@ -168,6 +176,9 @@ export class Node3DBuilder {
         if (kind == "gaze") return GazeControllerN3DFactory
         if (kind == "voice") return VoiceVolumeControllerN3DFactory
         if (kind == "particle") return ParticleEmitterN3DFactory
+        if (kind == "plaque") return PlaqueN3DFactory
+        if (kind == "randomizer") return RandomizerN3DFactory
+        if (kind == "chest") return ChestN3DFactory
 
         // Debug
         if (kind == "sync_debug") return SyncDebugN3DFactory

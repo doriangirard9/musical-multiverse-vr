@@ -44,6 +44,7 @@ export class OscilloscopeN3DGUI implements Node3DGUI {
     }
 
     public async dispose(): Promise<void> {
+        this.panel.material!.dispose()
         this.texture.dispose()
     }
 

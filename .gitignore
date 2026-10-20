@@ -32,3 +32,5 @@ server-config/data
 /docs/
 
 .env
+# generated Node3D API declarations
+/nodeapi/

@@ -2,6 +2,8 @@ export * as inputs from "./xr/inputs"
 export * as node3dapi from "./node3d/node3dapi.ts"
 export * as app from "./app"
 export * as menus from "./menus"
+export * as tool from "./tool"
+export * as instrument from "./instrument"
 
 import { HashRouter } from "./router/HashRouter.ts";
 import { ROUTES } from "./router/routes.ts";
@@ -14,6 +16,9 @@ import { ProjectsPage } from "./ui/pages/ProjectsPage.ts";
 import { LoadingOverlay } from "./ui/pages/LoadingOverlay.ts";
 import { SessionAPIClient } from "./network/SessionAPIClient.ts";
 import { installConsoleFilter } from "./utils/logger.ts";
+import { SessionConnector } from "./network/SessionConnector.ts";
+import { RandomUtils } from "./node3d/tools/utils/RandomUtils.ts";
+import { XRPlatform } from "./app/platform/XRPlatform.ts";
 
 installConsoleFilter();
 
@@ -64,7 +69,7 @@ let onload = async() => {
     const loadingOverlay = new LoadingOverlay();
     let sessionHud: any = null;
 
-    let activeConnector: any = null;
+    let activeConnector: SessionConnector|null = null;
 
     // 4. Try to restore session
     await authService.tryRestoreSession();
@@ -165,10 +170,18 @@ let onload = async() => {
                         const connectionInfo = await activeConnector.connect();
 
                         const newApp = new App();
-                        await newApp.start(connectionInfo.participantId, sessionId, doc, {
-                            tutorial: tutorialMode,
-                            onProgress: (text, progress, detail) => loadingOverlay.update(text, 18 + Math.round(progress * 0.62), detail ?? ''),
-                        });
+                        
+                        await newApp.start(
+                            connectionInfo.participantId,
+                            authService.getUser()?.username ?? RandomUtils.randomName(),
+                            RandomUtils.randomColor(),
+                            sessionId,
+                            doc,
+                            {
+                                tutorial: tutorialMode,
+                                onProgress: (text, progress, detail) => loadingOverlay.update(text, 18 + Math.round(progress * 0.62), detail ?? ''),
+                            }
+                        )
                         appStarted = true;
 
                         // Show the leave button and prepare for sync
@@ -190,8 +203,8 @@ let onload = async() => {
                         if (tutorialMode) {
                             TutorialController.startWhenInXR(Node3dManager.getInstance().getAudioContext());
                         }
-                        loadingOverlay.show(appRoot!, 'Session ready ! Click on the headset icon below to enter VR.', false, 100, 'Audio will unlock on your first interaction if needed.')
-
+                        if(await XRPlatform.hasXRSupport()) loadingOverlay.show(appRoot!, 'Session ready ! Click on the headset icon below to enter VR.', false, 100, 'Audio will unlock on your first interaction if needed.')
+                        else loadingOverlay.hide()
                         
                         // Remove spinner if it exists
                         const spinner = overlay?.querySelector('.wj-spinner');

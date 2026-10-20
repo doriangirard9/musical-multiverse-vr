@@ -27,7 +27,7 @@ export class IOEventBus extends BaseEventBus<IOEventPayload> {
     // [YASSINE_CEST_LA]
     // Ca n'a rien à faire là, c'est complètement aléatoire comme emplacement.
     // 
-    // Dejà corrigé en plus, voir : AbstractPointerInput.PickPredicate
+    // Dejà corrigé en plus, voir : AbstractPointerInput.PickFilters
     // public setActiveConnectionPointer(pointer: PointerInput | null): void {
     //     this.activeConnectionPointer = pointer;
     // }

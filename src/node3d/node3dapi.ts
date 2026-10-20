@@ -8,6 +8,7 @@
  *  - {@link Node3DGUI}: Représente l'interface graphique d'un Node3D, c'est à dire les éléments 3D qui composent le Node3D et avec lesquels l'utilisateur peut interagir.
  *  - {@link Node3D}: Représente la partie fonctionnelle d'un Node3D, c'est à dire le code qui gère les intéractions avec la GUI, les connexions entre les Node3D et la logique de traitement du son ou du MIDI.
  *  - {@link Node3DFactory}: Permet de créer un Node3D et sa GUI.
+ *  - {@link Node3DHandle}: Une poignée sur un autre Node3D, livrée par une connexion de type "node3d" ou par la création d'un Node3D, pour lire et changer ses paramètres, sa position et ses connexions.
  * 
  * La {@link Node3DGUI} peut être utilisées sans Node3D pour visualiser l'interface graphique d'un {@link Node3D}, par exemple comme miniature d'un bouton de création de Node3D.
  * 
@@ -35,3 +36,4 @@ export type * from "./Node3DGUIContext";
 export type * from "./Node3DButton";
 export type * from "./Node3DConnectable";
 export type * from "./Node3DParameter";
+export type * from "./Node3DHandle";
