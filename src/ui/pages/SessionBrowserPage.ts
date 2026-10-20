@@ -14,6 +14,16 @@ interface SessionInfo {
     participant_count: number;
 }
 
+interface NotificationInfo {
+    id: string;
+    type: string;
+    status: string;
+    created_at: string;
+    session_id: string;
+    session_name: string;
+    from_username: string;
+}
+
 /**
  * Session browser page — lists public sessions and user's own sessions.
  * Polls participant counts every 5 seconds.
@@ -21,6 +31,7 @@ interface SessionInfo {
 export class SessionBrowserPage {
     private element: HTMLDivElement | null = null;
     private pollInterval: ReturnType<typeof setInterval> | null = null;
+    private notifPollInterval: ReturnType<typeof setInterval> | null = null;
 
     constructor(
         private readonly auth: AuthService,
@@ -44,6 +55,10 @@ export class SessionBrowserPage {
                         <button class="wj-btn wj-btn-tutorial wj-hud-btn" id="wj-new-tutorial" title="A guided solo introduction using a temporary session">Guided Tutorial</button>
                         <button class="wj-btn wj-btn-primary wj-hud-btn" id="wj-new-temp" title="A session you can play right away, never saved, that disappears when everyone leaves">⚡ Temporary Session</button>
                         ${user ? `
+                            <button class="wj-notif-btn" id="wj-notif-btn" title="Notifications">
+                                🔔
+                                <span class="wj-notif-badge wj-hidden" id="wj-notif-badge">0</span>
+                            </button>
                             <div class="wj-user-info">
                                 <span class="wj-avatar">${user.username[0].toUpperCase()}</span>
                                 <span>${user.username}</span>
@@ -59,12 +74,26 @@ export class SessionBrowserPage {
                 ${user ? `
                 <div class="wj-tabs">
                     <button class="wj-tab wj-active" data-tab="public">Public Sessions</button>
+                    <button class="wj-tab" data-tab="invited">Private Sessions</button>
                     <button class="wj-tab" data-tab="mine">My Sessions</button>
                 </div>
                 ` : ''}
 
                 <div id="wj-sessions-list" class="wj-session-list">
                     <div class="wj-empty-state">Loading sessions...</div>
+                </div>
+
+                <!-- Notifications Modal -->
+                <div id="wj-notif-modal" class="wj-modal-backdrop" style="display:none;">
+                    <div class="wj-modal">
+                        <h2 class="wj-modal-title">Notifications</h2>
+                        <div id="wj-notif-list" class="wj-notif-list">
+                            <div class="wj-empty-state">Loading...</div>
+                        </div>
+                        <div class="wj-modal-actions">
+                            <button class="wj-btn wj-btn-secondary" id="wj-notif-close">Close</button>
+                        </div>
+                    </div>
                 </div>
             </div>
         `;
@@ -119,6 +148,25 @@ export class SessionBrowserPage {
             }
         });
 
+        // Notifications button + modal
+        const notifBtn = el.querySelector('#wj-notif-btn');
+        const notifModal = el.querySelector('#wj-notif-modal') as HTMLElement;
+        const notifClose = el.querySelector('#wj-notif-close');
+
+        notifBtn?.addEventListener('click', () => {
+            notifModal.style.display = 'flex';
+            this.loadNotifications(el);
+        });
+
+        notifClose?.addEventListener('click', () => {
+            notifModal.style.display = 'none';
+        });
+
+        // Close modal on backdrop click
+        notifModal?.addEventListener('click', (e) => {
+            if (e.target === notifModal) notifModal.style.display = 'none';
+        });
+
         let currentTab = 'public';
         tabs.forEach(tab => {
             tab.addEventListener('click', () => {
@@ -136,12 +184,24 @@ export class SessionBrowserPage {
         this.pollInterval = setInterval(() => {
             this.loadSessions(el, currentTab);
         }, 5000);
+
+        // Poll notification count every 15 seconds (only if authenticated)
+        if (user) {
+            this.updateNotifBadge(el);
+            this.notifPollInterval = setInterval(() => {
+                this.updateNotifBadge(el);
+            }, 15000);
+        }
     }
 
     hide(): void {
         if (this.pollInterval) {
             clearInterval(this.pollInterval);
             this.pollInterval = null;
+        }
+        if (this.notifPollInterval) {
+            clearInterval(this.notifPollInterval);
+            this.notifPollInterval = null;
         }
         if (this.element) {
             this.element.remove();
@@ -158,6 +218,9 @@ export class SessionBrowserPage {
             if (tab === 'mine' && this.auth.isAuthenticated()) {
                 const data = await this.api.request<{ sessions: SessionInfo[] }>('GET', '/sessions/mine');
                 sessions = data.sessions;
+            } else if (tab === 'invited' && this.auth.isAuthenticated()) {
+                const data = await this.api.request<{ sessions: SessionInfo[] }>('GET', '/sessions/invited');
+                sessions = data.sessions;
             } else {
                 const data = await this.api.request<{ sessions: SessionInfo[] }>('GET', '/sessions/public');
                 sessions = data.sessions;
@@ -168,6 +231,8 @@ export class SessionBrowserPage {
                     <div class="wj-empty-state">
                         ${tab === 'mine'
                             ? 'No sessions yet. Go to <span class="wj-link" id="wj-goto-projects">My Projects</span> to create one.'
+                            : tab === 'invited'
+                            ? 'No private session invitations yet.'
                             : 'No public sessions available.'}
                     </div>
                 `;
@@ -207,6 +272,89 @@ export class SessionBrowserPage {
             });
         } catch (err) {
             console.error('[SessionBrowser] Failed to load sessions:', err);
+        }
+    }
+
+    private async updateNotifBadge(el: HTMLElement): Promise<void> {
+        try {
+            const data = await this.api.request<{ count: number }>('GET', '/notifications/count');
+            const badge = el.querySelector('#wj-notif-badge');
+            if (badge) {
+                if (data.count > 0) {
+                    badge.textContent = String(data.count);
+                    badge.classList.remove('wj-hidden');
+                } else {
+                    badge.classList.add('wj-hidden');
+                }
+            }
+        } catch {
+            // Silently ignore badge fetch errors
+        }
+    }
+
+    private async loadNotifications(el: HTMLElement): Promise<void> {
+        const listEl = el.querySelector('#wj-notif-list') as HTMLElement;
+        if (!listEl) return;
+
+        try {
+            const data = await this.api.request<{ notifications: NotificationInfo[] }>('GET', '/notifications');
+            const notifications = data.notifications;
+
+            if (notifications.length === 0) {
+                listEl.innerHTML = '<div class="wj-empty-state">No pending notifications</div>';
+                return;
+            }
+
+            listEl.innerHTML = notifications.map(n => `
+                <div class="wj-notif-item" data-notif-id="${n.id}">
+                    <div class="wj-notif-item-info">
+                        <div class="wj-notif-item-title">
+                            <strong>${this.escapeHtml(n.from_username)}</strong> invited you to
+                            <strong>${this.escapeHtml(n.session_name)}</strong>
+                        </div>
+                        <div class="wj-notif-item-meta">${new Date(n.created_at).toLocaleString()}</div>
+                    </div>
+                    <div class="wj-notif-actions">
+                        <button class="wj-btn wj-btn-primary wj-notif-accept" data-notif-id="${n.id}">Accept</button>
+                        <button class="wj-btn wj-btn-secondary wj-notif-decline" data-notif-id="${n.id}">Decline</button>
+                    </div>
+                </div>
+            `).join('');
+
+            // Accept handlers
+            listEl.querySelectorAll('.wj-notif-accept').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    const notifId = (btn as HTMLElement).dataset.notifId;
+                    if (!notifId) return;
+                    try {
+                        await this.api.request('POST', `/notifications/${notifId}/accept`);
+                        this.loadNotifications(el);
+                        this.updateNotifBadge(el);
+                    } catch (err) {
+                        console.error('[Notifications] Accept failed:', err);
+                    }
+                });
+            });
+
+            // Decline handlers
+            listEl.querySelectorAll('.wj-notif-decline').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    const notifId = (btn as HTMLElement).dataset.notifId;
+                    if (!notifId) return;
+                    try {
+                        await this.api.request('POST', `/notifications/${notifId}/decline`);
+                        this.loadNotifications(el);
+                        this.updateNotifBadge(el);
+                    } catch (err) {
+                        console.error('[Notifications] Decline failed:', err);
+                    }
+                });
+            });
+        } catch (err) {
+            console.error('[Notifications] Failed to load:', err);
+            listEl.innerHTML = '<div class="wj-empty-state">Failed to load notifications</div>';
         }
     }
 

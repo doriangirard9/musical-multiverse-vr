@@ -80,6 +80,16 @@ function initDatabase() {
             last_heartbeat TEXT DEFAULT (datetime('now')),
             connected_at TEXT DEFAULT (datetime('now'))
         );
+
+        CREATE TABLE IF NOT EXISTS notifications (
+            id TEXT PRIMARY KEY,
+            user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            type TEXT NOT NULL DEFAULT 'invitation',
+            session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+            from_user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            status TEXT DEFAULT 'pending',
+            created_at TEXT DEFAULT (datetime('now'))
+        );
     `);
 
     // Run migrations (add columns that might not exist in older databases)
@@ -105,6 +115,8 @@ function initDatabase() {
         CREATE INDEX IF NOT EXISTS idx_session_participants_session_id ON session_participants(session_id);
         CREATE INDEX IF NOT EXISTS idx_session_participants_heartbeat ON session_participants(last_heartbeat);
         CREATE INDEX IF NOT EXISTS idx_authorized_users_user_id ON authorized_users(user_id);
+        CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id);
+        CREATE INDEX IF NOT EXISTS idx_notifications_session_id ON notifications(session_id);
     `);
 
     // Migration : is_temporary pour les bases existantes (même idiome que is_locked)
