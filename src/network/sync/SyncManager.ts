@@ -19,6 +19,7 @@ export class SyncManager<
     private on_remove
     private send_interval
     private get_timeout
+    private canWrite
 
     /**
      * 
@@ -38,6 +39,8 @@ export class SyncManager<
             send_interval?: number,
             /** Delay before the asynchronous {@link get} function considers the requested object to not exist. See {@link get} */
             get_timeout?: number,
+            /** Whether local mutations may be published to the shared document. */
+            canWrite?: boolean,
         },
     ){
         this.doc = options.doc
@@ -46,6 +49,7 @@ export class SyncManager<
         this.on_remove = options.on_remove
         this.send_interval = options.send_interval ?? 100
         this.get_timeout = options.get_timeout ?? 10_000
+        this.canWrite = options.canWrite ?? true
         this.shared_state =  options.doc.getMap<Y.Map<SyncSerializable>>()
         this.shared_data = options.doc.getMap<{data:D}>(options.name)
         this.shared_data.observe(this.add_from_network.bind(this))
@@ -99,7 +103,6 @@ export class SyncManager<
     async add(id:string, instance: undefined extends D ? T : never): Promise<void>;
     async add(id:string, instance: T, data: D): Promise<void>;
     async add(id:string, instance: T|never, data?: D){
-
         const resolve = this.get_resolver(id)
 
         // Add the instance to the registry
@@ -119,11 +122,14 @@ export class SyncManager<
             else state.set(change.set, change.value)
         }
 
-        // Write in shared
-        this.doc.transact(() => {
-            this.shared_state.set(id, state)
-            this.shared_data.set(id, {data:data as D})
-        },this)
+        // A viewer may hydrate a local instance from a persisted snapshot, but
+        // must never publish that local instance to the shared document.
+        if(this.canWrite){
+            this.doc.transact(() => {
+                this.shared_state.set(id, state)
+                this.shared_data.set(id, {data:data as D})
+            },this)
+        }
         
         this.on_add?.(instance, state, data as D)
 
@@ -135,6 +141,7 @@ export class SyncManager<
      * @param id_or_instance The unique id of the instance or the instance itself
      */
     async remove(id_or_instance:string|T){
+        if(!this.canWrite) return
         const id = typeof id_or_instance == "string" ? id_or_instance : this.reverse_instances.get(id_or_instance)
         if(id===undefined)return
 
@@ -164,10 +171,12 @@ export class SyncManager<
         // Call the cleanup function
         await this.on_remove?.(instance, shared_data.data)
         
-        this.doc.transact(()=>{
-            this.shared_data.delete(id)
-            this.shared_state.delete(id)
-        },this)
+        if(this.canWrite){
+            this.doc.transact(()=>{
+                this.shared_data.delete(id)
+                this.shared_state.delete(id)
+            },this)
+        }
     }
     
     /**
@@ -347,6 +356,7 @@ export class SyncManager<
     private timeout?: any
 
     private addChange(id:string, key:string, type:"remove"|"add"){
+        if(!this.canWrite) return
         const instance = this.instances.get(id)
         if(!instance){
             console.warn(`SyncManager : Instance ${id} not found when adding change`)

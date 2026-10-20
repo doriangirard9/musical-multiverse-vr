@@ -40,11 +40,12 @@ export class ContextMenuSystem {
         readonly wamTransport: WamTransportManager,
         readonly nodeManager: Node3dManager,
         readonly targets: TargetManager,
-        readonly menus: MenuSystem
+        readonly menus: MenuSystem,
+        readonly canEdit = true,
     ){
         this.highlight = new BoxHighlight(scene.getScene(), Color3.Red())
 
-        inputs.b_button.onDown.add(()=>{
+        if(canEdit) inputs.b_button.onDown.add(()=>{
             for(const pt of [targets.screen, targets.left]){
                 if(pt.target.node){
                     this.openNodeMenu(pt.target.node)

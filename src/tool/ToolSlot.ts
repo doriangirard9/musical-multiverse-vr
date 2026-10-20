@@ -37,6 +37,7 @@ export class ToolSlot {
 
         scene: Scene,
         kind: ToolKind|null,
+        private readonly canEdit = true,
     ){
         this.#visual = new TransformNode(`${side} hand`, scene)
         this.#follow()
@@ -62,7 +63,7 @@ export class ToolSlot {
 
         this.#context.interactions.disable()
 
-        this.#equipped = kind
+        this.#equipped = canEdit ? kind : null
         this.#refresh()
     }
 
@@ -83,6 +84,7 @@ export class ToolSlot {
      * @param kind - The kind to equip, none to leave the hand empty.
      */
     public select(kind: ToolKind|null): void {
+        if(!this.canEdit) return
         if(kind === this.#equipped) return
 
         this.#equipped = kind
@@ -102,6 +104,7 @@ export class ToolSlot {
      * @param kind - The kind to lend the hand to, none to give the hand back.
      */
     public override(kind: ToolKind|null): void {
+        if(!this.canEdit) return
         if(kind === this.#override) return
 
         this.#override = kind

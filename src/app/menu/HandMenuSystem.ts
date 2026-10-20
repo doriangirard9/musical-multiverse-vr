@@ -48,6 +48,7 @@ export class HandMenuSystem {
         readonly wamTransport: WamTransportManager,
         readonly nodeManager: Node3dManager,
         readonly shopMenu: ShopMenuSystem,
+        readonly canEdit = true,
     ){            
         // Pointer and selector
         this.pointer = inputs.left.pointer
@@ -85,9 +86,14 @@ export class HandMenuSystem {
         if(this.wamTransport.isPlaying) buttons.push({ label: "⏸ Stop", color: "#FF6666", click: ()=>{
             this.wamTransport.stop()
         }})
-        else buttons.push({ label: "▶ Play", color: "#66ff66", click: ()=>{
+        else if(!this.wamTransport.isPlaying) buttons.push({ label: "▶ Play", color: "#66ff66", click: ()=>{
             this.wamTransport.start()
         }})
+
+        if(!this.canEdit){
+            this.menu.set(buttons)
+            return
+        }
 
         // Settings
         buttons.push({ label: `⚙ Open/Close settings`, color: "#66ccff", click: ()=>{

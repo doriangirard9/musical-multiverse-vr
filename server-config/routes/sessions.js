@@ -14,7 +14,7 @@ router.get('/public', (req, res) => {
     try {
         const db = getDb();
         const sessions = db.prepare(`
-            SELECT s.id, s.name, s.is_public, s.is_locked, s.max_users, s.project_id, s.created_at,
+            SELECT s.id, s.name, s.is_public, s.is_locked, s.access_mode, s.max_users, s.project_id, s.created_at,
                    p.name as project_name, u.username as owner_username,
                    (SELECT COUNT(*) FROM session_participants sp WHERE sp.session_id = s.id) as participant_count
             FROM sessions s
@@ -39,7 +39,7 @@ router.get('/mine', requireAuth, (req, res) => {
     try {
         const db = getDb();
         const sessions = db.prepare(`
-            SELECT s.id, s.name, s.is_public, s.is_locked, s.max_users, s.project_id, s.created_at,
+            SELECT s.id, s.name, s.is_public, s.is_locked, s.access_mode, s.max_users, s.project_id, s.created_at,
                    p.name as project_name, u.username as owner_username,
                    (SELECT COUNT(*) FROM session_participants sp WHERE sp.session_id = s.id) as participant_count
             FROM sessions s
@@ -64,7 +64,7 @@ router.get('/invited', requireAuth, (req, res) => {
     try {
         const db = getDb();
         const sessions = db.prepare(`
-            SELECT s.id, s.name, s.is_public, s.is_locked, s.max_users, s.project_id, s.created_at,
+            SELECT s.id, s.name, s.is_public, s.is_locked, s.access_mode, s.max_users, s.project_id, s.created_at,
                    p.name as project_name, u.username as owner_username,
                    (SELECT COUNT(*) FROM session_participants sp WHERE sp.session_id = s.id) as participant_count
             FROM sessions s
@@ -108,11 +108,12 @@ router.get('/project/:projectId', requireAuth, (req, res) => {
 /**
  * POST /api/sessions
  * Create a new session
- * Body: { projectId, name, isPublic?, maxUsers? }
+ * Body: { projectId, name, isPublic?, accessMode?, maxUsers? }
  */
 router.post('/', requireAuth, (req, res) => {
     try {
-        const { projectId, name, isPublic = true, maxUsers = 32 } = req.body;
+        const { projectId, name, isPublic = true, accessMode } = req.body;
+        const maxUsers = req.body.maxUsers || 32;
         if (!projectId || !name) return res.status(400).json({ error: 'projectId and name required' });
 
         const db = getDb();
@@ -122,11 +123,14 @@ router.post('/', requireAuth, (req, res) => {
 
         const id = uuidv4();
         const shareToken = crypto.randomBytes(16).toString('hex');
+        const mode = ['open', 'regulated', 'closed'].includes(accessMode)
+            ? accessMode
+            : (isPublic ? 'open' : 'regulated');
 
         db.prepare(`
-            INSERT INTO sessions (id, project_id, name, is_public, max_users, share_token)
-            VALUES (?, ?, ?, ?, ?, ?)
-        `).run(id, projectId, name.trim(), isPublic ? 1 : 0, maxUsers, shareToken);
+            INSERT INTO sessions (id, project_id, name, is_public, is_locked, access_mode, max_users, share_token)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(id, projectId, name.trim(), isPublic ? 1 : 0, 0, mode, maxUsers, shareToken);
 
         const session = db.prepare('SELECT * FROM sessions WHERE id = ?').get(id);
         res.status(201).json({ session });
@@ -177,16 +181,23 @@ router.put('/:id', requireAuth, (req, res) => {
         if (!session) return res.status(404).json({ error: 'Session not found' });
         if (session.owner_id !== req.user.userId) return res.status(403).json({ error: 'Not authorized' });
 
-        const { name, isPublic, maxUsers, isLocked } = req.body;
+        const { name, isPublic, maxUsers, isLocked, accessMode } = req.body;
+        const mode = accessMode !== undefined
+            ? (['open', 'regulated', 'closed'].includes(accessMode) ? accessMode : null)
+            : null;
+        if (accessMode !== undefined && !mode) {
+            return res.status(400).json({ error: 'Invalid accessMode' });
+        }
         db.prepare(`
             UPDATE sessions SET
                 name = COALESCE(?, name),
                 is_public = COALESCE(?, is_public),
                 is_locked = COALESCE(?, is_locked),
+                access_mode = COALESCE(?, access_mode),
                 max_users = COALESCE(?, max_users),
                 updated_at = datetime('now')
             WHERE id = ?
-        `).run(name || null, isPublic !== undefined ? (isPublic ? 1 : 0) : null, isLocked !== undefined ? (isLocked ? 1 : 0) : null, maxUsers || null, req.params.id);
+        `).run(name || null, isPublic !== undefined ? (isPublic ? 1 : 0) : null, isLocked !== undefined ? (isLocked ? 1 : 0) : null, mode, maxUsers || null, req.params.id);
 
         const updated = db.prepare('SELECT * FROM sessions WHERE id = ?').get(req.params.id);
         res.json({ session: updated });
@@ -224,6 +235,9 @@ router.post('/:id/join', optionalAuth, (req, res) => {
         const session = db.prepare('SELECT s.*, p.owner_id FROM sessions s JOIN projects p ON s.project_id = p.id WHERE s.id = ?').get(req.params.id);
         if (!session) return res.status(404).json({ error: 'Session not found' });
 
+        const accessMode = session.access_mode || (session.is_public ? 'open' : 'regulated');
+        let canEdit = accessMode !== 'closed';
+
         // Access check for private sessions
         if (!session.is_public) {
             if (!req.user) return res.status(401).json({ error: 'Authentication required for private session' });
@@ -232,6 +246,13 @@ router.post('/:id/join', optionalAuth, (req, res) => {
             if (!isOwner && !isAuthorized) {
                 return res.status(403).json({ error: 'Not authorized for this private session' });
             }
+            canEdit = accessMode !== 'closed' && (isOwner || !!isAuthorized);
+        } else if (accessMode === 'regulated') {
+            const isOwner = req.user?.userId === session.owner_id;
+            const isAuthorized = req.user && db.prepare('SELECT 1 FROM authorized_users WHERE session_id = ? AND user_id = ?').get(req.params.id, req.user.userId);
+            canEdit = isOwner || !!isAuthorized;
+        } else if (accessMode === 'closed') {
+            canEdit = false;
         }
 
         // Atomically check capacity and insert participant
@@ -288,6 +309,8 @@ router.post('/:id/join', optionalAuth, (req, res) => {
             sessionName: session.name,
             maxUsers: session.max_users,
             sessionLocked: session.is_locked ? true : false,
+            sessionMode: accessMode,
+            canEdit,
             isTemporary: !!session.is_temporary,
         };
 
@@ -414,12 +437,25 @@ router.post('/:id/save', (req, res) => {
         }
 
         // Sessions VERROUILLÉES (main) ou TEMPORAIRES (nous) → jamais persistées.
-        const meta = db.prepare('SELECT is_locked, is_temporary FROM sessions WHERE id = ?').get(req.params.id);
+        const meta = db.prepare('SELECT is_locked, is_temporary, access_mode FROM sessions WHERE id = ?').get(req.params.id);
         if (meta?.is_temporary) {
             return res.json({ message: 'Temporary session — not persisted' });
         }
         if (meta?.is_locked) {
             return res.json({ message: 'Saved (session locked - not persisted to DB)' });
+        }
+
+        if (meta?.access_mode === 'closed') {
+            return res.status(403).json({ error: 'Session is closed for editing' });
+        }
+
+        if (meta?.access_mode === 'regulated') {
+            const owner = db.prepare('SELECT p.owner_id FROM sessions s JOIN projects p ON s.project_id = p.id WHERE s.id = ?').get(req.params.id);
+            const participantUser = participant.user_id;
+            const isAuthorized = participantUser && db.prepare('SELECT 1 FROM authorized_users WHERE session_id = ? AND user_id = ?').get(req.params.id, participantUser);
+            if (!participantUser || (owner?.owner_id !== participantUser && !isAuthorized)) {
+                return res.status(403).json({ error: 'Only designated collaborators can modify this session' });
+            }
         }
 
         // Skip no-op saves early to avoid unnecessary WAL growth and updated_at churn

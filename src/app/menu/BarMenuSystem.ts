@@ -40,7 +40,9 @@ export class BarMenuSystem {
         private nodes: Node3DNetwork,
         private targets: TargetManager,
         private context: ContextMenuSystem,
+        private canEdit = true,
     ){
+        if(!canEdit) return
         for(const target of targets.controllerToTarget.values()){
             target.onNewTarget.add(target=>{
                 if(target.new.node){

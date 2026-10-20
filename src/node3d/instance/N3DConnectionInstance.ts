@@ -323,6 +323,7 @@ export class N3DConnectionInstance{
         messages: MenuSystem,
         onAdd?: (instance:N3DConnectionInstance)=>void,
         onRemove?: (instance:N3DConnectionInstance)=>void,
+        canWrite = true,
     ){
         const syncmanager: SyncManager<N3DConnectionInstance,any> = new SyncManager({
             name: "node3d_connections",
@@ -336,6 +337,7 @@ export class N3DConnectionInstance{
                 onRemove?.(instance)
                 instance.dispose()
             },
+            canWrite,
         })
         return syncmanager
     }

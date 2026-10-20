@@ -56,7 +56,7 @@ export class App {
         usercolor: Color3,
         roomName: string,
         doc: Doc,
-        options: { tutorial?: boolean; onProgress?: (text: string, progress: number, detail?: string) => void } = {},
+        options: { tutorial?: boolean; canEdit?: boolean; onProgress?: (text: string, progress: number, detail?: string) => void } = {},
     ): Promise<void> {
         App.instance = this
         const startedAt = performance.now()
@@ -111,7 +111,7 @@ export class App {
         await Node3dManager.initialize(audioContext, audioEngine)
         
         PlayerManager.initialize(participantId)
-        NetworkManager.initialize(participantId, roomName, doc)
+        NetworkManager.initialize(participantId, roomName, doc, options.canEdit !== false)
         ConnectionManager.initialize()
 
         report("Preparing networking")
@@ -140,6 +140,7 @@ export class App {
                 Node3dManager.getInstance(),
                 MenuSystem.getInstance(),
                 options.tutorial ? { allowedKinds: new Set(Object.values(TUTORIAL_KINDS)) } : {},
+                options.canEdit !== false,
             ),
             TargetManager.initialize(
                 SceneManager.getInstance(),
@@ -188,6 +189,7 @@ export class App {
                 SceneManager.getInstance(),
                 InputManager.getInstance(),
                 MenuSystem.getInstance(),
+                options.canEdit !== false,
             ),
             HandMenuSystem.initialize(
                 SceneManager.getInstance(),
@@ -195,6 +197,7 @@ export class App {
                 WamTransportManager.getInstance(audioContext),
                 Node3dManager.getInstance(),
                 ShopMenuSystem.getInstance(),
+                options.canEdit !== false,
             ),
             ContextMenuSystem.initialize(
                 SceneManager.getInstance(),
@@ -203,6 +206,7 @@ export class App {
                 Node3dManager.getInstance(),
                 TargetManager.getInstance(),
                 MenuSystem.getInstance(),
+                options.canEdit !== false,
             ),
             ParameterJaugeSystem.initialize(
                 SceneManager.getInstance(),
@@ -218,6 +222,7 @@ export class App {
             NetworkManager.getInstance().node3d,
             TargetManager.getInstance(),
             ContextMenuSystem.getInstance(),
+            options.canEdit !== false,
         )
 
         // Get things
@@ -231,6 +236,7 @@ export class App {
         if (App.DEBUG_LOG) console.log(node3dShared)
 
         window.addEventListener("keydown",async(e)=>{
+            if(options.canEdit === false) return
             if(e.key=="p"){
                 let prompt = window.prompt("Enter Node3D kind to create:")
                 if(prompt) node3dManager.builder.create(`${prompt}`)

@@ -29,7 +29,8 @@ export class Node3DNetwork {
     readonly onConnectionRemoved = new Observable<N3DConnectionInstance>()
 
     constructor(
-        readonly doc: Y.Doc
+        readonly doc: Y.Doc,
+        canEdit = true,
     ) {
 
         const scene = SceneManager.getInstance().getScene()
@@ -39,6 +40,7 @@ export class Node3DNetwork {
             Node3dManager.getInstance(),
             instance => this.onNodeAdded.notifyObservers(instance),
             instance => this.onNodeRemoved.notifyObservers(instance),
+            canEdit,
         )
 
         this.connections = N3DConnectionInstance.getSyncManager(
@@ -48,6 +50,7 @@ export class Node3DNetwork {
             MenuSystem.getInstance(),
             instance => this.onConnectionAdded.notifyObservers(instance),
             instance => this.onConnectionRemoved.notifyObservers(instance),
+            canEdit,
         )
 
         if (Node3DNetwork.DEBUG_LOG) console.log(`[AudioNodeComponent] Initialized`);
