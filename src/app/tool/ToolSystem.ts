@@ -52,8 +52,8 @@ export class ToolSystem {
         this.left = new ToolSlot("left", inputs.left, scene, ToolSystem.DEFAULT_KIND)
         this.right = new ToolSlot("right", inputs.right, scene, ToolSystem.DEFAULT_KIND)
 
-        inputs.x_button.onDown.add(() => this.toggleMenu(this.left))
-        inputs.a_button.onDown.add(() => this.toggleMenu(this.right))
+        //inputs.y_button.onDown.add(() => this.toggleMenu(this.left))
+        //inputs.b_button.onDown.add(() => this.toggleMenu(this.right))
     }
 
     /**
