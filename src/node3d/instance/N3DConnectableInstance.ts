@@ -143,7 +143,6 @@ export class N3DConnectableInstance {
         }
 
         this.dispose = ()=>{
-            console.log("Connectable "+config.id)
             this.onDispose.notifyObservers()
             this.connections.forEach(c => c.remove())
             disposes.forEach(d => d())

@@ -33,7 +33,7 @@ export class SyncManager<
             /** Function called when an instance is added, whether by an online collaborator or locally */
             on_add?: (instance: T, state: {get(key:string):SyncSerializable|undefined}, data: D) => Promise<void>,
             /** Function called when an instance is removed, whether by an online collaborator or locally. Useful for cleanup/dispose */
-            on_remove?: (instance: T, state: {get(key:string):SyncSerializable|undefined}, data: D) => Promise<void>,
+            on_remove?: (instance: T, data: D) => Promise<void>,
             /** Interval for sending updates (debounce) */
             send_interval?: number,
             /** Delay before the asynchronous {@link get} function considers the requested object to not exist. See {@link get} */
@@ -162,10 +162,11 @@ export class SyncManager<
         this.reverse_instances.delete(instance)
 
         // Call the cleanup function
-        await this.on_remove?.(instance, shared_state, shared_data.data)
+        await this.on_remove?.(instance, shared_data.data)
         
         this.doc.transact(()=>{
             this.shared_data.delete(id)
+            this.shared_state.delete(id)
         },this)
     }
     
@@ -233,7 +234,7 @@ export class SyncManager<
     }
 
     /**
-     * Get the state of an instance. The state is a record of key-value pairs that are synchronized across all clients. This function is used to get the state of an instance when it is removed, since the instance itself is already removed at this point.
+     * Get the state of an instance. The state is a record of key-value pairs that are synchronized across all clients.
      * @param id The id of the instance
      * @returns The state of the instance, as a record of key-value pairs. If the instance does not exist, it returns an empty record.
      */
@@ -334,8 +335,8 @@ export class SyncManager<
             this.pendingStateChange.delete(id)
 
             // Get share data
-            const {data,state} = oldValue as {data:D, state: Y.Map<SyncSerializable>}
-            this.on_remove?.(instance!!, state, data)
+            const {data} = oldValue as {data:D}
+            this.on_remove?.(instance!!, data)
         }))
     }
 
