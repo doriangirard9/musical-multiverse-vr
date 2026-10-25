@@ -195,7 +195,10 @@ export namespace MidiN3DConnectable{
         connectAsInput(): any { return {} }
         disconnectAsInput(_: any): void { }
 
-        disconnectAsOutput(_: any): void { }
+        /** Unsubscribing gets the callback called with the instrument leaving, so it leaves the list */
+        disconnectAsOutput(connection: MidiN3DConnection): void {
+            connection.unsubscribe(this.callback)
+        }
     }
 
     /**

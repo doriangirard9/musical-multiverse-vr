@@ -1423,6 +1423,8 @@ export class PianoRollN3D implements Node3D {
   private tempo = 120;               // BPM
   private ticksPerSubdivision = 6;
   private subdivisionsPerMeasure = 16;
+  private gridNumerator = 4;         // the time signature numerator the grid ticks were computed for
+  private preferredSteps = 16;       // the steps per bar asked for, taken back when the bar allows it again
   private bars = 1;
   private beatDuration = 0;          // seconds per beat (1/quarter)
   private cellDuration = 0;          // seconds per column
@@ -1450,6 +1452,9 @@ export class PianoRollN3D implements Node3D {
 
   // MIDI Note Recording state (adapted from MIDINoteRecorder.ts)
   private noteStates: Array<{ onTick?: number; onVelocity?: number }> = [];
+
+  /** What to undo when the piano roll is deleted: the listeners it registered outside itself */
+  private disposers: (() => void)[] = [];
   private recordingChannel = -1; // -1 means all channels
 
   constructor(context: Node3DContext, gui: PianoRollN3DGUI) {
@@ -1461,6 +1466,8 @@ export class PianoRollN3D implements Node3D {
 
     // base timings
     this.subdivisionsPerMeasure = this.gui.cols;
+    this.preferredSteps = this.gui.cols;
+    this.gridNumerator = this.transport.getTimeSignature().numerator;
     this.ticksPerSubdivision = this.ticksForSubdivisionCount(this.subdivisionsPerMeasure);
     this.updateCellDuration();
 
@@ -1515,6 +1522,8 @@ export class PianoRollN3D implements Node3D {
         if (this.wamInstance?.audioNode) {
           this.wamInstance.audioNode.disconnectEvents(wamNode.instanceId);
         }
+        // A note playing when the cable goes would never get its note-off
+        this.releaseNotes(wamNode);
 
         this.onInstrumentDisconnected(wamNode);
       }
@@ -1532,12 +1541,14 @@ export class PianoRollN3D implements Node3D {
       const mat = this.gui.btnStartStop.material as B.StandardMaterial;
       mat.diffuseColor = this.transport.getPlaying() ? B.Color3.Green() : B.Color3.Red();
       this.updateCellDuration();
+      this.followTimeSignature();
     });
 
     // Scene render loop: drive playhead + highlight
     const scene = this.gui.context.scene;
     if (scene?.onBeforeRenderObservable) {
-      scene.onBeforeRenderObservable.add(() => this.update());
+      const renderObserver = scene.onBeforeRenderObservable.add(() => this.update());
+      this.disposers.push(() => scene.onBeforeRenderObservable.remove(renderObserver));
     }
 
     // Start/Stop toggling
@@ -1547,19 +1558,25 @@ export class PianoRollN3D implements Node3D {
     this.setupRecordingButton();
 
     // "A" to draw/extend control sequences
-    window.addEventListener("keydown", (e) => {
+    const onKeyDown = (e: KeyboardEvent) => {
       if (e.key.toLowerCase() === "a") this.isAKeyPressed = true;
-    });
-    window.addEventListener("keyup", (e) => {
+    };
+    const onKeyUp = (e: KeyboardEvent) => {
       if (e.key.toLowerCase() === "a") {
         this.isAKeyPressed = false;
         this.currentControlSequence = null;
       }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("keyup", onKeyUp);
+    this.disposers.push(() => {
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("keyup", onKeyUp);
     });
 
 
     // Right grip (squeeze) acts like holding "A" for long-note editing
-    InputManager.getInstance().right.squeeze.onChange.add((event) => {
+    const squeezeObserver = InputManager.getInstance().right.squeeze.onChange.add((event) => {
       const active = (event.value ?? 0) > 0 || !!event.pressed; // optional: change 0 -> 0.1 as deadzone
       if (active) {
         this.isAKeyPressed = true;
@@ -1568,6 +1585,7 @@ export class PianoRollN3D implements Node3D {
         this.currentControlSequence = null;
       }
     });
+    this.disposers.push(() => squeezeObserver.remove());
 
     // Bar/beat divider lines
     this.createBars();
@@ -1576,6 +1594,8 @@ export class PianoRollN3D implements Node3D {
     this.ready = this.wamInitializer()
       .then(() => {
         this.isReady = true;
+        // Created in a session whose bar is not the default one: the grid has to follow it
+        this.followTimeSignature();
         if (this.pendingPattern) {
           this._applyPattern(this.pendingPattern);
           this.pendingPattern = null;
@@ -1694,22 +1714,29 @@ export class PianoRollN3D implements Node3D {
       }
     };
 
-    // Start scrolling when thumbstick is pushed
-    im.right.thumbstick.on_up_down.add(() => startScrolling(-1));
-    im.right.thumbstick.on_down_down.add(() => startScrolling(1));
+    const thumbstickObservers = [
+      // Start scrolling when thumbstick is pushed
+      im.right.thumbstick.on_up_down.add(() => startScrolling(-1)),
+      im.right.thumbstick.on_down_down.add(() => startScrolling(1)),
 
-    // Stop scrolling when thumbstick is released
-    im.right.thumbstick.on_up_up.add(() => stopScrolling());
-    im.right.thumbstick.on_down_up.add(() => stopScrolling());
+      // Stop scrolling when thumbstick is released
+      im.right.thumbstick.on_up_up.add(() => stopScrolling()),
+      im.right.thumbstick.on_down_up.add(() => stopScrolling()),
 
-    // Also stop when thumbstick returns to center
-    im.right.thumbstick.on_value_change.add(({ x, y }) => {
-      const deadzone = 0.1;
-      const isInDeadzone = Math.abs(x) < deadzone && Math.abs(y) < deadzone;
+      // Also stop when thumbstick returns to center
+      im.right.thumbstick.on_value_change.add(({ x, y }) => {
+        const deadzone = 0.1;
+        const isInDeadzone = Math.abs(x) < deadzone && Math.abs(y) < deadzone;
 
-      if (isInDeadzone) {
-        stopScrolling();
-      }
+        if (isInDeadzone) {
+          stopScrolling();
+        }
+      }),
+    ];
+    this.disposers.push(() => {
+      thumbstickObservers.forEach(observer => observer.remove());
+      // Deleted while scrolling: give the movement back
+      stopScrolling();
     });
   }
 
@@ -2484,6 +2511,7 @@ export class PianoRollN3D implements Node3D {
   }
 
   public setStepsPerBar(value: number): void {
+    this.preferredSteps = Math.max(1, Math.floor(value));
     this.setGridTiming(value, this.bars);
   }
 
@@ -2501,10 +2529,28 @@ export class PianoRollN3D implements Node3D {
     this.setStepsPerBar(value);
   }
 
-  private setGridTiming(stepsPerBar: number, bars: number): void {
+  /**
+   * Follow a change of the bar length. The WAM counts PPQN ticks per beat and `numerator` beats per
+   * bar, so the ticks of a cell and the pattern length are recomputed for the new bar, each note
+   * keeping its cell. A cell has to be a whole number of ticks: when the steps per bar asked for do
+   * not divide the new bar, the closest step count that does is used, until a bar that allows them.
+   */
+  private followTimeSignature(): void {
+    const { numerator } = this.transport.getTimeSignature();
+    if (numerator === this.gridNumerator && Number.isInteger(this.ticksPerSubdivision)) return;
+    this.gridNumerator = numerator;
+
+    const wanted = this.preferredSteps;
+    const options = this.getSubdivisionOptions();
+    const steps = options.includes(wanted) ? wanted
+      : options.reduce((best, candidate) => Math.abs(candidate - wanted) < Math.abs(best - wanted) ? candidate : best, options[0]);
+    this.setGridTiming(steps, this.bars, true);
+  }
+
+  private setGridTiming(stepsPerBar: number, bars: number, force = false): void {
     const nextSteps = Math.max(1, Math.floor(stepsPerBar));
     const nextBars = Math.max(1, Math.min(8, Math.floor(bars)));
-    if (nextSteps === this.subdivisionsPerMeasure && nextBars === this.bars) return;
+    if (!force && nextSteps === this.subdivisionsPerMeasure && nextBars === this.bars) return;
 
     this.subdivisionsPerMeasure = nextSteps;
     this.bars = nextBars;
@@ -2618,22 +2664,36 @@ export class PianoRollN3D implements Node3D {
   // Cleanup
 
   async dispose(): Promise<void> {
+    this.disposers.forEach(dispose => dispose());
+    this.disposers = [];
     if (this.unsubscribeTransport) this.unsubscribeTransport();
-    if (this.wamInstance?.audioNode) this.transport.unregister(this.wamInstance.audioNode);
+
+    // The plugin keeps its pattern and its last transport state: left alone it would go on playing
+    // to the instruments. Release what it holds, cut it from them, then destroy it.
+    const audioNode = this.wamInstance?.audioNode;
+    if (audioNode) {
+      this.transport.unregister(audioNode);
+      this.stopAllNotes();
+      for (const instrument of this.midiOutputConnectable.connections) {
+        audioNode.disconnectEvents(instrument.instanceId);
+      }
+      audioNode.destroy();
+    }
   }
 
-  /** Stop all currently playing notes (MIDI all-notes-off if possible) */
+  /** Stop every note this piano roll may hold on the instruments it plays */
   public stopAllNotes(): void {
-    const audioNode: any = this.wamInstance?.audioNode;
-    if (audioNode && typeof audioNode.allNotesOff === "function") {
-      audioNode.allNotesOff();
-    } else if (audioNode && typeof audioNode.noteOff === "function") {
-      // Fallback: try sending noteOff for all unique notes in the current pattern
-      const allNotes = Array.from(new Set(this.pattern.notes.map(n => n.number)));
-      allNotes.forEach(number => {
-        try { audioNode.noteOff(number); } catch (_) { }
-      });
+    for (const instrument of this.midiOutputConnectable.connections) this.releaseNotes(instrument);
+  }
+
+  /** Stop every note this piano roll may hold on one instrument */
+  private releaseNotes(instrument: WamNode): void {
+    const time = this.context.audioCtx.currentTime;
+    for (const note of new Set(this.pattern.notes.map(n => n.number))) {
+      instrument.scheduleEvents({ type: "wam-midi", time, data: { bytes: [0x80, note, 0] } });
     }
+    // All notes off, for instruments that understand it
+    instrument.scheduleEvents({ type: "wam-midi", time, data: { bytes: [0xB0, 123, 0] } });
   }
 }
 

@@ -77,21 +77,26 @@ export class WamTransportManager {
   toggle() { this.playing ? this.stop() : this.start(); }
 
   setTempo(bpm: number) {
+    const tempo = Math.max(1, bpm);
+    if (tempo === this.tempo) return;
     const now = this.audioCtx.currentTime;
-    const elapsed = this._elapsedAt(now);
-    this.tempo = Math.max(1, bpm);
-    // preserve musical position
-    this.pauseOffset = elapsed;
+    // Preserve the musical position: the elapsed seconds are counted at the old tempo, the same
+    // beat falls tempo_old/tempo_new as many seconds in at the new one.
+    this.pauseOffset = this._elapsedAt(now) * this.tempo / tempo;
+    this.tempo = tempo;
     if (this.playing) this.startTime = now;
     this._broadcast(this.playing);
     this._emit();
   }
 
   setTimeSignature(numerator: number, denominator: number) {
+    const num = Math.max(1, Math.floor(numerator));
+    const den = Math.max(1, Math.floor(denominator));
+    if (num === this.num && den === this.den) return;
     const now = this.audioCtx.currentTime;
     const elapsed = this._elapsedAt(now);
-    this.num = Math.max(1, Math.floor(numerator));
-    this.den = Math.max(1, Math.floor(denominator));
+    this.num = num;
+    this.den = den;
     // preserve musical position
     this.pauseOffset = elapsed;
     if (this.playing) this.startTime = now;

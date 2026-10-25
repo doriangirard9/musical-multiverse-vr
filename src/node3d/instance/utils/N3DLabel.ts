@@ -27,9 +27,10 @@ export namespace N3DLabel{
     /**
      * Generates a human-readable name for a Node3D connection instance.
      * @param origin The Node3D instance that is the origin of the connection. If not provided, the direction of the connection will be inferred from the connectable instances.
+     * @param multiline Put the other end of the connection on a line of its own, for a narrow panel.
      * @returns Human-readable name for a Node3D connection instance
      **/
-    export function connection(conn: N3DConnectionInstance, origin?: Node3DInstance){
+    export function connection(conn: N3DConnectionInstance, origin?: Node3DInstance, multiline = false){
 
         if(!origin){
             if(!conn.inputConnectable) return "Invalid connection"
@@ -56,7 +57,7 @@ export namespace N3DLabel{
         else if(from.config.direction=="input" || to.config.direction=="output") symbol = "←"
         else symbol = "↔"
 
-        return `${connectable(from)} ${symbol} ${connectable(to)}`
+        return `${connectable(from)}${multiline ? "\n" : " "}${symbol} ${connectable(to)}`
     }
 
     /**

@@ -6,6 +6,12 @@ import { Node3DGUIContext } from "../../Node3DGUIContext";
 
 const SPEAKER_URL = (await import("./speaker.glb?url")).default
 
+/** Radius of the red sphere, in meters: outside it the speaker is silent */
+const FALLOFF_RADIUS = 10
+
+/** Distance under which the speaker plays at full volume, in meters. From there to the edge of the sphere it fades out evenly. */
+const FULL_VOLUME_DISTANCE = 1
+
 /*
     AJOUTER UN PARAM GAIN AVEC UN PARAMETRE CYLINDRE ROTATIF POUR GERER LE SON
     SPATIALISATION NE FONCTIONNE PLUS, PEUT ETRE PARAM BABYLON A AJOUTER ?
@@ -40,7 +46,7 @@ export class SpeakerN3DGUI implements Node3DGUI{
            mais de ce qu'il ma dit en visio c'est plus un truc comme ça qu'il imagine
          */
         
-        this.falloffSphere = B.CreateSphere("audio output falloff", {diameter:20}, context.scene)
+        this.falloffSphere = B.CreateSphere("audio output falloff", {diameter:FALLOFF_RADIUS*2}, context.scene)
         this.falloffSphere.setEnabled(false)
         const material = new B.StandardMaterial("falloffSphereMaterial", context.scene)
         material.diffuseColor = new B.Color3(1, 0, 0)
@@ -87,8 +93,11 @@ export class SpeakerPannerNodeN3D implements Node3D{
             ()=>gui.root.absolutePosition,
             ()=>Vector3.Forward().applyRotationQuaternionInPlace(gui.root.absoluteRotationQuaternion)
         )
-        output.pannerNode.refDistance = 10
-        output.pannerNode.maxDistance = 12
+        // Linear falloff: full volume up to FULL_VOLUME_DISTANCE, then down to silence at the edge of the red sphere
+        output.pannerNode.distanceModel = 'linear'
+        output.pannerNode.refDistance = FULL_VOLUME_DISTANCE
+        output.pannerNode.maxDistance = FALLOFF_RADIUS
+        output.pannerNode.rolloffFactor = 1
 
         const analyserNode = this.analyserNode = audioCtx.createAnalyser()
         const data = new Uint8Array(analyserNode.frequencyBinCount)

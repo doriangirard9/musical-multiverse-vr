@@ -1,6 +1,6 @@
 import { Scene } from "@babylonjs/core"
 import { Button, Control, ScrollViewer, StackPanel, TextBlock, Rectangle } from "@babylonjs/gui"
-import { AbstractMenu } from "./AbstractMenu"
+import { AbstractMenu, SHARP_MENU_RESOLUTION_SCALE } from "./AbstractMenu"
 
 export interface MenuButton{
     label: string
@@ -24,7 +24,7 @@ export class ChoiceMenu extends AbstractMenu {
     ) {
         super(scene, renderScene)
         
-        this.initPanel("choice_menu", 1.2, 1.5, 256)
+        this.initPanel("choice_menu", 1.2, 1.5, 256, SHARP_MENU_RESOLUTION_SCALE)
         this.buttons = new StackPanel()
         this.scrollViewer = new ScrollViewer()
         const scroll = this.scrollViewer

@@ -12,6 +12,8 @@ import { N3DLabel } from "../../node3d/instance/utils/N3DLabel";
 import { N3DConnectionInstance } from "../../node3d/instance/N3DConnectionInstance";
 import { BlocksMenu, BMenuBlock } from "../../menus/BlocksMenu";
 
+/** How long a delete button waits for its second click, in milliseconds, before going back to normal */
+export const DELETE_CONFIRMATION_DELAY = 3000
 
 /**
  * The ContextMenuSystem class manages context menus for 3D nodes in the scene.
@@ -65,8 +67,10 @@ export class ContextMenuSystem {
     private connectionTarget: N3DConnectionInstance|null = null
     private highlight!: BoxHighlight
     private menu: BlocksMenu|null = null
+    private deleteTimeout?: ReturnType<typeof setTimeout>
 
     closeMenu(){
+        clearTimeout(this.deleteTimeout)
         if(this.nodeTarget){
             this.nodeTarget.boundingBoxMesh.removeBehavior(this.highlight)
             this.nodeTarget = null
@@ -94,14 +98,23 @@ export class ContextMenuSystem {
         const utility = this.scene.getUtilityLayer()
         this.menu = new BlocksMenu(utility.originalScene, utility.utilityLayerScene)
 
+        // Deleting the node takes two clicks, the second within the delay, as the trash of the bar menu does
+        let deletePending = false
+        function disarmDelete(){
+            deletePending = false
+            clearTimeout(that.deleteTimeout)
+        }
+
         function openRemoveConnections(){
+            disarmDelete()
             const conns = target.connections
             
             // Connections
             const items: BMenuBlock[] = []
             for (const c of conns) {
-                const text = N3DLabel.connection(c, target)
-                items.push({ text, color: "#ffcc55", width:6, onClick: () => {
+                // Two lines, two cells tall: on one line the text had to shrink to fit the width
+                const text = N3DLabel.connection(c, target, true)
+                items.push({ text, color: "#ffcc55", width:6, height:2, onClick: () => {
                     c.remove()
                     that.closeMenu()
                 }})
@@ -120,9 +133,20 @@ export class ContextMenuSystem {
         function openMenu(){
             // Node Deletion Menu
             let deleteMenu: BMenuBlock[] = [
-                { text: "🗑 Delete the node", color: "#ff6666", width: 6, onClick: async()=>{
-                    target.dispose()
-                    that.closeMenu()
+                { text: deletePending ? "✔ Click again to delete" : "🗑 Delete the node", color: "#ff6666", width: 6, onClick: async()=>{
+                    if(deletePending){
+                        disarmDelete()
+                        target.dispose()
+                        that.closeMenu()
+                        return
+                    }
+                    deletePending = true
+                    clearTimeout(that.deleteTimeout)
+                    that.deleteTimeout = setTimeout(()=>{
+                        disarmDelete()
+                        openMenu()
+                    }, DELETE_CONFIRMATION_DELAY)
+                    openMenu()
                 }},
 
                 { text: "↔ Delete a connection", color: "#ff6666", width: 6, onClick: async()=>{
