@@ -189,8 +189,6 @@ class SequencerN3D implements Node3D{
 
     private sync
 
-    private start_time = 0
-
     private duration_multiplier = 1
 
     private midi_output
@@ -217,8 +215,10 @@ class SequencerN3D implements Node3D{
         }
     }
 
-    private updateStep(gui: SequencerN3DGUI, audioContext: AudioContext){
-        const loop = ((audioContext.currentTime-this.start_time)%this.sync.total)
+    private updateStep(gui: SequencerN3DGUI, audioContext: AudioContext, transport: WamTransportManager){
+        // The position comes from the transport, so the step carries on across tempo changes, and
+        // every sequencer and piano roll follows the same clock
+        const loop = (transport.getElapsedSeconds()%this.sync.total)
         const local = (loop-this.sync.start)/this.sync.duration
 
         let newStep
@@ -274,7 +274,6 @@ class SequencerN3D implements Node3D{
                 4 / transport.getTimeSignature().denominator * // Note duration in seconds
                 (gui.stepCount / 4) * // Four sequencer steps per beat
                 sequencer.duration_multiplier // With multiplier
-            sequencer.start_time = transport.getElapsedSeconds()
         }
 
         const disposeTransport = transport.onChange(updateTransport)
@@ -341,7 +340,7 @@ class SequencerN3D implements Node3D{
 
         const interval = setInterval(()=>{
             const transport = WamTransportManager.getInstance(context.audioCtx)
-            if(transport.isPlaying)sequencer.updateStep(gui, context.audioCtx)
+            if(transport.isPlaying)sequencer.updateStep(gui, context.audioCtx, transport)
         },5)
 
         updateTransport()

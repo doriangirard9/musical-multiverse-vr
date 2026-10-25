@@ -106,8 +106,13 @@ export class SessionConnector {
                     // Re-enable network adds now that our state is authoritative
                     network.node3d.nodes.allowNetworkAdds();
                     network.node3d.connections.allowNetworkAdds();
-                    
+
                     this.doc.transact(() => {
+                        // Restore the saved tempo and time signature for everyone (see TransportNetwork)
+                        const transport = this.doc.getMap('transport');
+                        for (const [key, value] of Object.entries(parsedData.transport ?? {})) {
+                            if (typeof value === 'number') transport.set(key, value);
+                        }
                         sessionState.set('status', 'ready');
                     });
                     console.log('[SessionConnector] session_state status set to "ready".');
@@ -325,7 +330,9 @@ export class SessionConnector {
         if (nodes.length === 0) return null;
 
         const description = Serialization.getInstance().save(nodes, false);
-        return JSON.stringify(description);
+        // The shared tempo and time signature are saved with the session (see TransportNetwork)
+        const transport = this.doc.getMap('transport').toJSON();
+        return JSON.stringify({ ...description, transport });
     }
 
     /**

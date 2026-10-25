@@ -1,5 +1,6 @@
 import { Color3, CreateAudioEngineAsync, Vector3 } from "@babylonjs/core";
 import { NetworkManager } from "../network/NetworkManager.ts";
+import { TransportNetwork } from "../network/TransportNetwork.ts";
 import { InputManager } from "../xr/inputs/InputManager.ts";
 import { AppOrchestrator } from "./AppOrchestrator.ts";
 import { ConnectionManager } from "./node3d/ConnectionManager.ts";
@@ -120,6 +121,7 @@ export class App {
         
         PlayerManager.initialize(participantId)
         NetworkManager.initialize(participantId, roomName, doc)
+        new TransportNetwork(doc, WamTransportManager.getInstance(audioContext))
         ConnectionManager.initialize()
 
         report("Preparing networking")
