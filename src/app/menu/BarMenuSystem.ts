@@ -4,7 +4,7 @@ import { SceneManager } from "../SceneManager"
 import { Node3DInstance } from "../../node3d/instance/Node3DInstance"
 import { BlocksMenu, BMenuMenu } from "../../menus/BlocksMenu"
 import { TargetManager } from "../TargetManager"
-import { ContextMenuSystem } from "./ContextMenuSystem"
+import { ContextMenuSystem, DELETE_CONFIRMATION_DELAY } from "./ContextMenuSystem"
 import { Serialization } from "../node3d/Serialization"
 
 
@@ -136,19 +136,22 @@ export class BarMenuSystem {
     private createMenu(base: TransformNode, node: Node3DInstance): ()=>void{
         const that = this
 
+        const deletion: DeleteConfirmation = { pending: false }
+
         // Simple block menu
-        const menu_info = this.createMenuConfig(node, updateMenu)
+        const menu_info = this.createMenuConfig(node, updateMenu, deletion)
         const menu = new BlocksMenu(this.scenes.getScene(), this.scenes.getUtilityScene(), menu_info, 1.3)
         menu.root.parent = base
         menu.root.resetLocalMatrix()
         menu.root.position.set(0, .5+menu.plane.scaling.y/2, 0)
 
         function updateMenu(){
-            const menu_info = that.createMenuConfig(node, updateMenu)
+            const menu_info = that.createMenuConfig(node, updateMenu, deletion)
             menu.set(menu_info)
         }
 
         return ()=>{
+            clearTimeout(deletion.timeout)
             menu.dispose()
         }
     }
@@ -156,11 +159,13 @@ export class BarMenuSystem {
     /**
      * Create the simple block menu config.
      */
-    private createMenuConfig(node: Node3DInstance, onUpdate:()=>void): BMenuMenu {
+    private createMenuConfig(node: Node3DInstance, onUpdate:()=>void, deletion: DeleteConfirmation): BMenuMenu {
         return {
             width: 20,
             items: [
-                { height:2, width: 9, text: node.factory.label },
+                deletion.pending
+                    ? { height:2, width: 9, text: "Delete? Click again", color: "#ff6666" }
+                    : { height:2, width: 9, text: node.factory.label },
                 { height:2, width: 2,
                     text: node.isLocked ? "🔒" : "🔓",
                     color: node.isLocked ? "white" : "#aaaaaa",
@@ -183,12 +188,34 @@ export class BarMenuSystem {
                     }
                 } },
                 { height:2, width: 1 },
-                { height:2, width: 2, text: "🗑️", color: "#d27f7f", onClick: ()=>{
-                    node.dispose()
-                }},
+                // The first click only arms the trash, the second within the delay deletes the node
+                { height:2, width: 2,
+                    text: deletion.pending ? "✔" : "🗑️",
+                    color: deletion.pending ? "#ff6666" : "#d27f7f",
+                    onClick: ()=>{
+                        clearTimeout(deletion.timeout)
+                        if(deletion.pending){
+                            deletion.pending = false
+                            node.dispose()
+                            return
+                        }
+                        deletion.pending = true
+                        deletion.timeout = setTimeout(()=>{
+                            deletion.pending = false
+                            onUpdate()
+                        }, DELETE_CONFIRMATION_DELAY)
+                        onUpdate()
+                    }
+                },
             ]
         }
     }
 
+}
+
+/** Whether the trash of a bar menu has been clicked once and waits for its confirmation */
+interface DeleteConfirmation {
+    pending: boolean
+    timeout?: ReturnType<typeof setTimeout>
 }
 
