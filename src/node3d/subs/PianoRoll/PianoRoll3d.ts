@@ -7,7 +7,6 @@ import { Node3DContext } from "../../Node3DContext";
 import * as B from "@babylonjs/core";
 import { WamNode, WebAudioModule } from "@webaudiomodules/api";
 import { WamInitializer } from "../../../app/WamInitializer";
-import { PianoRollSettingsMenu } from "./PianoRollSettingsMenu";
 import { WamTransportManager } from "../../../app/node3d/WamTransportManager"; // <-- shared transport
 // strategies
 import { GridStrategy } from "./grid/GridStrategy";
@@ -17,6 +16,7 @@ import { InputManager } from "../../../xr/inputs/InputManager";
 import { SceneManager } from "../../../app/SceneManager";
 import { XRControllerManager } from "../../../xr/XRControllerManager";
 import { InputToPointerBehavior } from "../../../xr/inputs/tools/InputToPointer";
+import { MenuSystem } from "../../../app/menu/MenuSystem";
 
 interface PatternNote {
   tick: number;
@@ -72,6 +72,10 @@ const PPQN = 24; // Pulses Per Quarter Note -> Provient du WAM PianoRoll, utilis
 
 const DEBUG_LOG = false;
 
+// Fewest rows the grid can show, and how many rows each row-count button adds or removes
+const MIN_VISIBLE_ROWS = 4;
+const VISIBLE_ROWS_STEP = 4;
+
 class PianoRollN3DGUI implements Node3DGUI {
   // Scene / root
   public root: B.TransformNode;
@@ -80,7 +84,6 @@ class PianoRollN3DGUI implements Node3DGUI {
   // Main pieces exposed to the controller
   public block!: B.AbstractMesh;
   public playhead!: B.Mesh;
-  public menuButton!: B.Mesh;
   public midiOutput!: B.Mesh;
   public midiInput!: B.Mesh;
   public btnStartStop!: B.Mesh;
@@ -90,6 +93,10 @@ class PianoRollN3DGUI implements Node3DGUI {
   // Scroll arrows
   private _btnScrollUp!: B.Mesh;
   private _btnScrollDown!: B.Mesh;
+
+  // Row-count buttons, placed between the scroll arrows
+  private _btnRowsMore!: B.Mesh;
+  private _btnRowsLess!: B.Mesh;
 
   // Grid sizing
   public rows: number = 88;   // will be overridden by strategy
@@ -111,6 +118,7 @@ class PianoRollN3DGUI implements Node3DGUI {
   // Scrolling properties
   public visibleRowCount: number = 20;
   private _startRowIndex: number = 30;
+  private _baseMeshDepth = 0; // depth the base block was built with, for rescaling
 
   // Thin instances for note cells
   public noteCell!: B.Mesh;
@@ -260,9 +268,9 @@ class PianoRollN3DGUI implements Node3DGUI {
     this._createBaseMesh();
     this.createPlayhead();
     this._createScrollButtons();
+    this._createRowCountButtons();
     this.updateRowVisibility();
     this.recalculateGridBoundaries();
-    this.createMenuButton();
     this.preventClickBetweenNotes();
     this.clearPatternButton()
     this.createTimingControls();
@@ -861,9 +869,16 @@ class PianoRollN3DGUI implements Node3DGUI {
   }
 
   // ───────────────────────────────────────────────────────────────────────────
-  // Base mesh, playhead, menu, start/stop
+  // Base mesh, playhead, start/stop
+
+  private _baseMeshDepthForRows(): number {
+    return this.endZ - this.startZ +
+      this.buttonDepth + this.buttonSpacing +
+      (this.buttonDepth + this.buttonSpacing) * 2 + 0.8;
+  }
 
   private _createBaseMesh() {
+    this._baseMeshDepth = this._baseMeshDepthForRows();
     this.block = this.createBox(
       "pianoRollBlock",
       {
@@ -872,10 +887,7 @@ class PianoRollN3DGUI implements Node3DGUI {
           (this.keyboardWidth * 2 + this.buttonSpacing) +
           (this.keyboardWidth + this.buttonSpacing * 2),
         height: 0.2,
-        depth:
-          this.endZ - this.startZ +
-          this.buttonDepth + this.buttonSpacing +
-          (this.buttonDepth + this.buttonSpacing) * 2 + 0.8,
+        depth: this._baseMeshDepth,
       },
       COLOR_BASE_MESH,
       new B.Vector3(0, 0, 0),
@@ -942,18 +954,6 @@ class PianoRollN3DGUI implements Node3DGUI {
     this.createLabelForMesh(this.btnRecord, "REC", { textColor: "#fff" });
   }
 
-  public createMenuButton(): void {
-    this.menuButton = this.createBox(
-      "menuButton",
-      { width: 2, height: 0.6, depth: 0.4 },
-      B.Color3.Black(),
-      new B.Vector3(0, 0.6, 0),
-      this.root
-    );
-    this.menuButton.position.x = this.endX + (this.buttonWidth + this.buttonSpacing);
-    this.menuButton.position.z = -this.endZ - (this.buttonDepth + this.buttonSpacing);
-  }
-
   private preventClickBetweenNotes() {
     this.preventClickBetweenNotesMesh = this.createBox(
       "noDragBox",
@@ -990,12 +990,12 @@ class PianoRollN3DGUI implements Node3DGUI {
 
   private createTimingControls(): void {
     const controls = [
-      { name: "ticksDown", text: "Ticks -", color: COLOR_INACTIVE, action: -1, group: "ticks" },
-      { name: "ticksValue", text: "Ticks: 6", color: COLOR_DISABLED, group: "ticks" },
-      { name: "ticksUp", text: "Ticks +", color: COLOR_INACTIVE, action: 1, group: "ticks" },
-      { name: "subdivisionsDown", text: "Subdiv -", color: COLOR_INACTIVE, action: -1, group: "subdivisions" },
-      { name: "subdivisionsValue", text: "Subdiv: 16", color: COLOR_DISABLED, group: "subdivisions" },
-      { name: "subdivisionsUp", text: "Subdiv +", color: COLOR_INACTIVE, action: 1, group: "subdivisions" },
+      { name: "stepsDown", text: "Steps -", color: COLOR_INACTIVE, action: -1, group: "steps" },
+      { name: "stepsValue", text: "Steps/bar: 16", color: COLOR_DISABLED, group: "steps" },
+      { name: "stepsUp", text: "Steps +", color: COLOR_INACTIVE, action: 1, group: "steps" },
+      { name: "barsDown", text: "Bars -", color: COLOR_INACTIVE, action: -1, group: "bars" },
+      { name: "barsValue", text: "Bars: 1", color: COLOR_DISABLED, group: "bars" },
+      { name: "barsUp", text: "Bars +", color: COLOR_INACTIVE, action: 1, group: "bars" },
     ];
 
     controls.forEach((control, index) => {
@@ -1013,13 +1013,13 @@ class PianoRollN3DGUI implements Node3DGUI {
         button.actionManager.registerAction(
           new B.ExecuteCodeAction(B.ActionManager.OnPickDownTrigger, () => {
             const owner = (this as any).owner as {
-              nudgeTicksPerSubdivision?: (direction: number) => void;
-              nudgeSubdivisionsPerMeasure?: (direction: number) => void;
+              nudgeStepsPerBar?: (direction: number) => void;
+              nudgeBars?: (direction: number) => void;
             } | undefined;
-            if (control.group === "ticks") {
-              owner?.nudgeTicksPerSubdivision?.(control.action!);
+            if (control.group === "steps") {
+              owner?.nudgeStepsPerBar?.(control.action!);
             } else {
-              owner?.nudgeSubdivisionsPerMeasure?.(control.action!);
+              owner?.nudgeBars?.(control.action!);
             }
           })
         );
@@ -1034,14 +1034,14 @@ class PianoRollN3DGUI implements Node3DGUI {
     this.updateTimingControlLayout();
   }
 
-  public updateTimingControlLabels(ticks: number, subdivisions: number): void {
+  public updateTimingControlLabels(stepsPerBar: number, bars: number): void {
     const texts = [
-      "Ticks -",
-      `Ticks: ${ticks}`,
-      "Ticks +",
-      "Subdiv -",
-      `Subdiv: ${subdivisions}`,
-      "Subdiv +",
+      "Steps -",
+      `Steps/bar: ${stepsPerBar}`,
+      "Steps +",
+      "Bars -",
+      `Bars: ${bars}`,
+      "Bars +",
     ];
     texts.forEach((text, index) => {
       this.timingControlLabels[index]?.dispose();
@@ -1058,6 +1058,56 @@ class PianoRollN3DGUI implements Node3DGUI {
     this.timingControlButtons.forEach((button, index) => {
       button.position.set(positions[index], 0.2, z);
     });
+  }
+
+  public updatePeripheralLayout(): void {
+    const bottomZ = this.endZ + (this.buttonDepth + this.buttonSpacing);
+    const sideX = this.endX + (this.buttonWidth + this.buttonSpacing);
+
+    if (this._btnScrollUp && this._btnScrollDown) {
+      this._btnScrollUp.position.set(sideX, -0.2, -this.endZ / 3);
+      this._btnScrollDown.position.set(sideX, 0.2, this.endZ / 3);
+    }
+
+    if (this._btnRowsMore && this._btnRowsLess) {
+      this._btnRowsMore.position.set(sideX, 0.2, -0.5);
+      this._btnRowsLess.position.set(sideX, 0.2, 0.5);
+    }
+
+    if (this.btnStartStop) {
+      this.btnStartStop.position.set(
+        this.startX - (this.buttonWidth + this.buttonSpacing),
+        0.2,
+        bottomZ
+      );
+    }
+
+    if (this.btnRecord) {
+      this.btnRecord.position.set(
+        this.startX - (this.buttonWidth + this.buttonSpacing) + 8,
+        0.2,
+        bottomZ
+      );
+    }
+
+    if (this.btnClearPattern) {
+      this.btnClearPattern.position.set(
+        this.startX + (this.buttonWidth + this.buttonSpacing),
+        0.2,
+        bottomZ
+      );
+    }
+
+    if (this.midiOutput && this.midiInput && this.block) {
+      const baseWidth = (this.endX - this.startX)
+        + (this.keyboardWidth * 2 + this.buttonSpacing)
+        + (this.keyboardWidth + this.buttonSpacing * 2);
+      const baseLength = baseWidth / 2;
+      const baseY = this.block.position.y;
+      const baseZ = this.block.position.z;
+      this.midiOutput.position.set(baseLength, baseY, baseZ);
+      this.midiInput.position.set(-baseLength - this.buttonWidth, baseY, baseZ);
+    }
   }
 
 
@@ -1077,15 +1127,17 @@ class PianoRollN3DGUI implements Node3DGUI {
     upArrow.position.set(this.endX + 2, -0.2, -this.endZ / 3);
     downArrow.position.set(this.endX + 2, 0.2, this.endZ / 3);
 
-    // click handlers
+    // click handlers; the input behavior turns controller presses into the pointer events the actions listen for
+    upArrow.addBehavior(new InputToPointerBehavior());
+    downArrow.addBehavior(new InputToPointerBehavior());
     upArrow.actionManager = new B.ActionManager(this.context.scene);
     downArrow.actionManager = new B.ActionManager(this.context.scene);
 
     upArrow.actionManager.registerAction(
-      new B.ExecuteCodeAction(B.ActionManager.OnPickTrigger, () => this._scrollUp())
+      new B.ExecuteCodeAction(B.ActionManager.OnPickDownTrigger, () => this._scrollUp())
     );
     downArrow.actionManager.registerAction(
-      new B.ExecuteCodeAction(B.ActionManager.OnPickTrigger, () => this._scrollDown())
+      new B.ExecuteCodeAction(B.ActionManager.OnPickDownTrigger, () => this._scrollDown())
     );
 
     upArrow.parent = this.root;
@@ -1132,6 +1184,62 @@ class PianoRollN3DGUI implements Node3DGUI {
       this._startRowIndex = next;
       this.updateRowVisibility();
     }
+  }
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // Row-count buttons
+
+  private _createRowCountButtons(): void {
+    const makeButton = (name: string, text: string, direction: number): B.Mesh => {
+      const button = this.createBox(
+        name,
+        { width: 2, height: 0.4, depth: 0.8 },
+        COLOR_INACTIVE,
+        B.Vector3.Zero(),
+        this.root
+      );
+      button.addBehavior(new InputToPointerBehavior());
+      button.actionManager = new B.ActionManager(this.context.scene);
+      button.actionManager.registerAction(
+        new B.ExecuteCodeAction(B.ActionManager.OnPickDownTrigger, () => {
+          const owner = (this as any).owner as { nudgeVisibleRows?: (direction: number) => void } | undefined;
+          owner?.nudgeVisibleRows?.(direction);
+        })
+      );
+      this.createLabelForMesh(button, text, { textColor: "#fff", font: "bold 150px sans-serif" });
+      return button;
+    };
+
+    this._btnRowsMore = makeButton("rowsMoreButton", "Rows +", 1);
+    this._btnRowsLess = makeButton("rowsLessButton", "Rows -", -1);
+  }
+
+  /** Show more (direction > 0) or fewer (direction < 0) rows, clamped to what the strategy has */
+  public nudgeVisibleRows(direction: number): void {
+    this.setVisibleRowCount(this.visibleRowCount + Math.sign(direction) * VISIBLE_ROWS_STEP);
+  }
+
+  public setVisibleRowCount(count: number): void {
+    const next = Math.min(this.rows, Math.max(MIN_VISIBLE_ROWS, Math.round(count)));
+    if (next === this.visibleRowCount) return;
+
+    this.visibleRowCount = next;
+    this._startRowIndex = Math.min(this._startRowIndex, Math.max(0, this.rows - this.visibleRowCount));
+
+    // Everything that depends on the window height: the fit scale, the base block,
+    // the playhead, the click guard, the keys, the note cells and the controls below the grid
+    this.recalculateGridBoundaries();
+    this._calculateAndApplyScaling();
+    this.block.scaling.z = this._baseMeshDepthForRows() / this._baseMeshDepth;
+
+    this.playhead.dispose();
+    this.createPlayhead();
+    this.preventClickBetweenNotesMesh.dispose();
+    this.preventClickBetweenNotes();
+
+    this.createGrid();
+    this.updateRowVisibility();
+    this.updateTimingControlLayout();
   }
 
   // ───────────────────────────────────────────────────────────────────────────
@@ -1197,6 +1305,7 @@ class PianoRollN3DGUI implements Node3DGUI {
 
     matUp.diffuseColor = this._startRowIndex > 0 ? COLOR_INACTIVE : COLOR_DISABLED;
     matDown.diffuseColor = this._startRowIndex + this.visibleRowCount < this.rows ? COLOR_INACTIVE : COLOR_DISABLED;
+    this.updatePeripheralLayout();
   }
 
   // ───────────────────────────────────────────────────────────────────────────
@@ -1314,13 +1423,13 @@ export class PianoRollN3D implements Node3D {
   private tempo = 120;               // BPM
   private ticksPerSubdivision = 6;
   private subdivisionsPerMeasure = 16;
+  private bars = 1;
   private beatDuration = 0;          // seconds per beat (1/quarter)
   private cellDuration = 0;          // seconds per column
 
   // State
   private context: Node3DContext;
   private gui: PianoRollN3DGUI;
-  private menu!: PianoRollSettingsMenu;
 
   private pattern: Pattern;
   private isActive: boolean[][] = [];
@@ -1356,7 +1465,7 @@ export class PianoRollN3D implements Node3D {
     this.updateCellDuration();
 
     // initial empty pattern sized to columns
-    this.pattern = { length: this.gui.cols * this.ticksPerSubdivision, notes: [] };
+    this.pattern = { length: this.bars * this.ticksPerSubdivision * this.subdivisionsPerMeasure, notes: [] };
 
     // allocate UI bitmaps
     this.isActive = Array.from({ length: this.gui.strategy.getRowCount() }, () =>
@@ -1437,9 +1546,6 @@ export class PianoRollN3D implements Node3D {
     // Recording button
     this.setupRecordingButton();
 
-    // Settings menu (columns/rows/tempo…)
-    this.menu = new PianoRollSettingsMenu(this.gui.context.scene, this);
-
     // "A" to draw/extend control sequences
     window.addEventListener("keydown", (e) => {
       if (e.key.toLowerCase() === "a") this.isAKeyPressed = true;
@@ -1501,7 +1607,6 @@ export class PianoRollN3D implements Node3D {
       if (mesh === this.gui.preventClickBetweenNotesMesh ||
         mesh === this.gui.block ||
         mesh === this.gui.playhead ||
-        mesh === this.gui.menuButton ||
         mesh === this.gui.midiOutput ||
         mesh === this.gui.btnStartStop ||
         mesh === this.gui.btnClearPattern ||
@@ -1606,6 +1711,11 @@ export class PianoRollN3D implements Node3D {
         stopScrolling();
       }
     });
+  }
+
+  // Still called by PianoRollSettingsMenu, which is no longer opened from the piano roll
+  public closeSettingsMenu(): void {
+    MenuSystem.getInstance().close();
   }
 
   private onInstrumentConnected(_wamNode: WamNode) {
@@ -2340,23 +2450,41 @@ export class PianoRollN3D implements Node3D {
   }
 
   public nudgeTicksPerSubdivision(direction: number): void {
-    const subdivisions = this.getSubdivisionOptions();
-    const currentIndex = subdivisions.indexOf(this.subdivisionsPerMeasure);
-    const nextIndex = Math.min(
-      subdivisions.length - 1,
-      Math.max(0, currentIndex - Math.sign(direction))
-    );
-    this.setSubdivisionsPerMeasure(subdivisions[nextIndex]);
+    this.nudgeStepsPerBar(-direction);
   }
 
-  public nudgeSubdivisionsPerMeasure(direction: number): void {
+  public nudgeStepsPerBar(direction: number): void {
     const subdivisions = this.getSubdivisionOptions();
     const currentIndex = subdivisions.indexOf(this.subdivisionsPerMeasure);
     const nextIndex = Math.min(
       subdivisions.length - 1,
       Math.max(0, currentIndex + Math.sign(direction))
     );
-    this.setSubdivisionsPerMeasure(subdivisions[nextIndex]);
+    this.setStepsPerBar(subdivisions[nextIndex]);
+  }
+
+  public nudgeSubdivisionsPerMeasure(direction: number): void {
+    this.nudgeStepsPerBar(direction);
+  }
+
+  public nudgeBars(direction: number): void {
+    this.setBars(this.bars + Math.sign(direction));
+  }
+
+  public nudgeVisibleRows(direction: number): void {
+    this.gui.nudgeVisibleRows(direction);
+    this.createBars(); // dividers are as tall as the visible window
+  }
+
+  public setBars(value: number): void {
+    const nextValue = Math.max(1, Math.min(8, Math.floor(value)));
+    if (nextValue === this.bars) return;
+
+    this.setGridTiming(this.subdivisionsPerMeasure, nextValue);
+  }
+
+  public setStepsPerBar(value: number): void {
+    this.setGridTiming(value, this.bars);
   }
 
   public setTicksPerSubdivision(value: number): void {
@@ -2366,21 +2494,27 @@ export class PianoRollN3D implements Node3D {
       const candidateDistance = Math.abs(this.ticksForSubdivisionCount(candidate) - value);
       return candidateDistance < bestDistance ? candidate : best;
     }, subdivisions[0]);
-    this.setSubdivisionsPerMeasure(nextSubdivisions);
+    this.setStepsPerBar(nextSubdivisions);
   }
 
   public setSubdivisionsPerMeasure(value: number): void {
-    const nextValue = Math.max(1, Math.floor(value));
-    if (nextValue === this.subdivisionsPerMeasure) return;
+    this.setStepsPerBar(value);
+  }
 
-    this.subdivisionsPerMeasure = nextValue;
-    this.ticksPerSubdivision = this.ticksForSubdivisionCount(nextValue);
-    this.rescalePatternLength(this.subdivisionsPerMeasure * this.ticksPerSubdivision);
-    this.gui.cols = nextValue;
+  private setGridTiming(stepsPerBar: number, bars: number): void {
+    const nextSteps = Math.max(1, Math.floor(stepsPerBar));
+    const nextBars = Math.max(1, Math.min(8, Math.floor(bars)));
+    if (nextSteps === this.subdivisionsPerMeasure && nextBars === this.bars) return;
+
+    this.subdivisionsPerMeasure = nextSteps;
+    this.bars = nextBars;
+    this.ticksPerSubdivision = this.ticksForSubdivisionCount(nextSteps);
+    this.rescalePatternLength(this.bars * this.subdivisionsPerMeasure * this.ticksPerSubdivision);
+    this.gui.cols = this.bars * nextSteps;
 
     const rows = this.gui.strategy.getRowCount();
-    this.isActive = Array.from({ length: rows }, () => Array(nextValue).fill(false));
-    this.mode = Array.from({ length: rows }, () => Array(nextValue).fill("normal"));
+    this.isActive = Array.from({ length: rows }, () => Array(this.gui.cols).fill(false));
+    this.mode = Array.from({ length: rows }, () => Array(this.gui.cols).fill("normal"));
 
     // rebuild visuals
     this.gui.keyBoard.forEach(key => key.dispose());
@@ -2395,30 +2529,18 @@ export class PianoRollN3D implements Node3D {
 
     this.gui.createGrid();
     this.gui.updateRowVisibility();
-    this.gui.updateTimingControlLabels(this.ticksPerSubdivision, this.subdivisionsPerMeasure);
+    this.gui.updateTimingControlLabels(this.subdivisionsPerMeasure, this.bars);
     this.gui.updateTimingControlLayout();
     this.updateCellDuration();
     this.createBars();
     this._applyPattern(this.pattern);
 
-    // re-place midi output sphere
-    const baseY = this.gui.block.position.y;
-    const baseZ = this.gui.block.position.z;
-    const baseLength = this.gui.block.getBoundingInfo().boundingBox.extendSize.x;
-    this.gui.midiOutput.position.set(baseLength, baseY, baseZ + 1);
-
     if (this.gui.playhead) this.gui.playhead.position.x = this.gui.getStartX();
-
-    // menu click opens settings
-    this.gui.menuButton.actionManager = new B.ActionManager(this.gui.context.scene);
-    this.gui.menuButton.actionManager.registerAction(
-      new B.ExecuteCodeAction(B.ActionManager.OnPickTrigger, () => this.menu.show())
-    );
 
     this.gui.repaintVisibleFromState();
     this._safeSendPatternToPianoRoll();
     this.context.notifyStateChange("pattern");
-    console.log(`Grid updated with ${nextValue} subdivisions per measure.`);
+    console.log(`Grid updated with ${this.bars} bar(s) and ${this.subdivisionsPerMeasure} steps per bar.`);
   }
 
   /**
@@ -2439,11 +2561,6 @@ export class PianoRollN3D implements Node3D {
     this.gui.recalculateGridBoundaries();
     this.gui.createGrid();
     this.gui.updateRowVisibility();
-
-    this.gui.menuButton.actionManager = new B.ActionManager(this.gui.context.scene);
-    this.gui.menuButton.actionManager.registerAction(
-      new B.ExecuteCodeAction(B.ActionManager.OnPickTrigger, () => this.menu.show())
-    );
 
     this.gui.repaintVisibleFromState();
     console.log(`Grid updated with ${newRowCount} rows.`);
