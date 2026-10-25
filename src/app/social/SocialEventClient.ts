@@ -1,4 +1,5 @@
-import { SERVER_NAME, SOCIAL_EVENTS_SERVER } from "../../options"
+import { SOCIAL_EVENTS_SERVER } from "../../options"
+import { ReconnectDelay, serverSocketUrl } from "./serverSocket"
 
 export type SocialEventKind = "ping-player" | "ping-point" | "ready"
 
@@ -16,6 +17,7 @@ type IncomingMessage =
 export class SocialEventClient {
     private socket?: WebSocket
     private reconnectTimer?: ReturnType<typeof setTimeout>
+    private readonly reconnectDelay = new ReconnectDelay()
     private disposed = false
     private joined = false
     private readonly pendingEvents: SocialEvent[] = []
@@ -50,6 +52,7 @@ export class SocialEventClient {
         const socket = this.socket = new WebSocket(this.getUrl())
         socket.onopen = () => {
             if (this.disposed) return
+            this.reconnectDelay.reset()
             socket.send(JSON.stringify({ type: "join", sessionId: this.sessionId, playerId: this.playerId }))
         }
         socket.onmessage = message => {
@@ -65,7 +68,7 @@ export class SocialEventClient {
         socket.onclose = () => {
             if (this.socket === socket) this.socket = undefined
             this.joined = false
-            if (!this.disposed) this.reconnectTimer = setTimeout(() => this.connect(), 1500)
+            if (!this.disposed) this.reconnectTimer = setTimeout(() => this.connect(), this.reconnectDelay.next())
         }
         socket.onerror = () => {
             if (!this.disposed && socket.readyState !== WebSocket.CLOSED) socket.close()
@@ -73,10 +76,7 @@ export class SocialEventClient {
     }
 
     private getUrl(): string {
-        if (SOCIAL_EVENTS_SERVER) return SOCIAL_EVENTS_SERVER
-        const url = new URL("/social-events", SERVER_NAME || window.location.origin)
-        url.protocol = url.protocol === "https:" ? "wss:" : "ws:"
-        return url.toString()
+        return SOCIAL_EVENTS_SERVER || serverSocketUrl("/social-events")
     }
 
     private flushPendingEvents(): void {

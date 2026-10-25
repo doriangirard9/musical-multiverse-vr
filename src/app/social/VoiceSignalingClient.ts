@@ -1,4 +1,5 @@
-import { SERVER_NAME, VOICE_SIGNALING_SERVER } from "../../options"
+import { VOICE_SIGNALING_SERVER } from "../../options"
+import { ReconnectDelay, serverSocketUrl } from "./serverSocket"
 
 export type VoiceSignalingMessage =
     | { type: "peer-list"; peers: string[] }
@@ -19,6 +20,7 @@ type OutgoingVoiceSignalingMessage =
 export class VoiceSignalingClient {
     private socket?: WebSocket
     private reconnectTimer?: ReturnType<typeof setTimeout>
+    private readonly reconnectDelay = new ReconnectDelay()
     private disposed = false
 
     constructor(
@@ -50,6 +52,7 @@ export class VoiceSignalingClient {
 
         socket.onopen = () => {
             if (this.disposed) return
+            this.reconnectDelay.reset()
             this.onStatus("connected")
             this.send({ type: "join", sessionId: this.sessionId, playerId: this.playerId })
         }
@@ -66,7 +69,7 @@ export class VoiceSignalingClient {
             if (this.socket === socket) this.socket = undefined
             this.onStatus("disconnected")
             if (!this.disposed) {
-                this.reconnectTimer = setTimeout(() => this.connect(), 1500)
+                this.reconnectTimer = setTimeout(() => this.connect(), this.reconnectDelay.next())
             }
         }
 
@@ -76,10 +79,6 @@ export class VoiceSignalingClient {
     }
 
     private getUrl(): string {
-        if (VOICE_SIGNALING_SERVER) return VOICE_SIGNALING_SERVER
-        const base = SERVER_NAME || window.location.origin
-        const url = new URL("/voice-signaling", base)
-        url.protocol = url.protocol === "https:" ? "wss:" : "ws:"
-        return url.toString()
+        return VOICE_SIGNALING_SERVER || serverSocketUrl("/voice-signaling")
     }
 }

@@ -175,6 +175,7 @@ export class MicrophoneSystem {
             this.stream = stream
             this.sourceNode = this.audioContext.createMediaStreamSource(stream)
             this.sourceNode.connect(this.inputGain)
+            stream.getAudioTracks()[0]?.addEventListener("ended", () => this.onCaptureEnded(stream))
             // getUserMedia is triggered by a user action, so it is the safest time
             // to resume the shared context on browsers that suspend it by default.
             void this.audioContext.resume().catch(() => {})
@@ -195,6 +196,31 @@ export class MicrophoneSystem {
         })
 
         return this.capturePromise
+    }
+
+    /**
+     * Take the microphone back if it was in use when its capture was lost, as when the system
+     * takes it while the app is in the background. Does nothing for a microphone nobody asked for.
+     */
+    recover(): void {
+        if (this.status !== "idle") return
+        if (this.mode === "open_mic" || this.monitorEnabled) void this.ensureReady()
+    }
+
+    /**
+     * The capture stopped without being asked to: the system took the microphone, or the device went away.
+     * The microphone goes back to idle, keeping its mode, so {@link recover} knows to take it back.
+     */
+    private onCaptureEnded(stream: MediaStream): void {
+        if (this.stream !== stream) return
+        this.sourceNode?.disconnect()
+        this.sourceNode = undefined
+        this.stream = undefined
+        this.status = "idle"
+        this.error = null
+        this.updateGate()
+        this.updateMonitor()
+        this.emitState()
     }
 
     private isTalkActive(): boolean {
