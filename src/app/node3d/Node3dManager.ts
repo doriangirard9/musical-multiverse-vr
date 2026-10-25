@@ -66,27 +66,30 @@ export class Node3dManager {
             return impostor
         })
 
+        // Movable bounding box, shown while the node loads
+        let bb: { absolutePosition: Vector3 } | undefined
+
         const all = (async()=>{
             const [impostor,node] = await Promise.allSettled([spawnImpostor, spawnNode3D])
             if(impostor.status=="fulfilled")impostor.value?.dispose()
             if(node.status=="rejected")throw node.reason
+            // Place the node where the user left the box. This has to happen here: AsyncLoading disposes
+            // the root, and the box with it, as soon as this promise settles, and a disposed box reports the origin.
+            if(bb){
+                node.value.boundingBoxMesh.setAbsolutePosition(bb.absolutePosition)
+                node.value.updatePosition()
+            }
             return node.value
         })()
 
         const {root,promise} = AsyncLoading.create(SceneManager.getInstance().getScene(), all)
-        
-        // Movable bounding box
-        {
-            const bb = CreateBox("bb", {size: 1}, SceneManager.getInstance().getScene())
-            bb.visibility = 0.1
-            bb.addBehavior(new HoldableBehaviour(root))
-            bb.parent = root
 
-            promise.then(n=>{
-                n?.boundingBoxMesh?.setAbsolutePosition(bb.absolutePosition)
-                n?.updatePosition()
-                bb.dispose()
-            })
+        {
+            const box = CreateBox("bb", {size: 1}, SceneManager.getInstance().getScene())
+            box.visibility = 0.1
+            box.addBehavior(new HoldableBehaviour(root))
+            box.parent = root
+            bb = box
         }
 
         spawnImpostor.then(impostor=> root.addChild(impostor!))
