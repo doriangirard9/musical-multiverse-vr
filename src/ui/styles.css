@@ -789,3 +789,158 @@
         width: min(520px, calc(100vw - 24px));
     }
 }
+
+/* ========== Notification Badge ========== */
+.wj-notif-btn {
+    position: relative;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+    font-size: 18px;
+    padding: 4px 10px;
+    min-height: 32px;
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: all var(--transition);
+}
+.wj-notif-btn:hover {
+    background: var(--bg-hover);
+    border-color: var(--text-muted);
+}
+
+.wj-notif-badge {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    background: var(--danger);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    font-family: var(--font);
+    min-width: 16px;
+    height: 16px;
+    line-height: 16px;
+    text-align: center;
+    border-radius: 999px;
+    padding: 0 4px;
+    box-sizing: border-box;
+    pointer-events: none;
+    animation: wj-badge-pop 300ms ease forwards;
+}
+
+@keyframes wj-badge-pop {
+    0% { transform: scale(0); }
+    60% { transform: scale(1.2); }
+    100% { transform: scale(1); }
+}
+
+.wj-notif-badge.wj-hidden {
+    display: none;
+}
+
+/* ========== Notification List ========== */
+.wj-notif-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 350px;
+    overflow-y: auto;
+}
+
+.wj-notif-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+}
+
+.wj-notif-item-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.wj-notif-item-title {
+    font-family: var(--font);
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-primary);
+    margin-bottom: 2px;
+}
+
+.wj-notif-item-meta {
+    font-family: var(--font);
+    font-size: 11px;
+    color: var(--text-secondary);
+}
+
+.wj-notif-actions {
+    display: flex;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.wj-notif-actions .wj-btn {
+    padding: 4px 12px;
+    min-height: 28px;
+    font-size: 12px;
+}
+
+/* ========== Collaborator List ========== */
+.wj-collab-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 12px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    margin-bottom: 6px;
+}
+
+.wj-collab-name {
+    font-family: var(--font);
+    font-size: 13px;
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+.wj-collab-date {
+    font-family: var(--font);
+    font-size: 11px;
+    color: var(--text-secondary);
+}
+
+.wj-collab-remove {
+    background: transparent;
+    border: 1px solid var(--danger);
+    color: var(--danger);
+    font-family: var(--font);
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: all var(--transition);
+    min-height: 24px;
+}
+
+.wj-collab-remove:hover {
+    background: var(--danger);
+    color: #fff;
+}
+
+/* ========== Mini Buttons (session row) ========== */
+.wj-btn-mini {
+    padding: 4px 8px;
+    font-size: 11px;
+    min-height: 24px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: var(--font);
+    transition: all var(--transition);
+}
+

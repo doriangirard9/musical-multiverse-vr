@@ -10,6 +10,12 @@ interface ProjectInfo {
     sessions?: Array<{ id: string; name: string; is_public: number; is_locked?: number; created_at: string }>;
 }
 
+interface CollaboratorInfo {
+    id: string;
+    username: string;
+    granted_at: string;
+}
+
 /**
  * Projects page — Manage user's projects and create sessions within them.
  */
@@ -83,6 +89,33 @@ export class ProjectsPage {
                     </div>
                 </div>
 
+                <div id="wj-invite-modal" class="wj-modal-backdrop" style="display:none;">
+                    <div class="wj-modal">
+                        <h2 class="wj-modal-title">Invite Collaborator</h2>
+                        <input type="hidden" id="wj-invite-session-id" />
+                        <div class="wj-form-group">
+                            <label class="wj-label" for="wj-invite-username">Username</label>
+                            <input class="wj-input" type="text" id="wj-invite-username" placeholder="Enter username" />
+                        </div>
+                        <div class="wj-modal-actions">
+                            <button class="wj-btn wj-btn-secondary" id="wj-invite-cancel">Cancel</button>
+                            <button class="wj-btn wj-btn-primary" id="wj-invite-submit">Invite</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="wj-collaborators-modal" class="wj-modal-backdrop" style="display:none;">
+                    <div class="wj-modal">
+                        <h2 class="wj-modal-title">Collaborators</h2>
+                        <div id="wj-collaborators-list">
+                            <div class="wj-empty-state">Loading...</div>
+                        </div>
+                        <div class="wj-modal-actions">
+                            <button class="wj-btn wj-btn-secondary" id="wj-collaborators-close">Close</button>
+                        </div>
+                    </div>
+                </div>
+
                 <div id="wj-projects-list" class="wj-session-list">
                     <div class="wj-empty-state">Loading projects...</div>
                 </div>
@@ -134,6 +167,26 @@ export class ProjectsPage {
         });
 
         submitSessionBtn?.addEventListener('click', () => this.handleCreateSession(el));
+
+        const inviteCancelBtn = el.querySelector('#wj-invite-cancel');
+        const inviteSubmitBtn = el.querySelector('#wj-invite-submit');
+        const inviteModal = el.querySelector('#wj-invite-modal') as HTMLElement;
+        const collaboratorsCloseBtn = el.querySelector('#wj-collaborators-close');
+        const collaboratorsModal = el.querySelector('#wj-collaborators-modal') as HTMLElement;
+
+        inviteCancelBtn?.addEventListener('click', () => {
+            inviteModal.style.display = 'none';
+        });
+        inviteSubmitBtn?.addEventListener('click', () => this.handleInvite(el));
+        inviteModal?.addEventListener('click', (event) => {
+            if (event.target === inviteModal) inviteModal.style.display = 'none';
+        });
+        collaboratorsCloseBtn?.addEventListener('click', () => {
+            collaboratorsModal.style.display = 'none';
+        });
+        collaboratorsModal?.addEventListener('click', (event) => {
+            if (event.target === collaboratorsModal) collaboratorsModal.style.display = 'none';
+        });
     }
 
     private async loadProjects(el: HTMLElement): Promise<void> {
@@ -189,8 +242,11 @@ export class ProjectsPage {
                                 </div>
                                 <div style="display:flex; gap:6px; margin-left:12px;">
                                     <button class="wj-btn wj-btn-mini wj-btn-rename-session" data-session-id="${s.id}" data-session-name="${this.escapeHtml(s.name)}" title="Rename session" style="background:#333; color:#fff; border:none;">Rename</button>
+                                    <button class="wj-btn wj-btn-mini wj-btn-toggle-visibility" data-session-id="${s.id}" data-public="${s.is_public ? '1' : '0'}" title="Toggle visibility" style="background:#333; color:#fff; border:none;">${s.is_public ? 'Make Private' : 'Make Public'}</button>
                                     <button class="wj-btn wj-btn-mini wj-btn-toggle-lock-session" data-session-id="${s.id}" data-locked="${s.is_locked ? '1' : '0'}" title="Toggle lock" style="background:#333; color:#fff; border:none;">${s.is_locked ? 'Unlock' : 'Lock'}</button>
                                     <button class="wj-btn wj-btn-mini wj-btn-delete-session" data-session-id="${s.id}" title="Delete session" style="background:#dc3545; color:#fff; border:none;">Delete</button>
+                                    <button class="wj-btn wj-btn-mini wj-btn-invite" data-session-id="${s.id}" title="Invite collaborator" style="background:#333; color:#fff; border:none;">Invite</button>
+                                    <button class="wj-btn wj-btn-mini wj-btn-collaborators" data-session-id="${s.id}" title="Manage collaborators" style="background:#333; color:#fff; border:none;">Collaborators</button>
                                     <button class="wj-btn wj-btn-mini wj-btn-open-session" data-session-id="${s.id}" title="Open session" style="background:#333; color:#fff; border:none; padding:4px 8px;">Open</button>
                                 </div>
                             </div>
@@ -273,6 +329,16 @@ export class ProjectsPage {
                 });
             });
 
+            listEl.querySelectorAll('.wj-btn-toggle-visibility').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const sessionId = (btn as HTMLElement).dataset.sessionId;
+                    const isPublic = (btn as HTMLElement).dataset.public === '1';
+                    if (sessionId) this.handleToggleVisibility(el, sessionId, !isPublic);
+                });
+            });
+
             listEl.querySelectorAll('.wj-btn-delete-session').forEach(btn => {
                 btn.addEventListener('click', (e) => {
                     e.preventDefault();
@@ -281,6 +347,24 @@ export class ProjectsPage {
                     if (sessionId && confirm('Delete this session? This cannot be undone.')) {
                         this.handleDeleteSession(el, sessionId);
                     }
+                });
+            });
+
+            listEl.querySelectorAll('.wj-btn-invite').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const sessionId = (btn as HTMLElement).dataset.sessionId;
+                    if (sessionId) this.showInviteModal(el, sessionId);
+                });
+            });
+
+            listEl.querySelectorAll('.wj-btn-collaborators').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const sessionId = (btn as HTMLElement).dataset.sessionId;
+                    if (sessionId) this.showCollaboratorsModal(el, sessionId);
                 });
             });
 
@@ -456,6 +540,18 @@ export class ProjectsPage {
         }
     }
 
+    private async handleToggleVisibility(el: HTMLElement, sessionId: string, shouldBePublic: boolean): Promise<void> {
+        const errorEl = el.querySelector('#wj-projects-error') as HTMLElement;
+        try {
+            await this.api.request('PUT', `/sessions/${sessionId}`, { isPublic: shouldBePublic });
+            await this.loadProjects(el);
+        } catch (e) {
+            const msg = e instanceof ApiError ? e.message : 'Failed to change session visibility';
+            errorEl.textContent = msg;
+            errorEl.classList.add('wj-visible');
+        }
+    }
+
     private async handleDeleteSession(el: HTMLElement, sessionId: string): Promise<void> {
         const errorEl = el.querySelector('#wj-projects-error') as HTMLElement;
         try {
@@ -465,6 +561,82 @@ export class ProjectsPage {
             const msg = e instanceof ApiError ? e.message : 'Failed to delete session';
             errorEl.textContent = msg;
             errorEl.classList.add('wj-visible');
+        }
+    }
+
+    private showInviteModal(el: HTMLElement, sessionId: string): void {
+        const modal = el.querySelector('#wj-invite-modal') as HTMLElement;
+        const sessionIdInput = el.querySelector('#wj-invite-session-id') as HTMLInputElement;
+        const usernameInput = el.querySelector('#wj-invite-username') as HTMLInputElement;
+
+        sessionIdInput.value = sessionId;
+        usernameInput.value = '';
+        modal.style.display = 'flex';
+        usernameInput.focus();
+    }
+
+    private async handleInvite(el: HTMLElement): Promise<void> {
+        const modal = el.querySelector('#wj-invite-modal') as HTMLElement;
+        const sessionId = (el.querySelector('#wj-invite-session-id') as HTMLInputElement).value;
+        const usernameInput = el.querySelector('#wj-invite-username') as HTMLInputElement;
+
+        const username = usernameInput.value.trim();
+        if (!username) {
+            usernameInput.focus();
+            return;
+        }
+
+        try {
+            await this.api.request('POST', `/sessions/${sessionId}/invite`, { username });
+            modal.style.display = 'none';
+            alert(`Invitation sent to ${username}`);
+        } catch (e) {
+            alert(e instanceof ApiError ? e.message : 'Failed to send invitation');
+        }
+    }
+
+    private async showCollaboratorsModal(el: HTMLElement, sessionId: string): Promise<void> {
+        const modal = el.querySelector('#wj-collaborators-modal') as HTMLElement;
+        const list = el.querySelector('#wj-collaborators-list') as HTMLElement;
+        modal.style.display = 'flex';
+        list.innerHTML = '<div class="wj-empty-state">Loading...</div>';
+
+        try {
+            const data = await this.api.request<{ collaborators: CollaboratorInfo[] }>(
+                'GET',
+                `/sessions/${sessionId}/collaborators`,
+            );
+
+            if (data.collaborators.length === 0) {
+                list.innerHTML = '<div class="wj-empty-state">No collaborators yet.</div>';
+                return;
+            }
+
+            list.innerHTML = data.collaborators.map(collaborator => `
+                <div class="wj-collab-item" data-user-id="${this.escapeHtml(collaborator.id)}">
+                    <div>
+                        <div class="wj-collab-name">${this.escapeHtml(collaborator.username)}</div>
+                        <div class="wj-collab-date">Added ${new Date(collaborator.granted_at).toLocaleString()}</div>
+                    </div>
+                    <button class="wj-collab-remove" data-user-id="${this.escapeHtml(collaborator.id)}">Remove</button>
+                </div>
+            `).join('');
+
+            list.querySelectorAll('.wj-collab-remove').forEach(button => {
+                button.addEventListener('click', async () => {
+                    const userId = (button as HTMLElement).dataset.userId;
+                    if (!userId || !confirm('Remove this collaborator?')) return;
+
+                    try {
+                        await this.api.request('DELETE', `/sessions/${sessionId}/collaborators`, { userId });
+                        await this.showCollaboratorsModal(el, sessionId);
+                    } catch (e) {
+                        alert(e instanceof ApiError ? e.message : 'Failed to remove collaborator');
+                    }
+                });
+            });
+        } catch (e) {
+            list.innerHTML = `<div class="wj-empty-state">${this.escapeHtml(e instanceof ApiError ? e.message : 'Failed to load collaborators')}</div>`;
         }
     }
 }
