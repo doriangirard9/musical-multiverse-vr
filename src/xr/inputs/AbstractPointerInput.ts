@@ -152,8 +152,33 @@ export class AbstractPointerInput {
     }
 
     /**
+     * Drop the target, telling it to whoever follows the pointer, as if the pointer had moved off it.
+     * The previous mesh is still the dropped target when the observers run, so they can leave it.
+     */
+    _clearTarget() {
+        const wasTouching = this.wasTouching
+        if (this.targetMesh != null) {
+            this.hit = false
+            this.targetMesh = null
+            this.touchedMesh = null
+            this.isTouching = false
+            this.onNewTarget.notifyObservers(this)
+            if (wasTouching) this.onNewTouch.notifyObservers(this)
+        }
+        this.previousMesh = null
+        this.wasTouching = false
+    }
+
+    /**
+     * The XR sources registered on this pointer and still alive, oldest first.
+     * Only the last one drives the pointer: one hand can briefly have two sources, when the
+     * controller comes back while the tracked hand that stood in for it is not gone yet.
+     */
+    private _xrSources: WebXRInputSource[] = []
+
+    /**
      * Make the pointer input state change on webxr inputs source
-     * @param inputSource 
+     * @param inputSource
      */
     _registerXRObserver(controller: WebXRInputSource, scenes: Scene[]): { remove(): void } {
         const that = this
@@ -162,23 +187,22 @@ export class AbstractPointerInput {
 
         const o = controller.onDisposeObservable.addOnce(() => disposed = true)
 
-        that.wasTouching = false
-        that.previousMesh = null
+        // The newest source takes over, and carries on from the current target, so the observers
+        // that entered it still get to leave it.
+        that._xrSources.push(controller)
 
         scenes[0].onAfterPhysicsObservable.add(function tick() {
 
             if (disposed) {
-                if(that.targetMesh!=null){
-                    that.hit = false
-                    that.targetMesh = null
-                    that.touchedMesh = null
-                    that.isTouching = false
-                    that.onNewTarget.notifyObservers(that)
-                }
-                that.onRemove.notifyObservers(that)
+                const wasDriving = that._xrSources[that._xrSources.length - 1] === controller
+                that._xrSources = that._xrSources.filter(it => it !== controller)
+                if (wasDriving) that._clearTarget()
+                if (that._xrSources.length === 0) that.onRemove.notifyObservers(that)
                 scenes[0].onAfterPhysicsObservable.removeCallback(tick)
                 return
             }
+
+            if (that._xrSources[that._xrSources.length - 1] !== controller) return
 
             that.onInit.notifyObservers(that)
 

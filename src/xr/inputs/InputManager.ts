@@ -250,6 +250,13 @@ export class InputManager {
                     button._registerXRObserver(motionController)
                 }
 
+                // Its last release never comes if the source goes away while a button is held
+                controller.onDisposeObservable.addOnce(() => {
+                    for(const button of [im.x_button, im.y_button, im.a_button, im.b_button]) {
+                        if(button.side === motionController.handedness) button._release()
+                    }
+                })
+
                 for(const cinput of [im.left, im.right]) {
                     cinput._registerXRObserver(controller, scenes)
                 }

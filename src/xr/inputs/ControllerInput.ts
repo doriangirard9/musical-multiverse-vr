@@ -64,6 +64,14 @@ export class ControllerInput {
             this.thumbstick._registerXRObserver(controller.motionController!!),
         ]
 
+        // A source going away never sends its last release: a controller falling asleep or the
+        // headset taken off while a trigger is held would leave it pressed for good.
+        observers.push(controller.onDisposeObservable.add(() => {
+            this.trigger._release()
+            this.squeeze._release()
+            this.thumbstick._release()
+        }))
+
         // Haptic
         const haptic = controller.motionController?.gamepadObject?.hapticActuators
         if(haptic && haptic.length>0) {

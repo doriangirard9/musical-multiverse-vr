@@ -108,7 +108,17 @@ export class PressableInput {
         if(event.touched && !oldState.is_touched) this.onTouch.notifyObservers(event)
         if(!event.touched && oldState.is_touched) this.onUntouch.notifyObservers(event)
         if(event.value !== oldState.value) { this.onValueChange.notifyObservers(event)}
-        
+
+    }
+
+    /**
+     * Let go of the input, as when the source that pressed it goes away while held.
+     * Without it the input would stay pressed, and whatever the press grabbed would never be released.
+     */
+    _release(){
+        if(this.state.is_pressed || this.state.is_touched || this.state.value !== 0){
+            this._notify({ pressable: this, pressed: false, touched: false, value: 0 })
+        }
     }
 
 
