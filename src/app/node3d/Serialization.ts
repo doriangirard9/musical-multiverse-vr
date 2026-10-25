@@ -104,11 +104,14 @@ export class Serialization {
      * @returns The list of the created Node3DInstances. The order of the nodes in the list is the same as the order of the nodes in the description.
      */
     public async load(description: Node3DGraphDescription): Promise<Node3DInstance[]>{
+        console.log("Loading graph", description)
+
         const nodes = (await Promise.all(description.nodes.map(async nodeDesc => {
             const node = await this.mNode.addNode3d(
                 nodeDesc.kind,
                 Vector3.FromArray(nodeDesc.position)
             )
+            console.log(`Created node ${node}`)
             if(!node) return
 
             node.boundingBoxMesh.rotationQuaternion = Quaternion.FromArray(nodeDesc.rotation)
@@ -118,9 +121,14 @@ export class Serialization {
             const id = this.network.nodes.getId(node)!!
             await this.network.nodes.setState(id, nodeDesc.data)
 
+            console.log(`Loaded node ${node.factory.label} at position ${node.boundingBoxMesh.position.toString()}`)
+
             return node
         }))).filter(it=>it!=undefined)
 
+        console.log("Loaded nodes", nodes)
+
+        console.log("Connecting nodes", description.connections)
         await Promise.all(description.connections.map(async connectionDesc => {
             const fromNode = nodes[connectionDesc.from]
             const toNode = nodes[connectionDesc.to]
@@ -130,6 +138,7 @@ export class Serialization {
             const to = toNode.connectables.get(connectionDesc.toConnectable)
             if(!from || !to) return
             
+            console.log(`Connecting ${fromNode.factory.label} to ${toNode.factory.label}`)
             this.mConnection.connect(from,to)
         }))
 

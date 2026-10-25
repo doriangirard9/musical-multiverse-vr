@@ -39,8 +39,9 @@ export const AsyncLoading = {
             },5000)
             return null
         })
-        .then(()=>{
+        .then(it=>{
             root.dispose()
+            return it
         })
 
         return {root,promise:p}

@@ -138,7 +138,7 @@ export class BarMenuSystem {
 
         // Simple block menu
         const menu_info = this.createMenuConfig(node, updateMenu)
-        const menu = new BlocksMenu(this.scenes.getScene(), this.scenes.getUtilityScene(), menu_info)
+        const menu = new BlocksMenu(this.scenes.getScene(), this.scenes.getUtilityScene(), menu_info, 1.3)
         menu.root.parent = base
         menu.root.resetLocalMatrix()
         menu.root.position.set(0, .5+menu.plane.scaling.y/2, 0)
@@ -183,7 +183,7 @@ export class BarMenuSystem {
                     }
                 } },
                 { height:2, width: 1 },
-                { height:2, width: 2, text: "X", color: "#d27f7f", onClick: ()=>{
+                { height:2, width: 2, text: "🗑️", color: "#d27f7f", onClick: ()=>{
                     node.dispose()
                 }},
             ]

@@ -8,6 +8,7 @@
     "server": "npm --prefix server-config run dev",
     "all": "concurrently --handleInput --prefixColors red,green \"npm run server\" \"npm run dev\"",
     "all_headset": "cross-env AUTHORIZED_ORIGINS=https://192.168.137.1:5173 npm run all",
+    "all_headset2": "cross-env AUTHORIZED_ORIGINS=https://172.20.10.2:5173 npm run all",
     "build": "tsc -p tsconfig.build.json && vite build",
     "build:prod": "vite build --mode production --no-emptyOutDir",
     "preview": "vite preview",

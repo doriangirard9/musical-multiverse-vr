@@ -72,7 +72,6 @@ export class N3DText{
     }
 
     dispose(){
-        console.trace()
         this.list.dispose()
         this.plane.material!.dispose()
         this.texture.dispose()
