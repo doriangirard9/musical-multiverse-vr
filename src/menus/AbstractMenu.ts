@@ -6,6 +6,12 @@ import { N3DText } from "../node3d/instance/utils/N3DText"
 import { InputHoverBehavior } from "../node3d/tools"
 import { InputManager } from "../xr/inputs"
 
+/**
+ * Resolution scale of the menus read up close, whose text was blurry in a headset at their base
+ * resolution. Each step costs memory: a menu texture grows with its square.
+ */
+export const SHARP_MENU_RESOLUTION_SCALE = 3
+
 export class AbstractMenu {
     protected _root!: TransformNode
     protected _plane!: Mesh
@@ -26,8 +32,10 @@ export class AbstractMenu {
      * @param width Plane width
      * @param height Plane height
      * @param textureResolution Base texture resolution (width). Height is calculated from plane aspect ratio
+     * @param resolutionScale How many texture pixels are drawn per layout pixel. The layout keeps using
+     * textureResolution pixels, so sizes in pixels are unchanged; only the drawing gets sharper.
      */
-    protected initPanel(name: string, width: number, height: number, textureResolution: number = 512) {
+    protected initPanel(name: string, width: number, height: number, textureResolution: number = 512, resolutionScale: number = 1) {
         // Dispose if already initialized
         if(this._root) this._root.dispose()
         if(this._plane) this._plane.dispose()
@@ -81,17 +89,24 @@ export class AbstractMenu {
         // Calculate texture height based on plane aspect ratio
         const textureHeight = Math.round(textureResolution * (height / width))
 
+        this.resolutionScale = resolutionScale
         this.texture = AdvancedDynamicTexture.CreateForMesh(
             this._plane,
-            textureResolution,
-            textureHeight
+            Math.round(textureResolution * resolutionScale),
+            Math.round(textureHeight * resolutionScale)
         )
+        // Babylon scales every size given in pixels by the texture size over the ideal width
+        if (resolutionScale !== 1) this.texture.idealWidth = textureResolution
     }
+
+    /** How many texture pixels are drawn per layout pixel, see {@link initPanel} */
+    protected resolutionScale = 1
 
     protected resizePanel(width: number, height: number, textureResolution: number = 512) {
         this._plane.scaling.set(width, height, 1)
         const textureHeight = Math.round(textureResolution * (height / width))
-        this.texture.scaleTo(textureResolution, textureHeight)
+        this.texture.scaleTo(Math.round(textureResolution * this.resolutionScale), Math.round(textureHeight * this.resolutionScale))
+        if (this.resolutionScale !== 1) this.texture.idealWidth = textureResolution
     }
 
     /**
@@ -299,11 +314,19 @@ export class AbstractMenu {
     static fitText(control: TextBlock, correction: number = 1) {
         control.textWrapping = false
         control.onDirtyObservable.add(()=>{
-            const textWidth = control.text.length*control.fontSizeInPixels*.8/correction
-            if(textWidth>control.widthInPixels) control.fontSizeInPixels *= control.widthInPixels / textWidth
+            // Sizes read in pixels come scaled by the menu's resolution, sizes written are scaled again:
+            // a size read has to be brought back to layout pixels before being written.
+            const scale = control.host?.idealRatio || 1
 
-            const textHeight = control.fontSizeInPixels*2
-            if(textHeight>control.heightInPixels) control.fontSizeInPixels *= control.heightInPixels / textHeight
+            // A text broken with line feeds is as wide as its longest line and as tall as all of them
+            const lines = control.text.split("\n")
+            const longest = Math.max(...lines.map(line=>line.length))
+
+            const textWidth = longest*control.fontSizeInPixels*.8/correction
+            if(textWidth>control.widthInPixels) control.fontSizeInPixels = control.fontSizeInPixels * control.widthInPixels / textWidth / scale
+
+            const textHeight = control.fontSizeInPixels*(lines.length+1)
+            if(textHeight>control.heightInPixels) control.fontSizeInPixels = control.fontSizeInPixels * control.heightInPixels / textHeight / scale
         })
     }
 

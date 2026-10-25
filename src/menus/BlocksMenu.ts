@@ -1,6 +1,6 @@
 import { Scene } from "@babylonjs/core"
 import { Button, Container, Control, Image, Rectangle, ScrollViewer, TextBlock } from "@babylonjs/gui"
-import { AbstractMenu } from "./AbstractMenu"
+import { AbstractMenu, SHARP_MENU_RESOLUTION_SCALE } from "./AbstractMenu"
 import { N3DTextDescription } from "../node3d/instance/utils/N3DText"
 
 export interface BMenuMenu {
@@ -54,7 +54,7 @@ export class BlocksMenu extends AbstractMenu {
 
         this.pixels = Math.floor(256*pixelScaling)
 
-        this.initPanel("blocks_menu", 1, 1, this.pixels)
+        this.initPanel("blocks_menu", 1, 1, this.pixels, SHARP_MENU_RESOLUTION_SCALE)
         this.initLabel("tooltip")
 
         if(menuData) this.set(menuData)
@@ -195,6 +195,8 @@ export class BlocksMenu extends AbstractMenu {
         const button = Button.CreateSimpleButton(block.text!, block.text!)
         button.color = block.color ?? "white"
         button.fontSizeInPixels = 40
+        // Given to the text itself: inherited from the button, fitText would read the default size instead
+        button.textBlock!.fontSizeInPixels = 40
         BlocksMenu.setCommon(button, block)
         BlocksMenu.fitText(button.textBlock!)
         BlocksMenu.setButtonCommon(button, block)
@@ -228,6 +230,7 @@ export class BlocksMenu extends AbstractMenu {
 
         button.color = block.color ?? "white"
         button.fontSizeInPixels = 40
+        if(button.textBlock) button.textBlock.fontSizeInPixels = 40
         BlocksMenu.setCommon(button, block)
         if(button.textBlock) BlocksMenu.fitText(button.textBlock)
         BlocksMenu.setButtonCommon(button, block)
@@ -250,6 +253,7 @@ export class BlocksMenu extends AbstractMenu {
 
         const text = new TextBlock(block.text!, block.text!)
         text.color = block.color ?? "white"
+        text.fontSizeInPixels = 40
         text.height = `${(1-STACK_IMAGE_SHARE)*100}%`
         text.verticalAlignment = Control.VERTICAL_ALIGNMENT_BOTTOM
         text.isHitTestVisible = false

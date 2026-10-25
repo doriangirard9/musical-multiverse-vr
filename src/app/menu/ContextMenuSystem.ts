@@ -100,8 +100,9 @@ export class ContextMenuSystem {
             // Connections
             const items: BMenuBlock[] = []
             for (const c of conns) {
-                const text = N3DLabel.connection(c, target)
-                items.push({ text, color: "#ffcc55", width:6, onClick: () => {
+                // Two lines, two cells tall: on one line the text had to shrink to fit the width
+                const text = N3DLabel.connection(c, target, true)
+                items.push({ text, color: "#ffcc55", width:6, height:2, onClick: () => {
                     c.remove()
                     that.closeMenu()
                 }})
