@@ -33,7 +33,7 @@ router.get('/public', (req, res) => {
 
 /**
  * GET /api/sessions/mine
- * List sessions the user owns or is authorized for
+ * List sessions owned by the user
  */
 router.get('/mine', requireAuth, (req, res) => {
     try {
@@ -45,13 +45,38 @@ router.get('/mine', requireAuth, (req, res) => {
             FROM sessions s
             JOIN projects p ON s.project_id = p.id
             JOIN users u ON p.owner_id = u.id
-            WHERE p.owner_id = ?
-               OR s.id IN (SELECT session_id FROM authorized_users WHERE user_id = ?)
+                WHERE p.owner_id = ?
+            ORDER BY s.updated_at DESC
+        `).all(req.user.userId);
+        res.json({ sessions });
+    } catch (error) {
+        console.error('[Sessions] List mine error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+/**
+ * GET /api/sessions/invited
+ * List sessions where the user is an invited collaborator (not owner).
+ * These appear in the "Private Sessions" tab.
+ */
+router.get('/invited', requireAuth, (req, res) => {
+    try {
+        const db = getDb();
+        const sessions = db.prepare(`
+            SELECT s.id, s.name, s.is_public, s.is_locked, s.max_users, s.project_id, s.created_at,
+                   p.name as project_name, u.username as owner_username,
+                   (SELECT COUNT(*) FROM session_participants sp WHERE sp.session_id = s.id) as participant_count
+            FROM sessions s
+            JOIN projects p ON s.project_id = p.id
+            JOIN users u ON p.owner_id = u.id
+            JOIN authorized_users au ON au.session_id = s.id AND au.user_id = ?
+            WHERE p.owner_id != ?
             ORDER BY s.updated_at DESC
         `).all(req.user.userId, req.user.userId);
         res.json({ sessions });
     } catch (error) {
-        console.error('[Sessions] List mine error:', error);
+        console.error('[Sessions] List invited error:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 });
@@ -204,15 +229,8 @@ router.post('/:id/join', optionalAuth, (req, res) => {
             if (!req.user) return res.status(401).json({ error: 'Authentication required for private session' });
             const isOwner = session.owner_id === req.user.userId;
             const isAuthorized = db.prepare('SELECT 1 FROM authorized_users WHERE session_id = ? AND user_id = ?').get(req.params.id, req.user.userId);
-            // Also allow if share token is provided
-            const shareToken = req.body.shareToken;
-            const validShare = shareToken && session.share_token === shareToken;
-            if (!isOwner && !isAuthorized && !validShare) {
+            if (!isOwner && !isAuthorized) {
                 return res.status(403).json({ error: 'Not authorized for this private session' });
-            }
-            // If joined via share token, add to authorized_users
-            if (validShare && !isOwner && !isAuthorized) {
-                db.prepare('INSERT OR IGNORE INTO authorized_users (session_id, user_id) VALUES (?, ?)').run(req.params.id, req.user.userId);
             }
         }
 
@@ -441,7 +459,7 @@ router.post('/:id/save', (req, res) => {
 
 /**
  * POST /api/sessions/:id/share/username
- * Share a private session with a user by username
+ * Legacy compatibility route: invite a user by username
  * Body: { username: string }
  */
 router.post('/:id/share/username', requireAuth, (req, res) => {
@@ -454,11 +472,20 @@ router.post('/:id/share/username', requireAuth, (req, res) => {
         if (!session) return res.status(404).json({ error: 'Session not found' });
         if (session.owner_id !== req.user.userId) return res.status(403).json({ error: 'Not authorized' });
 
-        const targetUser = db.prepare('SELECT id FROM users WHERE username = ?').get(username);
+        const targetUser = db.prepare('SELECT id, username FROM users WHERE username = ?').get(username);
         if (!targetUser) return res.status(404).json({ error: 'User not found' });
+        if (targetUser.id === req.user.userId) return res.status(400).json({ error: 'Cannot invite yourself' });
 
-        db.prepare('INSERT OR IGNORE INTO authorized_users (session_id, user_id) VALUES (?, ?)').run(req.params.id, targetUser.id);
-        res.json({ message: `Session shared with ${username}` });
+        const existing = db.prepare('SELECT 1 FROM authorized_users WHERE session_id = ? AND user_id = ?').get(req.params.id, targetUser.id);
+        if (existing) return res.status(409).json({ error: 'User is already a collaborator' });
+
+        const pending = db.prepare("SELECT 1 FROM notifications WHERE session_id = ? AND user_id = ? AND status = 'pending'").get(req.params.id, targetUser.id);
+        if (pending) return res.status(409).json({ error: 'Invitation already pending' });
+
+        db.prepare('INSERT INTO notifications (id, user_id, type, session_id, from_user_id, status) VALUES (?, ?, ?, ?, ?, ?)').run(
+            uuidv4(), targetUser.id, 'invitation', req.params.id, req.user.userId, 'pending'
+        );
+        res.status(201).json({ message: `Invitation sent to ${username}` });
     } catch (error) {
         console.error('[Sessions] Share error:', error);
         res.status(500).json({ error: 'Internal server error' });
@@ -514,4 +541,97 @@ router.get('/:id/participants', (req, res) => {
     }
 });
 
+/**
+ * POST /api/sessions/:id/invite
+ * Invite a user as collaborator (creates a notification).
+ * Body: { username: string }
+ */
+router.post('/:id/invite', requireAuth, (req, res) => {
+    try {
+        const { username } = req.body;
+        if (!username) return res.status(400).json({ error: 'username required' });
+
+        const db = getDb();
+        const session = db.prepare('SELECT s.*, p.owner_id FROM sessions s JOIN projects p ON s.project_id = p.id WHERE s.id = ?').get(req.params.id);
+        if (!session) return res.status(404).json({ error: 'Session not found' });
+        if (session.owner_id !== req.user.userId) return res.status(403).json({ error: 'Not authorized' });
+
+        const targetUser = db.prepare('SELECT id, username FROM users WHERE username = ?').get(username);
+        if (!targetUser) return res.status(404).json({ error: 'User not found' });
+        if (targetUser.id === req.user.userId) return res.status(400).json({ error: 'Cannot invite yourself' });
+
+        // Check if already a collaborator
+        const existing = db.prepare('SELECT 1 FROM authorized_users WHERE session_id = ? AND user_id = ?').get(req.params.id, targetUser.id);
+        if (existing) return res.status(409).json({ error: 'User is already a collaborator' });
+
+        // Check if a pending notification already exists
+        const pendingNotif = db.prepare('SELECT 1 FROM notifications WHERE session_id = ? AND user_id = ? AND status = ?').get(req.params.id, targetUser.id, 'pending');
+        if (pendingNotif) return res.status(409).json({ error: 'Invitation already pending' });
+
+        // Create notification
+        const notifId = uuidv4();
+        db.prepare('INSERT INTO notifications (id, user_id, type, session_id, from_user_id, status) VALUES (?, ?, ?, ?, ?, ?)').run(
+            notifId, targetUser.id, 'invitation', req.params.id, req.user.userId, 'pending'
+        );
+
+        res.status(201).json({ message: `Invitation sent to ${username}` });
+    } catch (error) {
+        console.error('[Sessions] Invite error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+/**
+ * GET /api/sessions/:id/collaborators
+ * List collaborators for a session (only the owner can see this)
+ */
+router.get('/:id/collaborators', requireAuth, (req, res) => {
+    try {
+        const db = getDb();
+        const session = db.prepare('SELECT s.*, p.owner_id FROM sessions s JOIN projects p ON s.project_id = p.id WHERE s.id = ?').get(req.params.id);
+        if (!session) return res.status(404).json({ error: 'Session not found' });
+        if (session.owner_id !== req.user.userId) return res.status(403).json({ error: 'Not authorized' });
+
+        const collaborators = db.prepare(`
+            SELECT u.id, u.username, au.granted_at
+            FROM authorized_users au
+            JOIN users u ON au.user_id = u.id
+            WHERE au.session_id = ?
+            ORDER BY au.granted_at DESC
+        `).all(req.params.id);
+
+        res.json({ collaborators });
+    } catch (error) {
+        console.error('[Sessions] List collaborators error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+/**
+ * DELETE /api/sessions/:id/collaborators
+ * Remove a collaborator from a session
+ * Body: { userId: string }
+ */
+router.delete('/:id/collaborators', requireAuth, (req, res) => {
+    try {
+        const { userId } = req.body;
+        if (!userId) return res.status(400).json({ error: 'userId required' });
+
+        const db = getDb();
+        const session = db.prepare('SELECT s.*, p.owner_id FROM sessions s JOIN projects p ON s.project_id = p.id WHERE s.id = ?').get(req.params.id);
+        if (!session) return res.status(404).json({ error: 'Session not found' });
+        if (session.owner_id !== req.user.userId) return res.status(403).json({ error: 'Not authorized' });
+
+        db.prepare('DELETE FROM authorized_users WHERE session_id = ? AND user_id = ?').run(req.params.id, userId);
+        // Also clean up any pending notifications for this user+session
+        db.prepare("DELETE FROM notifications WHERE session_id = ? AND user_id = ? AND status = 'pending'").run(req.params.id, userId);
+
+        res.json({ message: 'Collaborator removed' });
+    } catch (error) {
+        console.error('[Sessions] Remove collaborator error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
 module.exports = router;
+

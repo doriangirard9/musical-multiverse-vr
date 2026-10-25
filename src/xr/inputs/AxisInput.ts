@@ -138,6 +138,11 @@ export class AxisInput {
         this.state.direction = side
     }
 
+    /** Bring the stick back to the center, as when the source that moved it goes away while held. */
+    _release(){
+        if(this.state.x!==0 || this.state.y!==0) this._notify({ axis: this, x: 0, y: 0 })
+    }
+
 
     /**
      * Make the button input state change on webxr inputs source

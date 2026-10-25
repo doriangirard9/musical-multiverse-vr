@@ -42,13 +42,19 @@ const STACK_IMAGE_SHARE = 0.72
  */
 export class BlocksMenu extends AbstractMenu {
 
+    pixels
+
     constructor(
         scene: Scene,
         renderScene: Scene,
-        menuData?: BMenuMenu
+        menuData?: BMenuMenu,
+        pixelScaling: number = 1
     ) {
         super(scene, renderScene)
-        this.initPanel("blocks_menu", 1, 1, 256)
+
+        this.pixels = Math.floor(256*pixelScaling)
+
+        this.initPanel("blocks_menu", 1, 1, this.pixels)
         this.initLabel("tooltip")
 
         if(menuData) this.set(menuData)
@@ -66,10 +72,10 @@ export class BlocksMenu extends AbstractMenu {
         const width = 1
         const height = layout.length/layout[0].length*width
 
-        this.resizePanel(width, height, 256)
+        this.resizePanel(width, height, this.pixels)
 
         // Container
-        const menu = this.createMenu({sub:menuData}!, 256*width, 256*height)
+        const menu = this.createMenu({sub:menuData}!, this.pixels*width, this.pixels*height)
         this.texture.addControl(menu)
 
         if(!!bar && this.scrollViewer!=undefined) this.scrollViewer.verticalBar.value = bar

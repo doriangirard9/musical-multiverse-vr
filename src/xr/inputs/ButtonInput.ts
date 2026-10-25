@@ -92,7 +92,12 @@ export class ButtonInput {
         if(event.pressed && !oldState.is_pressed) this.onDown.notifyObservers(event)
         if(!event.pressed && oldState.is_pressed) this.onUp.notifyObservers(event)
         if(event.touched && !oldState.is_touched) this.onTouch.notifyObservers(event)
-        if(!event.touched && oldState.is_touched) this.onUntouch.notifyObservers(event)   
+        if(!event.touched && oldState.is_touched) this.onUntouch.notifyObservers(event)
+    }
+
+    /** Let go of the button, as when the source that pressed it goes away while held. */
+    _release(){
+        if(this.state.is_pressed || this.state.is_touched) this._notify({ button: this, pressed: false, touched: false })
     }
 
 
