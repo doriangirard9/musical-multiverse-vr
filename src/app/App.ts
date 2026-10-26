@@ -35,6 +35,14 @@ import { VisualEffectSystem } from "./visual/VisualEffectSystem.ts";
 import { XRPlatform } from "./platform/XRPlatform.ts";
 import { AudioLifecycle } from "./AudioLifecycle.ts";
 
+/**
+ * The audio buffer asked of the browser, in seconds. The default ("interactive") gave 4 ms on the
+ * Quest 3: the slightest hiccup of the headset, entering or leaving VR, starved the audio output and
+ * was heard as a crackle. A larger buffer absorbs those spikes, at the cost of as much delay between
+ * a gesture and its sound: studies place the noticeable limit for playing between 10 and 20 ms.
+ */
+const AUDIO_LATENCY_HINT = 0.010
+
 let _app: App
 
 export class App {
@@ -77,7 +85,7 @@ export class App {
 
         // Initialization of Audio Context
         report("Preparing audio engine")
-        const audioContext = new AudioContext()
+        const audioContext = new AudioContext({ latencyHint: AUDIO_LATENCY_HINT })
         this.armAudioContextResume(audioContext)
         
         const audioEngine = await CreateAudioEngineAsync({audioContext})
