@@ -68,6 +68,11 @@ const COLOR_WHITE_KEY = new B.Color3(1, 1, 1);
 const COLOR_DISABLED = new B.Color3(0.2, 0.2, 0.2);
 const COLOR_BASE_MESH = new B.Color3(0.5, 0.2, 0.2);
 const COLOR_HOVER = new B.Color3(1, 1, 0);
+/**
+ * The column count the piano roll is sized for: one bar of 16 steps fills the module. More bars or
+ * steps make it longer instead of shrinking every cell, live as well as when a session is reloaded.
+ */
+const FIT_COLS = 16;
 const PPQN = 24; // Pulses Per Quarter Note -> Provient du WAM PianoRoll, utilisé pour la quantification des notes et le calcul des positions dans le séquenceur.
 
 const DEBUG_LOG = false;
@@ -184,8 +189,10 @@ class PianoRollN3DGUI implements Node3DGUI {
     // Calculate the total dimensions of the piano roll
     this.recalculateGridBoundaries();
 
-    // Calculate the total width including keyboard and spacing
-    const totalWidth = (this.endX - this.startX) +
+    // Calculate the total width including keyboard and spacing, for the reference column count:
+    // sized on the current one, a grid made longer was shrunk back to the default size whenever the
+    // scale was recomputed, as when the piano roll is plugged, which a reloaded session does
+    const totalWidth = (FIT_COLS - 1) * (this.buttonWidth + this.buttonSpacing) +
       (this.keyboardWidth * 2 + this.buttonSpacing) +
       (this.keyboardWidth + this.buttonSpacing * 2);
 
