@@ -43,6 +43,10 @@ export class SessionAPIClient {
         await this.api.request('POST', `/sessions/${sessionId}/leave`, { participantId });
     }
 
+    async getLeaderStatus(sessionId: string): Promise<{ isAlive: boolean, leaderId: string | null, secondsSinceHeartbeat?: number }> {
+        return this.api.request('GET', `/sessions/${sessionId}/leader-status`);
+    }
+
     async heartbeat(sessionId: string, participantId: string): Promise<{ participantCount: number }> {
         return this.api.request<{ participantCount: number }>('POST', `/sessions/${sessionId}/heartbeat`, { participantId });
     }

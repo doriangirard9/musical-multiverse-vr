@@ -3,6 +3,7 @@ import { SessionAPIClient } from './SessionAPIClient.ts';
 import { Serialization } from '../app/node3d/Serialization.ts';
 import { Node3DInstance } from '../node3d/instance/Node3DInstance.ts';
 import { NetworkManager } from './NetworkManager.ts';
+import { SERVER_NAME } from '../options.ts';
 
 export interface SessionConnectionInfo {
     participantId: string;
@@ -199,7 +200,9 @@ export class SessionConnector {
         const data = new Blob([JSON.stringify({ participantId: this.participantId })], {
             type: 'application/json'
         });
-        navigator.sendBeacon(`/api/sessions/${this.sessionId}/leave`, data);
+        // Through SERVER_NAME like every other API call: in production the API is under /config,
+        // and a bare /api path lands on the client's own server, which cannot answer it
+        navigator.sendBeacon(`${SERVER_NAME}/api/sessions/${this.sessionId}/leave`, data);
     }
 
     private async waitForReadyWithFailover(sessionState: any, noDataReceived: boolean): Promise<boolean> {
@@ -233,8 +236,7 @@ export class SessionConnector {
                 }
 
                 try {
-                    const response = await fetch(`/api/sessions/${this.sessionId}/leader-status`);
-                    const leaderStatus = await response.json();
+                    const leaderStatus = await this.api.getLeaderStatus(this.sessionId);
 
                     if (!leaderStatus.isAlive) {
                         console.warn('[SessionConnector] Leader is unreachable (no heartbeat in 30s). Triggering failover...');
