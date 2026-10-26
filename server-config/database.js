@@ -91,19 +91,6 @@ function initDatabase() {
             created_at TEXT DEFAULT (datetime('now'))
         );
 
-        -- Hangs and pauses reported by the clients, see routes/diagnostics.js
-        CREATE TABLE IF NOT EXISTS hang_reports (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            received_at TEXT DEFAULT (datetime('now')),
-            session_id TEXT,
-            participant_id TEXT,
-            user_agent TEXT,
-            kind TEXT NOT NULL,
-            occurred_at TEXT,
-            duration_ms REAL,
-            in_xr INTEGER DEFAULT 0,
-            detail TEXT
-        );
     `);
 
     // Run migrations (add columns that might not exist in older databases)

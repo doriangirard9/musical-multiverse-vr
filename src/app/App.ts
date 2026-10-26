@@ -33,7 +33,6 @@ import { ToolSystem } from "./tool/ToolSystem.ts";
 import { PCPlatform } from "./platform/PCPlatform.ts";
 import { VisualEffectSystem } from "./visual/VisualEffectSystem.ts";
 import { XRPlatform } from "./platform/XRPlatform.ts";
-import { HangReporter } from "./diagnostics/HangReporter.ts";
 import { AudioLifecycle } from "./AudioLifecycle.ts";
 
 let _app: App
@@ -103,12 +102,6 @@ export class App {
         if(await XRPlatform.hasXRSupport()) await XRPlatform.initialize(SceneManager.getInstance().getScene(), audioEngine)
         else await PCPlatform.initialize()
 
-        new HangReporter(
-            { sessionId: roomName, participantId },
-            SceneManager.getInstance().getScene(),
-            audioContext,
-            XRPlatform.getInstance()?.xrHelper,
-        )
         new AudioLifecycle(audioContext, XRPlatform.getInstance()?.xrHelper)
 
         report("Preparing menus")
