@@ -2540,14 +2540,27 @@ export class PianoRollN3D implements Node3D {
     if (numerator === this.gridNumerator && Number.isInteger(this.ticksPerSubdivision)) return;
     this.gridNumerator = numerator;
 
-    const wanted = this.preferredSteps;
-    const options = this.getSubdivisionOptions();
-    const steps = options.includes(wanted) ? wanted
-      : options.reduce((best, candidate) => Math.abs(candidate - wanted) < Math.abs(best - wanted) ? candidate : best, options[0]);
-    this.setGridTiming(steps, this.bars, true);
+    this.setGridTiming(this.closestStepsPerBar(this.preferredSteps), this.bars, true);
   }
 
-  private setGridTiming(stepsPerBar: number, bars: number, force = false): void {
+  /** The step count closest to the one wanted that makes a cell a whole number of ticks in the current bar */
+  private closestStepsPerBar(wanted: number): number {
+    const options = this.getSubdivisionOptions();
+    return options.includes(wanted) ? wanted
+      : options.reduce((best, candidate) => Math.abs(candidate - wanted) < Math.abs(best - wanted) ? candidate : best, options[0]);
+  }
+
+  /**
+   * Take the grid of a saved or shared state: the steps per bar asked for and the bar count.
+   * Not published back, since it comes from the shared state already.
+   */
+  private applySharedGridTiming(stepsPerBar: unknown, bars: unknown): void {
+    if (typeof stepsPerBar !== "number" || typeof bars !== "number") return;
+    this.preferredSteps = Math.max(1, Math.floor(stepsPerBar));
+    this.setGridTiming(this.closestStepsPerBar(this.preferredSteps), bars, false, false);
+  }
+
+  private setGridTiming(stepsPerBar: number, bars: number, force = false, notify = true): void {
     const nextSteps = Math.max(1, Math.floor(stepsPerBar));
     const nextBars = Math.max(1, Math.min(8, Math.floor(bars)));
     if (!force && nextSteps === this.subdivisionsPerMeasure && nextBars === this.bars) return;
@@ -2585,7 +2598,7 @@ export class PianoRollN3D implements Node3D {
 
     this.gui.repaintVisibleFromState();
     this._safeSendPatternToPianoRoll();
-    this.context.notifyStateChange("pattern");
+    if (notify) this.context.notifyStateChange("pattern");
     console.log(`Grid updated with ${this.bars} bar(s) and ${this.subdivisionsPerMeasure} steps per bar.`);
   }
 
@@ -2651,12 +2664,18 @@ export class PianoRollN3D implements Node3D {
   // ───────────────────────────────────────────────────────────────────────────
   // Persistence hooks
 
+  // The grid (steps per bar, bars) travels with the pattern: restored in two separate states, a
+  // pattern could arrive before its grid and be cut to the default one bar.
   async getState(key: string): Promise<any> {
-    if (key === "pattern") return { pattern: this.pattern, timestamp: Date.now() };
+    if (key === "pattern") return { pattern: this.pattern, stepsPerBar: this.preferredSteps, bars: this.bars, timestamp: Date.now() };
   }
   async setState(key: string, state: any): Promise<void> {
     console.log("PianoRollN3D setState:", key, state);
-    if (key === "pattern") this.setPattern(state.pattern);
+    if (key === "pattern") {
+      // States saved before the grid was part of them keep the current grid
+      this.applySharedGridTiming(state.stepsPerBar, state.bars);
+      this.setPattern(state.pattern);
+    }
   }
   getStateKeys(): string[] { return ["pattern"]; }
 
