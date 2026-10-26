@@ -7,7 +7,7 @@ import { Node3DContext } from "../../Node3DContext";
 import * as B from "@babylonjs/core";
 import { WamNode, WebAudioModule } from "@webaudiomodules/api";
 import { WamInitializer } from "../../../app/WamInitializer";
-import { WamTransportManager } from "../../../app/node3d/WamTransportManager"; // <-- shared transport
+import { WamTransportManager, type TransportOffset } from "../../../app/node3d/WamTransportManager"; // <-- shared transport
 // strategies
 import { GridStrategy } from "./grid/GridStrategy";
 import { Piano88Strategy } from "./grid/Piano88Strategy";
@@ -73,6 +73,11 @@ const COLOR_HOVER = new B.Color3(1, 1, 0);
  * steps make it longer instead of shrinking every cell, live as well as when a session is reloaded.
  */
 const FIT_COLS = 16;
+
+/** Width of the wide buttons under the grid, "Reset Playhead" and "Clear Notes" */
+const WIDE_BUTTON_WIDTH = 5;
+/** How far "Clear Notes" and REC moved right to make room for "Reset Playhead" on their left */
+const RESET_BUTTON_SHIFT = WIDE_BUTTON_WIDTH + 0.2;
 const PPQN = 24; // Pulses Per Quarter Note -> Provient du WAM PianoRoll, utilisé pour la quantification des notes et le calcul des positions dans le séquenceur.
 
 const DEBUG_LOG = false;
@@ -146,6 +151,7 @@ class PianoRollN3DGUI implements Node3DGUI {
   // Label options
   public labelUsesMidiNumber = false; // optional: show MIDI instead of text label
   public btnClearPattern!: B.Mesh;
+  public btnResetPlayhead!: B.Mesh;
   private timingControlButtons: B.Mesh[] = [];
   private timingControlLabels: B.Mesh[] = [];
 
@@ -279,6 +285,7 @@ class PianoRollN3DGUI implements Node3DGUI {
     this.updateRowVisibility();
     this.recalculateGridBoundaries();
     this.preventClickBetweenNotes();
+    this.resetPlayheadButton()
     this.clearPatternButton()
     this.createTimingControls();
 
@@ -950,7 +957,7 @@ class PianoRollN3DGUI implements Node3DGUI {
       { width: 2, height: 0.6, depth: 0.4 },
       B.Color3.Red(),
       new B.Vector3(
-        this.startX - (this.buttonWidth + this.buttonSpacing) + 8,
+        this.startX - (this.buttonWidth + this.buttonSpacing) + 8 + RESET_BUTTON_SHIFT,
         0.2,
         this.endZ + (this.buttonDepth + this.buttonSpacing)
       ),
@@ -977,13 +984,31 @@ class PianoRollN3DGUI implements Node3DGUI {
     this.preventClickBetweenNotesMesh.visibility = 0;
   }
 
-  private clearPatternButton() {
-    this.btnClearPattern = this.createBox(
-      "clearPatternButton",
-      { width: 5, height: 0.2, depth: 1 },
+  private resetPlayheadButton() {
+    this.btnResetPlayhead = this.createBox(
+      "resetPlayheadButton",
+      { width: WIDE_BUTTON_WIDTH, height: 0.2, depth: 1 },
       B.Color3.Black(),
       new B.Vector3(
         this.startX + (this.buttonWidth + this.buttonSpacing),
+        0.2,
+        this.endZ + (this.buttonDepth + this.buttonSpacing)
+      ),
+      this.root
+    );
+    this.btnResetPlayhead.isVisible = true;
+    this.btnResetPlayhead.addBehavior(new InputToPointerBehavior());
+    this.btnResetPlayhead.actionManager = new B.ActionManager(this.context.scene);
+    this.createLabelForMesh(this.btnResetPlayhead, "Reset Playhead", { textColor: "#fff" })
+  }
+
+  private clearPatternButton() {
+    this.btnClearPattern = this.createBox(
+      "clearPatternButton",
+      { width: WIDE_BUTTON_WIDTH, height: 0.2, depth: 1 },
+      B.Color3.Black(),
+      new B.Vector3(
+        this.startX + (this.buttonWidth + this.buttonSpacing) + RESET_BUTTON_SHIFT,
         0.2,
         this.endZ + (this.buttonDepth + this.buttonSpacing)
       ),
@@ -1091,7 +1116,15 @@ class PianoRollN3DGUI implements Node3DGUI {
 
     if (this.btnRecord) {
       this.btnRecord.position.set(
-        this.startX - (this.buttonWidth + this.buttonSpacing) + 8,
+        this.startX - (this.buttonWidth + this.buttonSpacing) + 8 + RESET_BUTTON_SHIFT,
+        0.2,
+        bottomZ
+      );
+    }
+
+    if (this.btnResetPlayhead) {
+      this.btnResetPlayhead.position.set(
+        this.startX + (this.buttonWidth + this.buttonSpacing),
         0.2,
         bottomZ
       );
@@ -1099,7 +1132,7 @@ class PianoRollN3DGUI implements Node3DGUI {
 
     if (this.btnClearPattern) {
       this.btnClearPattern.position.set(
-        this.startX + (this.buttonWidth + this.buttonSpacing),
+        this.startX + (this.buttonWidth + this.buttonSpacing) + RESET_BUTTON_SHIFT,
         0.2,
         bottomZ
       );
@@ -1433,6 +1466,12 @@ export class PianoRollN3D implements Node3D {
   private gridNumerator = 4;         // the time signature numerator the grid ticks were computed for
   private preferredSteps = 16;       // the steps per bar asked for, taken back when the bar allows it again
   private bars = 1;
+  /**
+   * How many ticks behind the shared transport this piano roll plays, set by "Reset Playhead".
+   * Shared in ticks rather than seconds: every headset applies it to its own clock, so this piano
+   * roll keeps the same place against the other instruments everywhere, whatever the tempo.
+   */
+  private playheadOffsetTicks = 0;
   private beatDuration = 0;          // seconds per beat (1/quarter)
   private cellDuration = 0;          // seconds per column
 
@@ -1618,6 +1657,7 @@ export class PianoRollN3D implements Node3D {
     const mat = this.gui.btnStartStop.material as B.StandardMaterial;
     mat.diffuseColor = this.transport.getPlaying() ? B.Color3.Green() : B.Color3.Red();
     this.handleClearPattern();
+    this.handleResetPlayhead();
 
 
     // initialize input managers
@@ -1637,6 +1677,7 @@ export class PianoRollN3D implements Node3D {
         mesh === this.gui.midiOutput ||
         mesh === this.gui.btnStartStop ||
         mesh === this.gui.btnClearPattern ||
+        mesh === this.gui.btnResetPlayhead ||
         this.gui.keyBoard.includes(mesh as B.Mesh) ||
         this.gui.keyLabels.includes(mesh as B.Mesh) ||
         mesh === this.gui.noteCell) {
@@ -1875,6 +1916,7 @@ export class PianoRollN3D implements Node3D {
 
     // Join shared transport group
     this.transport.register(this.wamInstance.audioNode);
+    if (this.playheadOffsetTicks !== 0) this.pushPlayheadOffset();
 
     // connect to drump
     // Example with a web assembly instrument (Pro24 synth) WAM compiled from C-Major code)
@@ -1913,7 +1955,7 @@ export class PianoRollN3D implements Node3D {
   private update(): void {
     if (!this.gui?.playhead) return;
 
-    const elapsed = this.transport.getElapsedSeconds();
+    const elapsed = this.localElapsed();
     const currentCellFloat = (elapsed / this.cellDuration) % this.gui.cols;
 
     const x = (currentCellFloat * (this.gui.buttonWidth + this.gui.buttonSpacing))
@@ -2023,7 +2065,7 @@ export class PianoRollN3D implements Node3D {
   private getCurrentTick(_timestamp: number): number {
     // Must match the playhead formula: column = elapsed / cellDuration
     // Each subdivision = ticksPerSubdivision ticks, so tick = elapsed / cellDuration * ticksPerSubdivision
-    const elapsed = this.transport.getElapsedSeconds();
+    const elapsed = this.localElapsed();
     const tickPosition = Math.floor((elapsed / this.cellDuration) * this.ticksPerSubdivision);
     return tickPosition % this.pattern.length;
   }
@@ -2174,6 +2216,47 @@ export class PianoRollN3D implements Node3D {
 
   // ───────────────────────────────────────────────────────────────────────────
   // Pattern delegate (safe / deferred)
+
+  private handleResetPlayhead() {
+    this.gui.btnResetPlayhead.actionManager = new B.ActionManager(this.gui.context.scene);
+    this.gui.btnResetPlayhead.actionManager.registerAction(
+      new B.ExecuteCodeAction(B.ActionManager.OnPickDownTrigger, () => this.resetPlayhead())
+    );
+  }
+
+  /**
+   * Start this piano roll's loop over, without touching the others. The offset is rounded down to a
+   * whole column: the loop restarts on the grid, in step with the other instruments, and from the
+   * start of the column being played rather than from the end of the loop.
+   */
+  public resetPlayhead(): void {
+    if (this.pattern.length <= 0) return;
+    const elapsedTicks = this.transport.getElapsedBeats() * PPQN;
+    const column = this.ticksPerSubdivision;
+    this.applyPlayheadOffset((Math.floor(elapsedTicks / column) * column) % this.pattern.length);
+    this.context.notifyStateChange("playhead");
+  }
+
+  /** Where this piano roll stands against the shared transport */
+  private transportOffset(): TransportOffset {
+    return { beats: this.playheadOffsetTicks / PPQN, wrapBeats: this.pattern.length / PPQN };
+  }
+
+  /** Seconds elapsed on this piano roll's own loop, the shared transport time minus its offset */
+  private localElapsed(): number {
+    return this.transport.getElapsedSeconds(this.transportOffset());
+  }
+
+  private applyPlayheadOffset(ticks: number): void {
+    this.playheadOffsetTicks = ticks;
+    this.pushPlayheadOffset();
+  }
+
+  /** Tell the plugin where it plays from, once it exists */
+  private pushPlayheadOffset(): void {
+    const audioNode = this.wamInstance?.audioNode;
+    if (audioNode) this.transport.setNodeOffset(audioNode, this.transportOffset());
+  }
 
   private handleClearPattern() {
     this.gui.btnClearPattern.actionManager = new B.ActionManager(this.gui.context.scene);
@@ -2576,6 +2659,7 @@ export class PianoRollN3D implements Node3D {
     this.bars = nextBars;
     this.ticksPerSubdivision = this.ticksForSubdivisionCount(nextSteps);
     this.rescalePatternLength(this.bars * this.subdivisionsPerMeasure * this.ticksPerSubdivision);
+    if (this.playheadOffsetTicks !== 0) this.pushPlayheadOffset(); // the loop the offset wraps around changed
     this.gui.cols = this.bars * nextSteps;
 
     const rows = this.gui.strategy.getRowCount();
@@ -2674,17 +2758,22 @@ export class PianoRollN3D implements Node3D {
   // The grid (steps per bar, bars) travels with the pattern: restored in two separate states, a
   // pattern could arrive before its grid and be cut to the default one bar.
   async getState(key: string): Promise<any> {
-    if (key === "pattern") return { pattern: this.pattern, stepsPerBar: this.preferredSteps, bars: this.bars, timestamp: Date.now() };
+    // A copy, never the live pattern: the shared document keeps what it is given by reference and sends
+    // it again to every newcomer, so a pattern later changed in place, as when its notes are cleared on
+    // plugging an instrument, reached newcomers empty while this headset still showed the notes.
+    if (key === "pattern") return { pattern: structuredClone(this.pattern), stepsPerBar: this.preferredSteps, bars: this.bars, timestamp: Date.now() };
+    if (key === "playhead") return { offsetTicks: this.playheadOffsetTicks };
   }
   async setState(key: string, state: any): Promise<void> {
     console.log("PianoRollN3D setState:", key, state);
     if (key === "pattern") {
       // States saved before the grid was part of them keep the current grid
       this.applySharedGridTiming(state.stepsPerBar, state.bars);
-      this.setPattern(state.pattern);
+      this.setPattern(structuredClone(state.pattern)); // a copy, for the same reason as in getState
     }
+    if (key === "playhead" && typeof state?.offsetTicks === "number") this.applyPlayheadOffset(state.offsetTicks);
   }
-  getStateKeys(): string[] { return ["pattern"]; }
+  getStateKeys(): string[] { return ["pattern", "playhead"]; }
 
   // ───────────────────────────────────────────────────────────────────────────
   // Cleanup
