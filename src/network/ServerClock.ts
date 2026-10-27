@@ -57,6 +57,6 @@ export class ServerClock {
         }
         if (!best) return;
         this.offset = best.offset;
-        console.warn(`[ServerClock] offset ${best.offset.toFixed(0)}ms (round trip ${best.roundTrip}ms)`);
+        console.log(`[ServerClock] offset ${best.offset.toFixed(0)}ms (round trip ${best.roundTrip}ms)`);
     }
 }

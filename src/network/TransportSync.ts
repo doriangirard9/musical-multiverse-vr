@@ -96,8 +96,6 @@ export class TransportSync {
 
     /** Write where this participant is now as the group's position */
     private publish(): void {
-        // TEMPORARY: one bar between two devices in Sync
-        console.warn(`[SyncDebug] publish playing=${this.transport.isPlaying} beats=${this.transport.getElapsedBeats().toFixed(3)} at=${ServerClock.now()} spb=${this.transport.getSecondsPerBeat().toFixed(4)} tempo=${this.transport.getTempo()}`);
         this.doc.transact(() => {
             this.map.set(TransportSync.PLAYING, this.transport.isPlaying);
             this.map.set(TransportSync.BEATS, this.transport.getElapsedBeats());
@@ -116,8 +114,6 @@ export class TransportSync {
         const elapsed = playing ? Math.max(0, (ServerClock.now() - at) / 1000) : 0;
         const seconds = beats * secondsPerBeat + elapsed;
 
-        // TEMPORARY: one bar between two devices in Sync
-        console.warn(`[SyncDebug] apply playing=${playing} beats=${beats.toFixed(3)} at=${at} now=${ServerClock.now()} elapsed=${elapsed.toFixed(3)}s -> seconds=${seconds.toFixed(3)} (beats ${(seconds / secondsPerBeat).toFixed(3)}) spb=${secondsPerBeat.toFixed(4)} tempo=${this.transport.getTempo()}`);
         this.applying = true;
         try {
             if (!playing && this.transport.isPlaying) this.transport.stop();

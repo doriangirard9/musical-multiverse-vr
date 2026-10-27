@@ -2244,8 +2244,6 @@ export class PianoRollN3D implements Node3D {
     const elapsedTicks = this.transport.getElapsedBeats() * PPQN;
     const column = this.ticksPerSubdivision;
     this.applyPlayheadOffset((Math.floor(elapsedTicks / column) * column) % this.pattern.length);
-    // TEMPORARY: one bar between two devices in Sync
-    console.warn(`[SyncDebug] reset elapsedTicks=${elapsedTicks.toFixed(1)} column=${column} length=${this.pattern.length} -> offset=${this.playheadOffsetTicks} local=${this.localElapsed().toFixed(3)}s cell=${this.cellDuration.toFixed(4)}s cols=${this.gui.cols}`);
     if (!TransportSync.instance?.enabled) return;
     this.sharedPlayheadOffsetTicks = this.playheadOffsetTicks;
     this.context.notifyStateChange("playhead");
@@ -2788,8 +2786,6 @@ export class PianoRollN3D implements Node3D {
     if (key === "playhead" && typeof state?.offsetTicks === "number") {
       this.sharedPlayheadOffsetTicks = state.offsetTicks;
       if (TransportSync.instance?.enabled) this.applyPlayheadOffset(state.offsetTicks);
-      // TEMPORARY: one bar between two devices in Sync
-      console.warn(`[SyncDebug] received offset=${state.offsetTicks} sync=${TransportSync.instance?.enabled} globalBeats=${this.transport.getElapsedBeats().toFixed(3)} length=${this.pattern.length} -> local=${this.localElapsed().toFixed(3)}s cell=${this.cellDuration.toFixed(4)}s cols=${this.gui.cols}`);
     }
   }
   getStateKeys(): string[] { return ["pattern", "playhead"]; }
