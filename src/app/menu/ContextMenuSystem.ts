@@ -46,7 +46,13 @@ export class ContextMenuSystem {
     ){
         this.highlight = new BoxHighlight(scene.getScene(), Color3.Red())
 
-        inputs.b_button.onDown.add(()=>{
+        // Y, as before B was given to drawing (see DrawingSystem). It toggles: pressed again while the
+        // menu is open, it closes it rather than opening it again on what is aimed at.
+        inputs.y_button.onDown.add(()=>{
+            if(this.menu && this.menus.current_menu==this.menu){
+                this.closeMenu()
+                return
+            }
             for(const pt of [targets.screen, targets.left]){
                 if(pt.target.node){
                     this.openNodeMenu(pt.target.node)
@@ -56,9 +62,6 @@ export class ContextMenuSystem {
                     this.openConnectionMenu(pt.target.connection)
                     return
                 }
-            }
-            if(this.menu && this.menus.current_menu==this.menu){
-                this.menus.close()
             }
         })
     }

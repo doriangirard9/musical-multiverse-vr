@@ -78,6 +78,7 @@ export class ControlsUISystem {
     private _createLabels(){
         // LEFT CONTROLLER LABELS
         this._createLabel("left-X", "Hide/Show", "left", "x-button", new B.Vector3(-0.005, 0.015, 0), "#9C27B0");
+        this._createLabel("left-Y", "Context Menu (Node and connections)", "left", "y-button", new B.Vector3(0.005, 0.025, 0.005), "#FFC107");
         this._createLabel("left-Grip", "[Rotate selection]", "left", "xr-standard-squeeze", new B.Vector3(0.025, 0, 0), "#4CAF50");
         this._createLabel("left-Trigger", "Select (Hold)", "left", "xr-standard-trigger", new B.Vector3(0, -0.015, 0.03), "#2196F3");
         this._createLabel("left-Stick", "Move", "left", "xr-standard-thumbstick", new B.Vector3(0, 0.025, 0.015), "#4CAF50");

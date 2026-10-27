@@ -136,6 +136,7 @@ export class App {
         await Promise.all([
             DrawingSystem.initialize(
                 NetworkManager.getInstance(),
+                InputManager.getInstance(),
                 SceneManager.getInstance(),
                 usercolor,
             ),

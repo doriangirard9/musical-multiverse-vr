@@ -1,16 +1,20 @@
 import { Color3, int, Vector2, Vector3 } from "@babylonjs/core"
 import { NetworkManager } from "../../network/NetworkManager"
+import { InputManager } from "../../xr/inputs"
 import { SceneManager } from "../SceneManager"
 import { Curve3D } from "../../world/curve/Curve3D"
 import { RandomUtils } from "../../node3d/tools/utils/RandomUtils"
 
+
+/** How often a point is added to a stroke drawn on B, in ms */
+const STROKE_INTERVAL = 50
 
 /**
  * The 3D drawing functionnality. It allows to draw with the controllers in the scene.
  * Manager for drawing in the 3D world.
  * It allows users to create and manipulate 3D curves that are synchronized across the network.
  * It uses the Curve3D class to represent individual curves and manages their synchronization using the NetworkManager.
- * The hands of the user feed the strokes: the system owns the curves, not the inputs.
+ * Holding the B button draws with the right hand, whatever it holds; the pencil tool feeds strokes too.
  */
 export class DrawingSystem {
 
@@ -89,10 +93,23 @@ export class DrawingSystem {
 
     constructor(
         readonly network: NetworkManager,
+        readonly inputs: InputManager,
         readonly scene: SceneManager,
         readonly usercolor: Color3,
     ){
         this.manager = Curve3D.getSyncManager(network.doc,scene.getScene(), this.onAdd.bind(this))
+        this.registerInputs()
+    }
+
+    /** Drawing on B: pressing it starts a stroke, which follows the right hand until B is released */
+    private registerInputs(){
+        let stroke: DrawingStroke | null = null
+        this.inputs.b_button.setPressInterval(
+            STROKE_INTERVAL,
+            () => stroke?.add(this.inputs.right.pointer.origin),
+            () => { stroke = this.startStroke() },
+            () => { stroke = null },
+        )
     }
 
     private create(color: Color3): Curve3D {
