@@ -71,6 +71,12 @@ export class HandMenuSystem {
         })
         TransportSync.instance?.onModeChange(() => this.updateMenu())
 
+        // The stopwatch moves every second while the group plays, and may be started or stopped by
+        // the others: the menu is redrawn whenever the shown time changes.
+        setInterval(() => {
+            if (this.stopwatchText() !== this.shownStopwatch) this.updateMenu()
+        }, 1000)
+
         if (MicrophoneSystem.hasInstance()) {
             MicrophoneSystem.getInstance().onStateChanged.add(() => {
                 this.transportMenu.updateMenu()
@@ -78,6 +84,22 @@ export class HandMenuSystem {
         }
 
         this.updateMenu()
+    }
+
+    /** The stopwatch line last drawn in the menu */
+    private shownStopwatch = ""
+
+    /** The time the group in Sync has played, as "⏱ m:ss", or h:mm:ss past an hour */
+    private stopwatchText(): string {
+        const sync = TransportSync.instance
+        if (!sync) return ""
+        const total = Math.floor(sync.getPlayedMs() / 1000)
+        const hours = Math.floor(total / 3600)
+        const minutes = Math.floor(total / 60) % 60
+        const seconds = String(total % 60).padStart(2, "0")
+        return hours > 0
+            ? `⏱ ${hours}:${String(minutes).padStart(2, "0")}:${seconds}`
+            : `⏱ ${minutes}:${seconds}`
     }
 
     updateMenu(){
@@ -90,6 +112,10 @@ export class HandMenuSystem {
         else buttons.push({ label: "▶ Play", color: "#66ff66", click: ()=>{
             this.wamTransport.start()
         }})
+
+        // How long the group in Sync has played
+        this.shownStopwatch = this.stopwatchText()
+        if (this.shownStopwatch) buttons.push({ label: this.shownStopwatch, color: "#ffffff" })
 
         // Play together with the others in Sync, or alone
         const sync = TransportSync.instance
