@@ -101,7 +101,9 @@ export class SessionConnector {
                     network.node3d.connections.suppressNetworkAdds();
                     
                     // Await the load, then perform the state change in a synchronous transaction
-                    await Serialization.getInstance().load(parsedData);
+                    await Serialization.getInstance().load(parsedData, pendingKinds => {
+                        if (pendingKinds.length > 0) this.updateLoadingText(stamp(`Restoring ${parsedData.nodes?.length || 0} nodes... waiting for: ${pendingKinds.join(', ')}`));
+                    });
                     console.log('[SessionConnector] Serialization.load() completed successfully.');
                     
                     // Re-enable network adds now that our state is authoritative

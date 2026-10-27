@@ -104,6 +104,11 @@ export class TimerN3DGUI implements Node3DGUI {
         T.MeshUtils.setColor(this.audioOutput, new B.Color4(1, 0, 0, 1));
         this.audioOutput.parent = this.root;
         this.audioOutput.position.set(0.65, -0.4, 0);
+
+        // Painted once here, and not only by TimerN3D: a dynamic texture is not ready until it has been
+        // drawn, and the shop thumbnail and the loading impostor build the GUI alone. Undrawn, their
+        // render waited for it forever, and so did the loading of every session holding a timer.
+        this.paint(formatTime(DEFAULT_DURATION), "muteUntilZero", false);
     }
 
     /** Paint the remaining time, and the mode below it */
