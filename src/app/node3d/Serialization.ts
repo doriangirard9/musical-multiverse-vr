@@ -103,28 +103,48 @@ export class Serialization {
      * @param description The description of the graph, including the nodes and their connections. The nodes are described by their kind, position, rotation, and additional data. The connections are described by the indices of the from and to nodes in the nodes array, and the ids of the connectables that are connected.
      * @returns The list of the created Node3DInstances. The order of the nodes in the list is the same as the order of the nodes in the description.
      */
-    public async load(description: Node3DGraphDescription): Promise<Node3DInstance[]>{
+    public async load(
+        description: Node3DGraphDescription,
+        onPending?: (pendingKinds: string[]) => void,
+    ): Promise<Node3DInstance[]>{
         console.log("Loading graph", description)
 
-        const nodes = (await Promise.all(description.nodes.map(async nodeDesc => {
-            const node = await this.mNode.addNode3d(
-                nodeDesc.kind,
-                Vector3.FromArray(nodeDesc.position)
-            )
-            console.log(`Created node ${node}`)
-            if(!node) return
+        // The kinds still loading, by index in the description. A module that never finishes loading
+        // holds the whole load back without any error: reported, it can be told apart.
+        const pending = new Map<number, string>(description.nodes.map((it, i) => [i, it.kind]))
+        const report = () => onPending?.([...pending.values()])
+        const reporter = setInterval(() => {
+            report()
+            if (pending.size > 0) console.warn(`[Serialization] Still loading: ${[...pending.values()].join(", ")}`)
+        }, 5000)
 
-            node.boundingBoxMesh.rotationQuaternion = Quaternion.FromArray(nodeDesc.rotation)
-            node.boundingBoxMesh.position = Vector3.FromArray(nodeDesc.position)
-            node.updatePosition()
+        let nodes: Node3DInstance[]
+        try {
+            nodes = (await Promise.all(description.nodes.map(async nodeDesc => {
+                const node = await this.mNode.addNode3d(
+                    nodeDesc.kind,
+                    Vector3.FromArray(nodeDesc.position)
+                )
+                console.log(`Created node ${node}`)
+                if(!node) return
 
-            const id = this.network.nodes.getId(node)!!
-            await this.network.nodes.setState(id, nodeDesc.data)
+                node.boundingBoxMesh.rotationQuaternion = Quaternion.FromArray(nodeDesc.rotation)
+                node.boundingBoxMesh.position = Vector3.FromArray(nodeDesc.position)
+                node.updatePosition()
 
-            console.log(`Loaded node ${node.factory.label} at position ${node.boundingBoxMesh.position.toString()}`)
+                const id = this.network.nodes.getId(node)!!
+                await this.network.nodes.setState(id, nodeDesc.data)
 
-            return node
-        }))).filter(it=>it!=undefined)
+                console.log(`Loaded node ${node.factory.label} at position ${node.boundingBoxMesh.position.toString()}`)
+
+                return node
+            }).map((loading, index) => loading.finally(() => {
+                pending.delete(index)
+                report()
+            })))).filter(it=>it!=undefined) as Node3DInstance[]
+        } finally {
+            clearInterval(reporter)
+        }
 
         console.log("Loaded nodes", nodes)
 
