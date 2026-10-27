@@ -25,6 +25,8 @@ export class TransportSync {
     static readonly PLAYING = "playing";
     static readonly BEATS = "beats";
     static readonly AT = "at";
+    /** Time the group has played, in ms, up to AT: the stopwatch of the session */
+    static readonly PLAYED = "played";
 
     private static _instance?: TransportSync;
 
@@ -94,12 +96,32 @@ export class TransportSync {
         return () => { this.listeners.delete(listener); };
     }
 
+    /**
+     * How long the group in Sync has played, in ms: it runs while the group plays and stops while it
+     * pauses. The map is not saved, so it starts again from 0 once everyone has left.
+     */
+    getPlayedMs(): number {
+        return this.playedAt(ServerClock.now());
+    }
+
+    /** The time played by the group at a given server time, from the last published position */
+    private playedAt(now: number): number {
+        const played = this.map.get(TransportSync.PLAYED);
+        const at = this.map.get(TransportSync.AT);
+        const base = typeof played === "number" ? played : 0;
+        if (this.map.get(TransportSync.PLAYING) !== true || typeof at !== "number") return base;
+        return base + Math.max(0, now - at);
+    }
+
     /** Write where this participant is now as the group's position */
     private publish(): void {
+        const now = ServerClock.now();
+        const played = this.playedAt(now);
         this.doc.transact(() => {
             this.map.set(TransportSync.PLAYING, this.transport.isPlaying);
             this.map.set(TransportSync.BEATS, this.transport.getElapsedBeats());
-            this.map.set(TransportSync.AT, ServerClock.now());
+            this.map.set(TransportSync.AT, now);
+            this.map.set(TransportSync.PLAYED, played);
         }, this);
     }
 
