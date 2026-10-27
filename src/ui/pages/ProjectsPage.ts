@@ -1,6 +1,7 @@
 import { ApiClient, ApiError } from '../../auth/ApiClient.ts';
 import { HashRouter } from '../../router/HashRouter.ts';
 import { ROUTES } from '../../router/routes.ts';
+import { showCollaboratorsDialog, showInviteDialog, type DialogTarget } from './SessionDialogs.ts';
 
 interface ProjectInfo {
     id: string;
@@ -8,12 +9,6 @@ interface ProjectInfo {
     description: string;
     session_count: number;
     sessions?: Array<{ id: string; name: string; is_public: number; is_locked?: number; created_at: string }>;
-}
-
-interface CollaboratorInfo {
-    id: string;
-    username: string;
-    granted_at: string;
 }
 
 /**
@@ -89,31 +84,9 @@ export class ProjectsPage {
                     </div>
                 </div>
 
-                <div id="wj-invite-modal" class="wj-modal-backdrop" style="display:none;">
-                    <div class="wj-modal">
-                        <h2 class="wj-modal-title">Invite Collaborator</h2>
-                        <input type="hidden" id="wj-invite-session-id" />
-                        <div class="wj-form-group">
-                            <label class="wj-label" for="wj-invite-username">Username</label>
-                            <input class="wj-input" type="text" id="wj-invite-username" placeholder="Enter username" />
-                        </div>
-                        <div class="wj-modal-actions">
-                            <button class="wj-btn wj-btn-secondary" id="wj-invite-cancel">Cancel</button>
-                            <button class="wj-btn wj-btn-primary" id="wj-invite-submit">Invite</button>
-                        </div>
-                    </div>
-                </div>
-
-                <div id="wj-collaborators-modal" class="wj-modal-backdrop" style="display:none;">
-                    <div class="wj-modal">
-                        <h2 class="wj-modal-title">Collaborators</h2>
-                        <div id="wj-collaborators-list">
-                            <div class="wj-empty-state">Loading...</div>
-                        </div>
-                        <div class="wj-modal-actions">
-                            <button class="wj-btn wj-btn-secondary" id="wj-collaborators-close">Close</button>
-                        </div>
-                    </div>
+                <!-- Modal of the session dialogs (invite, collaborators), filled by SessionDialogs -->
+                <div id="wj-session-dialog-modal" class="wj-modal-backdrop" style="display:none;">
+                    <div class="wj-modal" id="wj-session-dialog-content"></div>
                 </div>
 
                 <div id="wj-projects-list" class="wj-session-list">
@@ -168,24 +141,9 @@ export class ProjectsPage {
 
         submitSessionBtn?.addEventListener('click', () => this.handleCreateSession(el));
 
-        const inviteCancelBtn = el.querySelector('#wj-invite-cancel');
-        const inviteSubmitBtn = el.querySelector('#wj-invite-submit');
-        const inviteModal = el.querySelector('#wj-invite-modal') as HTMLElement;
-        const collaboratorsCloseBtn = el.querySelector('#wj-collaborators-close');
-        const collaboratorsModal = el.querySelector('#wj-collaborators-modal') as HTMLElement;
-
-        inviteCancelBtn?.addEventListener('click', () => {
-            inviteModal.style.display = 'none';
-        });
-        inviteSubmitBtn?.addEventListener('click', () => this.handleInvite(el));
-        inviteModal?.addEventListener('click', (event) => {
-            if (event.target === inviteModal) inviteModal.style.display = 'none';
-        });
-        collaboratorsCloseBtn?.addEventListener('click', () => {
-            collaboratorsModal.style.display = 'none';
-        });
-        collaboratorsModal?.addEventListener('click', (event) => {
-            if (event.target === collaboratorsModal) collaboratorsModal.style.display = 'none';
+        const dialogModal = el.querySelector('#wj-session-dialog-modal') as HTMLElement;
+        dialogModal?.addEventListener('click', (event) => {
+            if (event.target === dialogModal) dialogModal.style.display = 'none';
         });
     }
 
@@ -355,7 +313,7 @@ export class ProjectsPage {
                     e.preventDefault();
                     e.stopPropagation();
                     const sessionId = (btn as HTMLElement).dataset.sessionId;
-                    if (sessionId) this.showInviteModal(el, sessionId);
+                    if (sessionId) showInviteDialog(this.openSessionDialog(el), this.api, sessionId);
                 });
             });
 
@@ -364,7 +322,7 @@ export class ProjectsPage {
                     e.preventDefault();
                     e.stopPropagation();
                     const sessionId = (btn as HTMLElement).dataset.sessionId;
-                    if (sessionId) this.showCollaboratorsModal(el, sessionId);
+                    if (sessionId) showCollaboratorsDialog(this.openSessionDialog(el), this.api, sessionId);
                 });
             });
 
@@ -564,79 +522,11 @@ export class ProjectsPage {
         }
     }
 
-    private showInviteModal(el: HTMLElement, sessionId: string): void {
-        const modal = el.querySelector('#wj-invite-modal') as HTMLElement;
-        const sessionIdInput = el.querySelector('#wj-invite-session-id') as HTMLInputElement;
-        const usernameInput = el.querySelector('#wj-invite-username') as HTMLInputElement;
-
-        sessionIdInput.value = sessionId;
-        usernameInput.value = '';
+    /** Show the modal of the session dialogs, and how to close it */
+    private openSessionDialog(el: HTMLElement): DialogTarget {
+        const modal = el.querySelector('#wj-session-dialog-modal') as HTMLElement;
+        const content = el.querySelector('#wj-session-dialog-content') as HTMLElement;
         modal.style.display = 'flex';
-        usernameInput.focus();
-    }
-
-    private async handleInvite(el: HTMLElement): Promise<void> {
-        const modal = el.querySelector('#wj-invite-modal') as HTMLElement;
-        const sessionId = (el.querySelector('#wj-invite-session-id') as HTMLInputElement).value;
-        const usernameInput = el.querySelector('#wj-invite-username') as HTMLInputElement;
-
-        const username = usernameInput.value.trim();
-        if (!username) {
-            usernameInput.focus();
-            return;
-        }
-
-        try {
-            await this.api.request('POST', `/sessions/${sessionId}/invite`, { username });
-            modal.style.display = 'none';
-            alert(`Invitation sent to ${username}`);
-        } catch (e) {
-            alert(e instanceof ApiError ? e.message : 'Failed to send invitation');
-        }
-    }
-
-    private async showCollaboratorsModal(el: HTMLElement, sessionId: string): Promise<void> {
-        const modal = el.querySelector('#wj-collaborators-modal') as HTMLElement;
-        const list = el.querySelector('#wj-collaborators-list') as HTMLElement;
-        modal.style.display = 'flex';
-        list.innerHTML = '<div class="wj-empty-state">Loading...</div>';
-
-        try {
-            const data = await this.api.request<{ collaborators: CollaboratorInfo[] }>(
-                'GET',
-                `/sessions/${sessionId}/collaborators`,
-            );
-
-            if (data.collaborators.length === 0) {
-                list.innerHTML = '<div class="wj-empty-state">No collaborators yet.</div>';
-                return;
-            }
-
-            list.innerHTML = data.collaborators.map(collaborator => `
-                <div class="wj-collab-item" data-user-id="${this.escapeHtml(collaborator.id)}">
-                    <div>
-                        <div class="wj-collab-name">${this.escapeHtml(collaborator.username)}</div>
-                        <div class="wj-collab-date">Added ${new Date(collaborator.granted_at).toLocaleString()}</div>
-                    </div>
-                    <button class="wj-collab-remove" data-user-id="${this.escapeHtml(collaborator.id)}">Remove</button>
-                </div>
-            `).join('');
-
-            list.querySelectorAll('.wj-collab-remove').forEach(button => {
-                button.addEventListener('click', async () => {
-                    const userId = (button as HTMLElement).dataset.userId;
-                    if (!userId || !confirm('Remove this collaborator?')) return;
-
-                    try {
-                        await this.api.request('DELETE', `/sessions/${sessionId}/collaborators`, { userId });
-                        await this.showCollaboratorsModal(el, sessionId);
-                    } catch (e) {
-                        alert(e instanceof ApiError ? e.message : 'Failed to remove collaborator');
-                    }
-                });
-            });
-        } catch (e) {
-            list.innerHTML = `<div class="wj-empty-state">${this.escapeHtml(e instanceof ApiError ? e.message : 'Failed to load collaborators')}</div>`;
-        }
+        return { content, close: () => { modal.style.display = 'none'; } };
     }
 }

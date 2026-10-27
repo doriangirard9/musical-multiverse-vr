@@ -2,6 +2,7 @@ import { AuthService } from '../../auth/AuthService.ts';
 import { ApiClient } from '../../auth/ApiClient.ts';
 import { HashRouter } from '../../router/HashRouter.ts';
 import { ROUTES } from '../../router/routes.ts';
+import { showCollaboratorsDialog, showInviteDialog, type DialogTarget } from './SessionDialogs.ts';
 
 interface SessionInfo {
     id: string;
@@ -12,6 +13,11 @@ interface SessionInfo {
     project_name: string;
     owner_username: string;
     participant_count: number;
+}
+
+interface ProjectInfo {
+    id: string;
+    name: string;
 }
 
 interface NotificationInfo {
@@ -32,6 +38,8 @@ export class SessionBrowserPage {
     private element: HTMLDivElement | null = null;
     private pollInterval: ReturnType<typeof setInterval> | null = null;
     private notifPollInterval: ReturnType<typeof setInterval> | null = null;
+    /** The listed sessions by id, to suggest the name and visibility of a copy */
+    private sessions = new Map<string, SessionInfo>();
 
     constructor(
         private readonly auth: AuthService,
@@ -81,6 +89,11 @@ export class SessionBrowserPage {
 
                 <div id="wj-sessions-list" class="wj-session-list">
                     <div class="wj-empty-state">Loading sessions...</div>
+                </div>
+
+                <!-- Modal of the actions on a session card (duplicate, invite, collaborators), filled by openActionModal -->
+                <div id="wj-action-modal" class="wj-modal-backdrop" style="display:none;">
+                    <div class="wj-modal" id="wj-action-content"></div>
                 </div>
 
                 <!-- Notifications Modal -->
@@ -167,6 +180,11 @@ export class SessionBrowserPage {
             if (e.target === notifModal) notifModal.style.display = 'none';
         });
 
+        const actionModal = el.querySelector('#wj-action-modal') as HTMLElement;
+        actionModal?.addEventListener('click', (e) => {
+            if (e.target === actionModal) actionModal.style.display = 'none';
+        });
+
         let currentTab = 'public';
         tabs.forEach(tab => {
             tab.addEventListener('click', () => {
@@ -241,6 +259,7 @@ export class SessionBrowserPage {
                 return;
             }
 
+            this.sessions = new Map(sessions.map(s => [s.id, s]));
             listEl.innerHTML = sessions.map(s => `
                 <div class="wj-session-card" data-session-id="${s.id}">
                     <div class="wj-session-info">
@@ -257,9 +276,27 @@ export class SessionBrowserPage {
                         <span class="wj-participants-dot ${s.participant_count > 0 ? '' : 'wj-empty'}"></span>
                         ${s.participant_count}/${s.max_users}
                     </div>
+                    ${tab === 'mine' ? `
+                    <button class="wj-btn wj-btn-secondary wj-hud-btn wj-invite-btn" data-session-id="${s.id}" title="Invite a collaborator">Invite</button>
+                    <button class="wj-btn wj-btn-secondary wj-hud-btn wj-collab-btn" data-session-id="${s.id}" title="Manage collaborators">Collaborators</button>
+                    ` : ''}
+                    <button class="wj-btn wj-btn-secondary wj-hud-btn wj-dup-btn" data-session-id="${s.id}" title="Copy this session into one of your projects">Duplicate</button>
                     <button class="wj-btn wj-btn-primary wj-hud-btn">Join</button>
                 </div>
             `).join('');
+
+            const bindCardButton = (selector: string, open: (sessionId: string) => void) => {
+                listEl.querySelectorAll(selector).forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const sessionId = (btn as HTMLElement).dataset.sessionId;
+                        if (sessionId) open(sessionId);
+                    });
+                });
+            };
+            bindCardButton('.wj-dup-btn', id => this.openDuplicate(el, id));
+            bindCardButton('.wj-invite-btn', id => showInviteDialog(this.openActionModal(el), this.api, id));
+            bindCardButton('.wj-collab-btn', id => showCollaboratorsDialog(this.openActionModal(el), this.api, id));
 
             // Click handlers for join
             listEl.querySelectorAll('.wj-session-card').forEach(card => {
@@ -273,6 +310,133 @@ export class SessionBrowserPage {
         } catch (err) {
             console.error('[SessionBrowser] Failed to load sessions:', err);
         }
+    }
+
+    /**
+     * Open the dialog copying a session into one of the user's projects. A visitor without an
+     * account has no project to copy into: the dialog offers to create one, or to log in.
+     */
+    private async openDuplicate(el: HTMLElement, sessionId: string): Promise<void> {
+        const { content, close } = this.openActionModal(el);
+
+        if (!this.auth.getUser()) {
+            content.innerHTML = `
+                <h2 class="wj-modal-title">Duplicate Session</h2>
+                <p class="wj-modal-text">Copying a session saves it into one of your projects: create an account, or log in, to duplicate it.</p>
+                <div class="wj-modal-actions">
+                    <button class="wj-btn wj-btn-secondary" id="wj-dup-cancel">Cancel</button>
+                    <button class="wj-btn wj-btn-secondary" id="wj-dup-login">Log In</button>
+                    <button class="wj-btn wj-btn-primary" id="wj-dup-register">Create Account</button>
+                </div>
+            `;
+            content.querySelector('#wj-dup-cancel')?.addEventListener('click', close);
+            content.querySelector('#wj-dup-login')?.addEventListener('click', () => this.router.navigate(ROUTES.LOGIN));
+            content.querySelector('#wj-dup-register')?.addEventListener('click', () => this.router.navigate(ROUTES.REGISTER));
+            return;
+        }
+
+        content.innerHTML = `<h2 class="wj-modal-title">Duplicate Session</h2><div class="wj-empty-state">Loading your projects...</div>`;
+        let projects: ProjectInfo[];
+        try {
+            projects = (await this.api.request<{ projects: ProjectInfo[] }>('GET', '/projects')).projects;
+        } catch (err) {
+            console.error('[SessionBrowser] Failed to load projects:', err);
+            content.innerHTML = `
+                <h2 class="wj-modal-title">Duplicate Session</h2>
+                <div class="wj-empty-state">Failed to load your projects.</div>
+                <div class="wj-modal-actions"><button class="wj-btn wj-btn-secondary" id="wj-dup-cancel">Close</button></div>
+            `;
+            content.querySelector('#wj-dup-cancel')?.addEventListener('click', close);
+            return;
+        }
+
+        if (projects.length === 0) {
+            content.innerHTML = `
+                <h2 class="wj-modal-title">Duplicate Session</h2>
+                <p class="wj-modal-text">You have no project to copy this session into yet.</p>
+                <div class="wj-modal-actions">
+                    <button class="wj-btn wj-btn-secondary" id="wj-dup-cancel">Cancel</button>
+                    <button class="wj-btn wj-btn-primary" id="wj-dup-projects">Create a Project</button>
+                </div>
+            `;
+            content.querySelector('#wj-dup-cancel')?.addEventListener('click', close);
+            content.querySelector('#wj-dup-projects')?.addEventListener('click', () => this.router.navigate(ROUTES.PROJECTS));
+            return;
+        }
+
+        content.innerHTML = `
+            <h2 class="wj-modal-title">Duplicate Session</h2>
+            <div class="wj-form-group">
+                <label class="wj-label">Copy into project</label>
+                <select class="wj-input" id="wj-dup-project">
+                    ${projects.map(p => `<option value="${p.id}">${this.escapeHtml(p.name)}</option>`).join('')}
+                </select>
+            </div>
+            <div class="wj-form-group">
+                <label class="wj-label">Name of the copy</label>
+                <input class="wj-input" type="text" id="wj-dup-name" />
+            </div>
+            <div class="wj-form-group">
+                <label class="wj-label">Visibility</label>
+                <select class="wj-input" id="wj-dup-visibility">
+                    <option value="1">Public</option>
+                    <option value="0">Private (Invite only)</option>
+                </select>
+            </div>
+            <div class="wj-error" id="wj-dup-error"></div>
+            <div class="wj-modal-actions">
+                <button class="wj-btn wj-btn-secondary" id="wj-dup-cancel">Cancel</button>
+                <button class="wj-btn wj-btn-primary" id="wj-dup-confirm">Duplicate</button>
+            </div>
+        `;
+        const nameInput = content.querySelector('#wj-dup-name') as HTMLInputElement;
+        const source = this.sessions.get(sessionId);
+        nameInput.value = `${source?.name ?? 'Session'} (copy)`;
+        const visibilitySelect = content.querySelector('#wj-dup-visibility') as HTMLSelectElement;
+        visibilitySelect.value = source && !source.is_public ? '0' : '1';
+        const errorEl = content.querySelector('#wj-dup-error') as HTMLElement;
+        const confirmBtn = content.querySelector('#wj-dup-confirm') as HTMLButtonElement;
+        content.querySelector('#wj-dup-cancel')?.addEventListener('click', close);
+
+        confirmBtn.addEventListener('click', async () => {
+            const projectId = (content.querySelector('#wj-dup-project') as HTMLSelectElement).value;
+            const name = nameInput.value.trim();
+            if (!name) {
+                errorEl.textContent = 'Please give the copy a name.';
+                errorEl.classList.add('wj-visible');
+                return;
+            }
+            confirmBtn.disabled = true;
+            confirmBtn.textContent = 'Duplicating...';
+            try {
+                const isPublic = visibilitySelect.value === '1';
+                const { session } = await this.api.request<{ session: { id: string } }>('POST', `/sessions/${sessionId}/duplicate`, { projectId, name, isPublic });
+                content.innerHTML = `
+                    <h2 class="wj-modal-title">Session Duplicated</h2>
+                    <p class="wj-modal-text"><strong>${this.escapeHtml(name)}</strong> was added to your project.</p>
+                    <div class="wj-modal-actions">
+                        <button class="wj-btn wj-btn-secondary" id="wj-dup-cancel">Close</button>
+                        <button class="wj-btn wj-btn-primary" id="wj-dup-open">Open Session</button>
+                    </div>
+                `;
+                content.querySelector('#wj-dup-cancel')?.addEventListener('click', close);
+                content.querySelector('#wj-dup-open')?.addEventListener('click', () => this.router.navigate(ROUTES.APP, { session: session.id }));
+            } catch (err) {
+                console.error('[SessionBrowser] Failed to duplicate session:', err);
+                errorEl.textContent = 'Failed to duplicate the session.';
+                errorEl.classList.add('wj-visible');
+                confirmBtn.disabled = false;
+                confirmBtn.textContent = 'Duplicate';
+            }
+        });
+    }
+
+    /** Show the modal of the actions on a session card, and how to close it */
+    private openActionModal(el: HTMLElement): DialogTarget {
+        const modal = el.querySelector('#wj-action-modal') as HTMLElement;
+        const content = el.querySelector('#wj-action-content') as HTMLElement;
+        modal.style.display = 'flex';
+        return { content, close: () => { modal.style.display = 'none'; } };
     }
 
     private async updateNotifBadge(el: HTMLElement): Promise<void> {

@@ -137,6 +137,51 @@ router.post('/', requireAuth, (req, res) => {
 });
 
 /**
+ * POST /api/sessions/:id/duplicate
+ * Copy a session into one of the user's projects: its saved scene and capacity, and its visibility
+ * unless another one is asked.
+ * The copy gets its own id and share link, and starts unlocked, with no participants, invitations
+ * or collaborators. A session being played is copied as of its last autosave.
+ * Any session the user can see in the session browser can be copied: public, own, or invited to.
+ * Body: { projectId, name, isPublic? }
+ */
+router.post('/:id/duplicate', requireAuth, (req, res) => {
+    try {
+        const { projectId, name, isPublic } = req.body;
+        if (!projectId || !name || !name.trim()) return res.status(400).json({ error: 'projectId and name required' });
+
+        const db = getDb();
+        const source = db.prepare(`
+            SELECT s.*, p.owner_id FROM sessions s JOIN projects p ON s.project_id = p.id WHERE s.id = ?
+        `).get(req.params.id);
+        if (!source || source.is_temporary) return res.status(404).json({ error: 'Session not found' });
+
+        const canSee = source.is_public
+            || source.owner_id === req.user.userId
+            || db.prepare('SELECT 1 FROM authorized_users WHERE session_id = ? AND user_id = ?').get(source.id, req.user.userId);
+        if (!canSee) return res.status(403).json({ error: 'Not authorized for this session' });
+
+        const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(projectId);
+        if (!project) return res.status(404).json({ error: 'Project not found' });
+        if (project.owner_id !== req.user.userId) return res.status(403).json({ error: 'Not authorized' });
+
+        const id = uuidv4();
+        const shareToken = crypto.randomBytes(16).toString('hex');
+        const visibility = typeof isPublic === 'boolean' ? (isPublic ? 1 : 0) : source.is_public;
+        db.prepare(`
+            INSERT INTO sessions (id, project_id, name, is_public, max_users, share_token, crdt_data)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        `).run(id, projectId, name.trim(), visibility, source.max_users, shareToken, source.crdt_data);
+
+        const session = db.prepare('SELECT id, project_id, name, is_public, max_users FROM sessions WHERE id = ?').get(id);
+        res.status(201).json({ session });
+    } catch (error) {
+        console.error('[Sessions] Duplicate error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+/**
  * POST /api/sessions/temporary
  * Crée une session 100% NON PERSISTANTE (éphémère). Pas de projet requis
  * (référence le projet système réservé 'system-project'), accessible aux invités
