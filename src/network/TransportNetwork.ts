@@ -21,7 +21,10 @@ export class TransportNetwork {
     readonly map: Y.Map<number>;
 
     /** Set while a shared value is being applied, so applying it is not published back */
-    private applying = false;
+    private _applying = false;
+
+    /** Whether the transport is being changed by a value that came from the others, rather than by this participant */
+    get applying(): boolean { return this._applying; }
 
     constructor(private readonly doc: Y.Doc, private readonly transport: WamTransportManager) {
         this.map = doc.getMap<number>("transport");
@@ -43,20 +46,20 @@ export class TransportNetwork {
         const numerator = this.map.get(TransportNetwork.NUMERATOR);
         const denominator = this.map.get(TransportNetwork.DENOMINATOR);
 
-        this.applying = true;
+        this._applying = true;
         try {
             if (typeof tempo === "number") this.transport.setTempo(tempo);
             if (typeof numerator === "number" && typeof denominator === "number") {
                 this.transport.setTimeSignature(numerator, denominator);
             }
         } finally {
-            this.applying = false;
+            this._applying = false;
         }
     }
 
     /** Write the local values to the map, if they differ from it */
     private publish(): void {
-        if (this.applying) return;
+        if (this._applying) return;
 
         const { numerator, denominator } = this.transport.getTimeSignature();
         const values: [string, number][] = [

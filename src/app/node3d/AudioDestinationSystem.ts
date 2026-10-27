@@ -3,6 +3,15 @@ import { InputManager } from "../../xr/inputs"
 
 const UPDATE_FREQUENCY = 10 //Hz
 
+/**
+ * Smallest change of a position (in meters) or of a direction component that starts a new ramp.
+ * While a ramp runs, the panners are computed for every sample instead of once per block, which is
+ * costly on the audio thread; once the last ramp is over, they go back to once per block. Below
+ * this change, a ramp would only follow the tremor of the head, so none is started and a still
+ * listener costs no more than a still speaker.
+ */
+const RAMP_EPSILON = 0.005
+
 
 /**
  * The AudioWorldSystem manages the sound spatialization, and sound production in the application.
@@ -195,6 +204,7 @@ export class AudioWorldSystem {
     private safeRamp(parameter: AudioParam, value: number, time: number, delta: number): void {
         if (!this.isFiniteNumber(value)) return
         const previous = this.isFiniteNumber((parameter as any)._prevValue) ? (parameter as any)._prevValue : parameter.value
+        if (Math.abs(value - previous) < RAMP_EPSILON) return
         const after = time + Math.max(delta, 1 / UPDATE_FREQUENCY) * 0.9
 
         try {

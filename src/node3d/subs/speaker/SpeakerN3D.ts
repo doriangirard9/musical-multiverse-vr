@@ -1,4 +1,4 @@
-import { AbstractMesh, Vector3, type Mesh, type TransformNode } from "@babylonjs/core";
+import { AbstractMesh, Vector3, type Mesh, type Observer, type TransformNode } from "@babylonjs/core";
 import { Node3D, Node3DFactory, Node3DGUI } from "../../Node3D";
 import { Node3DContext } from "../../Node3DContext";
 import { Node3DGUIContext } from "../../Node3DGUIContext";
@@ -6,11 +6,14 @@ import { Node3DGUIContext } from "../../Node3DGUIContext";
 
 const SPEAKER_URL = (await import("./speaker.glb?url")).default
 
-/** Radius of the red sphere, in meters: outside it the speaker is silent */
+/** Radius of the red sphere of a speaker of default size, in meters: outside it the speaker is silent */
 const FALLOFF_RADIUS = 10
 
-/** Distance under which the speaker plays at full volume, in meters. From there to the edge of the sphere it fades out evenly. */
+/** Distance under which a speaker of default size plays at full volume, in meters. From there to the edge of the sphere it fades out evenly. */
 const FULL_VOLUME_DISTANCE = 1
+
+/** Smallest relative change of size that updates the falloff, so tiny jitters while holding the speaker are ignored */
+const RANGE_EPSILON = 0.01
 
 /*
     AJOUTER UN PARAM GAIN AVEC UN PARAMETRE CYLINDRE ROTATIF POUR GERER LE SON
@@ -55,12 +58,24 @@ export class SpeakerN3DGUI implements Node3DGUI{
         this.falloffSphere.material = material // besoin de créé un autre mat sinon je ne peux pas accéder à BackfaceCulling
         this.falloffSphere.isPickable = false
         this.falloffSphere.parent = this.root
+    }
 
-        this.root.onAfterWorldMatrixUpdateObservable.add(()=>{
-            const absolute_scale = this.root.absoluteScaling
-            this.falloffSphere.scaling.set(1/absolute_scale.x, 1/absolute_scale.y, 1/absolute_scale.z)
-        })
-        
+    /**
+     * Size the sphere for a speaker of default size. It lives in the space of the speaker, so from
+     * there it grows and shrinks with it, as the falloff does. Called once the root has its parent.
+     */
+    fitFalloffSphere(){
+        const parent = this.root.parent as TransformNode|null
+        this.falloffSphere.scaling.setAll(1/(parent?.scaling.x ?? 1))
+    }
+
+    /**
+     * How much larger than its default size the speaker is. The parent of the root holds the default
+     * size of the module, everything above it the size the user gave it.
+     */
+    rangeScale(): number {
+        const parent = this.root.parent as TransformNode|null
+        return parent ? this.root.absoluteScaling.x / parent.scaling.x : 1
     }
 
     doShowFalloff(shown: boolean){
@@ -77,12 +92,14 @@ export class SpeakerPannerNodeN3D implements Node3D{
     interval: any
     emitter!: {pannerNode:PannerNode, dispose():void}
     analyserNode!: AnalyserNode
+    rangeObserver?: Observer<TransformNode>
 
     constructor(){}
 
     async init(context: Node3DContext, gui: SpeakerN3DGUI){
         const {tools:{AudioN3DConnectable}, audioCtx} = context
 
+        gui.fitFalloffSphere()
         gui.doShowFalloff(true)
 
         this.audioCtx = audioCtx
@@ -93,11 +110,20 @@ export class SpeakerPannerNodeN3D implements Node3D{
             ()=>gui.root.absolutePosition,
             ()=>Vector3.Forward().applyRotationQuaternionInPlace(gui.root.absoluteRotationQuaternion)
         )
-        // Linear falloff: full volume up to FULL_VOLUME_DISTANCE, then down to silence at the edge of the red sphere
+        // Linear falloff: full volume up to FULL_VOLUME_DISTANCE, then down to silence at the edge of the red sphere.
+        // Both distances follow the size of the speaker, so the curve keeps its shape, only stretched.
         output.pannerNode.distanceModel = 'linear'
-        output.pannerNode.refDistance = FULL_VOLUME_DISTANCE
-        output.pannerNode.maxDistance = FALLOFF_RADIUS
         output.pannerNode.rolloffFactor = 1
+        let range = 0
+        const updateRange = () => {
+            const scale = gui.rangeScale()
+            if (Math.abs(scale - range) <= range * RANGE_EPSILON) return
+            range = scale
+            output.pannerNode.refDistance = FULL_VOLUME_DISTANCE * scale
+            output.pannerNode.maxDistance = FALLOFF_RADIUS * scale
+        }
+        updateRange()
+        this.rangeObserver = gui.root.onAfterWorldMatrixUpdateObservable.add(updateRange)
 
         const analyserNode = this.analyserNode = audioCtx.createAnalyser()
         const data = new Uint8Array(analyserNode.frequencyBinCount)
@@ -141,6 +167,7 @@ export class SpeakerPannerNodeN3D implements Node3D{
     getStateKeys(): string[] { return [] }
     
     async dispose(){
+        this.rangeObserver?.remove()
         this.analyserNode.disconnect(this.emitter.pannerNode)
         this.emitter.dispose()
         clearInterval(this.interval)

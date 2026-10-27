@@ -2,6 +2,20 @@
 type WamLikeNode = { scheduleEvents: (evt: any) => void };
 
 /**
+ * How far behind the shared transport a node plays, so it can start its loop over on its own.
+ * In beats, so it keeps its musical meaning when the tempo changes.
+ */
+export interface TransportOffset {
+  /** How many beats behind the transport the node is */
+  beats: number;
+  /**
+   * The length of the node's loop, in beats. A node behind by more than the transport has played
+   * is taken that many beats further, to the same place in its loop, rather than before the start.
+   */
+  wrapBeats: number;
+}
+
+/**
  * A manager than handle the wam transport events.
  * The start/stop/tempo/time signature states of the app.
  */
@@ -16,6 +30,7 @@ export class WamTransportManager {
   private constructor(private audioCtx: AudioContext) {}
 
   private nodes = new Set<WamLikeNode>();
+  private offsets = new Map<WamLikeNode, TransportOffset>();
   private listeners = new Set<() => void>();
 
   private tempo = 120;   // BPM
@@ -30,23 +45,20 @@ export class WamTransportManager {
 
   register(node: WamLikeNode) {
     this.nodes.add(node);
-    const now = this.audioCtx.currentTime;
-    const elapsed = this._elapsedAt(now);
-    const { currentBar, currentBarStarted } = this._positionFor(elapsed, now);
-    node.scheduleEvents({
-      type: "wam-transport",
-      data: {
-        playing: this.playing,
-        timeSigDenominator: this.den,
-        timeSigNumerator: this.num,
-        currentBar,
-        currentBarStarted,
-        tempo: this.tempo,
-      },
-    });
+    this._sendTo(node, this.playing, this.audioCtx.currentTime);
   }
 
-  unregister(node: WamLikeNode) { this.nodes.delete(node); }
+  unregister(node: WamLikeNode) {
+    this.nodes.delete(node);
+    this.offsets.delete(node);
+  }
+
+  /** Make a node play behind the shared transport, see {@link TransportOffset}. The node is told at once. */
+  setNodeOffset(node: WamLikeNode, offset: TransportOffset) {
+    if (offset.beats === 0) this.offsets.delete(node);
+    else this.offsets.set(node, offset);
+    if (this.nodes.has(node)) this._sendTo(node, this.playing, this.audioCtx.currentTime);
+  }
 
   onChange(cb: () => void) { this.listeners.add(cb); return () => this.listeners.delete(cb); }
   private _emit() { for (const cb of this.listeners) cb(); }
@@ -133,8 +145,17 @@ export class WamTransportManager {
     this.start();
   }
 
-  /** Real elapsed seconds from origin (includes pauses). */
-  getElapsedSeconds(): number { return this._elapsedAt(this.audioCtx.currentTime); }
+  /**
+   * Real elapsed seconds from origin (includes pauses).
+   * @param offset Where a node playing behind the transport stands, see {@link TransportOffset}.
+   */
+  getElapsedSeconds(offset?: TransportOffset): number { return this._shifted(this._elapsedAt(this.audioCtx.currentTime), offset); }
+
+  /** Elapsed beats from origin, the unit of {@link TransportOffset}. */
+  getElapsedBeats(): number { return this.getElapsedSeconds() / this._secPerBeat(); }
+
+  /** Seconds per beat at the current tempo and time signature. */
+  getSecondsPerBeat(): number { return this._secPerBeat(); }
 
   // ---------- Internals ----------
 
@@ -160,19 +181,35 @@ export class WamTransportManager {
     return { currentBar, currentBarStarted };
   }
 
-  /** Broadcast using one shared timestamp so all nodes align. */
+  /** The elapsed seconds of a node playing behind the transport by `offset`. */
+  private _shifted(elapsed: number, offset?: TransportOffset): number {
+    if (!offset) return elapsed;
+    const spb = this._secPerBeat();
+    const shifted = elapsed - offset.beats * spb;
+    const wrap = offset.wrapBeats * spb;
+    if (shifted >= 0 || wrap <= 0) return Math.max(0, shifted);
+    return ((shifted % wrap) + wrap) % wrap;
+  }
+
+  private _sendTo(node: WamLikeNode, playing: boolean, now: number) {
+    const elapsed = this._shifted(this._elapsedAt(now), this.offsets.get(node));
+    const { currentBar, currentBarStarted } = this._positionFor(elapsed, now);
+    node.scheduleEvents({
+      type: "wam-transport",
+      data: {
+        playing,
+        timeSigDenominator: this.den,
+        timeSigNumerator: this.num,
+        currentBar,
+        currentBarStarted,
+        tempo: this.tempo,
+      },
+    });
+  }
+
+  /** Broadcast using one shared timestamp so all nodes align, each at its own offset. */
   private _broadcast(playing: boolean) {
     const now = this.audioCtx.currentTime;
-    const elapsed = this._elapsedAt(now);
-    const { currentBar, currentBarStarted } = this._positionFor(elapsed, now);
-    const data = {
-      playing,
-      timeSigDenominator: this.den,
-      timeSigNumerator: this.num,
-      currentBar,
-      currentBarStarted,
-      tempo: this.tempo,
-    };
-    for (const node of this.nodes) node.scheduleEvents({ type: "wam-transport", data });
+    for (const node of this.nodes) this._sendTo(node, playing, now);
   }
 }

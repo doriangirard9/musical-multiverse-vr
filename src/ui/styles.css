@@ -701,6 +701,14 @@
     margin: 0 0 20px 0;
 }
 
+.wj-modal-text {
+    font-family: var(--font);
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--text-primary);
+    margin: 0;
+}
+
 .wj-modal-actions {
     display: flex;
     justify-content: flex-end;

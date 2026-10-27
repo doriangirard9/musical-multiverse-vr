@@ -1,6 +1,7 @@
 import { Color3, CreateAudioEngineAsync, Vector3 } from "@babylonjs/core";
 import { NetworkManager } from "../network/NetworkManager.ts";
 import { TransportNetwork } from "../network/TransportNetwork.ts";
+import { TransportSync } from "../network/TransportSync.ts";
 import { InputManager } from "../xr/inputs/InputManager.ts";
 import { AppOrchestrator } from "./AppOrchestrator.ts";
 import { ConnectionManager } from "./node3d/ConnectionManager.ts";
@@ -33,8 +34,15 @@ import { ToolSystem } from "./tool/ToolSystem.ts";
 import { PCPlatform } from "./platform/PCPlatform.ts";
 import { VisualEffectSystem } from "./visual/VisualEffectSystem.ts";
 import { XRPlatform } from "./platform/XRPlatform.ts";
-import { HangReporter } from "./diagnostics/HangReporter.ts";
 import { AudioLifecycle } from "./AudioLifecycle.ts";
+
+/**
+ * The audio buffer asked of the browser, in seconds. The default ("interactive") gave 4 ms on the
+ * Quest 3: the slightest hiccup of the headset, entering or leaving VR, starved the audio output and
+ * was heard as a crackle. A larger buffer absorbs those spikes, at the cost of as much delay between
+ * a gesture and its sound: studies place the noticeable limit for playing between 10 and 20 ms.
+ */
+const AUDIO_LATENCY_HINT = 0.010
 
 let _app: App
 
@@ -78,7 +86,7 @@ export class App {
 
         // Initialization of Audio Context
         report("Preparing audio engine")
-        const audioContext = new AudioContext()
+        const audioContext = new AudioContext({ latencyHint: AUDIO_LATENCY_HINT })
         this.armAudioContextResume(audioContext)
         
         const audioEngine = await CreateAudioEngineAsync({audioContext})
@@ -103,12 +111,6 @@ export class App {
         if(await XRPlatform.hasXRSupport()) await XRPlatform.initialize(SceneManager.getInstance().getScene(), audioEngine)
         else await PCPlatform.initialize()
 
-        new HangReporter(
-            { sessionId: roomName, participantId },
-            SceneManager.getInstance().getScene(),
-            audioContext,
-            XRPlatform.getInstance()?.xrHelper,
-        )
         new AudioLifecycle(audioContext, XRPlatform.getInstance()?.xrHelper)
 
         report("Preparing menus")
@@ -121,7 +123,8 @@ export class App {
         
         PlayerManager.initialize(participantId)
         NetworkManager.initialize(participantId, roomName, doc)
-        new TransportNetwork(doc, WamTransportManager.getInstance(audioContext))
+        const transportNetwork = new TransportNetwork(doc, WamTransportManager.getInstance(audioContext))
+        new TransportSync(doc, WamTransportManager.getInstance(audioContext), transportNetwork, audioContext)
         ConnectionManager.initialize()
 
         report("Preparing networking")
