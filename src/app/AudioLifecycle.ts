@@ -54,9 +54,13 @@ export class AudioLifecycle {
         return document.hidden || this.xrSession?.visibilityState === "hidden" || this.muted;
     }
 
-    /** Is the headset's menu showing over the app: a running XR session that is not fully visible? */
+    /**
+     * Is the app in the background in the headset: a running XR session that is not fully visible,
+     * or whose page is hidden, as when another tab is opened over it, the session then being reported
+     * visible again while the app is not.
+     */
     private get inHeadsetBackground(): boolean {
-        return this.xrSession !== null && this.xrSession.visibilityState !== "visible";
+        return this.xrSession !== null && (this.xrSession.visibilityState !== "visible" || document.hidden);
     }
 
     /** Follow the app going to the background or coming back */
