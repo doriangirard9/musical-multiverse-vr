@@ -8,6 +8,7 @@ import * as B from "@babylonjs/core";
 import { WamNode, WebAudioModule } from "@webaudiomodules/api";
 import { WamInitializer } from "../../../app/WamInitializer";
 import { WamTransportManager, type TransportOffset } from "../../../app/node3d/WamTransportManager"; // <-- shared transport
+import { TransportSync } from "../../../network/TransportSync";
 // strategies
 import { GridStrategy } from "./grid/GridStrategy";
 import { Piano88Strategy } from "./grid/Piano88Strategy";
@@ -1472,6 +1473,11 @@ export class PianoRollN3D implements Node3D {
    * roll keeps the same place against the other instruments everywhere, whatever the tempo.
    */
   private playheadOffsetTicks = 0;
+  /**
+   * The offset of those playing in Sync (see TransportSync), the only one shared and saved. In Local
+   * mode the piano roll keeps its own offset, and takes this one back when switching to Sync.
+   */
+  private sharedPlayheadOffsetTicks = 0;
   private beatDuration = 0;          // seconds per beat (1/quarter)
   private cellDuration = 0;          // seconds per column
 
@@ -1658,6 +1664,10 @@ export class PianoRollN3D implements Node3D {
     mat.diffuseColor = this.transport.getPlaying() ? B.Color3.Green() : B.Color3.Red();
     this.handleClearPattern();
     this.handleResetPlayhead();
+    const unsubscribeSync = TransportSync.instance?.onModeChange(enabled => {
+      if (enabled) this.applyPlayheadOffset(this.sharedPlayheadOffsetTicks);
+    });
+    if (unsubscribeSync) this.disposers.push(unsubscribeSync);
 
 
     // initialize input managers
@@ -2234,6 +2244,10 @@ export class PianoRollN3D implements Node3D {
     const elapsedTicks = this.transport.getElapsedBeats() * PPQN;
     const column = this.ticksPerSubdivision;
     this.applyPlayheadOffset((Math.floor(elapsedTicks / column) * column) % this.pattern.length);
+    // TEMPORARY: one bar between two devices in Sync
+    console.warn(`[SyncDebug] reset elapsedTicks=${elapsedTicks.toFixed(1)} column=${column} length=${this.pattern.length} -> offset=${this.playheadOffsetTicks} local=${this.localElapsed().toFixed(3)}s cell=${this.cellDuration.toFixed(4)}s cols=${this.gui.cols}`);
+    if (!TransportSync.instance?.enabled) return;
+    this.sharedPlayheadOffsetTicks = this.playheadOffsetTicks;
     this.context.notifyStateChange("playhead");
   }
 
@@ -2762,7 +2776,7 @@ export class PianoRollN3D implements Node3D {
     // it again to every newcomer, so a pattern later changed in place, as when its notes are cleared on
     // plugging an instrument, reached newcomers empty while this headset still showed the notes.
     if (key === "pattern") return { pattern: structuredClone(this.pattern), stepsPerBar: this.preferredSteps, bars: this.bars, timestamp: Date.now() };
-    if (key === "playhead") return { offsetTicks: this.playheadOffsetTicks };
+    if (key === "playhead") return { offsetTicks: this.sharedPlayheadOffsetTicks };
   }
   async setState(key: string, state: any): Promise<void> {
     console.log("PianoRollN3D setState:", key, state);
@@ -2771,7 +2785,12 @@ export class PianoRollN3D implements Node3D {
       this.applySharedGridTiming(state.stepsPerBar, state.bars);
       this.setPattern(structuredClone(state.pattern)); // a copy, for the same reason as in getState
     }
-    if (key === "playhead" && typeof state?.offsetTicks === "number") this.applyPlayheadOffset(state.offsetTicks);
+    if (key === "playhead" && typeof state?.offsetTicks === "number") {
+      this.sharedPlayheadOffsetTicks = state.offsetTicks;
+      if (TransportSync.instance?.enabled) this.applyPlayheadOffset(state.offsetTicks);
+      // TEMPORARY: one bar between two devices in Sync
+      console.warn(`[SyncDebug] received offset=${state.offsetTicks} sync=${TransportSync.instance?.enabled} globalBeats=${this.transport.getElapsedBeats().toFixed(3)} length=${this.pattern.length} -> local=${this.localElapsed().toFixed(3)}s cell=${this.cellDuration.toFixed(4)}s cols=${this.gui.cols}`);
+    }
   }
   getStateKeys(): string[] { return ["pattern", "playhead"]; }
 

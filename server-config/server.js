@@ -36,6 +36,13 @@ app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/configs', require('./routes/configs'));
 app.use('/api/presets', require('./routes/presets'));
 
+// The server's clock, which every client measures itself against so that participants playing
+// together share one time, whatever the clock of their own device says (see src/network/ServerClock.ts)
+app.get('/api/time', (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    res.json({ now: Date.now() });
+});
+
 const server = http.createServer(app);
 const voiceRooms = new Map();
 

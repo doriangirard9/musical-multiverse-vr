@@ -154,6 +154,9 @@ export class WamTransportManager {
   /** Elapsed beats from origin, the unit of {@link TransportOffset}. */
   getElapsedBeats(): number { return this.getElapsedSeconds() / this._secPerBeat(); }
 
+  /** Seconds per beat at the current tempo and time signature. */
+  getSecondsPerBeat(): number { return this._secPerBeat(); }
+
   // ---------- Internals ----------
 
   private _elapsedAt(now: number): number {

@@ -15,6 +15,7 @@ import { MenuSystem } from "./MenuSystem"
 import { DrawingSystem } from "../social/DrawingSystem"
 import { VoiceChatSystem } from "../social/VoiceChatSystem"
 import { SocialWheelSystem } from "../social/SocialWheelSystem"
+import { TransportSync } from "../../network/TransportSync"
 
 
 /**
@@ -68,6 +69,7 @@ export class HandMenuSystem {
         wamTransport.onChange(() => {
             this.updateMenu()
         })
+        TransportSync.instance?.onModeChange(() => this.updateMenu())
 
         if (MicrophoneSystem.hasInstance()) {
             MicrophoneSystem.getInstance().onStateChanged.add(() => {
@@ -88,6 +90,14 @@ export class HandMenuSystem {
         else buttons.push({ label: "▶ Play", color: "#66ff66", click: ()=>{
             this.wamTransport.start()
         }})
+
+        // Play together with the others in Sync, or alone
+        const sync = TransportSync.instance
+        if (sync) buttons.push({
+            label: sync.enabled ? "🔗 Play mode: Sync" : "Play mode: Local",
+            color: sync.enabled ? "#7ee787" : "#cccccc",
+            click: () => sync.setEnabled(!sync.enabled),
+        })
 
         // Settings
         buttons.push({ label: `⚙ Open/Close settings`, color: "#66ccff", click: ()=>{
