@@ -118,7 +118,6 @@ function initDatabase() {
         CREATE INDEX IF NOT EXISTS idx_authorized_users_user_id ON authorized_users(user_id);
         CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id);
         CREATE INDEX IF NOT EXISTS idx_notifications_session_id ON notifications(session_id);
-        CREATE INDEX IF NOT EXISTS idx_hang_reports_received_at ON hang_reports(received_at);
     `);
 
     // Migration : is_temporary pour les bases existantes (même idiome que is_locked)

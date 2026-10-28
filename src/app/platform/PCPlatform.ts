@@ -25,9 +25,9 @@ const HAND_DISTANCE_STEP = 1.1
 const HAND_ROTATION_SPEED = 0.006
 
 /** Where a hand waits when it is not the selected one, relative to the camera. */
-const IDLE_FORWARD = 0.55
-const IDLE_SIDE = 0.21
-const IDLE_DOWN = 0.08
+export const IDLE_FORWARD = 0.55
+export const IDLE_SIDE = 0.21
+export const IDLE_DOWN = 0.08
 
 /**
  * Responsible for the PC (desktop, ...) experience, camera, player controls.

@@ -18,6 +18,7 @@ import { WamTransportManager } from "./node3d/WamTransportManager.ts";
 import { ShopMenuSystem } from "./menu/ShopMenuSystem.ts";
 import { TargetManager } from "./TargetManager.ts";
 import { BabylonsJSFix } from "./BabylonsJSFix.ts";
+import { BrowserJSFix } from "./BrowserJSFix.ts";
 import { MenuSystem } from "./menu/MenuSystem.ts";
 import { ContextMenuSystem } from "./menu/ContextMenuSystem.ts";
 import { HapticContactSystem } from "./feedback/HapticContactSystem.ts";
@@ -34,6 +35,7 @@ import { ToolSystem } from "./tool/ToolSystem.ts";
 import { PCPlatform } from "./platform/PCPlatform.ts";
 import { VisualEffectSystem } from "./visual/VisualEffectSystem.ts";
 import { XRPlatform } from "./platform/XRPlatform.ts";
+import { PhoneViewPlatform } from "./platform/PhoneViewPlatform.ts";
 import { AudioLifecycle } from "./AudioLifecycle.ts";
 
 /**
@@ -42,7 +44,7 @@ import { AudioLifecycle } from "./AudioLifecycle.ts";
  * was heard as a crackle. A larger buffer absorbs those spikes, at the cost of as much delay between
  * a gesture and its sound: studies place the noticeable limit for playing between 10 and 20 ms.
  */
-const AUDIO_LATENCY_HINT = 0.010
+export const AUDIO_LATENCY_HINT = 0.010
 
 let _app: App
 
@@ -84,6 +86,8 @@ export class App {
         await SceneManager.initialize()
 
 
+        BrowserJSFix.fix()
+
         // Initialization of Audio Context
         report("Preparing audio engine")
         const audioContext = new AudioContext({ latencyHint: AUDIO_LATENCY_HINT })
@@ -108,7 +112,8 @@ export class App {
 
         report("Preparing XR runtime")
         UIManager.initialize()
-        if(await XRPlatform.hasXRSupport()) await XRPlatform.initialize(SceneManager.getInstance().getScene(), audioEngine)
+        if(PhoneViewPlatform.isPhone()) await PhoneViewPlatform.initialize()
+        else if(await XRPlatform.hasXRSupport()) await XRPlatform.initialize(SceneManager.getInstance().getScene(), audioEngine)
         else await PCPlatform.initialize()
 
         new AudioLifecycle(audioContext, XRPlatform.getInstance()?.xrHelper)
