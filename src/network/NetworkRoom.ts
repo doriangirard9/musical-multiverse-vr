@@ -1,45 +1,36 @@
 
+import { Observable } from '@babylonjs/core';
 import { WebrtcProvider } from 'y-webrtc';
+import { Awareness } from 'y-protocols/awareness';
 import * as Y from 'yjs';
 import { SIGNALING_SERVER } from '../options.ts';
+import { NetworkPeer } from './NetworkPeer.ts';
+import { WebRTCConnection } from './WebRTCConnection.ts';
 
-type MessageListener = (message: unknown, peerId: string) => void
-
-/** What the peers publish to each other on the signaling topic of the message channel. */
-type Signal =
-    | { kind: "announce"; from: string; to?: string }
-    | { kind: "description"; from: string; to: string; description: RTCSessionDescriptionInit }
-    | { kind: "candidate"; from: string; to: string; candidate: RTCIceCandidateInit }
-
-interface MessagePeer {
-    id: string
-    connection: RTCPeerConnection
-    channel: RTCDataChannel
-    pendingCandidates: RTCIceCandidateInit[]
-    polite: boolean
-    initiator: boolean
-    makingOffer: boolean
-    ignoreOffer: boolean
-}
+type AwarenessChanges = { added: number[]; updated: number[]; removed: number[] }
 
 export class NetworkRoom {
 
-    provider
+    readonly provider: WebrtcProvider
+    readonly awareness: Awareness
 
-    /** Identifies this client on the message channel. */
-    readonly peerId = crypto.randomUUID()
+    private readonly connected = new Map<string, NetworkPeer>()
 
-    private readonly topic: string
-    private socket?: WebSocket
-    private reconnectTimer?: ReturnType<typeof setTimeout>
-    private disposed = false
-    private readonly peers = new Map<string, MessagePeer>()
-    private readonly listeners = new Set<MessageListener>()
+    /** The other players of the room, by playerId, whose connection is established. */
+    readonly peers: ReadonlyMap<string, NetworkPeer> = this.connected
+
+    readonly onPeerJoin = new Observable<NetworkPeer>()
+    readonly onPeerLeave = new Observable<NetworkPeer>()
+    readonly onMessage = new Observable<{ message: unknown, peer: NetworkPeer }>()
+
+    private readonly webrtc: WebRTCConnection
+    /** The playerId announced by each awareness client, to know who leaves on a removal. */
+    private readonly clients = new Map<number, string>()
 
     constructor(
         public roomId: string,
-        public sharedId: string,
-        doc: Y.Doc,
+        readonly playerId: string,
+        readonly doc: Y.Doc,
     ){
         this.provider = new WebrtcProvider(`${roomId}-doc`, doc, {
             signaling: [SIGNALING_SERVER],
@@ -47,226 +38,92 @@ export class NetworkRoom {
 
         // Messages travel on their own WebRTC connections, the y-webrtc provider stays dedicated to
         // the document. Only the signaling server is shared, on a topic of their own.
-        this.topic = `${roomId}-msg`
-        this.connectSignaling()
+        this.webrtc = new WebRTCConnection(SIGNALING_SERVER, `${roomId}-msg`, playerId)
+        this.webrtc.onConnected.add(rtc => {
+            const peer = new NetworkPeer(rtc, this.awareness)
+            peer.clientId = this.clientOf(peer.id)
+            this.connected.set(peer.id, peer)
+            peer.onMessage.add(message => this.onMessage.notifyObservers({ message, peer }))
+            this.onPeerJoin.notifyObservers(peer)
+        })
+        this.webrtc.onDisconnected.add(rtc => {
+            const peer = this.connected.get(rtc.id)
+            if (!peer) return
+            this.connected.delete(peer.id)
+            peer.dispose()
+            this.onPeerLeave.notifyObservers(peer)
+        })
+
+        // y-protocols renews the local state every 15 s and drops the clients silent for 30 s, so
+        // presence needs no heartbeat of its own. The renewal only fires "update", not "change".
+        this.awareness = this.provider.awareness
+        this.awareness.setLocalStateField('playerId', playerId)
+        this.awareness.on('update', this.onAwarenessUpdate)
+        this.awareness.on('change', this.onAwarenessChange)
     }
 
+    /**
+     * Resolves once the room is reached or failed to be: true when the signaling server answered,
+     * false when it could not be reached. It never rejects, and the room keeps retrying after a
+     * failure.
+     */
     async initialize(){
-
-        return this
+        return this.webrtc.initialize()
     }
 
     /** Sends a message to every connected peer of the room. */
     broadcast(message: unknown){
-        const data = JSON.stringify(message)
-        for (const peer of this.peers.values()) {
-            if (peer.channel.readyState === "open") peer.channel.send(data)
-        }
-    }
-
-    /** Listens to the messages broadcast by the other peers. Returns the unsubscribe function. */
-    onMessage(listener: MessageListener){
-        this.listeners.add(listener)
-        return () => { this.listeners.delete(listener) }
+        for (const peer of this.connected.values()) peer.send(message)
     }
 
     dispose(){
-        this.disposed = true
-        if (this.reconnectTimer) clearTimeout(this.reconnectTimer)
-        this.socket?.close()
-        this.socket = undefined
-        for (const id of [...this.peers.keys()]) this.disposePeer(id)
-        this.listeners.clear()
+        // Cleared first, so tearing the connections down does not report everyone as leaving.
+        this.onPeerJoin.clear()
+        this.onPeerLeave.clear()
+        this.onMessage.clear()
+        this.awareness.off('update', this.onAwarenessUpdate)
+        this.awareness.off('change', this.onAwarenessChange)
+        this.webrtc.dispose()
         this.provider.destroy()
     }
 
-    /**
-     * Joins the topic of the message channel on the y-webrtc signaling server. That server is a
-     * plain pub/sub: every publish reaches every subscriber of the topic, sender included.
-     */
-    private connectSignaling(){
-        if (this.disposed) return
-        const url = new URL(SIGNALING_SERVER)
-        if (url.protocol === "https:") url.protocol = "wss:"
-        else if (url.protocol === "http:") url.protocol = "ws:"
-        const socket = this.socket = new WebSocket(url)
-
-        socket.onopen = () => {
-            if (this.disposed) return
-            socket.send(JSON.stringify({ type: "subscribe", topics: [this.topic] }))
-            this.publish({ kind: "announce", from: this.peerId })
+    private readonly onAwarenessUpdate = ({ added, updated, removed }: AwarenessChanges) => {
+        const states = this.awareness.getStates()
+        for (const clientId of [...added, ...updated]) {
+            if (clientId === this.awareness.clientID) continue
+            const playerId = states.get(clientId)?.playerId as string | undefined
+            if (!playerId) continue
+            // A client announcing another playerId counts as one player leaving and another arriving.
+            const previous = this.clients.get(clientId)
+            if (previous !== undefined && previous !== playerId) this.webrtc.disconnect(previous)
+            this.clients.set(clientId, playerId)
+            // The connection may have opened before the awareness state arrived.
+            const peer = this.connected.get(playerId)
+            if (peer) peer.clientId = clientId
+            // Also reconnects, at the next renewal, a player still present whose connection failed.
+            this.webrtc.connect(playerId)
         }
-
-        socket.onmessage = event => {
-            let message: { type?: string; topic?: string; data?: Signal }
-            try {
-                message = JSON.parse(String(event.data))
-            } catch {
-                return
-            }
-            if (message.type === "ping") socket.send(JSON.stringify({ type: "pong" }))
-            else if (message.type === "publish" && message.topic === this.topic && message.data) this.onSignal(message.data)
-        }
-
-        socket.onclose = () => {
-            if (this.socket === socket) this.socket = undefined
-            if (!this.disposed) this.reconnectTimer = setTimeout(() => this.connectSignaling(), 1500)
-        }
-
-        socket.onerror = () => {
-            if (socket.readyState !== WebSocket.CLOSED) socket.close()
+        for (const clientId of removed) {
+            const playerId = this.clients.get(clientId)
+            if (playerId === undefined) continue
+            this.clients.delete(clientId)
+            this.webrtc.disconnect(playerId)
         }
     }
 
-    private publish(signal: Signal){
-        if (this.socket?.readyState !== WebSocket.OPEN) return
-        this.socket.send(JSON.stringify({ type: "publish", topic: this.topic, data: signal }))
-    }
-
-    private onSignal(signal: Signal){
-        if (signal.from === this.peerId) return
-        if (signal.to !== undefined && signal.to !== this.peerId) return
-        switch (signal.kind) {
-            case "announce":
-                // A newcomer announces to everyone, and everyone answers it directly, so each side
-                // learns of the other whoever arrived first.
-                if (!this.peers.has(signal.from) && signal.to === undefined) {
-                    this.publish({ kind: "announce", from: this.peerId, to: signal.from })
-                }
-                this.ensurePeer(signal.from)
-                break
-            case "description":
-                void this.acceptDescription(signal.from, signal.description)
-                break
-            case "candidate":
-                void this.acceptCandidate(signal.from, signal.candidate)
-                break
+    /** Only fires when a state really changed, unlike the periodic renewals seen by "update". */
+    private readonly onAwarenessChange = ({ added, updated }: AwarenessChanges) => {
+        for (const clientId of [...added, ...updated]) {
+            const playerId = this.clients.get(clientId)
+            if (playerId === undefined) continue
+            const peer = this.connected.get(playerId)
+            const state = peer?.state
+            if (peer && state) peer.onStateChange.notifyObservers(state)
         }
     }
 
-    private ensurePeer(id: string): MessagePeer {
-        const existing = this.peers.get(id)
-        if (existing) return existing
-
-        const connection = new RTCPeerConnection({
-            iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
-        })
-        // Negotiated on both sides with the same id, so neither has to wait for ondatachannel.
-        const channel = connection.createDataChannel("broadcast", { negotiated: true, id: 0 })
-        const peer: MessagePeer = {
-            id,
-            connection,
-            channel,
-            pendingCandidates: [],
-            polite: this.peerId.localeCompare(id) > 0,
-            // A deterministic initiator prevents simultaneous offers on join.
-            initiator: this.peerId.localeCompare(id) < 0,
-            makingOffer: false,
-            ignoreOffer: false,
-        }
-        this.peers.set(id, peer)
-
-        connection.onnegotiationneeded = () => {
-            if (peer.initiator) void this.negotiate(peer)
-        }
-
-        connection.onicecandidate = event => {
-            if (!event.candidate) return
-            this.publish({ kind: "candidate", from: this.peerId, to: id, candidate: event.candidate.toJSON() })
-        }
-
-        connection.onconnectionstatechange = () => {
-            if (["failed", "closed"].includes(connection.connectionState)) this.disposePeer(id)
-        }
-
-        channel.onmessage = event => {
-            let message: unknown
-            try {
-                message = JSON.parse(String(event.data))
-            } catch (error) {
-                console.warn("[NetworkRoom] Invalid message from", id, error)
-                return
-            }
-            for (const listener of this.listeners) listener(message, id)
-        }
-
-        return peer
-    }
-
-    private disposePeer(id: string){
-        const peer = this.peers.get(id)
-        if (!peer) return
-        this.peers.delete(id)
-        peer.channel.close()
-        peer.connection.close()
-    }
-
-    private async negotiate(peer: MessagePeer){
-        const connection = peer.connection
-        if (peer.makingOffer || connection.signalingState !== "stable") return
-        try {
-            peer.makingOffer = true
-            await connection.setLocalDescription()
-            this.sendDescription(peer.id, connection.localDescription)
-        } catch (error) {
-            console.warn("[NetworkRoom] Failed to negotiate with", peer.id, error)
-        } finally {
-            peer.makingOffer = false
-        }
-    }
-
-    private async acceptDescription(id: string, description: RTCSessionDescriptionInit){
-        const peer = this.ensurePeer(id)
-        const connection = peer.connection
-        const readyForOffer = !peer.makingOffer && connection.signalingState === "stable"
-        const offerCollision = description.type === "offer" && !readyForOffer
-
-        peer.ignoreOffer = !peer.polite && offerCollision
-        if (peer.ignoreOffer) return
-
-        try {
-            if (offerCollision && peer.polite) {
-                await connection.setLocalDescription({ type: "rollback" })
-            }
-            if (description.type === "answer" && connection.signalingState !== "have-local-offer") return
-            await connection.setRemoteDescription(description)
-            await this.flushPendingCandidates(peer)
-            if (description.type === "offer") {
-                await connection.setLocalDescription()
-                this.sendDescription(id, connection.localDescription)
-            }
-        } catch (error) {
-            console.warn("[NetworkRoom] Failed to accept description from", id, error)
-        }
-    }
-
-    private async acceptCandidate(id: string, candidate: RTCIceCandidateInit){
-        const peer = this.ensurePeer(id)
-        try {
-            if (!peer.connection.remoteDescription) {
-                peer.pendingCandidates.push(candidate)
-                return
-            }
-            await peer.connection.addIceCandidate(candidate)
-        } catch (error) {
-            if (!peer.ignoreOffer) console.warn("[NetworkRoom] Failed to accept ICE candidate from", id, error)
-        }
-    }
-
-    private async flushPendingCandidates(peer: MessagePeer){
-        const pending = [...peer.pendingCandidates]
-        peer.pendingCandidates.length = 0
-        for (const candidate of pending) {
-            try {
-                await peer.connection.addIceCandidate(candidate)
-            } catch (error) {
-                console.warn("[NetworkRoom] Failed to flush pending ICE candidate from", peer.id, error)
-            }
-        }
-    }
-
-    private sendDescription(id: string, description: RTCSessionDescription | null){
-        if (!description) return
-        this.publish({ kind: "description", from: this.peerId, to: id, description: description.toJSON() })
+    private clientOf(playerId: string): number | undefined {
+        for (const [clientId, id] of this.clients) if (id === playerId) return clientId
+        return undefined
     }
 }

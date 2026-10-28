@@ -4,8 +4,10 @@ import { SceneManager } from '../app/SceneManager.ts';
 import { Node3DInstance } from '../node3d/instance/Node3DInstance.ts';
 import { Node3dManager } from '../app/node3d/Node3dManager.ts';
 import { SyncSerializable } from './sync/SyncSerializable.ts';
+import { SyncManager } from './sync/SyncManager.ts';
 import { Observable } from '@babylonjs/core';
 import { MenuSystem } from '../app/menu/MenuSystem.ts';
+import { NetworkRoom } from './NetworkRoom.ts';
 
 /**
  * Composant gérant les nœuds audio et leurs états.
@@ -17,31 +19,44 @@ export class Node3DNetwork {
     /**
      * Le gestionnaire de Node3D
      */
-    readonly nodes
+    nodes!: SyncManager<Node3DInstance, string>
     readonly onNodeAdded = new Observable<Node3DInstance>()
     readonly onNodeRemoved = new Observable<Node3DInstance>()
 
     /**
      * Le gestionnaire de connections entre les Node3D
      */
-    readonly connections
+    connections!: SyncManager<N3DConnectionInstance, any>
     readonly onConnectionAdded = new Observable<N3DConnectionInstance>()
     readonly onConnectionRemoved = new Observable<N3DConnectionInstance>()
 
     constructor(
-        readonly doc: Y.Doc
+        readonly room: NetworkRoom
     ) {
 
+    }
+
+    /** Creates the managers, the connections after the nodes they link. */
+    async initialize() {
+        const doc = this.room.doc
         const scene = SceneManager.getInstance().getScene()
 
-        this.nodes = Node3DInstance.getSyncManager(
+        this.nodes = await Node3DInstance.getSyncManager(
             doc,
             Node3dManager.getInstance(),
-            instance => this.onNodeAdded.notifyObservers(instance),
+            instance => {
+                this.onNodeAdded.notifyObservers(instance)
+                instance._onMessage = message => {
+                    this.room.broadcast({
+                        node3dtarget: this.nodes.getId(instance),
+                        message: message
+                    })
+                }
+            },
             instance => this.onNodeRemoved.notifyObservers(instance),
         )
 
-        this.connections = N3DConnectionInstance.getSyncManager(
+        this.connections = await N3DConnectionInstance.getSyncManager(
             scene,
             doc,
             this.nodes,
@@ -51,6 +66,16 @@ export class Node3DNetwork {
         )
 
         if (Node3DNetwork.DEBUG_LOG) console.log(`[AudioNodeComponent] Initialized`);
+
+        // Send the messages
+        this.room.onMessage.add(({ message, peer }) => {
+            if(message == null || message == undefined) return
+            if(typeof message != "object") return
+            if(!("node3dtarget" in message)) return
+            const id = message.node3dtarget as string
+            const msg = (message as any)?.message
+            this.nodes.getNow(id)?._sendMessage(msg)
+        })
     }
 }
 

@@ -145,11 +145,11 @@ export class VisualTube{
         this.tubes.remove(this)
     }
 
-    static getSyncManager(scene: Scene, doc: Doc){
-        const syncmanager: SyncManager<VisualTube,any> = new SyncManager({
+    static async getSyncManager(scene: Scene, doc: Doc){
+        const syncmanager: SyncManager<VisualTube,any> = await SyncManager.create({
             name: "visual_connection",
             doc,
-            async create() { return new VisualTube(scene, syncmanager) },
+            async create(_, __, ___, manager) { return new VisualTube(scene, manager) },
             async on_add(instance) { instance.on_dispose = ()=> syncmanager.remove(instance) },
             async on_remove(instance) { instance.dispose() },
         })

@@ -1,5 +1,6 @@
 import { Color3, CreateAudioEngineAsync, Vector3 } from "@babylonjs/core";
 import { NetworkManager } from "../network/NetworkManager.ts";
+import { NetworkRoomSystem } from "./NetworkRoomSystem.ts";
 import { TransportNetwork } from "../network/TransportNetwork.ts";
 import { TransportSync } from "../network/TransportSync.ts";
 import { InputManager } from "../xr/inputs/InputManager.ts";
@@ -127,7 +128,9 @@ export class App {
         await Node3dManager.initialize(audioContext, audioEngine)
         
         PlayerManager.initialize(participantId)
-        NetworkManager.initialize(participantId, roomName, doc)
+        await NetworkRoomSystem.initialize(doc, participantId, roomName)
+        await NetworkManager.initialize(NetworkRoomSystem.getInstance())
+        
         const transportNetwork = new TransportNetwork(doc, WamTransportManager.getInstance(audioContext))
         new TransportSync(doc, WamTransportManager.getInstance(audioContext), transportNetwork, audioContext)
         ConnectionManager.initialize()
@@ -251,8 +254,8 @@ export class App {
         window.addEventListener("keydown",async(e)=>{
             if(e.key=="p"){
                 let prompt = window.prompt("Enter Node3D kind to create:")
-                if(prompt) node3dManager.builder.create(`${prompt}`)
-                //if(prompt) node3dManager.addNode3d(`${prompt}`, new Vector3(0,0,5))
+                //if(prompt) node3dManager.builder.create(`${prompt}`)
+                if(prompt) node3dManager.addNode3d(`${prompt}`, new Vector3(0,0,5))
             }
             else if(e.key=="i"){
                 await SceneManager.getInstance().toggleInspector()

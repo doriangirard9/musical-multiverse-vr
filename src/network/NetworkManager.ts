@@ -1,6 +1,6 @@
 import * as Y from 'yjs';
 import {Node3DNetwork} from "./Node3DNetwork.ts";
-import { PeerToPeerManager } from './PeerToPeerManager.ts';
+import { NetworkRoomSystem } from '../app/NetworkRoomSystem.ts';
 import { VisualNetwork } from './VisualNetwork.ts';
 
 
@@ -14,23 +14,27 @@ export class NetworkManager {
     readonly doc: Y.Doc
     readonly playerId: string
 
-    readonly connection
+    readonly roomName: string
     readonly visual
     readonly node3d
 
 
-    private constructor(playerId: string, readonly roomName: string, doc: Y.Doc) {
-        this.doc = doc;
-        this.playerId = playerId;
-        this.connection = new PeerToPeerManager(this.doc, this.playerId, roomName)
-        this.node3d = new Node3DNetwork(this.doc)
+    private constructor(readonly rooms: NetworkRoomSystem) {
+        this.doc = rooms.doc;
+        this.playerId = rooms.playerId;
+        this.roomName = rooms.roomName;
+        this.node3d = new Node3DNetwork(rooms.room)
         this.visual = new VisualNetwork(this.doc)
 
         if (NetworkManager.DEBUG_LOG) console.log("Current player id:", this.playerId)
     }
 
-    public static initialize(playerId: string, roomName: string, doc: Y.Doc){
-        this.instance = new NetworkManager(playerId, roomName, doc);
+    /** Resolves once the objects already in the document are loaded. */
+    public static async initialize(connection: NetworkRoomSystem){
+        // Set first: the nodes created while loading may already ask for the instance.
+        const instance = this.instance = new NetworkManager(connection);
+        await instance.node3d.initialize()
+        await instance.visual.initialize()
     }
 
     private static instance?: NetworkManager

@@ -277,13 +277,13 @@ export class Avatar implements Synchronized{
         this._label.dispose()
     }
 
-    static getSyncManager(
+    static async getSyncManager(
         doc: Doc,
         shared: AvaterShared,
         onAdd?: (instance:Avatar)=>void,
         onRemove?: (instance:Avatar)=>void,
     ) {
-        const syncmanager: SyncManager<Avatar> = new SyncManager({
+        const syncmanager: SyncManager<Avatar> = await SyncManager.create({
             name: "avatars",
             doc,
             async on_add(instance) {

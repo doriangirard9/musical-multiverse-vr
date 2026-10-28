@@ -85,11 +85,11 @@ export class SyncBlock implements Synchronized{
         this.mesh.dispose()
     }
 
-    static getSyncManager(scene: Scene, doc: Doc){
-        const syncmanager: SyncManager<SyncBlock,SyncSerializable> = new SyncManager({
+    static async getSyncManager(scene: Scene, doc: Doc){
+        const syncmanager: SyncManager<SyncBlock,SyncSerializable> = await SyncManager.create({
             name: "synctest_syncblock",
             doc,
-            async create() { return new SyncBlock(scene, syncmanager) },
+            async create(_, __, ___, manager) { return new SyncBlock(scene, manager) },
             async on_remove(instance) { instance.dispose() },
         })
         return syncmanager

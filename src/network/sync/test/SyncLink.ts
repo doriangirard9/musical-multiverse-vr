@@ -99,8 +99,8 @@ export class SyncLink implements Synchronized{
 
 
 
-    static getSyncManager(scene: Scene, doc: Doc, blocks: SyncManager<SyncBlock,any>){
-        const syncmanager: SyncManager<SyncLink,SyncSerializable> = new SyncManager({
+    static async getSyncManager(scene: Scene, doc: Doc, blocks: SyncManager<SyncBlock,any>){
+        const syncmanager: SyncManager<SyncLink,SyncSerializable> = await SyncManager.create({
             name: "synctest_synclink",
             doc,
             async create() { return new SyncLink(scene, blocks) },

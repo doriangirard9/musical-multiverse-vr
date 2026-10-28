@@ -253,6 +253,11 @@ export class Node3DInstance implements Synchronized {
 
                 self: this.self,
 
+                sendMessage(message: unknown) {
+                    instance.node.onMessage?.(message, true)
+                    instance._onMessage(message)
+                },
+
                 // The other nodes
                 async createNode3D(kind, frame) {
                     const created = await Node3dManager.getInstance().addNode3d(kind, frame.position ?? instance.root_transform.absolutePosition.clone())
@@ -721,6 +726,13 @@ export class Node3DInstance implements Synchronized {
         this.set_state("position")
     }
 
+    /** Send a message to the node. **/
+    public _sendMessage(message: any) {
+        this.node.onMessage?.(message, false)
+    }
+
+    public _onMessage: (message: any) => void = () => { }
+
     async removeState(_key: string): Promise<void> { }
 
     disposeSync(): void { this.set_state = () => { } }
@@ -747,13 +759,13 @@ export class Node3DInstance implements Synchronized {
         await this.gui.dispose()
     }
 
-    static getSyncManager(
+    static async getSyncManager(
         doc: Doc,
         audioManager: Node3dManager,
         onAdd?: (instance:Node3DInstance)=>void,
         onRemove?: (instance:Node3DInstance)=>void,
     ) {
-        const syncmanager: SyncManager<Node3DInstance, string> = new SyncManager({
+        const syncmanager: SyncManager<Node3DInstance, string> = await SyncManager.create({
             name: "node3d_instances",
             doc,
             async on_add(instance) {

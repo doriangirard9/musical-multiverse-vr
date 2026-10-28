@@ -316,7 +316,7 @@ export class N3DConnectionInstance{
     }
 
 
-    static getSyncManager(
+    static async getSyncManager(
         scene: Scene,
         doc: Doc,
         nodes: SyncManager<Node3DInstance, any>,
@@ -324,10 +324,10 @@ export class N3DConnectionInstance{
         onAdd?: (instance:N3DConnectionInstance)=>void,
         onRemove?: (instance:N3DConnectionInstance)=>void,
     ){
-        const syncmanager: SyncManager<N3DConnectionInstance,any> = new SyncManager({
+        const syncmanager: SyncManager<N3DConnectionInstance,any> = await SyncManager.create({
             name: "node3d_connections",
             doc,
-            async create() { return new N3DConnectionInstance(scene, nodes, syncmanager, messages) },
+            async create(_, __, ___, manager) { return new N3DConnectionInstance(scene, nodes, manager, messages) },
             async on_add(instance) {
                 instance.on_dispose = ()=> syncmanager.remove(instance)
                 onAdd?.(instance)

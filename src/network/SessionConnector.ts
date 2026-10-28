@@ -174,8 +174,8 @@ export class SessionConnector {
             // (add_from_network fires normally since default is not suppressed,
             //  but processExisting catches any edge cases)
             const network = NetworkManager.getInstance();
-            await network.node3d.nodes.processExistingEntries();
-            await network.node3d.connections.processExistingEntries();
+            await network.node3d.nodes.initialize();
+            await network.node3d.connections.initialize();
             
             this.showXRButton();
         }

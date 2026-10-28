@@ -61,6 +61,12 @@ export interface Node3D{
      */
     getStateKeys(): string[]
 
+    /**
+     * Appelé lorsque le Node3D reçoit un message.
+     * Un message peut être envoyé par un Node3D à lui-même.
+     * Le message est synchronisé sur le réseau.
+     */
+    onMessage?(message: unknown, self: boolean): void
 
 
     //// Lifetime ////

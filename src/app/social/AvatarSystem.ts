@@ -18,7 +18,7 @@ const PROXIMITY_HIDE_DISTANCE = .5;
  */
 export class AvatarSystem {
 
-    manager
+    manager!: SyncManager<Avatar,string>
     shared
     avatar!: Avatar
     private _proximityObserver?: Observer<any>
@@ -31,12 +31,14 @@ export class AvatarSystem {
         readonly username: string,
         readonly usercolor: Color3,
     ){
-        const avatars = this
-
         this.shared = new AvaterShared(scene.getScene())
-        this.manager = new SyncManager<Avatar,string>({
+    }
+
+    async initialize(){
+        const avatars = this
+        this.manager = await SyncManager.create<Avatar,string>({
             name: "avatars",
-            doc: network.doc,
+            doc: this.network.doc,
             async on_add(instance) {
                 instance.on_dispose = () => avatars.manager.remove(instance)
             },
@@ -49,9 +51,7 @@ export class AvatarSystem {
                 instance.dispose()
             },
         })
-    }
 
-    async initialize(){
         // Current player avatar
         const id = RandomUtils.randomID()
         const avatar = this.avatar = new Avatar(this.shared)
@@ -61,7 +61,7 @@ export class AvatarSystem {
         avatar.randomize_skin()
         avatar.setColor(this.usercolor.toColor4(1))
         avatar.setName(this.username)
-        this.manager.add(id, avatar, this.network.connection.getAwareness().getLocalState()!["playerId"] as string)
+        this.manager.add(id, avatar, this.network.rooms.getAwareness().getLocalState()!["playerId"] as string)
 
         this.events.on("PLAYER_DELETED",({playerId})=>{
             for(const [id, _] of this.manager.entries()){
@@ -182,7 +182,7 @@ export class AvatarSystem {
 
     static async initialize(...network: ConstructorParameters<typeof AvatarSystem>){
         this._instance = new AvatarSystem(...network)
-        this._instance.initialize()
+        await this._instance.initialize()
     }
 
     static getInstance(): AvatarSystem {

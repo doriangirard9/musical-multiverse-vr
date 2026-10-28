@@ -88,13 +88,13 @@ export class Curve3D implements Synchronized {
         return null
     }
 
-    static getSyncManager(
+    static async getSyncManager(
         doc: Doc,
         scene: Scene,
         onAdd?: (instance:Curve3D)=>void,
         onRemove?: (instance:Curve3D)=>void,
     ) {
-        const syncmanager: SyncManager<Curve3D,string> = new SyncManager({
+        const syncmanager: SyncManager<Curve3D,string> = await SyncManager.create({
             name: "3d_curve",
             doc,
             async on_add(instance) {

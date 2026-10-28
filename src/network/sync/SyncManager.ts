@@ -2,9 +2,33 @@ import { Synchronized } from "./Synchronized";
 import { SyncSerializable } from "./SyncSerializable";
 import * as Y from "yjs";
 
+export type SyncManagerOptions<
+    T extends Synchronized,
+    D extends SyncSerializable|undefined = undefined
+> = {
+    /** The registry name */
+    name: string,
+    /** The YJS document */
+    doc: Y.Doc,
+    /**
+     * Factory function used to create an object instance. Notably used when an object is created by an online collaborator.
+     * It can be called before {@link SyncManager.create} returns, so it receives the manager instead of reading it from a variable.
+     */
+    create: (id:string, state: {get(key:string):SyncSerializable|undefined}, data: D, manager: SyncManager<T,D>) => Promise<T>,
+    /** Function called when an instance is added, whether by an online collaborator or locally */
+    on_add?: (instance: T, state: {get(key:string):SyncSerializable|undefined}, data: D) => Promise<void>,
+    /** Function called when an instance is removed, whether by an online collaborator or locally. Useful for cleanup/dispose */
+    on_remove?: (instance: T, data: D) => Promise<void>,
+    /** Interval for sending updates (debounce) */
+    send_interval?: number,
+    /** Delay before the asynchronous {@link SyncManager.get} function considers the requested object to not exist. See {@link SyncManager.get} */
+    get_timeout?: number,
+}
+
 /**
  * The SyncManager maintains a list of synchronized objects and automatically synchronizes them.
- * It works as an object registry, but its main purpose is to keep the objects in sync across different clients. 
+ * It works as an object registry, but its main purpose is to keep the objects in sync across different clients.
+ * It is created with {@link SyncManager.create}, which also loads the objects already in the document.
  */
 export class SyncManager<
     T extends Synchronized,
@@ -21,25 +45,16 @@ export class SyncManager<
     private get_timeout
 
     /**
-     * 
+     * Creates a SyncManager and loads the objects already present in the document.
      */
-    constructor(options: {
-            /** The registry name */
-            name: string,
-            /** The YJS document */
-            doc: Y.Doc,
-            /** Factory function used to create an object instance. Notably used when an object is created by an online collaborator */
-            create: (id:string, state: {get(key:string):SyncSerializable|undefined}, data: D) => Promise<T>,
-            /** Function called when an instance is added, whether by an online collaborator or locally */
-            on_add?: (instance: T, state: {get(key:string):SyncSerializable|undefined}, data: D) => Promise<void>,
-            /** Function called when an instance is removed, whether by an online collaborator or locally. Useful for cleanup/dispose */
-            on_remove?: (instance: T, data: D) => Promise<void>,
-            /** Interval for sending updates (debounce) */
-            send_interval?: number,
-            /** Delay before the asynchronous {@link get} function considers the requested object to not exist. See {@link get} */
-            get_timeout?: number,
-        },
-    ){
+    static async create<
+        T extends Synchronized,
+        D extends SyncSerializable|undefined = undefined
+    >(options: SyncManagerOptions<T,D>): Promise<SyncManager<T,D>> {
+        return new SyncManager<T,D>(options).initialize()
+    }
+
+    protected constructor(options: SyncManagerOptions<T,D>){
         this.doc = options.doc
         this.create = options.create
         this.on_add = options.on_add
@@ -60,12 +75,15 @@ export class SyncManager<
     public suppressNetworkAdds() { this._suppressNetworkAdd = true }
     public allowNetworkAdds() { this._suppressNetworkAdd = false }
 
-    /** Process any Y.js entries that exist but don't have local instances (missed while suppressed) */
-    public async processExistingEntries() {
+    /**
+     * Creates the instances of the Y.js entries that exist but have no local instance yet: the ones
+     * already in the document when the manager was created, which the observer never sees, and the
+     * ones missed while network adds were suppressed. Does nothing while they are suppressed.
+     */
+    public async initialize(): Promise<this> {
+        if (this._suppressNetworkAdd) return this
         const entries = [...this.shared_data.entries()]
         const missing = entries.filter(([id]) => !this.instances.has(id) && !this._pendingCreation.has(id))
-        if (missing.length === 0) return
-        console.log(`[SyncManager] Processing ${missing.length} existing Y.js entries that were missed while suppressed`)
         await Promise.all(missing.map(async ([id, shared]) => {
             if (this.instances.has(id) || this._pendingCreation.has(id)) return
             this._pendingCreation.add(id)
@@ -75,19 +93,21 @@ export class SyncManager<
                     console.warn(`[SyncManager] No shared_state for existing entry ${id}, skipping`)
                     return
                 }
-                const instance = await this.create(id, state, shared.data)
+                const instance = await this.create(id, state, shared.data, this)
                 this.instances.set(id, instance)
                 this.reverse_instances.set(instance, id)
-                await this.initialize(id, instance, state)
+                await this.initializeInstance(id, instance, state)
                 await Promise.all([...state.entries()].map(([key, value]) => {
                     return instance.setState(key as string, value as SyncSerializable)
                 }))
+                this.on_add?.(instance, state, shared.data)
                 const resolve = this.get_resolver(id)
                 resolve(instance)
             } finally {
                 this._pendingCreation.delete(id)
             }
         }))
+        return this
     }
 
     /**
@@ -109,7 +129,7 @@ export class SyncManager<
         const state = new Y.Map<SyncSerializable>()
         
         // Initialize the synchronizable
-        this.initialize(id, instance, state)
+        this.initializeInstance(id, instance, state)
 
         // Get the state
         instance.askStates()
@@ -309,13 +329,14 @@ export class SyncManager<
                 const new_shared = this.shared_data.get(id)!!
 
                 // Create instance
-                const instance = await this.create(id, new_shared_state, new_shared.data)
+                const instance = await this.create(id, new_shared_state, new_shared.data, this)
                 this.instances.set(id,instance)
                 this.reverse_instances.set(instance,id)
-                await this.initialize(id,instance,new_shared_state)
+                await this.initializeInstance(id,instance,new_shared_state)
                 await Promise.all([...new_shared_state.entries()].map(([key,value])=>{
                     return instance.setState(key as string,value as SyncSerializable)
                 }))
+                this.on_add?.(instance, new_shared_state, new_shared.data)
                 const resolve = this.get_resolver(id)
                 resolve(instance)
             } finally {
@@ -375,7 +396,7 @@ export class SyncManager<
      * @param id 
      * @param instance 
      */
-    private async initialize(id: string, instance: T, shared: Y.Map<SyncSerializable>){
+    private async initializeInstance(id: string, instance: T, shared: Y.Map<SyncSerializable>){
         // L'instance peut indiquer des changements d'état
         // Les changements sont enregistrés dans une liste et seront envoyé ensemble d'un coups.
         await instance.initSync(

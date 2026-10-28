@@ -133,5 +133,33 @@ export class BrowserJSFix {
                 })
             })
         }
+
+
+        //// The WAM SDK adds its 7 modules again for every node, each from a new blob URL ////
+        // Chrome evaluates and keeps every one of them in the same worklet scope, and addModule ends
+        // up never resolving once enough WAMs were loaded.
+        // Solution: A blob whose text was already added to this worklet is not added again
+        if(typeof AudioWorklet !== "undefined"){
+            const old_add_module = AudioWorklet.prototype.addModule
+            const loaded = new WeakMap<AudioWorklet, Map<string, Promise<void>>>()
+            AudioWorklet.prototype.addModule = async function(this:any, url: string|URL, options?: WorkletOptions){
+                const href = url.toString()
+                if(!href.startsWith("blob:")) return old_add_module.call(this, url, options)
+
+                const text = await (await fetch(href)).text()
+
+                let modules = loaded.get(this)
+                if(!modules) loaded.set(this, modules = new Map())
+
+                let promise = modules.get(text)
+                if(!promise){
+                    promise = old_add_module.call(this, url, options)
+                    // A failed module can be tried again
+                    promise.catch(() => modules!.delete(text))
+                    modules.set(text, promise)
+                }
+                return promise
+            }
+        }
     }
 }

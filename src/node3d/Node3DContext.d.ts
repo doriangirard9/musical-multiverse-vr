@@ -286,6 +286,12 @@ export interface Node3DContext{
     //// General ////
 
     /**
+     * Envoie un message à lui-même.
+     * Le message est synchronisé sur le réseau.
+     */
+    sendMessage(message: unknown): void
+
+    /**
      * Enregistre un observateur sur un observable.
      * L'observeur est automatiquement détaché lorsque le Node3D est supprimé de la scène.
      * @param observable L'observable sur lequel enregistrer l'observateur.

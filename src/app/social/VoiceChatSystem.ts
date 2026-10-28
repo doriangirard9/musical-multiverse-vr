@@ -98,7 +98,7 @@ export class VoiceChatSystem {
         private readonly scenes: SceneManager,
         network: NetworkManager,
     ) {
-        this.awareness = network.connection.getAwareness()
+        this.awareness = network.rooms.getAwareness()
         this.microphone = MicrophoneSystem.getInstance()
         this.localPlayerId = String(this.awareness.getLocalState()?.["playerId"] ?? network.playerId)
         this.voiceIndicatorMaterial = new StandardMaterial("voice-indicator", scenes.getScene())
@@ -372,6 +372,7 @@ export class VoiceChatSystem {
             if (peer.disposed) continue
 
             const avatar = this.avatars.findAvatarByPlayerId(playerId)
+            // TODO: On ne doit pas se basé sur l'avatar. C'est un visuel.
             const source = avatar ? this.sanitizeVector(avatar.getHeadPosition(), Vector3.Zero()) : undefined
             const awarenessState = this.getStateByPlayerId(states, playerId)
             const voiceLevel = Math.max(0, Math.min(1, awarenessState?.voiceLevel ?? 0))

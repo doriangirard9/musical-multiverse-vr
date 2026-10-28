@@ -3,6 +3,7 @@ import { NetworkManager } from "../../network/NetworkManager"
 import { SceneManager } from "../SceneManager"
 import { Curve3D } from "../../world/curve/Curve3D"
 import { RandomUtils } from "../../node3d/tools/utils/RandomUtils"
+import { SyncManager } from "../../network/sync/SyncManager"
 
 
 /**
@@ -76,6 +77,7 @@ export class DrawingSystem {
 
     static async initialize(...network: ConstructorParameters<typeof DrawingSystem>){
         this._instance = new DrawingSystem(...network)
+        await this._instance.initialize()
     }
 
     static getInstance(): DrawingSystem {
@@ -85,14 +87,16 @@ export class DrawingSystem {
 
 
     // Drawing
-    readonly manager
+    manager!: SyncManager<Curve3D,string>
 
     constructor(
         readonly network: NetworkManager,
         readonly scene: SceneManager,
         readonly usercolor: Color3,
-    ){
-        this.manager = Curve3D.getSyncManager(network.doc,scene.getScene(), this.onAdd.bind(this))
+    ){}
+
+    async initialize(){
+        this.manager = await Curve3D.getSyncManager(this.network.doc, this.scene.getScene(), this.onAdd.bind(this))
     }
 
     private create(color: Color3): Curve3D {

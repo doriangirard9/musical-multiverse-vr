@@ -17,6 +17,7 @@ export * from "./social/AvatarSystem"
 export * from "./social/DrawingSystem"
 
 export * from "./SceneManager"
+export * from "./NetworkRoomSystem"
 
 export * from "./node3d/Serialization"
 export * from "./node3d/Node3dManager"
