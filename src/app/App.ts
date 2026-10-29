@@ -33,10 +33,8 @@ import { BarMenuSystem } from "./menu/BarMenuSystem.ts";
 import { DrawingSystem } from "./social/DrawingSystem.ts";
 import { ParameterJaugeSystem } from "./feedback/ParameterJaugeSystem.ts";
 import { ToolSystem } from "./tool/ToolSystem.ts";
-import { PCPlatform } from "./platform/PCPlatform.ts";
-import { VisualEffectSystem } from "./visual/VisualEffectSystem.ts";
 import { XRPlatform } from "./platform/XRPlatform.ts";
-import { PhoneViewPlatform } from "./platform/PhoneViewPlatform.ts";
+import { choosePlatform } from "./platform/menu/PlatformMenu.ts";
 import { AudioLifecycle } from "./AudioLifecycle.ts";
 
 /**
@@ -113,9 +111,11 @@ export class App {
 
         report("Preparing XR runtime")
         UIManager.initialize()
-        if(PhoneViewPlatform.isPhone()) await PhoneViewPlatform.initialize()
-        else if(await XRPlatform.hasXRSupport()) await XRPlatform.initialize(SceneManager.getInstance().getScene(), audioEngine)
-        else await PCPlatform.initialize()
+        const platform = await choosePlatform()
+        await platform.init()
+
+        audioEngine.listener.attach(SceneManager.getInstance().getScene().activeCamera);
+
 
         new AudioLifecycle(audioContext, XRPlatform.getInstance()?.xrHelper)
 

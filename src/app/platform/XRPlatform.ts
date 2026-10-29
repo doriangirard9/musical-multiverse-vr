@@ -4,6 +4,8 @@ import {withTimeout} from "../../utils/utils.ts";
 import {Nullable} from "@babylonjs/core";
 import { InputManager } from "../../xr/inputs/InputManager.ts";
 
+import "@babylonjs/core/XR/features/WebXRDepthSensing.js";
+
 /**
  * Responsible for the XR experience, camera, player controls. 
  */
@@ -19,16 +21,26 @@ export class XRPlatform {
 
     //@ts-ignore
     private handmenu : Nullable<HandMenu>;
-    private constructor() {
+
+    private constructor(private isAR: boolean = false) {
     }
 
     public static async hasXRSupport(): Promise<boolean> {
         return await B.WebXRSessionManager.IsSessionSupportedAsync('immersive-vr')
     }
 
-    public static async initialize(scene: B.Scene, audioEngine: B.AudioEngineV2): Promise<void> {
-        this._instance = new XRPlatform()
-        await this._instance.init(scene, audioEngine)
+    public static async hasARSupport(): Promise<boolean> {
+        return await B.WebXRSessionManager.IsSessionSupportedAsync('immersive-ar')
+    }
+
+    public static async initializeXR(scene: B.Scene): Promise<void> {
+        this._instance = new XRPlatform(false)
+        await this._instance.init(scene)
+    }
+
+    public static async initializeAR(scene: B.Scene): Promise<void> {
+        this._instance = new XRPlatform(true)
+        await this._instance.init(scene)
     }
 
     public static getInstance(): XRPlatform {
@@ -38,7 +50,7 @@ export class XRPlatform {
     /**
      * Initialize the WebXR experience, XRInputs and XR features
      */
-    private async init(scene: B.Scene, audioEngine: B.AudioEngineV2): Promise<boolean> {
+    private async init(scene: B.Scene): Promise<boolean> {
         this._scene = scene;
 
         try {
@@ -116,7 +128,6 @@ export class XRPlatform {
                         break;
                 }
             });
-            audioEngine.listener.attach(this.xrHelper.baseExperience.camera);
 
             InputManager.getInstance()._registerXR(this.xrHelper, this)
             InputManager.getInstance()._registerDocument()
@@ -160,13 +171,22 @@ export class XRPlatform {
             throw new Error('WebXR immersive-vr is not supported on this browser');
         }
         const xrExperience = await this._scene.createDefaultXRExperienceAsync({
-            uiOptions: { sessionMode: 'immersive-vr' },
+            uiOptions: { sessionMode: this.isAR ? 'immersive-ar' : 'immersive-vr' },
             optionalFeatures: [B.WebXRFeatureName.HAND_TRACKING],
             disableNearInteraction: true, // On gère ça nous même pour de meilleures performances
             disablePointerSelection: true, // Le rayon et le picking sont les nôtres, voir InputManager et les tools
         });
         this.xrFeaturesManager = xrExperience.baseExperience.featuresManager;
         this.xrFeaturesManager.disableFeature(B.WebXRFeatureName.LAYERS)
+
+        // AR specific features
+        if(this.isAR){
+            this.xrFeaturesManager.enableFeature(B.WebXRFeatureName.DEPTH_SENSING, "latest", {
+                dataFormatPreference: ["ushort", "float"],
+                usagePreference: ["gpu"],
+                disableDepthSensingOnMaterials: false,
+            } as B.IWebXRDepthSensingOptions) as B.WebXRDepthSensing;
+        }
 
         return xrExperience;
     }

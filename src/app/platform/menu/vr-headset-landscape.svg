@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <title>VR headset in front of a landscape</title>
+  <!-- Landscape, behind -->
+  <circle cx="18.5" cy="4.5" r="1.6"/>
+  <path d="M1.5 11.5 6 6l3 3.5L11.5 7l4.5 4.5"/>
+  <!-- Headset, in front -->
+  <path d="M5 13h14a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-3.5l-1.6-1.9a2.5 2.5 0 0 0-3.8 0L8.5 21H5a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2z"/>
+  <circle cx="8" cy="16.8" r="1.4"/>
+  <circle cx="16" cy="16.8" r="1.4"/>
+</svg>

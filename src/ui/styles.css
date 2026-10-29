@@ -435,6 +435,81 @@
     to { transform: rotate(360deg); }
 }
 
+/* ========== Platform menu ========== */
+/* Shown while the session loads, so above the loading overlay */
+.wj-platform-menu {
+    position: fixed;
+    inset: 0;
+    z-index: 2100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    background: var(--bg-overlay);
+    overflow-y: auto;
+    animation: wj-fade-in 200ms ease forwards;
+}
+
+.wj-platform-menu-card {
+    width: 100%;
+    max-width: 640px;
+}
+
+.wj-platform-menu-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 12px;
+}
+
+.wj-platform-menu-choice {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 20px 16px;
+    font-family: var(--font);
+    color: var(--text-primary);
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    cursor: pointer;
+    transition: all var(--transition);
+}
+
+.wj-platform-menu-choice:hover,
+.wj-platform-menu-choice:focus-visible {
+    background: var(--bg-hover);
+    border-color: var(--accent);
+    outline: none;
+}
+
+.wj-platform-menu-choice:hover .wj-platform-menu-icon,
+.wj-platform-menu-choice:focus-visible .wj-platform-menu-icon {
+    color: var(--accent-hover);
+}
+
+.wj-platform-menu-icon {
+    display: flex;
+    color: var(--text-primary);
+    transition: color var(--transition);
+}
+
+.wj-platform-menu-icon svg {
+    width: 48px;
+    height: 48px;
+}
+
+.wj-platform-menu-name {
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.wj-platform-menu-description {
+    font-size: 13px;
+    color: var(--text-secondary);
+    text-align: center;
+}
+
 .wj-loading-text {
     font-family: var(--font);
     font-size: 15px;

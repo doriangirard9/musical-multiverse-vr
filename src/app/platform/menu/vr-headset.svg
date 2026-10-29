@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <title>VR headset</title>
+  <path d="M4 7h16a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2h-4.2l-1.9-2.3a2.5 2.5 0 0 0-3.8 0L8.2 17H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2z"/>
+  <circle cx="7.5" cy="11.5" r="1.8"/>
+  <circle cx="16.5" cy="11.5" r="1.8"/>
+  <path d="M2 11H1M22 11h1"/>
+</svg>

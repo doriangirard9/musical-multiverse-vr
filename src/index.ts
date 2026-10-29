@@ -203,7 +203,7 @@ let onload = async() => {
                         if (tutorialMode) {
                             TutorialController.startWhenInXR(Node3dManager.getInstance().getAudioContext());
                         }
-                        if(await XRPlatform.hasXRSupport()) loadingOverlay.show(appRoot!, 'Session ready ! Click on the headset icon below to enter VR.', false, 100, 'Audio will unlock on your first interaction if needed.')
+                        if(await XRPlatform.getInstance()) loadingOverlay.show(appRoot!, 'Session ready ! Click on the headset icon below to enter VR.', false, 100, 'Audio will unlock on your first interaction if needed.')
                         else loadingOverlay.hide()
                         
                         // Remove spinner if it exists
