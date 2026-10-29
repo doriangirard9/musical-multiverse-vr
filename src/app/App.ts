@@ -111,8 +111,8 @@ export class App {
 
         report("Preparing XR runtime")
         UIManager.initialize()
-        const platform = await choosePlatform()
-        await platform.init()
+        const platform_choice = await choosePlatform()
+        const platform = await platform_choice.init()
 
         audioEngine.listener.attach(SceneManager.getInstance().getScene().activeCamera);
 
@@ -139,7 +139,9 @@ export class App {
         await AppOrchestrator.initialize()
 
         SceneManager.getInstance().start()
-
+        if(platform.doShowEnvironment??true) SceneManager.getInstance().createGround() 
+        if(platform.doCreateDefaultLights??true) SceneManager.getInstance().createLights()
+            
         report("Preparing collaboration tools")
         await Promise.all([
             DrawingSystem.initialize(
@@ -308,6 +310,13 @@ export class App {
             else if(e.key=="v"){
                 InputManager.getInstance().movement.stackDisable()
             }
+            else if(e.key=="n"){
+                console.log("Moving forward 1m")
+                const session = XRPlatform.getInstance().xrHelper.baseExperience.sessionManager
+                session.referenceSpace = session.referenceSpace.getOffsetReferenceSpace(new XRRigidTransform({x:0,y:0,z:1}))
+                console.log("Moved forward 1m")
+            }
+            console.log("Key pressed:", e.key)
         })
 
         MenuSystem.getInstance().showMessage("Welcome to the Musical Multiverse VR!", "white")

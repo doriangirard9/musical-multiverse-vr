@@ -55,13 +55,6 @@ export interface BoxDriverOptions {
     direction: () => Vector3
 
     /**
-     * Does the box meet matter at all? A box that does not is carried around and pressed, but
-     * touches and designates nothing.
-     * @defaultValue true
-     */
-    hittable?: boolean
-
-    /**
      * Is the box itself shown? The halo of the pressure is shown whatever this says.
      * @defaultValue true
      */
@@ -76,8 +69,7 @@ export interface BoxDriverOptions {
  * The sibling of `PointDriver` for a hand whose matter is a volume rather than a ball: a key, a
  * mallet head, a hand itself. It touches the first solid mesh it overlaps, both boxes being
  * oriented ones, so a tilted key on a tilted skin reads right. The trigger presses it, and a green
- * halo says so. A box made not {@link hittable} keeps being moved, pressed and shown, but meets
- * nothing.
+ * halo says so.
  */
 export class BoxDriver {
 
@@ -120,7 +112,6 @@ export class BoxDriver {
         this.#base.material = baseMaterial
         this.#base.rotationQuaternion = Quaternion.Identity()
 
-        this.#hittable = options.hittable ?? true
         this.baseVisible = options.baseVisible ?? true
 
         this.#previous = options.position().clone()
@@ -134,16 +125,6 @@ export class BoxDriver {
         this.#glowMaterial.dispose()
         this.#base.dispose()
         this.#baseMaterial.dispose()
-    }
-
-    /** Does the box meet matter? Made false, it lets go of whatever it touched or designated. */
-    public get hittable(): boolean { return this.#hittable }
-
-    public set hittable(hittable: boolean) {
-        this.#hittable = hittable
-        if(hittable === true) return
-        this.interactor.clearTouch()
-        this.interactor.clearAim()
     }
 
     /** Is the box itself shown? The halo of the pressure is shown whatever this says. */
@@ -168,8 +149,6 @@ export class BoxDriver {
     readonly #base: Mesh
 
     readonly #baseMaterial: StandardMaterial
-
-    #hittable: boolean
 
     /** The position of the box at the previous frame, for the velocity. */
     readonly #previous: Vector3
@@ -207,10 +186,8 @@ export class BoxDriver {
         this.#base.rotationQuaternion!.copyFrom(rotation)
         this.#base.computeWorldMatrix(true)
 
-        if(this.#hittable === true){
-            this.#overlap(current)
-            this.#aim(current)
-        }
+        this.#overlap(current)
+        this.#aim(current)
 
         this.#activation?.update()
         this.#show(current, rotation)

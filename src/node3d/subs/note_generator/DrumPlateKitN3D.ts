@@ -221,6 +221,7 @@ class PlateBehaviour {
             },
         })
 
+        // TODO.: utiliser les bons events de pointer de InputManager
         const action = plate.plate.actionManager = new B.ActionManager(gui.context.scene)
         action.registerAction(new B.ExecuteCodeAction(B.ActionManager.OnPickTrigger, () => {
             plate.startAnimation()

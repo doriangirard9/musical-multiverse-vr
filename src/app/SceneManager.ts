@@ -21,7 +21,7 @@ export class SceneManager {
     private waveGround!: WaveGround
     private soundwaveEmitter!: SoundwaveEmitter
     //@ts-ignore
-    private readonly ground
+    private ground
     private physicsInitialized: boolean = false
     private physicsInitPromise: Promise<void> | null = null
 
@@ -33,9 +33,11 @@ export class SceneManager {
         this.ensureFrameObservable(this.scene)
         this.scene.detachControl()
         this.shadowGenerator = this.initializeShadowGenerator()
-        this.ground = this.createGround()
         this.utilityLayer = new B.UtilityLayerRenderer(this.scene)
         this.ensureFrameObservable(this.utilityLayer.utilityLayerScene)
+        
+        // Soundwave emitter
+        this.soundwaveEmitter = new SoundwaveEmitter(this.scene, GROUND_HEIGHT+.1, 80)
 
         this.scene.clearColor = new B.Color4(0.15, 0.15, 0.15, 1);
         // Handle window resize
@@ -173,15 +175,11 @@ export class SceneManager {
         return caster
     }
 
-    private createGround(): B.Mesh {
+    createGround(): B.Mesh {
         // Ground dimensions
         const groundSize = { width: 100, height: 1, depth: 100 };
         const wallHeight = 2;
         const wallThickness = 1;
-
-
-        // Soundwave emitter
-        this.soundwaveEmitter = new SoundwaveEmitter(this.scene, GROUND_HEIGHT+.1, 80)
 
         // Ground
         const waveGround = this.waveGround = new WaveGround(30,30)
@@ -230,13 +228,17 @@ export class SceneManager {
         createWall(wallThickness, wallHeight, groundSize.depth, halfWidth, halfHeight, 0) // Right
         createWall(wallThickness, wallHeight, groundSize.depth, -halfWidth, halfHeight, 0) // Left
 
+        this.ground = ground
+
+        return ground
+    }
+
+    createLights(){
         // Create hemispheric light
         const hemisphericLight = new B.HemisphericLight("hemisphericLight", new B.Vector3(0, 1, 0), this.scene)
         const light2 = new B.HemisphericLight("light2", new B.Vector3(0, -1, 0), this.scene)
         hemisphericLight.intensity = 0.6
         light2.intensity = 0.5
-
-        return ground
     }
 
 

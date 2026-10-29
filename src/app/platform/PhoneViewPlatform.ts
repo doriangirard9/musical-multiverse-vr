@@ -3,6 +3,7 @@ import { InputManager } from "../../xr/inputs/InputManager.ts";
 import { ControllerInput } from "../../xr/inputs/ControllerInput.ts";
 import { SceneManager } from "../SceneManager.ts";
 import { CAMERA_HEIGHT, IDLE_DOWN, IDLE_FORWARD, IDLE_SIDE } from "./PCPlatform.ts";
+import { Platform } from "./Platform.ts";
 
 /** How far the knob can leave the center of the joystick, in css pixels. */
 const JOYSTICK_RADIUS = 60
@@ -14,7 +15,7 @@ const WALK_SPEED = 2
  * Responsible for the phone experience : the phone is a window on the world, turned by turning the
  * phone itself, and a joystick that appears under the finger walks the player around.
  */
-export class PhoneViewPlatform {
+export class PhoneViewPlatform implements Platform {
 
     private static _instance: PhoneViewPlatform
 

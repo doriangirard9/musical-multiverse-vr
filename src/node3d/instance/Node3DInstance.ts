@@ -409,7 +409,7 @@ export class Node3DInstance implements Synchronized {
                     menus.showMessage(message)
                 },
                 sendSignal(position, red, green, blue) {
-                    SceneManager.getInstance().getWaveGround().putWorldSpace(position, red, green, blue)
+                    SceneManager.getInstance().getWaveGround()?.putWorldSpace(position, red, green, blue)
                     SceneManager.getInstance().getSoundwaveEmitter().spawn(new Vector2(position.x, position.z), new Color3(red, green, blue))
                     new BoxWave(
                         instance.boundingBoxMesh,

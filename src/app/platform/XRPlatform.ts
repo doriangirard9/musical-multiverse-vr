@@ -5,11 +5,12 @@ import {Nullable} from "@babylonjs/core";
 import { InputManager } from "../../xr/inputs/InputManager.ts";
 
 import "@babylonjs/core/XR/features/WebXRDepthSensing.js";
+import { Platform } from "./Platform.ts";
 
 /**
  * Responsible for the XR experience, camera, player controls. 
  */
-export class XRPlatform {
+export class XRPlatform implements Platform {
     private static _instance: XRPlatform;
     public xrInputManager!: XRInputManager;
     public xrHelper!: B.WebXRDefaultExperience;
@@ -24,6 +25,8 @@ export class XRPlatform {
 
     private constructor(private isAR: boolean = false) {
     }
+
+    get doShowEnvironment(){ return !this.isAR }
 
     public static async hasXRSupport(): Promise<boolean> {
         return await B.WebXRSessionManager.IsSessionSupportedAsync('immersive-vr')
@@ -186,6 +189,18 @@ export class XRPlatform {
                 usagePreference: ["gpu"],
                 disableDepthSensingOnMaterials: false,
             } as B.IWebXRDepthSensingOptions) as B.WebXRDepthSensing;
+
+            // TODO: Impossible à tester avec l'émulateur, il faut tester avec le casque. Et supporter l'utilisation
+            // d'un QR Code (ou autre image du même type) pour replacer le reference space et permettre la synchronisation
+            // des positions entre les utilisateurs. 
+            // const detection = this.xrFeaturesManager.enableFeature(B.WebXRFeatureName.IMAGE_TRACKING, "latest", {
+            //     images:[]
+            // })
+
+            // detection.onTrackableImageFoundObservable.add((image) => {
+            //     image.transformationMatrix
+            // })
+            
         }
 
         return xrExperience;
@@ -199,6 +214,8 @@ export class XRPlatform {
     }
 
     setMovement(features: ("rotation"|"translation")[]){
+        if(this.isAR) return;
+
         const featuresManager: B.WebXRFeaturesManager = this.xrHelper.baseExperience.featuresManager
         try{ featuresManager.disableFeature(B.WebXRFeatureName.MOVEMENT) }catch(e){}
         

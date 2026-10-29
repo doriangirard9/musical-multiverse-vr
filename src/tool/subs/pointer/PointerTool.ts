@@ -14,9 +14,8 @@ const POINT_RADIUS = 0.015
  * @remarks
  * The only hand asking the world for its ordinary interactions: the parameters, the buttons, the
  * hitboxes and the links answer a pointing hand and nothing else. Selecting and grabbing are driven
- * by the meshes of the world, so this hand only owns the ray visual and a point of matter that
- * meets nothing: it does not play the instruments, but still carries a point for whatever looks
- * for one.
+ * by the meshes of the world, so this hand only owns the ray visual and a point of matter at the
+ * origin of the ray, which plays the instruments it touches as every other hand does.
  */
 export class PointerTool implements Tool {
 
@@ -34,7 +33,6 @@ export class PointerTool implements Tool {
             radius: POINT_RADIUS,
             position: () => pointer.origin.clone(),
             direction: () => pointer.forward,
-            hittable: false,
         })
     }
 

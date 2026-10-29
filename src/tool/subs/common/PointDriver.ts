@@ -52,13 +52,6 @@ export interface PointDriverOptions {
     direction: () => Vector3
 
     /**
-     * Does the point meet matter at all? A point that does not is carried around and pressed, but
-     * touches and designates nothing.
-     * @defaultValue true
-     */
-    hittable?: boolean
-
-    /**
      * Is the ball itself shown? The halo of the pressure is shown whatever this says.
      * @defaultValue true
      */
@@ -80,10 +73,6 @@ export interface PointDriverOptions {
  * point of matter shows the same thing at the same place, which is where the point actually is.
  * The ball itself is shown too, and a hand with a visual of its own hides it with
  * {@link baseVisible}.
- *
- * A point made not {@link hittable} keeps being moved, pressed and shown, but meets nothing: a hand
- * that is not meant to play the instruments still carries a point of matter, so that whatever
- * looks for one finds it.
  */
 export class PointDriver {
 
@@ -123,7 +112,6 @@ export class PointDriver {
         this.#base.isPickable = false
         this.#base.material = baseMaterial
 
-        this.#hittable = options.hittable ?? true
         this.baseVisible = options.baseVisible ?? true
 
         this.#previous = options.position().clone()
@@ -137,16 +125,6 @@ export class PointDriver {
         this.#glowMaterial.dispose()
         this.#base.dispose()
         this.#baseMaterial.dispose()
-    }
-
-    /** Does the point meet matter? Made false, it lets go of whatever it touched or designated. */
-    public get hittable(): boolean { return this.#hittable }
-
-    public set hittable(hittable: boolean) {
-        this.#hittable = hittable
-        if(hittable === true) return
-        this.interactor.clearTouch()
-        this.interactor.clearAim()
     }
 
     /** Is the ball itself shown? The halo of the pressure is shown whatever this says. */
@@ -172,8 +150,6 @@ export class PointDriver {
 
     readonly #baseMaterial: StandardMaterial
 
-    #hittable: boolean
-
     /** The position of the point at the previous frame, the start of the segment swept. */
     readonly #previous: Vector3
 
@@ -192,10 +168,10 @@ export class PointDriver {
         current.subtractToRef(this.#previous, this.#travel)
         this.#readVelocity(scene.getEngine().getDeltaTime() / 1000)
 
-        if(this.#hittable === true) this.#sweep(current)
+        this.#sweep(current)
         this.#previous.copyFrom(current)
 
-        if(this.#hittable === true) this.#aim(current)
+        this.#aim(current)
 
         this.#activation?.update()
         this.#show(current)

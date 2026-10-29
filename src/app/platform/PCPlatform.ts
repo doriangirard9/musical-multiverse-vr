@@ -3,6 +3,7 @@ import { InputManager } from "../../xr/inputs/InputManager.ts";
 import { ControllerInput } from "../../xr/inputs/ControllerInput.ts";
 import { ButtonInput } from "../../xr/inputs/ButtonInput.ts";
 import { SceneManager } from "../SceneManager.ts";
+import { Platform } from "./Platform.ts";
 
 /**
  * TODO: a vérifier et déplacer
@@ -32,7 +33,7 @@ export const IDLE_DOWN = 0.08
 /**
  * Responsible for the PC (desktop, ...) experience, camera, player controls.
  */
-export class PCPlatform {
+export class PCPlatform implements Platform {
 
     private static _instance: PCPlatform;
 

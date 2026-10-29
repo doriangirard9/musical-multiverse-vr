@@ -1,12 +1,12 @@
-import { browser } from "@tensorflow/tfjs";
 import { SceneManager } from "../../SceneManager";
 import { PCPlatform } from "../PCPlatform";
 import { PhoneViewPlatform } from "../PhoneViewPlatform";
+import { Platform } from "../Platform";
 import { XRPlatform } from "../XRPlatform";
 
 export interface PlatformChoice{
     checkSupport(): Promise<boolean>
-    init(): Promise<void>
+    init(): Promise<Platform>
     /** The SVG markup of the icon, inlined so it takes the color of the text around it. */
     icon: string
     /** Identifies the platform in the url, so a reload keeps the choice. */
@@ -25,8 +25,9 @@ export const PLATFORMS: PlatformChoice[] = [
             return  !navigator.userAgent.includes("OculusBrowser")
             &&      window.matchMedia('(pointer: fine)').matches
         },
-        async init(): Promise<void> {
+        async init(): Promise<Platform> {
             await PCPlatform.initialize()
+            return PCPlatform.getInstance()
         },
     },
     {
@@ -37,8 +38,9 @@ export const PLATFORMS: PlatformChoice[] = [
         async checkSupport(): Promise<boolean> {
             return await XRPlatform.hasXRSupport()
         },
-        async init(): Promise<void> {
+        async init(): Promise<Platform> {
             await XRPlatform.initializeXR(SceneManager.getInstance().getScene())
+            return XRPlatform.getInstance()
         },
     },
     {
@@ -49,8 +51,9 @@ export const PLATFORMS: PlatformChoice[] = [
         async checkSupport(): Promise<boolean> {
             return await XRPlatform.hasARSupport()
         },
-        async init(): Promise<void> {
+        async init(): Promise<Platform> {
             await XRPlatform.initializeAR(SceneManager.getInstance().getScene())
+            return XRPlatform.getInstance()
         },
     },
     {
@@ -61,8 +64,9 @@ export const PLATFORMS: PlatformChoice[] = [
         async checkSupport(): Promise<boolean> {
             return PhoneViewPlatform.isPhone()
         },
-        async init(): Promise<void> {
+        async init(): Promise<Platform> {
             await PhoneViewPlatform.initialize()
+            return PhoneViewPlatform.getInstance()
         },
     }
 ]

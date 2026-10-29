@@ -20,7 +20,7 @@ import { SessionConnector } from "./network/SessionConnector.ts";
 import { RandomUtils } from "./node3d/tools/utils/RandomUtils.ts";
 import { XRPlatform } from "./app/platform/XRPlatform.ts";
 
-installConsoleFilter();
+// TODO: remettre si nécessaire installConsoleFilter();
 
 let appStarted = false;
 /**
