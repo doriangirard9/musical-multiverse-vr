@@ -7,7 +7,7 @@ type AutomationPayload = number
 
 
 /**
- * A network node of automation: a parameter driven through one drives the parameters connected to the others.
+ * A network node of automation: a parameter driven through it drives the parameters connected to its copies on every client.
  *
  * @remarks
  * The value travels normalized, so each output maps it onto the range of the parameter it drives.
@@ -67,7 +67,7 @@ export const AutomationNetworkN3DFactory: Node3DFactory<NetworkN3DGUI, Automatio
 
     label: "Automation Network",
 
-    description: "Shares automation between the players: the value it receives drives, on every player's side, the parameters connected to the Automation Networks listening on its channel.",
+    description: "Shares automation between the players: the value it receives drives the parameters connected to its output on the side of every player listening on its channel.",
 
     tags: ["automation", "network", "technical"],
 

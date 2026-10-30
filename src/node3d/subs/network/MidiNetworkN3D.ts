@@ -7,7 +7,7 @@ import { AbstractNetworkN3D, NetworkN3DGUI } from "./AbstractNetworkN3D";
 type MidiPayload = number[][]
 
 
-/** A network node of MIDI: the notes played into one come out of the others. */
+/** A network node of MIDI: the notes played into it come out of its copies on every client. */
 export class MidiNetworkN3D extends AbstractNetworkN3D<MidiPayload> {
 
     private output
@@ -69,7 +69,7 @@ export const MidiNetworkN3DFactory: Node3DFactory<NetworkN3DGUI, MidiNetworkN3D>
 
     label: "MIDI Network",
 
-    description: "Shares MIDI between the players: the MIDI it receives comes out, on every player's side, of the MIDI Networks listening on its channel.",
+    description: "Shares MIDI between the players: the MIDI it receives comes out of it on the side of every player listening on its channel.",
 
     tags: ["midi", "network", "technical"],
 

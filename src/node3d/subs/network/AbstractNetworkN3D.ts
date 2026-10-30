@@ -126,23 +126,20 @@ export class NetworkN3DGUI implements Node3DGUI {
 
 /**
  * Shares something between the clients. What a network node gets on its input is sent as a message to the
- * same node on every client, the sender included. There, each copy hands it to every network node of the same
- * kind on its client listening on that channel, itself included, and they put it out on their output.
- * So the output gives the same everywhere, whoever fed the input.
+ * same node on every client, the sender included, and each copy listening on its channel puts it out on
+ * its output. So the output gives the same everywhere, whoever fed the input.
  *
  * @remarks
- * A network node listens to a channel when its receive channel is the same, or when either one is ALL.
- * The channels are not synchronized: each player sets them for themselves, and a message carries
- * the send channel of the player whose input it came from.
+ * The channels are not synchronized: each player sets them for themselves on their copy, and a message
+ * carries the send channel of the player whose input it came from. A copy listens to a channel when its
+ * receive channel is the same, or when either one is ALL. So a player can take in only what one other
+ * player sends, and send only to another.
  * The switch turns both ways off: a disabled network node neither sends nor puts out.
  *
  * An implementation creates its connectables on the meshes of the GUI, calls {@link share} with what
  * its input gets, and puts out on its output what {@link play} is given.
  */
 export abstract class AbstractNetworkN3D<P> implements Node3D {
-
-    /** The network nodes of this client, which a message is handed to. */
-    private static readonly instances = new Set<AbstractNetworkN3D<unknown>>()
 
     private enabled = true
     private sendChannel = ALL
@@ -176,11 +173,9 @@ export abstract class AbstractNetworkN3D<P> implements Node3D {
             () => "Receive channel",
             value => CHANNEL_LABELS[value],
         ), { notSynced: true }))
-
-        AbstractNetworkN3D.instances.add(this)
     }
 
-    /** Sends what the input got to the network nodes listening on the send channel. */
+    /** Sends what the input got to the copies listening on the send channel. */
     protected share(payload: P){
         if (!this.enabled) return
         this.context.sendMessage({ payload, channel: this.sendChannel } satisfies NetworkMessage)
@@ -192,19 +187,15 @@ export abstract class AbstractNetworkN3D<P> implements Node3D {
      */
     protected abstract read(payload: unknown): P | null
 
-    /** Puts out on the output what a network node listened to has shared. */
+    /** Puts out on the output what a copy listened to has shared. */
     protected abstract play(payload: P): void
 
     onMessage(message: unknown){
         if (typeof message !== "object" || message === null || !("payload" in message)) return
         const { payload, channel } = message as NetworkMessage
-        if (typeof channel !== "number") return
+        if (typeof channel !== "number" || !this.listensTo(channel)) return
         const read = this.read(payload)
-        if (read === null) return
-
-        for (const node of AbstractNetworkN3D.instances) {
-            if (node.constructor === this.constructor && node.listensTo(channel)) node.play(read)
-        }
+        if (read !== null) this.play(read)
     }
 
     private listensTo(channel: number){
@@ -217,7 +208,5 @@ export abstract class AbstractNetworkN3D<P> implements Node3D {
 
     getStateKeys(){ return [] }
 
-    async dispose(){
-        AbstractNetworkN3D.instances.delete(this)
-    }
+    async dispose(){ }
 }
