@@ -192,6 +192,14 @@ export class AbstractMenu {
      * @returns Observable to unsubscribe
      */
     followHead(distance: number = 2) {
+        const ray = this.scene.activeCamera!.getForwardRay()
+        const d = ray.direction.multiplyByFloats(1, 0, 1).normalize()
+        const position = d.scale(distance).addInPlace(ray.origin)
+
+        this._root.position.copyFrom(position)
+        this._root.rotationQuaternion = Quaternion.FromLookDirectionLH(d.scale(-1), Vector3.Up())
+            .multiplyInPlace(Quaternion.FromEulerAngles(0.1, 0, 0))
+
         const o = this.scene.onAfterPhysicsObservable.add(() => {
             const ray = this.scene.activeCamera!.getForwardRay()
             const d = ray.direction.multiplyByFloats(1, 0, 1).normalize()

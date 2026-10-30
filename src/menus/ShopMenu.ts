@@ -261,6 +261,7 @@ export class ShopMenu extends AbstractMenu {
                     },
                     Other: {
                         Other: [],
+                        Network: [],
                     },
                     Output: {
                         Output: []
@@ -297,6 +298,8 @@ export class ShopMenu extends AbstractMenu {
                         else if (tags.includes("effect")) target.push(menus.Video.Effect)
                         else target.push(menus.Video.Other)
                     }
+
+                    if (tags.includes("network")) target.push(menus.Other.Network)
 
                     if (target.length === 0) target.push(menus.Other.Other)
 

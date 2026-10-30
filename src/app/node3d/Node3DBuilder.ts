@@ -10,7 +10,8 @@ import { N3DShared } from "../../node3d/instance/N3DShared.ts";
 import { MaracasN3DFactory } from "../../node3d/subs/maracas/MaracasN3D.ts";
 import { HandMaracasN3DFactory } from "../../node3d/subs/maracas/HandMaracasN3D.ts";
 import { NoteBoxN3DFactory } from "../../node3d/subs/NoteBoxN3D.ts";
-import { MidiSyncN3DFactory } from "../../node3d/subs/MidiSyncN3D.ts";
+import { MidiNetworkN3DFactory } from "../../node3d/subs/network/MidiNetworkN3D.ts";
+import { AutomationNetworkN3DFactory } from "../../node3d/subs/network/AutomationNetworkN3D.ts";
 import { SpeakerN3DFactory } from "../../node3d/subs/speaker/SpeakerN3D.ts";
 import { PianoRollN3DFactory } from "../../node3d/subs/PianoRoll/PianoRoll3d.ts";
 import { DrumKitN3DFactory } from "../../node3d/subs/drumkit/DrumKitN3D.ts";
@@ -81,6 +82,7 @@ export class Node3DBuilder {
         "audiooutput", "oscillator", "maracas", "handmaracas", "livepiano", "notesbox", "pianoroll", "drumkit", "wamsampler", "drumsampler", "pro54michel", "butterchurn", "screen", "box_screen", "sphere_screen", "cylinder_screen", "isf_shader", "spectrum_bars", "oscilloscope", "spectogram", "livegain",
         "hyperkeyboard", "drumplatekit", "automation_controller", "the_cube", "harp", "large_harp", "voice", "gaze", "sequencer12", "sequencer16", "audio_plaque", "superformula", "superformula3d", "fluid_field", "rain_plinko", "ai_composer", "ai_composer_improv", "ai_composer_drums", "ai_composer_basic", "ai_composer_vae",
         "plaque", "randomizer", "chest", "timer",
+        "midinetwork", "automationnetwork",
         ...Object.keys(examples).map(k => `wam3d-${k}`),
         ...SERVER_KINDS.map(k => `server-${k}`),
     ]
@@ -156,7 +158,8 @@ export class Node3DBuilder {
         if (kind == "handmaracas") return HandMaracasN3DFactory
         if (kind == "livepiano") return LivePianoN3DFactory
         if (kind == "notesbox") return NoteBoxN3DFactory
-        if (kind == "midisync") return MidiSyncN3DFactory
+        if (kind == "midinetwork") return MidiNetworkN3DFactory
+        if (kind == "automationnetwork") return AutomationNetworkN3DFactory
         if (kind == "pianoroll") return PianoRollN3DFactory
         if (kind == "drumkit") return DrumKitN3DFactory
         if (kind == "wamsampler" || kind == "drumsampler") return WamSamplerN3DFactory

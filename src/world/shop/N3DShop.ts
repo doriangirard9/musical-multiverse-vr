@@ -194,14 +194,14 @@ export class N3DShop {
 
     static BASE_OPTIONS: N3DShopOptions = {
         kinds: [
-            "livepiano", "maracas", "handmaracas", "audiooutput", "oscillator", "notesbox", "midisync",
+            "livepiano", "maracas", "handmaracas", "audiooutput", "oscillator", "notesbox", "midinetwork",
             "wam3d-modal", "wam3d-Micro 54", "wam3d-Vox Amp 30", "wam3d-Faust Flute", "wam3d-Disto Machine", "wam3d-FAUST Guitar", "wam3d-KVerb",
         ],
         categories: {
             generator: ["livepiano", "oscillator", "notesbox", "maracas", "handmaracas"],
             instrument: ["wam3d-Micro 54", "wam3d-Faust Flute", "wam3d-FAUST Guitar", "wam3d-modal"],
             effect: ["wam3d-Vox Amp 30", "wam3d-Disto Machine", "wam3d-KVerb"],
-            technical: ["audiooutput", "midisync"],
+            technical: ["audiooutput", "midinetwork"],
         }
     }
 

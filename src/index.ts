@@ -15,7 +15,6 @@ import { SessionBrowserPage } from "./ui/pages/SessionBrowserPage.ts";
 import { ProjectsPage } from "./ui/pages/ProjectsPage.ts";
 import { LoadingOverlay } from "./ui/pages/LoadingOverlay.ts";
 import { SessionAPIClient } from "./network/SessionAPIClient.ts";
-import { installConsoleFilter } from "./utils/logger.ts";
 import { SessionConnector } from "./network/SessionConnector.ts";
 import { RandomUtils } from "./node3d/tools/utils/RandomUtils.ts";
 import { XRPlatform } from "./app/platform/XRPlatform.ts";
@@ -26,6 +25,7 @@ let appStarted = false;
 /**
  * # Plan du code
  * Une description de quelques parties importantes du code.
+ * 
  * ## Créer un nouvel objet
  * Les objets manipulable et connectables (plugin, sortie audio, clavier,...) sont appelés des
  * Node3D. Pour créer un nouvel objet il faut implémenter les interface Node3D, Node3DFactory et Node3DGUI.
@@ -142,20 +142,18 @@ let onload = async() => {
                         loadingOverlay.update('Loading session runtime...', 10, 'Importing VR, sync and tutorial modules...')
                         const [
                             { App },
-                            { SessionHUD },
                             { SessionConnector },
                             { Node3dManager },
                             { TutorialController },
                             Y,
                         ] = await Promise.all([
                             import("./app/App.ts"),
-                            import("./ui/pages/SessionHUD.ts"),
                             import("./network/SessionConnector.ts"),
                             import("./app/node3d/Node3dManager.ts"),
                             import("./tutorial/TutorialController.ts"),
                             import("yjs"),
                         ]);
-                        sessionHud ??= new SessionHUD(apiClient, router);
+                        //sessionHud ??= new SessionHUD(apiClient, router);
 
                         const doc = new Y.Doc();
                         activeConnector = new SessionConnector(
@@ -195,7 +193,7 @@ let onload = async() => {
                             overlay.style.pointerEvents = 'none';
                         }
                         
-                        sessionHud.show(appRoot!, sessionId, connectionInfo.sessionName, connectionInfo.maxUsers, connectionInfo.participantNumber);
+                        sessionHud?.show(appRoot!, sessionId, connectionInfo.sessionName, connectionInfo.maxUsers, connectionInfo.participantNumber);
 
                         // Now that Node3dManager is initialized, we can hydrate the CRDT state
                         loadingOverlay.update('Checking session state...', 88, 'Restoring shared graph and waiting for peers if needed...')
