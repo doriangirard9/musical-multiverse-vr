@@ -225,7 +225,7 @@ export namespace AutomationN3DConnectable {
             let ret = v
             if(ret>1) ret = 1
             if(ret<0) ret = 0
-            ret = Math.pow(ret,1/settings.getExponant())
+            ret = Math.pow(ret,1/(settings.getExponant()||1))
             ret = ret*(settings.getMax()-settings.getMin())+settings.getMin()
             if(settings.getStepSize()!=0) ret = Math.round(ret/settings.getStepSize())*settings.getStepSize()
             return ret
